@@ -5,17 +5,39 @@ import { CurrentWeather } from "@/components/CurrentWeather";
 import { HourlyForecast } from "@/components/HourlyForecast";
 import { DailyForecast } from "@/components/DailyForecast";
 import { WeatherSkeleton } from "@/components/WeatherSkeleton";
-import { GeoLocation, getDefaultCity, getWeather } from "@/lib/weather";
+import { GeoLocation, getDefaultCity, getWeather, getUserLocation, reverseGeocode, setDefaultCity } from "@/lib/weather";
 import { CloudRain } from "lucide-react";
 
 const Index = () => {
   const [selectedCity, setSelectedCity] = useState<GeoLocation | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
 
   useEffect(() => {
-    const defaultCity = getDefaultCity();
-    if (defaultCity) {
-      setSelectedCity(defaultCity);
-    }
+    const initializeLocation = async () => {
+      // First check if there's a saved default city
+      const defaultCity = getDefaultCity();
+      if (defaultCity) {
+        setSelectedCity(defaultCity);
+        return;
+      }
+
+      // Otherwise, try to get user's current location
+      setIsLocating(true);
+      try {
+        const coords = await getUserLocation();
+        const location = await reverseGeocode(coords.latitude, coords.longitude);
+        if (location) {
+          setSelectedCity(location);
+          setDefaultCity(location); // Save as default
+        }
+      } catch (error) {
+        console.log('Could not get location:', error);
+      } finally {
+        setIsLocating(false);
+      }
+    };
+
+    initializeLocation();
   }, []);
 
   const { data: weather, isLoading, error } = useQuery({
@@ -37,7 +59,15 @@ const Index = () => {
 
         {/* Main content */}
         <main className="space-y-6">
-          {!selectedCity ? (
+          {isLocating ? (
+            <div className="text-center py-20 animate-fade-in">
+              <CloudRain className="h-16 w-16 mx-auto mb-4 text-primary animate-pulse-glow" />
+              <h2 className="text-2xl font-semibold mb-2">Finding your location...</h2>
+              <p className="text-muted-foreground">
+                Please allow location access for local weather
+              </p>
+            </div>
+          ) : !selectedCity ? (
             <div className="text-center py-20 animate-fade-in">
               <CloudRain className="h-16 w-16 mx-auto mb-4 text-primary animate-pulse-glow" />
               <h2 className="text-2xl font-semibold mb-2">Welcome to Weather</h2>

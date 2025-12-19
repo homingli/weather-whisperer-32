@@ -189,3 +189,71 @@ export function getDefaultCity(): GeoLocation | null {
 export function setDefaultCity(city: GeoLocation): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(city));
 }
+
+// Get user's current location using browser geolocation
+export function getUserLocation(): Promise<{ latitude: number; longitude: number }> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation not supported'));
+      return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+      },
+      (error) => {
+        reject(error);
+      },
+      { timeout: 10000, enableHighAccuracy: false }
+    );
+  });
+}
+
+// Reverse geocode coordinates to get city name
+export async function reverseGeocode(latitude: number, longitude: number): Promise<GeoLocation | null> {
+  try {
+    // Use Open-Meteo's geocoding with a search nearby the coordinates
+    const response = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=city&count=1&language=en&format=json`
+    );
+    
+    // Open-Meteo doesn't have reverse geocoding, so we'll use a different approach
+    // We'll use the coordinates directly and try to find the nearest city via search
+    // For now, create a location object with the coordinates
+    const cityResponse = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+    );
+    
+    if (!cityResponse.ok) {
+      // Fallback: just use coordinates
+      return {
+        name: 'Current Location',
+        latitude,
+        longitude,
+        country: '',
+      };
+    }
+    
+    const data = await cityResponse.json();
+    const address = data.address || {};
+    
+    return {
+      name: address.city || address.town || address.village || address.municipality || 'Current Location',
+      latitude,
+      longitude,
+      country: address.country || '',
+      admin1: address.state || address.county,
+    };
+  } catch {
+    return {
+      name: 'Current Location',
+      latitude,
+      longitude,
+      country: '',
+    };
+  }
+}
