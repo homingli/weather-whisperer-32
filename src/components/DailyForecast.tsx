@@ -10,7 +10,7 @@ export function DailyForecast({ forecast }: DailyForecastProps) {
   const formatDay = (date: Date) => {
     if (isToday(date)) return "Today";
     if (isTomorrow(date)) return "Tomorrow";
-    return format(date, "EEEE");
+    return format(date, "EEE");
   };
 
   // Find min and max temps for the week to calculate bar widths
@@ -35,7 +35,10 @@ export function DailyForecast({ forecast }: DailyForecastProps) {
               key={day.date.toISOString()}
               className="flex items-center gap-4 px-2 py-3 rounded-xl hover:bg-secondary/30 transition-colors"
             >
-              <span className="w-24 text-sm font-medium">{formatDay(day.date)}</span>
+              <div className="w-20 text-sm">
+                <span className="font-medium">{formatDay(day.date)}</span>
+                <span className="text-xs text-muted-foreground ml-1">{format(day.date, "d/M")}</span>
+              </div>
               
               <span className="text-2xl w-10 text-center">{getWeatherIcon(day.weatherCode, true)}</span>
               

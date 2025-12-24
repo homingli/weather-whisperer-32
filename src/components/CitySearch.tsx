@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, MapPin, X } from "lucide-react";
+import { Search, MapPin, X, LocateFixed } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { searchCities, GeoLocation, setDefaultCity } from "@/lib/weather";
+import { Button } from "@/components/ui/button";
+import { searchCities, GeoLocation, setDefaultCity, getUserLocation, reverseGeocode } from "@/lib/weather";
+import { toast } from "sonner";
 
 interface CitySearchProps {
   currentCity: GeoLocation | null;
@@ -13,7 +15,26 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
   const [results, setResults] = useState<GeoLocation[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleRefreshLocation = async () => {
+    setIsLocating(true);
+    try {
+      const coords = await getUserLocation();
+      const location = await reverseGeocode(coords.latitude, coords.longitude);
+      if (location) {
+        setDefaultCity(location);
+        onCitySelect(location);
+        toast.success(`Location updated to ${location.name}`);
+      }
+    } catch (error) {
+      toast.error("Could not get your location. Please check permissions.");
+      console.error("Location error:", error);
+    } finally {
+      setIsLocating(false);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -78,6 +99,16 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
           <span className="text-sm">
             {currentCity.name}, {currentCity.admin1 ? `${currentCity.admin1}, ` : ''}{currentCity.country}
           </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 ml-1"
+            onClick={handleRefreshLocation}
+            disabled={isLocating}
+            title="Refresh to current location"
+          >
+            <LocateFixed className={`h-4 w-4 ${isLocating ? 'animate-spin' : ''}`} />
+          </Button>
         </div>
       )}
 
