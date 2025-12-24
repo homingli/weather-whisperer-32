@@ -35,9 +35,9 @@ export function DailyForecast({ forecast }: DailyForecastProps) {
               key={day.date.toISOString()}
               className="flex items-center gap-4 px-2 py-3 rounded-xl hover:bg-secondary/30 transition-colors"
             >
-              <div className="w-20 text-sm">
-                <span className="font-medium">{formatDay(day.date)}</span>
-                <span className="text-xs text-muted-foreground ml-1">{format(day.date, "d/M")}</span>
+              <div className="w-24 text-sm">
+                <span className="text-muted-foreground">{format(day.date, "d/M")}</span>
+                <span className="font-medium ml-1">{formatDay(day.date)}</span>
               </div>
               
               <span className="text-2xl w-10 text-center">{getWeatherIcon(day.weatherCode, true)}</span>

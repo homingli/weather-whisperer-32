@@ -1,5 +1,6 @@
 import { Droplets, Wind, Thermometer } from "lucide-react";
 import { CurrentWeather as CurrentWeatherType, getWeatherDescription, getWeatherIcon } from "@/lib/weather";
+import { format } from "date-fns";
 
 interface CurrentWeatherProps {
   weather: CurrentWeatherType;
@@ -8,6 +9,10 @@ interface CurrentWeatherProps {
 export function CurrentWeather({ weather }: CurrentWeatherProps) {
   return (
     <div className="text-center py-8 animate-fade-in" style={{ animationDelay: "0.1s" }}>
+      <p className="text-sm text-muted-foreground mb-4">
+        {format(new Date(), "EEEE, d MMMM yyyy")}
+      </p>
+      
       <div className="text-7xl mb-4 weather-icon-glow">
         {getWeatherIcon(weather.weatherCode, weather.isDay)}
       </div>
