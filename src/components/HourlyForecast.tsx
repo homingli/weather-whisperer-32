@@ -13,28 +13,23 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
         HOURLY FORECAST
       </h3>
       
-      <ScrollArea className="w-full">
-        <div className="flex gap-2 pb-4">
-          {forecast.map((hour, index) => (
-            <div
-              key={hour.time.toISOString()}
-              className="flex flex-col items-center gap-2 px-4 py-3 min-w-[72px] rounded-xl hover:bg-secondary/30 transition-colors"
-            >
-              <span className="text-sm text-muted-foreground">
-                {index === 0 ? "Now" : format(hour.time, "ha")}
-              </span>
-              <span className="text-2xl">{getWeatherIcon(hour.weatherCode, hour.isDay)}</span>
-              <span className="font-medium">{Math.round(hour.temperature)}°</span>
-              {hour.precipitationProbability > 0 && (
-                <span className="text-xs text-weather-rain">
-                  {hour.precipitationProbability}%
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      <div className="flex flex-col gap-1">
+        {forecast.map((hour, index) => (
+          <div
+            key={hour.time.toISOString()}
+            className="flex items-center justify-between px-4 py-2 rounded-lg hover:bg-secondary/30 transition-colors"
+          >
+            <span className="text-sm text-muted-foreground w-16">
+              {index === 0 ? "Now" : format(hour.time, "ha")}
+            </span>
+            <span className="text-2xl">{getWeatherIcon(hour.weatherCode, hour.isDay)}</span>
+            <span className="font-medium w-12 text-right">{Math.round(hour.temperature)}°</span>
+            <span className="text-xs text-weather-rain w-12 text-right">
+              {hour.precipitationProbability > 0 ? `${hour.precipitationProbability}%` : "—"}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
