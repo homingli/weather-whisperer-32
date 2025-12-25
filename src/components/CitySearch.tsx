@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, MapPin, X, LocateFixed } from "lucide-react";
+import { Search, MapPin, X, LocateFixed, Menu } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { searchCities, GeoLocation, setDefaultCity, getUserLocation, reverseGeocode } from "@/lib/weather";
 import { toast } from "sonner";
 
@@ -14,6 +20,7 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<GeoLocation[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,6 +47,7 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+        setIsSearching(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -73,8 +81,39 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
     onCitySelect(city);
     setQuery("");
     setIsOpen(false);
+    setIsSearching(false);
   };
 
+  // If we have a city and not searching, show the compact menu
+  if (currentCity && !isSearching) {
+    return (
+      <div className="flex items-center justify-center gap-2">
+        <MapPin className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">
+          {currentCity.name}, {currentCity.admin1 ? `${currentCity.admin1}, ` : ''}{currentCity.country}
+        </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-7 w-7">
+              <Menu className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center">
+            <DropdownMenuItem onClick={() => setIsSearching(true)}>
+              <Search className="h-4 w-4 mr-2" />
+              Search city
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleRefreshLocation} disabled={isLocating}>
+              <LocateFixed className={`h-4 w-4 mr-2 ${isLocating ? 'animate-spin' : ''}`} />
+              Use current location
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    );
+  }
+
+  // Show search input
   return (
     <div ref={containerRef} className="relative w-full max-w-md mx-auto">
       <div className="glass-card flex items-center gap-3 px-4 py-3">
@@ -85,32 +124,18 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="border-0 bg-transparent p-0 h-auto text-foreground placeholder:text-muted-foreground focus-visible:ring-0"
+          autoFocus={isSearching}
         />
-        {query && (
+        {query ? (
           <button onClick={() => setQuery("")} className="text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
-        )}
+        ) : currentCity ? (
+          <button onClick={() => setIsSearching(false)} className="text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
       </div>
-
-      {currentCity && !isOpen && (
-        <div className="flex items-center justify-center gap-2 mt-3 text-muted-foreground">
-          <MapPin className="h-4 w-4" />
-          <span className="text-sm">
-            {currentCity.name}, {currentCity.admin1 ? `${currentCity.admin1}, ` : ''}{currentCity.country}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 ml-1"
-            onClick={handleRefreshLocation}
-            disabled={isLocating}
-            title="Refresh to current location"
-          >
-            <LocateFixed className={`h-4 w-4 ${isLocating ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-      )}
 
       {isOpen && (
         <div className="absolute top-full left-0 right-0 mt-2 glass-card overflow-hidden z-50">
