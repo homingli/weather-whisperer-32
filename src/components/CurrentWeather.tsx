@@ -9,56 +9,40 @@ interface CurrentWeatherProps {
 export function CurrentWeather({ weather }: CurrentWeatherProps) {
   return (
     <div className="py-8 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-      <div className="flex items-center justify-center gap-8">
-        {/* Left column - 70% - Main info */}
-        <div className="flex-[7] text-right">
-          <p className="text-sm text-muted-foreground mb-2">
-            {format(new Date(), "EEEE, d MMMM yyyy")}
-          </p>
-          <div className="text-8xl font-light tracking-tighter mb-1">
-            {Math.round(weather.temperature)}°
-          </div>
-          <p className="text-xl text-muted-foreground">
-            {getWeatherDescription(weather.weatherCode)}
-          </p>
-        </div>
-        
-        {/* Right column - 30% - Icon */}
-        <div className="flex-[3] text-left">
+      <p className="text-sm text-muted-foreground text-center mb-6">
+        {format(new Date(), "EEEE, d MMMM yyyy")}
+      </p>
+      
+      <div className="flex items-center justify-center gap-8 max-w-2xl mx-auto">
+        {/* Left column - 70% - Icon and Feels Like */}
+        <div className="flex-[7] flex flex-col items-end gap-4">
           <div className="text-8xl weather-icon-glow">
             {getWeatherIcon(weather.weatherCode, weather.isDay)}
           </div>
-        </div>
-      </div>
-      
-      <div className="flex justify-center mt-6">
-        <div className="glass-card inline-flex items-center gap-6 px-6 py-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-muted-foreground">
             <Thermometer className="h-5 w-5 text-weather-sunny" />
-            <div className="text-left">
-              <p className="text-xs text-muted-foreground">Feels like</p>
-              <p className="font-medium">{Math.round(weather.apparentTemperature)}°</p>
-            </div>
+            <span className="text-sm">Feels like</span>
+            <span className="font-medium text-foreground">{Math.round(weather.apparentTemperature)}°</span>
           </div>
-          
-          <div className="w-px h-10 bg-border/50" />
-          
-          <div className="flex items-center gap-2">
-            <Droplets className="h-5 w-5 text-weather-rain" />
-            <div className="text-left">
-              <p className="text-xs text-muted-foreground">Rain chance</p>
-              <p className="font-medium">{weather.precipitationProbability}%</p>
-            </div>
+        </div>
+        
+        {/* Right column - 30% - Temperature, Rain, Wind */}
+        <div className="flex-[3] flex flex-col items-start gap-2">
+          <div className="text-7xl font-light tracking-tighter">
+            {Math.round(weather.temperature)}°
           </div>
-          
-          <div className="w-px h-10 bg-border/50" />
-          
-          <div className="flex items-center gap-2">
-            <Wind className="h-5 w-5 text-muted-foreground" />
-            <div className="text-left">
-              <p className="text-xs text-muted-foreground">Wind</p>
-              <p className="font-medium">{Math.round(weather.windSpeed)} km/h</p>
-            </div>
+          <p className="text-lg text-muted-foreground mb-2">
+            {getWeatherDescription(weather.weatherCode)}
+          </p>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Droplets className="h-4 w-4 text-weather-rain" />
+            <span className="text-sm">Rain</span>
+            <span className="font-medium text-foreground">{weather.precipitationProbability}%</span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Wind className="h-4 w-4" />
+            <span className="text-sm">Wind</span>
+            <span className="font-medium text-foreground">{Math.round(weather.windSpeed)} km/h</span>
           </div>
         </div>
       </div>
