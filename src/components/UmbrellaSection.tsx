@@ -12,7 +12,7 @@ export function UmbrellaSection({ forecast }: UmbrellaSectionProps) {
 
   return (
     <div className="glass-card p-6 animate-fade-in text-center" style={{ animationDelay: "0.1s" }}>
-      <h3 className="text-sm font-medium text-muted-foreground mb-4">
+      <h3 className="text-base font-medium text-muted-foreground mb-4">
         DO I NEED AN UMBRELLA TODAY?
       </h3>
       
