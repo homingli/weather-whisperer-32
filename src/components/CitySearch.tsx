@@ -87,7 +87,7 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
   // If we have a city and not searching, show the compact menu
   if (currentCity && !isSearching) {
     return (
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-end gap-2">
         <MapPin className="h-5 w-5 text-muted-foreground" />
         <span className="text-lg font-medium text-muted-foreground">
           {currentCity.name}, {currentCity.admin1 ? `${currentCity.admin1}, ` : ''}{currentCity.country}
