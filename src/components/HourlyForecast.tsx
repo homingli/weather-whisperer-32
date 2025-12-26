@@ -10,6 +10,7 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
   const chartData = forecast.slice(0, 6).map((hour, index) => ({
     time: index === 0 ? "Now" : format(hour.time, "ha"),
     temperature: Math.round(hour.temperature),
+    rainChance: hour.precipitationProbability,
   }));
 
   return (
@@ -20,7 +21,7 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
       
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+          <LineChart data={chartData} margin={{ top: 10, right: 40, left: 0, bottom: 10 }}>
             <XAxis 
               dataKey="time" 
               axisLine={false} 
@@ -28,11 +29,22 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
               tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
             />
             <YAxis 
+              yAxisId="left"
               domain={['dataMin - 2', 'dataMax + 2']}
               axisLine={false} 
               tickLine={false}
               tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
               tickFormatter={(value) => `${value}°`}
+              width={40}
+            />
+            <YAxis 
+              yAxisId="right"
+              orientation="right"
+              domain={[0, 100]}
+              axisLine={false} 
+              tickLine={false}
+              tick={{ fill: 'hsl(var(--weather-rain))', fontSize: 12 }}
+              tickFormatter={(value) => `${value}%`}
               width={40}
             />
             <Tooltip
@@ -42,15 +54,28 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
                 borderRadius: '8px',
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
-              formatter={(value: number) => [`${value}°`, 'Temperature']}
+              formatter={(value: number, name: string) => [
+                name === 'temperature' ? `${value}°` : `${value}%`,
+                name === 'temperature' ? 'Temperature' : 'Rain Chance'
+              ]}
             />
             <Line
+              yAxisId="left"
               type="monotone"
               dataKey="temperature"
               stroke="hsl(var(--primary))"
               strokeWidth={2}
               dot={{ fill: 'hsl(var(--primary))', strokeWidth: 0, r: 4 }}
               activeDot={{ r: 6, fill: 'hsl(var(--primary))' }}
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="rainChance"
+              stroke="hsl(var(--weather-rain))"
+              strokeWidth={2}
+              dot={{ fill: 'hsl(var(--weather-rain))', strokeWidth: 0, r: 4 }}
+              activeDot={{ r: 6, fill: 'hsl(var(--weather-rain))' }}
             />
           </LineChart>
         </ResponsiveContainer>
