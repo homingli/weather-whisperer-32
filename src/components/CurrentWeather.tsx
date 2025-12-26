@@ -8,7 +8,7 @@ interface CurrentWeatherProps {
 export function CurrentWeather({ weather }: CurrentWeatherProps) {
   return (
     <div className="py-8 animate-fade-in text-center" style={{ animationDelay: "0.1s" }}>
-      <p className="text-sm text-muted-foreground mb-6">
+      <p className="text-lg text-muted-foreground mb-6">
         {format(new Date(), "EEEE, d MMMM yyyy")}
       </p>
       
