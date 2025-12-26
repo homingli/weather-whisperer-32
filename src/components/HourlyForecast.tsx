@@ -33,7 +33,7 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
               domain={['dataMin - 2', 'dataMax + 2']}
               axisLine={false} 
               tickLine={false}
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+              tick={{ fill: 'hsl(var(--weather-sunny))', fontSize: 12 }}
               tickFormatter={(value) => `${value}°`}
               width={40}
             />
@@ -63,10 +63,10 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
               yAxisId="left"
               type="monotone"
               dataKey="temperature"
-              stroke="hsl(var(--primary))"
+              stroke="hsl(var(--weather-sunny))"
               strokeWidth={2}
-              dot={{ fill: 'hsl(var(--primary))', strokeWidth: 0, r: 4 }}
-              activeDot={{ r: 6, fill: 'hsl(var(--primary))' }}
+              dot={{ fill: 'hsl(var(--weather-sunny))', strokeWidth: 0, r: 4 }}
+              activeDot={{ r: 6, fill: 'hsl(var(--weather-sunny))' }}
             />
             <Line
               yAxisId="right"
