@@ -4,6 +4,7 @@ import { CitySearch } from "@/components/CitySearch";
 import { CurrentWeather } from "@/components/CurrentWeather";
 import { HourlyForecast } from "@/components/HourlyForecast";
 import { DailyForecast } from "@/components/DailyForecast";
+import { UmbrellaSection } from "@/components/UmbrellaSection";
 import { WeatherSkeleton } from "@/components/WeatherSkeleton";
 import { GeoLocation, getDefaultCity, getWeather, getUserLocation, reverseGeocode, setDefaultCity } from "@/lib/weather";
 import { CloudRain } from "lucide-react";
@@ -83,8 +84,9 @@ const Index = () => {
               <p className="text-sm text-muted-foreground">Please try again later</p>
             </div>
           ) : weather ? (
-            <>
+          <>
               <CurrentWeather weather={weather.current} />
+              <UmbrellaSection forecast={weather.hourly} />
               <HourlyForecast forecast={weather.hourly} />
               <DailyForecast forecast={weather.daily} />
             </>
