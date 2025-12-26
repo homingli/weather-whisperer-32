@@ -88,8 +88,8 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
   if (currentCity && !isSearching) {
     return (
       <div className="flex items-center justify-center gap-2">
-        <MapPin className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">
+        <MapPin className="h-5 w-5 text-muted-foreground" />
+        <span className="text-lg font-medium">
           {currentCity.name}, {currentCity.admin1 ? `${currentCity.admin1}, ` : ''}{currentCity.country}
         </span>
         <DropdownMenu>
