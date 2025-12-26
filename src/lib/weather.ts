@@ -46,6 +46,10 @@ export interface WeatherData {
 // Geocoding API to search for cities
 export async function searchCities(query: string): Promise<GeoLocation[]> {
   if (query.length < 2) return [];
+  if (query.length > 100) return [];
+  
+  // Validate input contains only allowed characters
+  if (!/^[a-zA-Z0-9\s\-',\.]+$/.test(query)) return [];
   
   const response = await fetch(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en&format=json`
@@ -215,6 +219,11 @@ export function getUserLocation(): Promise<{ latitude: number; longitude: number
 
 // Reverse geocode coordinates to get city name
 export async function reverseGeocode(latitude: number, longitude: number): Promise<GeoLocation | null> {
+  // Validate coordinate ranges
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    return null;
+  }
+  
   try {
     // Use Open-Meteo's geocoding with a search nearby the coordinates
     const response = await fetch(
@@ -225,7 +234,7 @@ export async function reverseGeocode(latitude: number, longitude: number): Promi
     // We'll use the coordinates directly and try to find the nearest city via search
     // For now, create a location object with the coordinates
     const cityResponse = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+      `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(latitude.toString())}&lon=${encodeURIComponent(longitude.toString())}&format=json`
     );
     
     if (!cityResponse.ok) {
