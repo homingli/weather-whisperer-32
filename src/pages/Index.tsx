@@ -51,7 +51,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen gradient-sky">
-      <div className="container max-w-2xl mx-auto px-4 py-8">
+      <div className="container max-w-2xl mx-auto px-4 pt-[10px] pb-8">
         {/* Header */}
         <header className="text-center mb-8">
           <h1 className="sr-only">Weather Forecast</h1>
