@@ -94,17 +94,17 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
         </span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7">
-              <Menu className="h-4 w-4" />
+            <Button variant="ghost" size="icon" className="h-10 w-10">
+              <Menu className="h-6 w-6" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="center">
-            <DropdownMenuItem onClick={() => setIsSearching(true)}>
-              <Search className="h-4 w-4 mr-2" />
+          <DropdownMenuContent align="center" className="text-base">
+            <DropdownMenuItem onClick={() => setIsSearching(true)} className="text-base py-3 px-4">
+              <Search className="h-5 w-5 mr-3" />
               Search city
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleRefreshLocation} disabled={isLocating}>
-              <LocateFixed className={`h-4 w-4 mr-2 ${isLocating ? 'animate-spin' : ''}`} />
+            <DropdownMenuItem onClick={handleRefreshLocation} disabled={isLocating} className="text-base py-3 px-4">
+              <LocateFixed className={`h-5 w-5 mr-3 ${isLocating ? 'animate-spin' : ''}`} />
               Use current location
             </DropdownMenuItem>
           </DropdownMenuContent>
