@@ -1,16 +1,21 @@
 import { DailyForecast as DailyForecastType, getWeatherIcon, getWeatherDescription } from "@/lib/weather";
 import { format, isToday, isTomorrow } from "date-fns";
+import { zhTW } from "date-fns/locale";
 import { Droplets } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface DailyForecastProps {
   forecast: DailyForecastType[];
 }
 
 export function DailyForecast({ forecast }: DailyForecastProps) {
+  const { language, t } = useLanguage();
+  const locale = language === 'tc' ? zhTW : undefined;
+
   const formatDay = (date: Date) => {
-    if (isToday(date)) return "Today";
-    if (isTomorrow(date)) return "Tomorrow";
-    return format(date, "EEE");
+    if (isToday(date)) return t('daily.today');
+    if (isTomorrow(date)) return t('daily.tomorrow');
+    return format(date, "EEE", { locale });
   };
 
   // Find min and max temps for the week to calculate bar widths
@@ -22,7 +27,7 @@ export function DailyForecast({ forecast }: DailyForecastProps) {
   return (
     <div className="glass-card p-4 animate-fade-in" style={{ animationDelay: "0.3s" }}>
       <h3 className="text-sm font-medium text-muted-foreground mb-4 px-2">
-        7-DAY FORECAST
+        {t('daily.title')}
       </h3>
       
       <div className="space-y-1">

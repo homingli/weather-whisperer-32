@@ -7,22 +7,24 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ChevronDown, Check } from 'lucide-react';
-
-const sources: { value: WeatherSource; label: string; description: string }[] = [
-  {
-    value: 'open-meteo',
-    label: 'Open-Meteo',
-    description: 'Global weather data',
-  },
-  {
-    value: 'hko',
-    label: 'HK Observatory',
-    description: 'Hong Kong only',
-  },
-];
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export function WeatherSourceToggle() {
   const { source, setSource } = useWeatherSource();
+  const { t } = useLanguage();
+
+  const sources: { value: WeatherSource; label: string; description: string }[] = [
+    {
+      value: 'open-meteo',
+      label: t('source.openMeteo'),
+      description: t('source.openMeteoDesc'),
+    },
+    {
+      value: 'hko',
+      label: t('source.hko'),
+      description: t('source.hkoDesc'),
+    },
+  ];
 
   const currentSource = sources.find(s => s.value === source) || sources[0];
 

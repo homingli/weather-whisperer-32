@@ -1,12 +1,14 @@
 import { HKOWarning, getWarningIcon } from '@/lib/hko-weather';
 import { AlertTriangle, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
+import { zhTW } from 'date-fns/locale';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { useState } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface WeatherAlertsProps {
   warnings: HKOWarning[];
@@ -14,6 +16,8 @@ interface WeatherAlertsProps {
 
 export function WeatherAlerts({ warnings }: WeatherAlertsProps) {
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
+  const { language, t } = useLanguage();
+  const locale = language === 'tc' ? zhTW : undefined;
 
   if (!warnings || warnings.length === 0) {
     return null;
@@ -27,7 +31,7 @@ export function WeatherAlerts({ warnings }: WeatherAlertsProps) {
     <div className="glass-card p-4 animate-fade-in">
       <div className="flex items-center gap-2 mb-3">
         <AlertTriangle className="h-5 w-5 text-destructive" />
-        <h3 className="font-semibold text-foreground">Weather Alerts</h3>
+        <h3 className="font-semibold text-foreground">{t('alerts.title')}</h3>
       </div>
       
       <div className="space-y-2">
@@ -64,7 +68,7 @@ export function WeatherAlerts({ warnings }: WeatherAlertsProps) {
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      Issued: {format(new Date(warning.issueTime), 'MMM d, h:mm a')}
+                      {t('alerts.issued')}: {format(new Date(warning.issueTime), 'MMM d, h:mm a', { locale })}
                     </div>
                   </div>
                   {hasDetails && (

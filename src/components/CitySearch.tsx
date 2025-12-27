@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { searchCities, GeoLocation, setDefaultCity, getUserLocation, reverseGeocode } from "@/lib/weather";
 import { toast } from "sonner";
+import { useLanguage, formatString } from "@/contexts/LanguageContext";
 
 interface CitySearchProps {
   currentCity: GeoLocation | null;
@@ -24,6 +25,7 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { t } = useLanguage();
 
   const handleRefreshLocation = async () => {
     setIsLocating(true);
@@ -33,10 +35,10 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
       if (location) {
         setDefaultCity(location);
         onCitySelect(location);
-        toast.success(`Location updated to ${location.name}`);
+        toast.success(formatString(t('search.locationUpdated'), location.name));
       }
     } catch (error) {
-      toast.error("Could not get your location. Please check permissions.");
+      toast.error(t('search.locationError'));
       console.error("Location error:", error);
     } finally {
       setIsLocating(false);
@@ -101,11 +103,11 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
           <DropdownMenuContent align="center" className="text-base">
             <DropdownMenuItem onClick={() => setIsSearching(true)} className="text-base py-3 px-4">
               <Search className="h-5 w-5 mr-3" />
-              Search city
+              {t('search.city')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleRefreshLocation} disabled={isLocating} className="text-base py-3 px-4">
               <LocateFixed className={`h-5 w-5 mr-3 ${isLocating ? 'animate-spin' : ''}`} />
-              Use current location
+              {t('search.useLocation')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -120,7 +122,7 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
         <Search className="h-5 w-5 text-muted-foreground flex-shrink-0" />
         <Input
           type="text"
-          placeholder="Search for a city..."
+          placeholder={t('search.placeholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="border-0 bg-transparent p-0 h-auto text-foreground placeholder:text-muted-foreground focus-visible:ring-0"
@@ -140,7 +142,7 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
       {isOpen && (
         <div className="absolute top-full left-0 right-0 mt-2 glass-card overflow-hidden z-50">
           {isLoading ? (
-            <div className="p-4 text-center text-muted-foreground">Searching...</div>
+            <div className="p-4 text-center text-muted-foreground">{t('search.searching')}</div>
           ) : results.length > 0 ? (
             <ul className="divide-y divide-border/30">
               {results.map((city, index) => (
@@ -161,7 +163,7 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
               ))}
             </ul>
           ) : (
-            <div className="p-4 text-center text-muted-foreground">No cities found</div>
+            <div className="p-4 text-center text-muted-foreground">{t('search.noResults')}</div>
           )}
         </div>
       )}
