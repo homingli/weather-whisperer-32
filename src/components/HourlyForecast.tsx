@@ -1,14 +1,19 @@
 import { HourlyForecast as HourlyForecastType } from "@/lib/weather";
 import { format } from "date-fns";
+import { zhTW } from "date-fns/locale";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface HourlyForecastProps {
   forecast: HourlyForecastType[];
 }
 
 export function HourlyForecast({ forecast }: HourlyForecastProps) {
+  const { language, t } = useLanguage();
+  const locale = language === 'tc' ? zhTW : undefined;
+
   const chartData = forecast.slice(0, 6).map((hour, index) => ({
-    time: index === 0 ? "Now" : format(hour.time, "ha"),
+    time: index === 0 ? t('hourly.now') : format(hour.time, "ha", { locale }),
     temperature: Math.round(hour.temperature),
     rainChance: hour.precipitationProbability,
   }));
@@ -16,7 +21,7 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
   return (
     <div className="glass-card p-4 animate-fade-in" style={{ animationDelay: "0.2s" }}>
       <h3 className="text-sm font-medium text-muted-foreground mb-4 px-2">
-        HOURLY FORECAST
+        {t('hourly.title')}
       </h3>
       
       <div className="h-48">
@@ -56,7 +61,7 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
               labelStyle={{ color: 'hsl(var(--foreground))' }}
               formatter={(value: number, name: string) => [
                 name === 'temperature' ? `${value}°` : `${value}%`,
-                name === 'temperature' ? 'Temperature' : 'Rain Chance'
+                name === 'temperature' ? t('hourly.temperature') : t('hourly.rainChance')
               ]}
             />
             <Line

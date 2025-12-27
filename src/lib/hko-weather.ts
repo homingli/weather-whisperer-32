@@ -152,41 +152,41 @@ function isCurrentlyDay(): boolean {
 }
 
 // Fetch current weather from HKO
-export async function getHKOCurrentWeather(): Promise<HKOCurrentWeatherResponse> {
-  const response = await fetch(`${HKO_API_BASE}?dataType=rhrread&lang=en`);
+export async function getHKOCurrentWeather(lang: 'en' | 'tc' = 'en'): Promise<HKOCurrentWeatherResponse> {
+  const response = await fetch(`${HKO_API_BASE}?dataType=rhrread&lang=${lang}`);
   if (!response.ok) throw new Error('Failed to fetch HKO current weather');
   return response.json();
 }
 
 // Fetch 9-day forecast from HKO
-export async function getHKOForecast(): Promise<HKOForecastResponse> {
-  const response = await fetch(`${HKO_API_BASE}?dataType=fnd&lang=en`);
+export async function getHKOForecast(lang: 'en' | 'tc' = 'en'): Promise<HKOForecastResponse> {
+  const response = await fetch(`${HKO_API_BASE}?dataType=fnd&lang=${lang}`);
   if (!response.ok) throw new Error('Failed to fetch HKO forecast');
   return response.json();
 }
 
 // Fetch weather warning summary from HKO
-export async function getHKOWarningSummary(): Promise<HKOWarningSummaryResponse> {
-  const response = await fetch(`${HKO_API_BASE}?dataType=warnsum&lang=en`);
+export async function getHKOWarningSummary(lang: 'en' | 'tc' = 'en'): Promise<HKOWarningSummaryResponse> {
+  const response = await fetch(`${HKO_API_BASE}?dataType=warnsum&lang=${lang}`);
   if (!response.ok) throw new Error('Failed to fetch HKO warnings');
   return response.json();
 }
 
 // Fetch detailed warning info from HKO
-export async function getHKOWarningInfo(): Promise<HKOWarningInfoResponse> {
-  const response = await fetch(`${HKO_API_BASE}?dataType=warningInfo&lang=en`);
+export async function getHKOWarningInfo(lang: 'en' | 'tc' = 'en'): Promise<HKOWarningInfoResponse> {
+  const response = await fetch(`${HKO_API_BASE}?dataType=warningInfo&lang=${lang}`);
   if (!response.ok) throw new Error('Failed to fetch HKO warning info');
   return response.json();
 }
 
 // Get weather for Hong Kong using HKO API
 // Note: HKO only provides data for Hong Kong, so lat/lon are ignored
-export async function getHKOWeather(): Promise<WeatherData & { warnings: HKOWarning[] }> {
+export async function getHKOWeather(lang: 'en' | 'tc' = 'en'): Promise<WeatherData & { warnings: HKOWarning[] }> {
   const [currentData, forecastData, warningsData, warningInfoData] = await Promise.all([
-    getHKOCurrentWeather(),
-    getHKOForecast(),
-    getHKOWarningSummary(),
-    getHKOWarningInfo().catch(() => ({} as HKOWarningInfoResponse)), // Gracefully handle if no warnings
+    getHKOCurrentWeather(lang),
+    getHKOForecast(lang),
+    getHKOWarningSummary(lang),
+    getHKOWarningInfo(lang).catch(() => ({ details: [] } as HKOWarningInfoResponse)), // Gracefully handle if no warnings
   ]);
 
   // Get Hong Kong Observatory readings (primary reference station)

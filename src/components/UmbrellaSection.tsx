@@ -1,6 +1,8 @@
 import { CurrentWeather, HourlyForecast } from "@/lib/weather";
 import { format } from "date-fns";
+import { zhTW } from "date-fns/locale";
 import { Umbrella } from "lucide-react";
+import { useLanguage, formatString } from "@/contexts/LanguageContext";
 
 interface UmbrellaSectionProps {
   current: CurrentWeather;
@@ -8,6 +10,9 @@ interface UmbrellaSectionProps {
 }
 
 export function UmbrellaSection({ current, forecast }: UmbrellaSectionProps) {
+  const { language, t } = useLanguage();
+  const locale = language === 'tc' ? zhTW : undefined;
+
   // Check if currently raining (precipitation > 0)
   const isCurrentlyRaining = current.precipitation > 0;
   
@@ -20,22 +25,22 @@ export function UmbrellaSection({ current, forecast }: UmbrellaSectionProps) {
   return (
     <div className="glass-card p-6 animate-fade-in text-center" style={{ animationDelay: "0.1s" }}>
       <h3 className="text-base font-medium text-muted-foreground mb-4">
-        DO I NEED AN UMBRELLA TODAY?
+        {t('umbrella.question')}
       </h3>
       
       <div className="flex items-center justify-center gap-3">
         <Umbrella className={`h-8 w-8 ${needsUmbrella ? 'text-weather-rain' : 'text-muted-foreground'}`} />
         <span className={`text-5xl font-bold ${needsUmbrella ? 'text-weather-rain' : 'text-foreground'}`}>
-          {needsUmbrella ? 'YES' : 'NO'}
+          {needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
         </span>
       </div>
       
       {needsUmbrella && (
         <p className="mt-3 text-muted-foreground">
           {isCurrentlyRaining 
-            ? "It's currently raining" 
+            ? t('umbrella.raining')
             : firstRainyHour 
-              ? `${firstRainyHour.precipitationProbability}% chance of rain at ${format(firstRainyHour.time, "h a")}`
+              ? formatString(t('umbrella.chanceAt'), firstRainyHour.precipitationProbability, format(firstRainyHour.time, "h a", { locale }))
               : null
           }
         </p>

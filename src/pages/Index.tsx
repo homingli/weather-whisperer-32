@@ -8,9 +8,11 @@ import { UmbrellaSection } from "@/components/UmbrellaSection";
 import { WeatherSkeleton } from "@/components/WeatherSkeleton";
 import { WeatherSourceToggle } from "@/components/WeatherSourceToggle";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
+import { LanguageToggle } from "@/components/LanguageToggle";
 import { GeoLocation, getDefaultCity, getWeather, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
 import { getHKOWeather, HKOWarning } from "@/lib/hko-weather";
 import { useWeatherSource } from "@/contexts/WeatherSourceContext";
+import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { CloudRain } from "lucide-react";
 
 // Hong Kong location for HKO API
@@ -30,6 +32,7 @@ const Index = () => {
   const [selectedCity, setSelectedCity] = useState<GeoLocation | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const { source, isHKO } = useWeatherSource();
+  const { language, t } = useLanguage();
 
   useEffect(() => {
     const initializeLocation = async () => {
@@ -67,10 +70,12 @@ const Index = () => {
   }, [isHKO]);
 
   const { data: weather, isLoading, error } = useQuery<ExtendedWeatherData>({
-    queryKey: ["weather", source, selectedCity?.latitude, selectedCity?.longitude],
+    queryKey: ["weather", source, language, selectedCity?.latitude, selectedCity?.longitude],
     queryFn: async () => {
       if (isHKO) {
-        return getHKOWeather();
+        // Map language to HKO API lang parameter
+        const hkoLang = language === 'tc' ? 'tc' : 'en';
+        return getHKOWeather(hkoLang);
       }
       return getWeather(selectedCity!.latitude, selectedCity!.longitude);
     },
@@ -90,8 +95,10 @@ const Index = () => {
           <h1 className="sr-only">Weather Forecast</h1>
           {isHKO ? (
             <div className="mb-2">
-              <h2 className="text-2xl font-semibold text-foreground">Hong Kong</h2>
-              <p className="text-sm text-muted-foreground">Hong Kong Observatory</p>
+              <h2 className="text-2xl font-semibold text-foreground">
+                {language === 'tc' ? '香港' : 'Hong Kong'}
+              </h2>
+              <p className="text-sm text-muted-foreground">{t('hko.name')}</p>
             </div>
           ) : (
             <CitySearch currentCity={selectedCity} onCitySelect={setSelectedCity} />
@@ -108,25 +115,25 @@ const Index = () => {
           {isLocating && !isHKO ? (
             <div className="text-center py-20 animate-fade-in">
               <CloudRain className="h-16 w-16 mx-auto mb-4 text-primary animate-pulse-glow" />
-              <h2 className="text-2xl font-semibold mb-2">Finding your location...</h2>
+              <h2 className="text-2xl font-semibold mb-2">{t('loading.findingLocation')}</h2>
               <p className="text-muted-foreground">
-                Please allow location access for local weather
+                {t('loading.allowLocation')}
               </p>
             </div>
           ) : !displayCity && !isHKO ? (
             <div className="text-center py-20 animate-fade-in">
               <CloudRain className="h-16 w-16 mx-auto mb-4 text-primary animate-pulse-glow" />
-              <h2 className="text-2xl font-semibold mb-2">Welcome to Weather</h2>
+              <h2 className="text-2xl font-semibold mb-2">{t('loading.welcome')}</h2>
               <p className="text-muted-foreground">
-                Search for a city to see current weather and forecasts
+                {t('loading.searchPrompt')}
               </p>
             </div>
           ) : isLoading ? (
             <WeatherSkeleton />
           ) : error ? (
             <div className="text-center py-20 glass-card">
-              <p className="text-destructive mb-2">Failed to load weather data</p>
-              <p className="text-sm text-muted-foreground">Please try again later</p>
+              <p className="text-destructive mb-2">{t('loading.failed')}</p>
+              <p className="text-sm text-muted-foreground">{t('loading.tryAgain')}</p>
             </div>
           ) : weather ? (
           <>
@@ -140,8 +147,12 @@ const Index = () => {
 
         {/* Footer */}
         <footer className="text-center mt-12 text-sm text-muted-foreground space-y-2">
-          <WeatherSourceToggle />
-          <p>Powered by {isHKO ? 'Hong Kong Observatory' : 'Open-Meteo'}</p>
+          <div className="flex items-center justify-center gap-2">
+            <WeatherSourceToggle />
+            <span className="text-muted-foreground/50">|</span>
+            <LanguageToggle />
+          </div>
+          <p>{formatString(t('source.poweredBy'), isHKO ? t('source.hko') : t('source.openMeteo'))}</p>
         </footer>
       </div>
     </div>
