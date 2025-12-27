@@ -13,9 +13,9 @@ const WeatherSourceContext = createContext<WeatherSourceContextType | undefined>
 const STORAGE_KEY = 'weather-source';
 
 export function WeatherSourceProvider({ children }: { children: ReactNode }) {
-  const [source, setSourceState] = useState<WeatherSource>(() => {
+const [source, setSourceState] = useState<WeatherSource>(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return (stored === 'hko' || stored === 'open-meteo') ? stored : 'open-meteo';
+    return (stored === 'hko' || stored === 'open-meteo') ? stored : 'hko';
   });
 
   const setSource = (newSource: WeatherSource) => {
