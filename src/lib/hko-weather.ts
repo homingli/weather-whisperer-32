@@ -85,14 +85,15 @@ export interface HKOWarningSummaryResponse {
   [key: string]: HKOWarning;
 }
 
+export interface HKOWarningInfoDetail {
+  warningStatementCode: string;
+  subtype?: string;
+  contents?: string[];
+  updateTime?: string;
+}
+
 export interface HKOWarningInfoResponse {
-  [key: string]: {
-    name: string;
-    code: string;
-    type?: string;
-    contents?: string[];
-    updateTime?: string;
-  };
+  details?: HKOWarningInfoDetail[];
 }
 
 // Map PSR (Probability of Significant Rain) to percentage
@@ -269,15 +270,21 @@ export async function getHKOWeather(): Promise<WeatherData & { warnings: HKOWarn
     };
   });
 
-  // Extract warnings with details
+  // Extract warnings with details - match by warningStatementCode
+  const warningInfoDetails = warningInfoData.details || [];
   const warnings: HKOWarning[] = Object.entries(warningsData).map(([key, warning]) => {
-    const details = warningInfoData[key];
+    // Match warning info by code - the warningStatementCode matches the warning code
+    const matchingDetail = warningInfoDetails.find(d => 
+      d.warningStatementCode === warning.code || 
+      d.subtype === warning.code ||
+      warning.code.startsWith(d.warningStatementCode)
+    );
     return {
       ...warning,
-      details: details ? {
-        contents: details.contents,
-        subtype: details.type,
-        updateTime: details.updateTime,
+      details: matchingDetail ? {
+        contents: matchingDetail.contents,
+        subtype: matchingDetail.subtype,
+        updateTime: matchingDetail.updateTime,
       } : undefined,
     };
   });
