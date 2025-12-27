@@ -6,12 +6,30 @@ import { HourlyForecast } from "@/components/HourlyForecast";
 import { DailyForecast } from "@/components/DailyForecast";
 import { UmbrellaSection } from "@/components/UmbrellaSection";
 import { WeatherSkeleton } from "@/components/WeatherSkeleton";
-import { GeoLocation, getDefaultCity, getWeather, getUserLocation, reverseGeocode, setDefaultCity } from "@/lib/weather";
+import { WeatherSourceToggle } from "@/components/WeatherSourceToggle";
+import { WeatherAlerts } from "@/components/WeatherAlerts";
+import { GeoLocation, getDefaultCity, getWeather, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
+import { getHKOWeather, HKOWarning } from "@/lib/hko-weather";
+import { useWeatherSource } from "@/contexts/WeatherSourceContext";
 import { CloudRain } from "lucide-react";
+
+// Hong Kong location for HKO API
+const HONG_KONG_LOCATION: GeoLocation = {
+  name: "Hong Kong",
+  latitude: 22.3193,
+  longitude: 114.1694,
+  country: "China",
+  admin1: "Hong Kong",
+};
+
+interface ExtendedWeatherData extends WeatherData {
+  warnings?: HKOWarning[];
+}
 
 const Index = () => {
   const [selectedCity, setSelectedCity] = useState<GeoLocation | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const { source, isHKO } = useWeatherSource();
 
   useEffect(() => {
     const initializeLocation = async () => {
@@ -41,13 +59,28 @@ const Index = () => {
     initializeLocation();
   }, []);
 
-  const { data: weather, isLoading, error } = useQuery({
-    queryKey: ["weather", selectedCity?.latitude, selectedCity?.longitude],
-    queryFn: () => getWeather(selectedCity!.latitude, selectedCity!.longitude),
-    enabled: !!selectedCity,
+  // When switching to HKO, automatically switch to Hong Kong
+  useEffect(() => {
+    if (isHKO && selectedCity?.name !== 'Hong Kong') {
+      setSelectedCity(HONG_KONG_LOCATION);
+    }
+  }, [isHKO]);
+
+  const { data: weather, isLoading, error } = useQuery<ExtendedWeatherData>({
+    queryKey: ["weather", source, selectedCity?.latitude, selectedCity?.longitude],
+    queryFn: async () => {
+      if (isHKO) {
+        return getHKOWeather();
+      }
+      return getWeather(selectedCity!.latitude, selectedCity!.longitude);
+    },
+    enabled: !!selectedCity || isHKO,
     refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
     staleTime: 2 * 60 * 1000, // Consider data stale after 2 minutes
   });
+
+  // Determine which city to display
+  const displayCity = isHKO ? HONG_KONG_LOCATION : selectedCity;
 
   return (
     <div className="min-h-screen gradient-sky">
@@ -55,12 +88,24 @@ const Index = () => {
         {/* Header */}
         <header className="text-center mb-8">
           <h1 className="sr-only">Weather Forecast</h1>
-          <CitySearch currentCity={selectedCity} onCitySelect={setSelectedCity} />
+          {isHKO ? (
+            <div className="mb-2">
+              <h2 className="text-2xl font-semibold text-foreground">Hong Kong</h2>
+              <p className="text-sm text-muted-foreground">Hong Kong Observatory</p>
+            </div>
+          ) : (
+            <CitySearch currentCity={selectedCity} onCitySelect={setSelectedCity} />
+          )}
         </header>
 
         {/* Main content */}
         <main className="space-y-6">
-          {isLocating ? (
+          {/* Weather Alerts (HKO only) */}
+          {isHKO && weather?.warnings && weather.warnings.length > 0 && (
+            <WeatherAlerts warnings={weather.warnings} />
+          )}
+
+          {isLocating && !isHKO ? (
             <div className="text-center py-20 animate-fade-in">
               <CloudRain className="h-16 w-16 mx-auto mb-4 text-primary animate-pulse-glow" />
               <h2 className="text-2xl font-semibold mb-2">Finding your location...</h2>
@@ -68,7 +113,7 @@ const Index = () => {
                 Please allow location access for local weather
               </p>
             </div>
-          ) : !selectedCity ? (
+          ) : !displayCity && !isHKO ? (
             <div className="text-center py-20 animate-fade-in">
               <CloudRain className="h-16 w-16 mx-auto mb-4 text-primary animate-pulse-glow" />
               <h2 className="text-2xl font-semibold mb-2">Welcome to Weather</h2>
@@ -94,8 +139,9 @@ const Index = () => {
         </main>
 
         {/* Footer */}
-        <footer className="text-center mt-12 text-sm text-muted-foreground">
-          <p>Powered by Open-Meteo</p>
+        <footer className="text-center mt-12 text-sm text-muted-foreground space-y-2">
+          <WeatherSourceToggle />
+          <p>Powered by {isHKO ? 'Hong Kong Observatory' : 'Open-Meteo'}</p>
         </footer>
       </div>
     </div>
