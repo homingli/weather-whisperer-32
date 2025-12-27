@@ -72,10 +72,27 @@ export interface HKOWarning {
   issueTime: string;
   updateTime: string;
   expireTime?: string;
+  details?: HKOWarningDetails;
+}
+
+export interface HKOWarningDetails {
+  contents?: string[];
+  subtype?: string;
+  updateTime?: string;
 }
 
 export interface HKOWarningSummaryResponse {
   [key: string]: HKOWarning;
+}
+
+export interface HKOWarningInfoResponse {
+  [key: string]: {
+    name: string;
+    code: string;
+    type?: string;
+    contents?: string[];
+    updateTime?: string;
+  };
 }
 
 // Map PSR (Probability of Significant Rain) to percentage
@@ -154,13 +171,21 @@ export async function getHKOWarningSummary(): Promise<HKOWarningSummaryResponse>
   return response.json();
 }
 
+// Fetch detailed warning info from HKO
+export async function getHKOWarningInfo(): Promise<HKOWarningInfoResponse> {
+  const response = await fetch(`${HKO_API_BASE}?dataType=warningInfo&lang=en`);
+  if (!response.ok) throw new Error('Failed to fetch HKO warning info');
+  return response.json();
+}
+
 // Get weather for Hong Kong using HKO API
 // Note: HKO only provides data for Hong Kong, so lat/lon are ignored
 export async function getHKOWeather(): Promise<WeatherData & { warnings: HKOWarning[] }> {
-  const [currentData, forecastData, warningsData] = await Promise.all([
+  const [currentData, forecastData, warningsData, warningInfoData] = await Promise.all([
     getHKOCurrentWeather(),
     getHKOForecast(),
     getHKOWarningSummary(),
+    getHKOWarningInfo().catch(() => ({} as HKOWarningInfoResponse)), // Gracefully handle if no warnings
   ]);
 
   // Get Hong Kong Observatory readings (primary reference station)
@@ -244,8 +269,18 @@ export async function getHKOWeather(): Promise<WeatherData & { warnings: HKOWarn
     };
   });
 
-  // Extract warnings
-  const warnings: HKOWarning[] = Object.values(warningsData);
+  // Extract warnings with details
+  const warnings: HKOWarning[] = Object.entries(warningsData).map(([key, warning]) => {
+    const details = warningInfoData[key];
+    return {
+      ...warning,
+      details: details ? {
+        contents: details.contents,
+        subtype: details.type,
+        updateTime: details.updateTime,
+      } : undefined,
+    };
+  });
 
   return {
     current,
