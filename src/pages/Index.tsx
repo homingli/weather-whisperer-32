@@ -69,13 +69,16 @@ const Index = () => {
     }
   }, [isHKO]);
 
-  const { data: weather, isLoading, error } = useQuery<ExtendedWeatherData>({
+  const { data: weather, isLoading, error } = useQuery<ExtendedWeatherData & { nearestStation?: string; nearestDistrict?: string }>({
     queryKey: ["weather", source, language, selectedCity?.latitude, selectedCity?.longitude],
     queryFn: async () => {
       if (isHKO) {
         // Map language to HKO API lang parameter
         const hkoLang = language === 'tc' ? 'tc' : 'en';
-        return getHKOWeather(hkoLang);
+        // Pass coordinates for granular station selection (use HK center if no specific location)
+        const lat = selectedCity?.latitude ?? HONG_KONG_LOCATION.latitude;
+        const lon = selectedCity?.longitude ?? HONG_KONG_LOCATION.longitude;
+        return getHKOWeather(hkoLang, lat, lon);
       }
       return getWeather(selectedCity!.latitude, selectedCity!.longitude);
     },
@@ -98,6 +101,11 @@ const Index = () => {
               <h2 className="text-2xl font-semibold text-foreground">
                 {language === 'tc' ? '香港' : 'Hong Kong'}
               </h2>
+              {weather?.nearestStation && (
+                <p className="text-sm text-foreground/80">
+                  {weather.nearestStation}
+                </p>
+              )}
               <p className="text-sm text-muted-foreground">{t('hko.name')}</p>
             </div>
           ) : (
