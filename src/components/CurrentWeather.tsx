@@ -11,10 +11,12 @@ export function CurrentWeather({ weather }: CurrentWeatherProps) {
   const { language, t } = useLanguage();
   const locale = language === 'tc' ? zhTW : undefined;
 
+  const dateFormat = language === 'tc' ? "yyyy年M月d日 EEEE" : "EEEE, d MMMM yyyy";
+
   return (
     <div className="pt-2 pb-8 animate-fade-in text-center" style={{ animationDelay: "0.1s" }}>
       <p className="text-xl text-muted-foreground mb-6">
-        {format(new Date(), "EEEE, d MMMM yyyy", { locale })}
+        {format(new Date(), dateFormat, { locale })}
       </p>
       
       <div className="flex flex-col items-center gap-4">

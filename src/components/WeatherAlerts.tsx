@@ -68,7 +68,7 @@ export function WeatherAlerts({ warnings }: WeatherAlertsProps) {
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {t('alerts.issued')}: {format(new Date(warning.issueTime), 'MMM d, h:mm a', { locale })}
+                      {t('alerts.issued')}: {format(new Date(warning.issueTime), language === 'tc' ? 'M月d日 HH:mm' : 'MMM d, h:mm a', { locale })}
                     </div>
                   </div>
                   {hasDetails && (
