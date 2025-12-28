@@ -1,7 +1,7 @@
 import { CurrentWeather, HourlyForecast } from "@/lib/weather";
 import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { Umbrella } from "lucide-react";
+import { Umbrella, UmbrellaOff } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 
 interface UmbrellaSectionProps {
@@ -28,11 +28,12 @@ export function UmbrellaSection({ current, forecast }: UmbrellaSectionProps) {
         {t('umbrella.question')}
       </h3>
       
-      <div className="flex items-center justify-center gap-3">
-        <Umbrella className={`h-8 w-8 ${needsUmbrella ? 'text-weather-rain' : 'text-muted-foreground'}`} />
-        <span className={`text-5xl font-bold ${needsUmbrella ? 'text-weather-rain' : 'text-foreground'}`}>
-          {needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
-        </span>
+      <div className="flex items-center justify-center">
+        {needsUmbrella ? (
+          <Umbrella className="h-20 w-20 text-weather-rain" />
+        ) : (
+          <UmbrellaOff className="h-20 w-20 text-muted-foreground" />
+        )}
       </div>
       
       {needsUmbrella && (
