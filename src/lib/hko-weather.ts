@@ -281,13 +281,21 @@ export interface HKOWarningInfoResponse {
 }
 
 // Map PSR (Probability of Significant Rain) to percentage
+// Supports both English and Traditional Chinese values from HKO API
 function psrToPercentage(psr: string): number {
   const psrMap: Record<string, number> = {
+    // English
     'Low': 10,
     'Medium Low': 25,
     'Medium': 50,
     'Medium High': 70,
     'High': 85,
+    // Traditional Chinese
+    '低': 10,
+    '中低': 25,
+    '中': 50,
+    '中高': 70,
+    '高': 85,
   };
   return psrMap[psr] || 0;
 }
