@@ -300,6 +300,18 @@ function psrToPercentage(psr: string): number {
   return psrMap[psr] || 0;
 }
 
+// Check if PSR indicates umbrella needed (Medium Low and above)
+export function psrNeedsUmbrella(psr: string | undefined): boolean {
+  if (!psr) return false;
+  const needsUmbrellaValues = [
+    // English
+    'Medium Low', 'Medium', 'Medium High', 'High',
+    // Traditional Chinese
+    '中低', '中', '中高', '高',
+  ];
+  return needsUmbrellaValues.includes(psr);
+}
+
 // Map HKO icon codes to WMO-like weather codes for consistency
 function hkoIconToWeatherCode(iconCode: number): number {
   // HKO icon reference: https://www.hko.gov.hk/textonly/v2/explain/wxicon_e.htm
@@ -422,6 +434,9 @@ export async function getHKOWeather(
   // Calculate if it's currently raining from rainfall data (use district or max)
   const maxRainfall = districtRainfall?.max ?? Math.max(...currentData.rainfall.data.map(d => d.max));
   
+  // Get today's PSR for current weather
+  const todayPSR = forecastData.weatherForecast[0]?.PSR || '';
+  
   // Build current weather
   const current: CurrentWeather = {
     temperature: hkoTemp?.value ?? avgTemp,
@@ -430,7 +445,8 @@ export async function getHKOWeather(
     weatherCode: hkoIconToWeatherCode(currentIcon),
     windSpeed: 0, // Not provided in current weather API
     precipitation: maxRainfall,
-    precipitationProbability: psrToPercentage(forecastData.weatherForecast[0]?.PSR || 'Low'),
+    precipitationProbability: psrToPercentage(todayPSR),
+    precipitationProbabilityRaw: todayPSR || undefined,
     isDay,
   };
 
@@ -455,11 +471,14 @@ export async function getHKOWeather(
     const tempProgress = Math.sin(((hour - 6) / 8) * Math.PI);
     const temp = minTemp + (maxTemp - minTemp) * Math.max(0, tempProgress);
     
+    const forecastPSR = forecast?.PSR || '';
+    
     hourly.push({
       time: forecastTime,
       temperature: Math.round(temp),
       weatherCode: hkoIconToWeatherCode(forecast?.ForecastIcon ?? currentIcon),
-      precipitationProbability: psrToPercentage(forecast?.PSR || 'Low'),
+      precipitationProbability: psrToPercentage(forecastPSR),
+      precipitationProbabilityRaw: forecastPSR || undefined,
       isDay: hour >= 6 && hour < 19,
     });
   }
@@ -484,6 +503,7 @@ export async function getHKOWeather(
       temperatureMin: day.forecastMintemp.value,
       weatherCode: hkoIconToWeatherCode(day.ForecastIcon),
       precipitationProbabilityMax: psrToPercentage(day.PSR),
+      precipitationProbabilityRaw: day.PSR || undefined,
       sunrise,
       sunset,
     };

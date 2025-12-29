@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useWeatherSource } from "@/contexts/WeatherSourceContext";
 
 interface HourlyForecastProps {
   forecast: HourlyForecastType[];
@@ -10,12 +11,14 @@ interface HourlyForecastProps {
 
 export function HourlyForecast({ forecast }: HourlyForecastProps) {
   const { language, t } = useLanguage();
+  const { isHKO } = useWeatherSource();
   const locale = language === 'tc' ? zhTW : undefined;
 
   const chartData = forecast.slice(0, 6).map((hour, index) => ({
     time: index === 0 ? t('hourly.now') : format(hour.time, "ha", { locale }),
     temperature: Math.round(hour.temperature),
     rainChance: hour.precipitationProbability,
+    rainChanceRaw: hour.precipitationProbabilityRaw,
   }));
 
   return (
@@ -59,10 +62,17 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
                 borderRadius: '8px',
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
-              formatter={(value: number, name: string) => [
-                name === 'temperature' ? `${value}°` : `${value}%`,
-                name === 'temperature' ? t('hourly.temperature') : t('hourly.rainChance')
-              ]}
+              formatter={(value: number, name: string, props: any) => {
+                if (name === 'temperature') {
+                  return [`${value}°`, t('hourly.temperature')];
+                }
+                // For rain chance, show raw PSR if available (HKO source)
+                const rawValue = props?.payload?.rainChanceRaw;
+                if (isHKO && rawValue) {
+                  return [rawValue, t('hourly.rainChance')];
+                }
+                return [`${value}%`, t('hourly.rainChance')];
+              }}
             />
             <Line
               yAxisId="left"
