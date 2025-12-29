@@ -16,6 +16,7 @@ export interface CurrentWeather {
   windSpeed: number;
   precipitation: number;
   precipitationProbability: number;
+  precipitationProbabilityRaw?: string; // Raw PSR value for HKO (e.g., "Medium Low", "中低")
   isDay: boolean;
 }
 
@@ -24,6 +25,7 @@ export interface HourlyForecast {
   temperature: number;
   weatherCode: number;
   precipitationProbability: number;
+  precipitationProbabilityRaw?: string; // Raw PSR value for HKO
   isDay: boolean;
 }
 
@@ -33,6 +35,7 @@ export interface DailyForecast {
   temperatureMin: number;
   weatherCode: number;
   precipitationProbabilityMax: number;
+  precipitationProbabilityRaw?: string; // Raw PSR value for HKO
   sunrise: Date;
   sunset: Date;
 }
