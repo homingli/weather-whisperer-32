@@ -14,6 +14,23 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
   const { isHKO } = useWeatherSource();
   const locale = language === 'tc' ? zhTW : undefined;
 
+  // Map percentage values to PSR text labels
+  const percentageToPSR = (value: number): string => {
+    if (language === 'tc') {
+      if (value <= 10) return '低';
+      if (value <= 25) return '中低';
+      if (value <= 50) return '中';
+      if (value <= 70) return '中高';
+      return '高';
+    } else {
+      if (value <= 10) return 'Low';
+      if (value <= 25) return 'Medium Low';
+      if (value <= 50) return 'Medium';
+      if (value <= 70) return 'Medium High';
+      return 'High';
+    }
+  };
+
   const chartData = forecast.slice(0, 6).map((hour, index) => ({
     time: index === 0 ? t('hourly.now') : format(hour.time, "ha", { locale }),
     temperature: Math.round(hour.temperature),
@@ -29,7 +46,7 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
       
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 10, right: 40, left: 0, bottom: 10 }}>
+          <LineChart data={chartData} margin={{ top: 10, right: 50, left: 0, bottom: 10 }}>
             <XAxis 
               dataKey="time" 
               axisLine={false} 
@@ -45,15 +62,16 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
               tickFormatter={(value) => `${value}°`}
               width={40}
             />
-            <YAxis 
+            <YAxis
               yAxisId="right"
               orientation="right"
               domain={[0, 100]}
-              axisLine={false} 
+              ticks={[10, 25, 50, 70, 85]}
+              axisLine={false}
               tickLine={false}
-              tick={{ fill: 'hsl(var(--weather-rain))', fontSize: 12 }}
-              tickFormatter={(value) => `${value}%`}
-              width={40}
+              tick={{ fill: 'hsl(var(--weather-rain))', fontSize: 10 }}
+              tickFormatter={(value) => percentageToPSR(value)}
+              width={50}
             />
             <Tooltip
               contentStyle={{
