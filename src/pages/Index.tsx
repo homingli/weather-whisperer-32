@@ -4,7 +4,7 @@ import { CitySearch } from "@/components/CitySearch";
 import { CurrentWeather } from "@/components/CurrentWeather";
 import { HourlyForecast } from "@/components/HourlyForecast";
 import { DailyForecast } from "@/components/DailyForecast";
-import { UmbrellaSection } from "@/components/UmbrellaSection";
+
 import { WeatherSkeleton } from "@/components/WeatherSkeleton";
 import { WeatherSourceToggle } from "@/components/WeatherSourceToggle";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
@@ -145,8 +145,7 @@ const Index = () => {
             </div>
           ) : weather ? (
           <>
-              <CurrentWeather weather={weather.current} />
-              <UmbrellaSection current={weather.current} forecast={weather.hourly} />
+              <CurrentWeather weather={weather.current} hourlyForecast={weather.hourly} />
               <HourlyForecast forecast={weather.hourly} />
               <DailyForecast forecast={weather.daily} />
             </>
