@@ -5,6 +5,24 @@ import { CurrentWeather, HourlyForecast, DailyForecast, WeatherData } from './we
 
 const HKO_API_BASE = 'https://data.weather.gov.hk/weatherAPI/opendata/weather.php';
 
+// Hong Kong approximate bounding box for coverage detection
+const HK_BOUNDS = {
+  minLat: 22.15,
+  maxLat: 22.56,
+  minLon: 113.82,
+  maxLon: 114.43,
+};
+
+// Check if coordinates are within Hong Kong coverage area
+export function isInHongKong(lat: number, lon: number): boolean {
+  return (
+    lat >= HK_BOUNDS.minLat &&
+    lat <= HK_BOUNDS.maxLat &&
+    lon >= HK_BOUNDS.minLon &&
+    lon <= HK_BOUNDS.maxLon
+  );
+}
+
 // HKO weather station coordinates mapping (English names)
 // These are the stations used in the rhrread API for temperature readings
 export const HKO_STATIONS_EN: Record<string, { lat: number; lon: number }> = {
@@ -282,7 +300,7 @@ export interface HKOWarningInfoResponse {
 
 // Map PSR (Probability of Significant Rain) to percentage
 // Supports both English and Traditional Chinese values from HKO API
-function psrToPercentage(psr: string): number {
+export function psrToPercentage(psr: string): number {
   const psrMap: Record<string, number> = {
     // English
     'Low': 10,
@@ -349,19 +367,6 @@ function hkoIconToWeatherCode(iconCode: number): number {
   return iconMap[iconCode] ?? 3;
 }
 
-// Determine if it's day or night based on current hour (simplified)
-function isCurrentlyDay(): boolean {
-  const hour = new Date().getHours();
-  return hour >= 6 && hour < 19;
-}
-
-// Fetch current weather from HKO
-export async function getHKOCurrentWeather(lang: 'en' | 'tc' = 'en'): Promise<HKOCurrentWeatherResponse> {
-  const response = await fetch(`${HKO_API_BASE}?dataType=rhrread&lang=${lang}`);
-  if (!response.ok) throw new Error('Failed to fetch HKO current weather');
-  return response.json();
-}
-
 // Fetch 9-day forecast from HKO
 export async function getHKOForecast(lang: 'en' | 'tc' = 'en'): Promise<HKOForecastResponse> {
   const response = await fetch(`${HKO_API_BASE}?dataType=fnd&lang=${lang}`);
@@ -383,18 +388,16 @@ export async function getHKOWarningInfo(lang: 'en' | 'tc' = 'en'): Promise<HKOWa
   return response.json();
 }
 
-// Get weather for Hong Kong using HKO API
-// If lat/lon are provided, find the nearest station for localized readings
-export async function getHKOWeather(
+// Get HKO daily forecast and warnings only (for hybrid approach)
+export async function getHKODailyAndWarnings(
   lang: 'en' | 'tc' = 'en',
   lat?: number,
   lon?: number
-): Promise<WeatherData & { warnings: HKOWarning[]; nearestStation?: string; nearestDistrict?: string }> {
-  const [currentData, forecastData, warningsData, warningInfoData] = await Promise.all([
-    getHKOCurrentWeather(lang),
+): Promise<{ daily: DailyForecast[]; warnings: HKOWarning[]; nearestStation?: string; nearestDistrict?: string }> {
+  const [forecastData, warningsData, warningInfoData] = await Promise.all([
     getHKOForecast(lang),
     getHKOWarningSummary(lang),
-    getHKOWarningInfo(lang).catch(() => ({ details: [] } as HKOWarningInfoResponse)), // Gracefully handle if no warnings
+    getHKOWarningInfo(lang).catch(() => ({ details: [] } as HKOWarningInfoResponse)),
   ]);
 
   // Find nearest station and district if coordinates provided
@@ -404,83 +407,6 @@ export async function getHKOWeather(
   if (lat !== undefined && lon !== undefined) {
     nearestStation = findNearestStation(lat, lon, lang);
     nearestDistrict = findNearestDistrict(lat, lon, lang);
-  }
-
-  // Get temperature from nearest station or fallback to Hong Kong Observatory
-  const stationName = nearestStation?.name || (lang === 'tc' ? '香港天文台' : 'Hong Kong Observatory');
-  const stationTemp = currentData.temperature.data.find(d => d.place === stationName);
-  const hkoTemp = stationTemp || currentData.temperature.data.find(d => 
-    d.place === 'Hong Kong Observatory' || d.place === '香港天文台'
-  );
-  
-  // Get humidity from Hong Kong Observatory (primary humidity station)
-  const hkoHumidity = currentData.humidity.data.find(d => 
-    d.place === 'Hong Kong Observatory' || d.place === '香港天文台'
-  );
-  
-  // Calculate average temperature across all stations as fallback
-  const avgTemp = currentData.temperature.data.reduce((sum, d) => sum + d.value, 0) / currentData.temperature.data.length;
-  
-  // Get rainfall from nearest district
-  const districtName = nearestDistrict?.name;
-  const districtRainfall = districtName 
-    ? currentData.rainfall.data.find(d => d.place === districtName)
-    : null;
-  
-  // Get current weather icon
-  const currentIcon = currentData.icon?.[0] || 50;
-  const isDay = isCurrentlyDay();
-  
-  // Calculate if it's currently raining from rainfall data (use district or max)
-  const maxRainfall = districtRainfall?.max ?? Math.max(...currentData.rainfall.data.map(d => d.max));
-  
-  // Get today's PSR for current weather
-  const todayPSR = forecastData.weatherForecast[0]?.PSR || '';
-  
-  // Build current weather
-  const current: CurrentWeather = {
-    temperature: hkoTemp?.value ?? avgTemp,
-    apparentTemperature: hkoTemp?.value ?? avgTemp, // HKO doesn't provide apparent temp
-    humidity: hkoHumidity?.value ?? 70,
-    weatherCode: hkoIconToWeatherCode(currentIcon),
-    windSpeed: 0, // Not provided in current weather API
-    precipitation: maxRainfall,
-    precipitationProbability: psrToPercentage(todayPSR),
-    precipitationProbabilityRaw: todayPSR || undefined,
-    isDay,
-  };
-
-  // Build hourly forecast (HKO doesn't provide hourly, so we generate approximations)
-  // We'll create 13 hours of forecast based on current conditions
-  const hourly: HourlyForecast[] = [];
-  const now = new Date();
-  const todayForecast = forecastData.weatherForecast[0];
-  const tomorrowForecast = forecastData.weatherForecast[1];
-  
-  for (let i = 0; i < 13; i++) {
-    const forecastTime = new Date(now.getTime() + i * 60 * 60 * 1000);
-    const hour = forecastTime.getHours();
-    const isNextDay = forecastTime.getDate() !== now.getDate();
-    const forecast = isNextDay ? tomorrowForecast : todayForecast;
-    
-    // Interpolate temperature based on time of day
-    const minTemp = forecast?.forecastMintemp?.value ?? current.temperature - 3;
-    const maxTemp = forecast?.forecastMaxtemp?.value ?? current.temperature + 3;
-    
-    // Simple temperature curve: coldest at 6am, warmest at 2pm
-    const tempProgress = Math.sin(((hour - 6) / 8) * Math.PI);
-    const temp = minTemp + (maxTemp - minTemp) * Math.max(0, tempProgress);
-    
-    const forecastPSR = forecast?.PSR || '';
-    
-    hourly.push({
-      time: forecastTime,
-      temperature: Math.round(temp),
-      weatherCode: hkoIconToWeatherCode(forecast?.ForecastIcon ?? currentIcon),
-      precipitationProbability: psrToPercentage(forecastPSR),
-      precipitationProbabilityRaw: forecastPSR || undefined,
-      isDay: hour >= 6 && hour < 19,
-    });
   }
 
   // Build daily forecast (up to 7 days)
@@ -509,10 +435,9 @@ export async function getHKOWeather(
     };
   });
 
-  // Extract warnings with details - match by warningStatementCode
+  // Extract warnings with details
   const warningInfoDetails = warningInfoData.details || [];
   const warnings: HKOWarning[] = Object.entries(warningsData).map(([key, warning]) => {
-    // Match warning info by code - the warningStatementCode matches the warning code
     const matchingDetail = warningInfoDetails.find(d => 
       d.warningStatementCode === warning.code || 
       d.subtype === warning.code ||
@@ -529,8 +454,6 @@ export async function getHKOWeather(
   });
 
   return {
-    current,
-    hourly,
     daily,
     warnings,
     nearestStation: nearestStation?.name,
