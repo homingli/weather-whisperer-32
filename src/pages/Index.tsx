@@ -137,7 +137,7 @@ const Index = () => {
           ) : weather ? (
             <>
               <CurrentWeather weather={weather.current} hourlyForecast={weather.hourly} />
-              <HourlyForecast forecast={weather.hourly} />
+              <HourlyForecast forecast={weather.hourly} daily={weather.daily} />
               <DailyForecast forecast={weather.daily} />
             </>
           ) : null}
