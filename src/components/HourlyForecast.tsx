@@ -3,7 +3,6 @@ import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useWeatherSource } from "@/contexts/WeatherSourceContext";
 
 interface HourlyForecastProps {
   forecast: HourlyForecastType[];
@@ -11,31 +10,12 @@ interface HourlyForecastProps {
 
 export function HourlyForecast({ forecast }: HourlyForecastProps) {
   const { language, t } = useLanguage();
-  const { isHKO } = useWeatherSource();
   const locale = language === 'tc' ? zhTW : undefined;
-
-  // Map percentage values to PSR text labels
-  const percentageToPSR = (value: number): string => {
-    if (language === 'tc') {
-      if (value <= 10) return '低';
-      if (value <= 25) return '中低';
-      if (value <= 50) return '中';
-      if (value <= 70) return '中高';
-      return '高';
-    } else {
-      if (value <= 10) return 'Low';
-      if (value <= 25) return 'Medium Low';
-      if (value <= 50) return 'Medium';
-      if (value <= 70) return 'Medium High';
-      return 'High';
-    }
-  };
 
   const chartData = forecast.slice(0, 6).map((hour, index) => ({
     time: index === 0 ? t('hourly.now') : format(hour.time, "ha", { locale }),
     temperature: Math.round(hour.temperature),
     rainChance: hour.precipitationProbability,
-    rainChanceRaw: hour.precipitationProbabilityRaw,
   }));
 
   return (
@@ -66,12 +46,11 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
               yAxisId="right"
               orientation="right"
               domain={[0, 100]}
-              ticks={[10, 25, 50, 70, 85]}
               axisLine={false}
               tickLine={false}
               tick={{ fill: 'hsl(var(--weather-rain))', fontSize: 10 }}
-              tickFormatter={(value) => percentageToPSR(value)}
-              width={50}
+              tickFormatter={(value) => `${value}%`}
+              width={40}
             />
             <Tooltip
               contentStyle={{
@@ -80,14 +59,9 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
                 borderRadius: '8px',
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
-              formatter={(value: number, name: string, props: any) => {
+              formatter={(value: number, name: string) => {
                 if (name === 'temperature') {
                   return [`${value}°`, t('hourly.temperature')];
-                }
-                // For rain chance, show raw PSR if available (HKO source)
-                const rawValue = props?.payload?.rainChanceRaw;
-                if (isHKO && rawValue) {
-                  return [rawValue, t('hourly.rainChance')];
                 }
                 return [`${value}%`, t('hourly.rainChance')];
               }}

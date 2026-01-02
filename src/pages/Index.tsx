@@ -4,34 +4,23 @@ import { CitySearch } from "@/components/CitySearch";
 import { CurrentWeather } from "@/components/CurrentWeather";
 import { HourlyForecast } from "@/components/HourlyForecast";
 import { DailyForecast } from "@/components/DailyForecast";
-
 import { WeatherSkeleton } from "@/components/WeatherSkeleton";
-import { WeatherSourceToggle } from "@/components/WeatherSourceToggle";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { GeoLocation, getDefaultCity, getWeather, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
-import { getHKOWeather, HKOWarning } from "@/lib/hko-weather";
-import { useWeatherSource } from "@/contexts/WeatherSourceContext";
+import { getHKODailyAndWarnings, HKOWarning, isInHongKong } from "@/lib/hko-weather";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { CloudRain } from "lucide-react";
 
-// Hong Kong location for HKO API
-const HONG_KONG_LOCATION: GeoLocation = {
-  name: "Hong Kong",
-  latitude: 22.3193,
-  longitude: 114.1694,
-  country: "China",
-  admin1: "Hong Kong",
-};
-
 interface ExtendedWeatherData extends WeatherData {
   warnings?: HKOWarning[];
+  nearestStation?: string;
+  nearestDistrict?: string;
 }
 
 const Index = () => {
   const [selectedCity, setSelectedCity] = useState<GeoLocation | null>(null);
   const [isLocating, setIsLocating] = useState(false);
-  const { source, isHKO } = useWeatherSource();
   const { language, t } = useLanguage();
 
   useEffect(() => {
@@ -62,33 +51,44 @@ const Index = () => {
     initializeLocation();
   }, []);
 
-  // When switching to HKO, automatically switch to Hong Kong
-  useEffect(() => {
-    if (isHKO && selectedCity?.name !== 'Hong Kong') {
-      setSelectedCity(HONG_KONG_LOCATION);
-    }
-  }, [isHKO]);
+  // Determine if selected city is in Hong Kong coverage area
+  const isHKCovered = selectedCity ? isInHongKong(selectedCity.latitude, selectedCity.longitude) : false;
 
-  const { data: weather, isLoading, error } = useQuery<ExtendedWeatherData & { nearestStation?: string; nearestDistrict?: string }>({
-    queryKey: ["weather", source, language, selectedCity?.latitude, selectedCity?.longitude],
+  // Fetch Open-Meteo data for current weather and hourly forecast
+  const { data: openMeteoData, isLoading: isLoadingOpenMeteo, error: openMeteoError } = useQuery({
+    queryKey: ["weather-openmeteo", selectedCity?.latitude, selectedCity?.longitude],
     queryFn: async () => {
-      if (isHKO) {
-        // Map language to HKO API lang parameter
-        const hkoLang = language === 'tc' ? 'tc' : 'en';
-        // Pass coordinates for granular station selection (use HK center if no specific location)
-        const lat = selectedCity?.latitude ?? HONG_KONG_LOCATION.latitude;
-        const lon = selectedCity?.longitude ?? HONG_KONG_LOCATION.longitude;
-        return getHKOWeather(hkoLang, lat, lon);
-      }
       return getWeather(selectedCity!.latitude, selectedCity!.longitude);
     },
-    enabled: !!selectedCity || isHKO,
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
-    staleTime: 2 * 60 * 1000, // Consider data stale after 2 minutes
+    enabled: !!selectedCity,
+    refetchInterval: 5 * 60 * 1000,
+    staleTime: 2 * 60 * 1000,
   });
 
-  // Determine which city to display
-  const displayCity = isHKO ? HONG_KONG_LOCATION : selectedCity;
+  // Fetch HKO data for daily forecast and warnings (only when in HK)
+  const { data: hkoData, isLoading: isLoadingHKO } = useQuery({
+    queryKey: ["weather-hko", language, selectedCity?.latitude, selectedCity?.longitude],
+    queryFn: async () => {
+      const hkoLang = language === 'tc' ? 'tc' : 'en';
+      return getHKODailyAndWarnings(hkoLang, selectedCity!.latitude, selectedCity!.longitude);
+    },
+    enabled: !!selectedCity && isHKCovered,
+    refetchInterval: 5 * 60 * 1000,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Combine data: Open-Meteo for current+hourly, HKO for daily+warnings when in HK
+  const weather: ExtendedWeatherData | undefined = openMeteoData ? {
+    current: openMeteoData.current,
+    hourly: openMeteoData.hourly,
+    daily: isHKCovered && hkoData ? hkoData.daily : openMeteoData.daily,
+    warnings: isHKCovered && hkoData ? hkoData.warnings : undefined,
+    nearestStation: hkoData?.nearestStation,
+    nearestDistrict: hkoData?.nearestDistrict,
+  } : undefined;
+
+  const isLoading = isLoadingOpenMeteo || (isHKCovered && isLoadingHKO);
+  const error = openMeteoError;
 
   return (
     <div className="min-h-screen gradient-sky">
@@ -96,31 +96,22 @@ const Index = () => {
         {/* Header */}
         <header className="text-center mb-8">
           <h1 className="sr-only">Weather Forecast</h1>
-          {isHKO ? (
-            <div className="mb-2">
-              <h2 className="text-2xl font-semibold text-foreground">
-                {language === 'tc' ? '香港' : 'Hong Kong'}
-              </h2>
-              {weather?.nearestStation && (
-                <p className="text-sm text-foreground/80">
-                  {weather.nearestStation}
-                </p>
-              )}
-              <p className="text-sm text-muted-foreground">{t('hko.name')}</p>
-            </div>
-          ) : (
-            <CitySearch currentCity={selectedCity} onCitySelect={setSelectedCity} />
+          <CitySearch currentCity={selectedCity} onCitySelect={setSelectedCity} />
+          {isHKCovered && weather?.nearestStation && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {weather.nearestStation}
+            </p>
           )}
         </header>
 
         {/* Main content */}
         <main className="space-y-6">
-          {/* Weather Alerts (HKO only) */}
-          {isHKO && weather?.warnings && weather.warnings.length > 0 && (
+          {/* Weather Alerts (HKO coverage only) */}
+          {isHKCovered && weather?.warnings && weather.warnings.length > 0 && (
             <WeatherAlerts warnings={weather.warnings} />
           )}
 
-          {isLocating && !isHKO ? (
+          {isLocating ? (
             <div className="text-center py-20 animate-fade-in">
               <CloudRain className="h-16 w-16 mx-auto mb-4 text-primary animate-pulse-glow" />
               <h2 className="text-2xl font-semibold mb-2">{t('loading.findingLocation')}</h2>
@@ -128,7 +119,7 @@ const Index = () => {
                 {t('loading.allowLocation')}
               </p>
             </div>
-          ) : !displayCity && !isHKO ? (
+          ) : !selectedCity ? (
             <div className="text-center py-20 animate-fade-in">
               <CloudRain className="h-16 w-16 mx-auto mb-4 text-primary animate-pulse-glow" />
               <h2 className="text-2xl font-semibold mb-2">{t('loading.welcome')}</h2>
@@ -144,7 +135,7 @@ const Index = () => {
               <p className="text-sm text-muted-foreground">{t('loading.tryAgain')}</p>
             </div>
           ) : weather ? (
-          <>
+            <>
               <CurrentWeather weather={weather.current} hourlyForecast={weather.hourly} />
               <HourlyForecast forecast={weather.hourly} />
               <DailyForecast forecast={weather.daily} />
@@ -155,11 +146,14 @@ const Index = () => {
         {/* Footer */}
         <footer className="text-center mt-12 text-sm text-muted-foreground space-y-2">
           <div className="flex items-center justify-center gap-2">
-            <WeatherSourceToggle />
-            <span className="text-muted-foreground/50">|</span>
             <LanguageToggle />
           </div>
-          <p>{formatString(t('source.poweredBy'), isHKO ? t('source.hko') : t('source.openMeteo'))}</p>
+          <p>
+            {isHKCovered 
+              ? formatString(t('source.poweredByBoth'), t('source.openMeteo'), t('source.hko'))
+              : formatString(t('source.poweredBy'), t('source.openMeteo'))
+            }
+          </p>
         </footer>
       </div>
     </div>
