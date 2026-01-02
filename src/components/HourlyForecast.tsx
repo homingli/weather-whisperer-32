@@ -1,22 +1,60 @@
-import { HourlyForecast as HourlyForecastType } from "@/lib/weather";
-import { format } from "date-fns";
+import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from "@/lib/weather";
+import { format, isWithinInterval } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea } from "recharts";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useMemo } from "react";
 
 interface HourlyForecastProps {
   forecast: HourlyForecastType[];
+  daily?: DailyForecastType[];
 }
 
-export function HourlyForecast({ forecast }: HourlyForecastProps) {
+export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
   const { language, t } = useLanguage();
   const locale = language === 'tc' ? zhTW : undefined;
 
-  const chartData = forecast.slice(0, 6).map((hour, index) => ({
+  const chartData = forecast.slice(0, 8).map((hour, index) => ({
     time: index === 0 ? t('hourly.now') : format(hour.time, "ha", { locale }),
     temperature: Math.round(hour.temperature),
     rainChance: hour.precipitationProbability,
+    timestamp: hour.time.getTime(),
+    isDay: hour.isDay,
   }));
+
+  // Calculate day/night periods for reference areas
+  const dayNightAreas = useMemo(() => {
+    if (!daily || daily.length === 0) return [];
+    
+    const areas: { x1: string; x2: string; isDay: boolean }[] = [];
+    const dataPoints = chartData;
+    
+    if (dataPoints.length < 2) return [];
+    
+    let currentPeriodStart = 0;
+    let currentIsDay = dataPoints[0].isDay;
+    
+    for (let i = 1; i < dataPoints.length; i++) {
+      if (dataPoints[i].isDay !== currentIsDay) {
+        areas.push({
+          x1: dataPoints[currentPeriodStart].time,
+          x2: dataPoints[i - 1].time,
+          isDay: currentIsDay,
+        });
+        currentPeriodStart = i;
+        currentIsDay = dataPoints[i].isDay;
+      }
+    }
+    
+    // Add the last period
+    areas.push({
+      x1: dataPoints[currentPeriodStart].time,
+      x2: dataPoints[dataPoints.length - 1].time,
+      isDay: currentIsDay,
+    });
+    
+    return areas;
+  }, [chartData, daily]);
 
   return (
     <div className="glass-card p-4 animate-fade-in" style={{ animationDelay: "0.2s" }}>
@@ -27,6 +65,16 @@ export function HourlyForecast({ forecast }: HourlyForecastProps) {
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 10, right: 50, left: 0, bottom: 10 }}>
+            {/* Day/night background areas */}
+            {dayNightAreas.map((area, index) => (
+              <ReferenceArea
+                key={index}
+                x1={area.x1}
+                x2={area.x2}
+                fill={area.isDay ? "hsl(var(--weather-sunny) / 0.08)" : "hsl(var(--primary) / 0.12)"}
+                fillOpacity={1}
+              />
+            ))}
             <XAxis 
               dataKey="time" 
               axisLine={false} 
