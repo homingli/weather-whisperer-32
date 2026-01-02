@@ -1,10 +1,8 @@
 import { CurrentWeather as CurrentWeatherType, HourlyForecast, getWeatherIcon } from "@/lib/weather";
-import { psrNeedsUmbrella } from "@/lib/hko-weather";
 import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { Umbrella, UmbrellaOff } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useWeatherSource } from "@/contexts/WeatherSourceContext";
 
 interface CurrentWeatherProps {
   weather: CurrentWeatherType;
@@ -13,19 +11,14 @@ interface CurrentWeatherProps {
 
 export function CurrentWeather({ weather, hourlyForecast }: CurrentWeatherProps) {
   const { language, t } = useLanguage();
-  const { isHKO } = useWeatherSource();
   const locale = language === 'tc' ? zhTW : undefined;
 
   const dateFormat = language === 'tc' ? "yyyy年M月d日 EEEE" : "EEEE, d MMMM yyyy";
 
-  // Umbrella logic
+  // Umbrella logic - use percentage-based threshold
   const isCurrentlyRaining = weather.precipitation > 0;
   const next6Hours = hourlyForecast.slice(0, 6);
-  
-  const firstRainyHour = isHKO
-    ? next6Hours.find(hour => psrNeedsUmbrella(hour.precipitationProbabilityRaw))
-    : next6Hours.find(hour => hour.precipitationProbability >= 10);
-  
+  const firstRainyHour = next6Hours.find(hour => hour.precipitationProbability >= 25);
   const needsUmbrella = isCurrentlyRaining || !!firstRainyHour;
 
   return (
