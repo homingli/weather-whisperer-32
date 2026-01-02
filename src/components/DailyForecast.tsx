@@ -3,7 +3,6 @@ import { format, isToday, isTomorrow } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { Droplets } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useWeatherSource } from "@/contexts/WeatherSourceContext";
 
 interface DailyForecastProps {
   forecast: DailyForecastType[];
@@ -11,7 +10,6 @@ interface DailyForecastProps {
 
 export function DailyForecast({ forecast }: DailyForecastProps) {
   const { language, t } = useLanguage();
-  const { isHKO } = useWeatherSource();
   const locale = language === 'tc' ? zhTW : undefined;
 
   const formatDay = (date: Date) => {
@@ -36,6 +34,9 @@ export function DailyForecast({ forecast }: DailyForecastProps) {
         {forecast.map((day) => {
           const minPercent = ((day.temperatureMin - weekMin) / tempRange) * 100;
           const maxPercent = ((day.temperatureMax - weekMin) / tempRange) * 100;
+          // Show PSR text if available (HKO data), otherwise show percentage
+          const showPSR = day.precipitationProbabilityRaw;
+          const showPercentage = !showPSR && day.precipitationProbabilityMax > 0;
 
           return (
             <div
@@ -50,13 +51,11 @@ export function DailyForecast({ forecast }: DailyForecastProps) {
               <span className="text-2xl w-10 text-center">{getWeatherIcon(day.weatherCode, true)}</span>
               
               <div className="flex items-center gap-1 w-16">
-                {(isHKO ? day.precipitationProbabilityRaw : day.precipitationProbabilityMax > 0) && (
+                {(showPSR || showPercentage) && (
                   <>
                     <Droplets className="h-3 w-3 text-weather-rain flex-shrink-0" />
                     <span className="text-xs text-weather-rain truncate">
-                      {isHKO && day.precipitationProbabilityRaw 
-                        ? day.precipitationProbabilityRaw 
-                        : `${day.precipitationProbabilityMax}%`}
+                      {showPSR ? day.precipitationProbabilityRaw : `${day.precipitationProbabilityMax}%`}
                     </span>
                   </>
                 )}

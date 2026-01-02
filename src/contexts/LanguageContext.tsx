@@ -57,6 +57,7 @@ const translations: Record<Language, Record<string, string>> = {
     'source.openMeteoDesc': 'Global weather data',
     'source.hko': 'HK Observatory',
     'source.hkoDesc': 'Hong Kong only',
+    'source.poweredByBoth': 'Powered by {0} & {1}',
     'source.poweredBy': 'Powered by {0}',
     
     // Language
@@ -115,6 +116,7 @@ const translations: Record<Language, Record<string, string>> = {
     'source.hko': '香港天文台',
     'source.hkoDesc': '僅限香港',
     'source.poweredBy': '資料來源：{0}',
+    'source.poweredByBoth': '資料來源：{0} 及 {1}',
     
     // Language
     'language.en': 'English',
