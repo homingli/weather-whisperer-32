@@ -59,10 +59,8 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
     return events;
   }, [daily, hoursData, language, locale]);
 
-  // Calculate day/night periods for reference areas
+  // Calculate day/night periods for reference areas based on isDay from hourly data
   const dayNightAreas = useMemo(() => {
-    if (!daily || daily.length === 0) return [];
-    
     const areas: { x1: string; x2: string; isDay: boolean }[] = [];
     const dataPoints = chartData;
     
@@ -91,7 +89,7 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
     });
     
     return areas;
-  }, [chartData, daily]);
+  }, [chartData]);
 
   return (
     <div className="glass-card p-4 animate-fade-in" style={{ animationDelay: "0.2s" }}>
