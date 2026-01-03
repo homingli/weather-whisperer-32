@@ -112,7 +112,7 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
                 key={index}
                 x1={area.x1}
                 x2={area.x2}
-                fill={area.isDay ? "hsl(48 96% 53% / 0.15)" : "hsl(222 47% 30% / 0.25)"}
+                fill={area.isDay ? "hsl(48 96% 53% / 0.7)" : "hsl(222 47% 30% / 0.7)"}
                 fillOpacity={1}
               />
             ))}
@@ -125,14 +125,18 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
                 stroke={event.type === 'sunrise' ? "hsl(var(--weather-sunny))" : "hsl(250 60% 60%)"}
                 strokeDasharray="3 3"
                 strokeWidth={1.5}
-                label={{
-                  value: event.label,
-                  position: 'top',
-                  fill: event.type === 'sunrise' ? "hsl(var(--weather-sunny))" : "hsl(250 60% 60%)",
-                  fontSize: 11,
-                  fontWeight: 500,
-                }}
-              />
+              >
+                <text
+                  x={0}
+                  y={-8}
+                  textAnchor="middle"
+                  fill={event.type === 'sunrise' ? "hsl(var(--weather-sunny))" : "hsl(250 60% 60%)"}
+                  fontSize={11}
+                  fontWeight={500}
+                >
+                  {event.label}
+                </text>
+              </ReferenceLine>
             ))}
             <XAxis 
               dataKey="time" 
