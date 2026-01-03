@@ -78,6 +78,7 @@ const Index = () => {
   });
 
   // Combine data: Open-Meteo for current+hourly, HKO for daily+warnings when in HK
+  // Always keep Open-Meteo daily for sunrise/sunset times (HKO doesn't provide these)
   const weather: ExtendedWeatherData | undefined = openMeteoData ? {
     current: openMeteoData.current,
     hourly: openMeteoData.hourly,
@@ -86,6 +87,9 @@ const Index = () => {
     nearestStation: hkoData?.nearestStation,
     nearestDistrict: hkoData?.nearestDistrict,
   } : undefined;
+
+  // Open-Meteo daily data is always used for sunrise/sunset (HKO doesn't provide it)
+  const sunTimes = openMeteoData?.daily;
 
   const isLoading = isLoadingOpenMeteo || (isHKCovered && isLoadingHKO);
   const error = openMeteoError;
@@ -137,7 +141,7 @@ const Index = () => {
           ) : weather ? (
             <>
               <CurrentWeather weather={weather.current} hourlyForecast={weather.hourly} />
-              <HourlyForecast forecast={weather.hourly} daily={weather.daily} />
+              <HourlyForecast forecast={weather.hourly} daily={sunTimes} />
               <DailyForecast forecast={weather.daily} />
             </>
           ) : null}
