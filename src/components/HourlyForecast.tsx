@@ -117,6 +117,7 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
               <ReferenceLine
                 key={`sun-${index}`}
                 x={event.time}
+                yAxisId="left"
                 stroke={event.type === 'sunrise' ? "hsl(var(--weather-sunny))" : "hsl(250 60% 60%)"}
                 strokeDasharray="3 3"
                 strokeWidth={1.5}
