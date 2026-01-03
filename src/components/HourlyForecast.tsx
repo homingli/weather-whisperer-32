@@ -1,9 +1,10 @@
 import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from "@/lib/weather";
-import { format, isWithinInterval } from "date-fns";
+import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea } from "recharts";
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from "recharts";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMemo } from "react";
+import { Sunrise, Sunset } from "lucide-react";
 
 interface HourlyForecastProps {
   forecast: HourlyForecastType[];
@@ -14,13 +15,49 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
   const { language, t } = useLanguage();
   const locale = language === 'tc' ? zhTW : undefined;
 
-  const chartData = forecast.slice(0, 8).map((hour, index) => ({
+  const hoursData = forecast.slice(0, 8);
+  
+  const chartData = hoursData.map((hour, index) => ({
     time: index === 0 ? t('hourly.now') : format(hour.time, "ha", { locale }),
     temperature: Math.round(hour.temperature),
     rainChance: hour.precipitationProbability,
     timestamp: hour.time.getTime(),
     isDay: hour.isDay,
   }));
+
+  // Find sunrise/sunset times within the forecast window
+  const sunEvents = useMemo(() => {
+    if (!daily || daily.length === 0 || hoursData.length === 0) return [];
+    
+    const events: { time: string; type: 'sunrise' | 'sunset'; label: string }[] = [];
+    const startTime = hoursData[0].time.getTime();
+    const endTime = hoursData[hoursData.length - 1].time.getTime();
+    
+    daily.slice(0, 2).forEach(day => {
+      if (day.sunrise) {
+        const sunriseTime = day.sunrise.getTime();
+        if (sunriseTime >= startTime && sunriseTime <= endTime) {
+          events.push({
+            time: format(day.sunrise, "ha", { locale }),
+            type: 'sunrise',
+            label: language === 'tc' ? '日出' : '☀︎'
+          });
+        }
+      }
+      if (day.sunset) {
+        const sunsetTime = day.sunset.getTime();
+        if (sunsetTime >= startTime && sunsetTime <= endTime) {
+          events.push({
+            time: format(day.sunset, "ha", { locale }),
+            type: 'sunset',
+            label: language === 'tc' ? '日落' : '☾'
+          });
+        }
+      }
+    });
+    
+    return events;
+  }, [daily, hoursData, language, locale]);
 
   // Calculate day/night periods for reference areas
   const dayNightAreas = useMemo(() => {
@@ -71,8 +108,25 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
                 key={index}
                 x1={area.x1}
                 x2={area.x2}
-                fill={area.isDay ? "hsl(var(--weather-sunny) / 0.08)" : "hsl(var(--primary) / 0.12)"}
+                fill={area.isDay ? "hsl(48 96% 53% / 0.15)" : "hsl(222 47% 30% / 0.25)"}
                 fillOpacity={1}
+              />
+            ))}
+            {/* Sunrise/sunset markers */}
+            {sunEvents.map((event, index) => (
+              <ReferenceLine
+                key={`sun-${index}`}
+                x={event.time}
+                stroke={event.type === 'sunrise' ? "hsl(var(--weather-sunny))" : "hsl(250 60% 60%)"}
+                strokeDasharray="3 3"
+                strokeWidth={1.5}
+                label={{
+                  value: event.label,
+                  position: 'top',
+                  fill: event.type === 'sunrise' ? "hsl(var(--weather-sunny))" : "hsl(250 60% 60%)",
+                  fontSize: 11,
+                  fontWeight: 500,
+                }}
               />
             ))}
             <XAxis 
