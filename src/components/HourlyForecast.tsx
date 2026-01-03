@@ -18,10 +18,10 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
   const hoursData = forecast.slice(0, 8);
   
   const chartData = hoursData.map((hour, index) => ({
-    time: index === 0 ? t('hourly.now') : format(hour.time, "ha", { locale }),
+    time: hour.time.getTime(),
+    displayTime: index === 0 ? t('hourly.now') : format(hour.time, "ha", { locale }),
     temperature: Math.round(hour.temperature),
     rainChance: hour.precipitationProbability,
-    timestamp: hour.time.getTime(),
     isDay: hour.isDay,
   }));
 
@@ -29,7 +29,7 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
   const sunEvents = useMemo(() => {
     if (!daily || daily.length === 0 || hoursData.length === 0) return [];
     
-    const events: { time: string; type: 'sunrise' | 'sunset'; label: string }[] = [];
+    const events: { time: number; type: 'sunrise' | 'sunset'; label: string }[] = [];
     const startTime = hoursData[0].time.getTime();
     const endTime = hoursData[hoursData.length - 1].time.getTime();
     
@@ -38,7 +38,7 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
         const sunriseTime = day.sunrise.getTime();
         if (sunriseTime >= startTime && sunriseTime <= endTime) {
           events.push({
-            time: format(day.sunrise, "ha", { locale }),
+            time: sunriseTime,
             type: 'sunrise',
             label: language === 'tc' ? '日出' : '☀︎'
           });
@@ -48,7 +48,7 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
         const sunsetTime = day.sunset.getTime();
         if (sunsetTime >= startTime && sunsetTime <= endTime) {
           events.push({
-            time: format(day.sunset, "ha", { locale }),
+            time: sunsetTime,
             type: 'sunset',
             label: language === 'tc' ? '日落' : '☾'
           });
@@ -57,11 +57,11 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
     });
     
     return events;
-  }, [daily, hoursData, language, locale]);
+  }, [daily, hoursData, language]);
 
   // Calculate day/night periods for reference areas based on isDay from hourly data
   const dayNightAreas = useMemo(() => {
-    const areas: { x1: string; x2: string; isDay: boolean }[] = [];
+    const areas: { x1: number; x2: number; isDay: boolean }[] = [];
     const dataPoints = chartData;
     
     if (dataPoints.length < 2) return [];
@@ -90,6 +90,12 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
     
     return areas;
   }, [chartData]);
+
+  // Custom tick formatter for x-axis
+  const formatXAxisTick = (timestamp: number, index: number) => {
+    if (index === 0) return t('hourly.now');
+    return format(new Date(timestamp), "ha", { locale });
+  };
 
   return (
     <div className="glass-card p-4 animate-fade-in" style={{ animationDelay: "0.2s" }}>
@@ -130,9 +136,13 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
             ))}
             <XAxis 
               dataKey="time" 
+              type="number"
+              domain={['dataMin', 'dataMax']}
               axisLine={false} 
               tickLine={false}
               tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+              tickFormatter={formatXAxisTick}
+              ticks={chartData.map(d => d.time)}
             />
             <YAxis 
               yAxisId="left"
@@ -141,6 +151,16 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
               tickLine={false}
               tick={{ fill: 'hsl(var(--weather-sunny))', fontSize: 12 }}
               tickFormatter={(value) => `${value}°`}
+              width={40}
+            />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              domain={[0, 100]}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: 'hsl(var(--weather-rain))', fontSize: 10 }}
+              tickFormatter={(value) => `${value}%`}
               width={40}
             />
             <YAxis
