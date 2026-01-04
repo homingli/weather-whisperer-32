@@ -198,16 +198,6 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
               tickFormatter={(value) => `${value}%`}
               width={40}
             />
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              domain={[0, 100]}
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: 'hsl(var(--weather-rain))', fontSize: 10 }}
-              tickFormatter={(value) => `${value}%`}
-              width={40}
-            />
             <Tooltip
               contentStyle={{
                 backgroundColor: 'hsl(var(--card))',
