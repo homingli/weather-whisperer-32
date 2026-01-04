@@ -44,6 +44,7 @@ export interface WeatherData {
   current: CurrentWeather;
   hourly: HourlyForecast[];
   daily: DailyForecast[];
+  timezone?: string;
 }
 
 // Geocoding API to search for cities
@@ -127,6 +128,7 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
       sunrise: new Date(data.daily.sunrise[i]),
       sunset: new Date(data.daily.sunset[i]),
     })),
+    timezone: data.timezone,
   };
 }
 

@@ -7,13 +7,16 @@ import { useLanguage } from "@/contexts/LanguageContext";
 interface CurrentWeatherProps {
   weather: CurrentWeatherType;
   hourlyForecast: HourlyForecast[];
+  locationName?: string;
+  timezone?: string;
 }
 
-export function CurrentWeather({ weather, hourlyForecast }: CurrentWeatherProps) {
+export function CurrentWeather({ weather, hourlyForecast, locationName, timezone }: CurrentWeatherProps) {
   const { language, t } = useLanguage();
   const locale = language === 'tc' ? zhTW : undefined;
 
   const dateFormat = language === 'tc' ? "yyyy年M月d日 EEEE" : "EEEE, d MMMM yyyy";
+  const timeFormat = "HH:mm";
 
   // Umbrella logic - use percentage-based threshold
   const isCurrentlyRaining = weather.precipitation > 0;
@@ -21,10 +24,27 @@ export function CurrentWeather({ weather, hourlyForecast }: CurrentWeatherProps)
   const firstRainyHour = next6Hours.find(hour => hour.precipitationProbability >= 25);
   const needsUmbrella = isCurrentlyRaining || !!firstRainyHour;
 
+  const getLocalDateTime = () => {
+    const now = new Date();
+    const options: Intl.DateTimeFormatOptions = {
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: language !== 'tc',
+    };
+
+    const formatter = new Intl.DateTimeFormat(language === 'tc' ? 'zh-TW' : 'en-US', options);
+    return formatter.format(now);
+  };
+
   return (
     <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
       <p className="text-lg text-muted-foreground text-center mb-6">
-        {format(new Date(), dateFormat, { locale })}
+        {timezone ? getLocalDateTime() : format(new Date(), dateFormat, { locale })}
       </p>
       
       <div className="flex items-center justify-center gap-8">

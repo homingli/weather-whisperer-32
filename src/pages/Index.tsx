@@ -86,6 +86,7 @@ const Index = () => {
     warnings: isHKCovered && hkoData ? hkoData.warnings : undefined,
     nearestStation: hkoData?.nearestStation,
     nearestDistrict: hkoData?.nearestDistrict,
+    timezone: isHKCovered && hkoData?.timezone ? hkoData.timezone : openMeteoData.timezone,
   } : undefined;
 
   // Open-Meteo daily data is always used for sunrise/sunset (HKO doesn't provide it)
@@ -140,7 +141,12 @@ const Index = () => {
             </div>
           ) : weather ? (
             <>
-              <CurrentWeather weather={weather.current} hourlyForecast={weather.hourly} />
+              <CurrentWeather
+                weather={weather.current}
+                hourlyForecast={weather.hourly}
+                locationName={selectedCity?.name}
+                timezone={weather.timezone}
+              />
               <HourlyForecast forecast={weather.hourly} daily={sunTimes} />
               <DailyForecast forecast={weather.daily} />
             </>
