@@ -4,7 +4,6 @@ import { zhTW } from "date-fns/locale";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from "recharts";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMemo } from "react";
-import { Sunrise, Sunset } from "lucide-react";
 
 interface HourlyForecastProps {
   forecast: HourlyForecastType[];
@@ -94,7 +93,11 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
   // Custom tick formatter for x-axis
   const formatXAxisTick = (timestamp: number, index: number) => {
     if (index === 0) return t('hourly.now');
-    return format(new Date(timestamp), "ha", { locale });
+    const date = new Date(timestamp);
+    const hours = date.getHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hour12 = hours % 12 || 12;
+    return `${hour12}${ampm}`;
   };
 
   return (
