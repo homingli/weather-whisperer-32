@@ -393,7 +393,7 @@ export async function getHKODailyAndWarnings(
   lang: 'en' | 'tc' = 'en',
   lat?: number,
   lon?: number
-): Promise<{ daily: DailyForecast[]; warnings: HKOWarning[]; nearestStation?: string; nearestDistrict?: string }> {
+): Promise<{ daily: DailyForecast[]; warnings: HKOWarning[]; nearestStation?: string; nearestDistrict?: string; timezone?: string }> {
   const [forecastData, warningsData, warningInfoData] = await Promise.all([
     getHKOForecast(lang),
     getHKOWarningSummary(lang),
@@ -458,6 +458,7 @@ export async function getHKODailyAndWarnings(
     warnings,
     nearestStation: nearestStation?.name,
     nearestDistrict: nearestDistrict?.name,
+    timezone: 'Asia/Hong_Kong',
   };
 }
 
