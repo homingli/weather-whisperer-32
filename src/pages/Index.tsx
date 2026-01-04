@@ -147,7 +147,7 @@ const Index = () => {
                 locationName={selectedCity?.name}
                 timezone={weather.timezone}
               />
-              <HourlyForecast forecast={weather.hourly} daily={sunTimes} />
+              <HourlyForecast forecast={weather.hourly} daily={sunTimes} timezone={weather.timezone} />
               <DailyForecast forecast={weather.daily} />
             </>
           ) : null}
