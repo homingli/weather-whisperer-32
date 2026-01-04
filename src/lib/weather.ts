@@ -89,16 +89,25 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
   
   const data = await response.json();
   
-  // Get current hour index for hourly data
-  const currentHour = new Date().getHours();
-  const todayStr = new Date().toISOString().split('T')[0];
-  const currentHourIndex = data.hourly.time.findIndex((t: string) => 
-    t.startsWith(todayStr) && new Date(t).getHours() === currentHour
-  );
+  // The API returns hourly data in the city's local timezone
+  // We need to find the current hour based on the city's timezone, not the user's local time
+  // The first hourly time entry tells us what the city's current date is
+  const firstHourlyTime = data.hourly.time[0];
+  const cityCurrentHour = new Date(data.current.time).getHours();
+  
+  // Find the index for the current hour in the city's timezone
+  const currentHourIndex = data.hourly.time.findIndex((t: string) => {
+    const hourTime = new Date(t);
+    return hourTime.getHours() === cityCurrentHour && 
+           t.substring(0, 10) === data.current.time.substring(0, 10);
+  });
+
+  // Fallback to index 0 if we can't find the exact hour (should rarely happen)
+  const startIndex = currentHourIndex >= 0 ? currentHourIndex : 0;
 
   // Get precipitation probability for current hour
-  const currentPrecipProb = currentHourIndex >= 0 
-    ? data.hourly.precipitation_probability[currentHourIndex] 
+  const currentPrecipProb = startIndex >= 0 
+    ? data.hourly.precipitation_probability[startIndex] 
     : 0;
 
   return {
@@ -112,12 +121,12 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
       precipitationProbability: currentPrecipProb,
       isDay: data.current.is_day === 1,
     },
-    hourly: data.hourly.time.slice(currentHourIndex, currentHourIndex + 13).map((time: string, i: number) => ({
+    hourly: data.hourly.time.slice(startIndex, startIndex + 13).map((time: string, i: number) => ({
       time: new Date(time),
-      temperature: data.hourly.temperature_2m[currentHourIndex + i],
-      weatherCode: data.hourly.weather_code[currentHourIndex + i],
-      precipitationProbability: data.hourly.precipitation_probability[currentHourIndex + i],
-      isDay: data.hourly.is_day[currentHourIndex + i] === 1,
+      temperature: data.hourly.temperature_2m[startIndex + i],
+      weatherCode: data.hourly.weather_code[startIndex + i],
+      precipitationProbability: data.hourly.precipitation_probability[startIndex + i],
+      isDay: data.hourly.is_day[startIndex + i] === 1,
     })),
     daily: data.daily.time.map((time: string, i: number) => ({
       date: new Date(time),
