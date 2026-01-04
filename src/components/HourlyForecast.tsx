@@ -1,24 +1,40 @@
 import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from "@/lib/weather";
-import { format } from "date-fns";
-import { zhTW } from "date-fns/locale";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from "recharts";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 
 interface HourlyForecastProps {
   forecast: HourlyForecastType[];
   daily?: DailyForecastType[];
+  timezone?: string;
 }
 
-export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
+export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProps) {
   const { language, t } = useLanguage();
-  const locale = language === 'tc' ? zhTW : undefined;
 
   const hoursData = forecast.slice(0, 8);
   
+  // Format time in the city's timezone
+  const formatTimeInTimezone = useCallback((date: Date) => {
+    try {
+      const options: Intl.DateTimeFormatOptions = {
+        hour: 'numeric',
+        hour12: true,
+        timeZone: timezone || undefined,
+      };
+      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-US', options).format(date);
+    } catch {
+      // Fallback if timezone is invalid
+      const hours = date.getHours();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const hour12 = hours % 12 || 12;
+      return `${hour12}${ampm}`;
+    }
+  }, [timezone, language]);
+  
   const chartData = hoursData.map((hour, index) => ({
     time: hour.time.getTime(),
-    displayTime: index === 0 ? t('hourly.now') : format(hour.time, "ha", { locale }),
+    displayTime: index === 0 ? t('hourly.now') : formatTimeInTimezone(hour.time),
     temperature: Math.round(hour.temperature),
     rainChance: hour.precipitationProbability,
     isDay: hour.isDay,
@@ -91,14 +107,26 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
   }, [chartData]);
 
   // Custom tick formatter for x-axis
-  const formatXAxisTick = (timestamp: number, index: number) => {
+  const formatXAxisTick = useCallback((timestamp: number, index: number) => {
     if (index === 0) return t('hourly.now');
-    const date = new Date(timestamp);
-    const hours = date.getHours();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const hour12 = hours % 12 || 12;
-    return `${hour12}${ampm}`;
-  };
+    return formatTimeInTimezone(new Date(timestamp));
+  }, [t, formatTimeInTimezone]);
+  
+  // Format time for tooltip label
+  const formatTooltipLabel = useCallback((timestamp: number) => {
+    try {
+      const date = new Date(timestamp);
+      const options: Intl.DateTimeFormatOptions = {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: timezone || undefined,
+      };
+      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-US', options).format(date);
+    } catch {
+      return new Date(timestamp).toLocaleTimeString();
+    }
+  }, [timezone, language]);
 
   return (
     <div className="glass-card p-4 animate-fade-in" style={{ animationDelay: "0.2s" }}>
@@ -187,6 +215,7 @@ export function HourlyForecast({ forecast, daily }: HourlyForecastProps) {
                 borderRadius: '8px',
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
+              labelFormatter={(value: number) => formatTooltipLabel(value)}
               formatter={(value: number, name: string) => {
                 if (name === 'temperature') {
                   return [`${value}°`, t('hourly.temperature')];
