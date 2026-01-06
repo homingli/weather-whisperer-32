@@ -43,30 +43,30 @@ export function CurrentWeather({ weather, hourlyForecast, locationName, timezone
 
   return (
     <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-      <p className="text-lg text-muted-foreground text-center mb-6">
+      <p className="text-xl text-muted-foreground text-center mb-6">
         {timezone ? getLocalDateTime() : format(new Date(), dateFormat, { locale })}
       </p>
       
       <div className="flex items-center justify-center gap-8">
         {/* Weather Icon */}
-        <div className="text-7xl weather-icon-glow">
+        <div className="text-8xl weather-icon-glow">
           {getWeatherIcon(weather.weatherCode, weather.isDay)}
         </div>
         
         {/* Temperature */}
         <div className="text-center">
-          <span className="text-6xl font-light tracking-tighter">{Math.round(weather.apparentTemperature)}°</span>
-          <p className="text-sm text-muted-foreground mt-1">{t('weather.feelsLike')}</p>
+          <span className="text-7xl font-light tracking-tighter">{Math.round(weather.apparentTemperature)}°</span>
+          <p className="text-base text-muted-foreground mt-1">{t('weather.feelsLike')}</p>
         </div>
         
         {/* Umbrella */}
         <div className="text-center">
           {needsUmbrella ? (
-            <Umbrella className="h-14 w-14 text-weather-rain mx-auto" />
+            <Umbrella className="h-16 w-16 text-weather-rain mx-auto" />
           ) : (
-            <UmbrellaOff className="h-14 w-14 text-muted-foreground/50 mx-auto" />
+            <UmbrellaOff className="h-16 w-16 text-muted-foreground/50 mx-auto" />
           )}
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-base text-muted-foreground mt-1">
             {needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
           </p>
         </div>
