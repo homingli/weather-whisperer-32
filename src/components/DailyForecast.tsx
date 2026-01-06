@@ -26,7 +26,7 @@ export function DailyForecast({ forecast }: DailyForecastProps) {
 
   return (
     <div className="glass-card p-4 animate-fade-in" style={{ animationDelay: "0.3s" }}>
-      <h3 className="text-sm font-medium text-muted-foreground mb-4 px-2">
+      <h3 className="text-base font-medium text-muted-foreground mb-4 px-2">
         {t('daily.title')}
       </h3>
       
@@ -43,29 +43,29 @@ export function DailyForecast({ forecast }: DailyForecastProps) {
               key={day.date.toISOString()}
               className="flex items-center gap-4 px-2 py-3 rounded-xl hover:bg-secondary/30 transition-colors"
             >
-              <div className="w-24 text-sm">
+              <div className="w-28 text-base">
                 <span className="text-muted-foreground">{format(day.date, "d/M")}</span>
                 <span className="font-medium ml-1">{formatDay(day.date)}</span>
               </div>
               
-              <span className="text-2xl w-10 text-center">{getWeatherIcon(day.weatherCode, true)}</span>
+              <span className="text-3xl w-12 text-center">{getWeatherIcon(day.weatherCode, true)}</span>
               
               <div className="flex items-center gap-1 w-16">
                 {(showPSR || showPercentage) && (
                   <>
-                    <Droplets className="h-3 w-3 text-weather-rain flex-shrink-0" />
-                    <span className="text-xs text-weather-rain truncate">
+                    <Droplets className="h-4 w-4 text-weather-rain flex-shrink-0" />
+                    <span className="text-sm text-weather-rain truncate">
                       {showPSR ? day.precipitationProbabilityRaw : `${day.precipitationProbabilityMax}%`}
                     </span>
                   </>
                 )}
               </div>
               
-              <span className="w-10 text-right text-muted-foreground">
+              <span className="w-12 text-right text-base text-muted-foreground">
                 {Math.round(day.temperatureMin)}°
               </span>
               
-              <div className="flex-1 h-1.5 bg-secondary/50 rounded-full overflow-hidden relative">
+              <div className="flex-1 h-2 bg-secondary/50 rounded-full overflow-hidden relative">
                 <div
                   className="absolute h-full rounded-full bg-gradient-to-r from-weather-rain via-weather-sunny to-destructive"
                   style={{
@@ -75,7 +75,7 @@ export function DailyForecast({ forecast }: DailyForecastProps) {
                 />
               </div>
               
-              <span className="w-10 font-medium">{Math.round(day.temperatureMax)}°</span>
+              <span className="w-12 text-base font-medium">{Math.round(day.temperatureMax)}°</span>
             </div>
           );
         })}
