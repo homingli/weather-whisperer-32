@@ -103,7 +103,7 @@ const Index = () => {
           <h1 className="sr-only">Weather Forecast</h1>
           <CitySearch currentCity={selectedCity} onCitySelect={setSelectedCity} />
           {isHKCovered && weather?.nearestStation && (
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-base text-muted-foreground mt-1">
               {weather.nearestStation}
             </p>
           )}
@@ -118,17 +118,17 @@ const Index = () => {
 
           {isLocating ? (
             <div className="text-center py-20 animate-fade-in">
-              <CloudRain className="h-16 w-16 mx-auto mb-4 text-primary animate-pulse-glow" />
-              <h2 className="text-2xl font-semibold mb-2">{t('loading.findingLocation')}</h2>
-              <p className="text-muted-foreground">
+              <CloudRain className="h-20 w-20 mx-auto mb-4 text-primary animate-pulse-glow" />
+              <h2 className="text-3xl font-semibold mb-2">{t('loading.findingLocation')}</h2>
+              <p className="text-lg text-muted-foreground">
                 {t('loading.allowLocation')}
               </p>
             </div>
           ) : !selectedCity ? (
             <div className="text-center py-20 animate-fade-in">
-              <CloudRain className="h-16 w-16 mx-auto mb-4 text-primary animate-pulse-glow" />
-              <h2 className="text-2xl font-semibold mb-2">{t('loading.welcome')}</h2>
-              <p className="text-muted-foreground">
+              <CloudRain className="h-20 w-20 mx-auto mb-4 text-primary animate-pulse-glow" />
+              <h2 className="text-3xl font-semibold mb-2">{t('loading.welcome')}</h2>
+              <p className="text-lg text-muted-foreground">
                 {t('loading.searchPrompt')}
               </p>
             </div>
@@ -136,8 +136,8 @@ const Index = () => {
             <WeatherSkeleton />
           ) : error ? (
             <div className="text-center py-20 glass-card">
-              <p className="text-destructive mb-2">{t('loading.failed')}</p>
-              <p className="text-sm text-muted-foreground">{t('loading.tryAgain')}</p>
+              <p className="text-lg text-destructive mb-2">{t('loading.failed')}</p>
+              <p className="text-base text-muted-foreground">{t('loading.tryAgain')}</p>
             </div>
           ) : weather ? (
             <>

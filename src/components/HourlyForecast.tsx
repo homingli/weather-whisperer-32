@@ -40,11 +40,30 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
     isDay: hour.isDay,
   }));
 
+  // Format sunrise/sunset time in the city's timezone
+  const formatSunTime = useCallback((date: Date) => {
+    try {
+      const options: Intl.DateTimeFormatOptions = {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: timezone || undefined,
+      };
+      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-US', options).format(date);
+    } catch {
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const hour12 = hours % 12 || 12;
+      return `${hour12}:${minutes.toString().padStart(2, '0')}${ampm}`;
+    }
+  }, [timezone, language]);
+
   // Find sunrise/sunset times within the forecast window
   const sunEvents = useMemo(() => {
     if (!daily || daily.length === 0 || hoursData.length === 0) return [];
     
-    const events: { time: number; type: 'sunrise' | 'sunset'; label: string }[] = [];
+    const events: { time: number; type: 'sunrise' | 'sunset'; label: string; timeLabel: string }[] = [];
     const startTime = hoursData[0].time.getTime();
     const endTime = hoursData[hoursData.length - 1].time.getTime();
     
@@ -55,7 +74,8 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
           events.push({
             time: sunriseTime,
             type: 'sunrise',
-            label: language === 'tc' ? '日出' : '☀︎'
+            label: '☀︎',
+            timeLabel: formatSunTime(day.sunrise)
           });
         }
       }
@@ -65,14 +85,15 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
           events.push({
             time: sunsetTime,
             type: 'sunset',
-            label: language === 'tc' ? '日落' : '☾'
+            label: '☾',
+            timeLabel: formatSunTime(day.sunset)
           });
         }
       }
     });
     
     return events;
-  }, [daily, hoursData, language]);
+  }, [daily, hoursData, formatSunTime]);
 
   // Calculate day/night periods for reference areas based on isDay from hourly data
   const dayNightAreas = useMemo(() => {
@@ -130,11 +151,11 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
 
   return (
     <div className="glass-card p-4 animate-fade-in" style={{ animationDelay: "0.2s" }}>
-      <h3 className="text-sm font-medium text-muted-foreground mb-4 px-2">
+      <h3 className="text-base font-medium text-muted-foreground mb-4 px-2">
         {t('hourly.title')}
       </h3>
       
-      <div className="h-48">
+      <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 10, right: 50, left: 0, bottom: 10 }}>
             {/* Day/night background areas */}
@@ -156,18 +177,15 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
                 stroke={event.type === 'sunrise' ? "hsl(var(--weather-sunny))" : "hsl(250 60% 60%)"}
                 strokeDasharray="3 3"
                 strokeWidth={1.5}
-              >
-                <text
-                  x={0}
-                  y={-8}
-                  textAnchor="middle"
-                  fill={event.type === 'sunrise' ? "hsl(var(--weather-sunny))" : "hsl(250 60% 60%)"}
-                  fontSize={11}
-                  fontWeight={500}
-                >
-                  {event.label}
-                </text>
-              </ReferenceLine>
+                label={{
+                  value: `${event.label} ${event.timeLabel}`,
+                  position: 'top',
+                  fill: event.type === 'sunrise' ? "hsl(var(--weather-sunny))" : "hsl(250 60% 60%)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  offset: 8,
+                }}
+              />
             ))}
             <XAxis 
               dataKey="time" 
@@ -175,7 +193,7 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
               domain={['dataMin', 'dataMax']}
               axisLine={false} 
               tickLine={false}
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 14 }}
               tickFormatter={formatXAxisTick}
               ticks={chartData.map(d => d.time)}
             />
@@ -184,9 +202,9 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
               domain={['dataMin - 2', 'dataMax + 2']}
               axisLine={false} 
               tickLine={false}
-              tick={{ fill: 'hsl(var(--weather-sunny))', fontSize: 12 }}
+              tick={{ fill: 'hsl(var(--weather-sunny))', fontSize: 14 }}
               tickFormatter={(value) => `${value}°`}
-              width={40}
+              width={45}
             />
             <YAxis
               yAxisId="right"
@@ -194,9 +212,9 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
               domain={[0, 100]}
               axisLine={false}
               tickLine={false}
-              tick={{ fill: 'hsl(var(--weather-rain))', fontSize: 10 }}
+              tick={{ fill: 'hsl(var(--weather-rain))', fontSize: 12 }}
               tickFormatter={(value) => `${value}%`}
-              width={40}
+              width={45}
             />
             <Tooltip
               contentStyle={{
