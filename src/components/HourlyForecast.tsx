@@ -155,9 +155,9 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
         {t('hourly.title')}
       </h3>
       
-      <div className="h-56">
+      <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 10, right: 50, left: 0, bottom: 10 }}>
+          <LineChart data={chartData} margin={{ top: 25, right: 50, left: 0, bottom: 10 }}>
             {/* Day/night background areas */}
             {dayNightAreas.map((area, index) => (
               <ReferenceArea
