@@ -174,7 +174,8 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
       isDay: data.current.is_day === 1,
     },
     hourly: data.hourly.time.slice(startIndex, startIndex + 13).map((time: string, i: number) => ({
-      time: new Date(time),
+      // Parse hourly time with timezone to get correct UTC timestamp
+      time: parseDateInTimezone(time, data.timezone),
       temperature: data.hourly.temperature_2m[startIndex + i],
       weatherCode: data.hourly.weather_code[startIndex + i],
       precipitationProbability: data.hourly.precipitation_probability[startIndex + i],
