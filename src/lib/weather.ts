@@ -1,5 +1,57 @@
 // Weather API service using Open-Meteo
 
+// Helper to parse a datetime string in a specific timezone and return correct UTC Date
+function parseDateInTimezone(dateStr: string, timezone: string): Date {
+  // The API returns times like "2024-01-08T07:03" without timezone
+  // We need to interpret this as being in the city's timezone
+  try {
+    // Create a formatter that will give us the offset for this timezone at this datetime
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    
+    // Parse the date string as if it were local time
+    const localDate = new Date(dateStr);
+    
+    // Get what time it would be in the target timezone if this were UTC
+    const targetParts = formatter.formatToParts(localDate);
+    const getPart = (type: string) => targetParts.find(p => p.type === type)?.value || '0';
+    
+    // Calculate the offset by comparing
+    // The dateStr represents the actual time in the city
+    // We need to find what UTC time corresponds to that city time
+    
+    // Use a different approach: create a date from the string parts
+    const [datePart, timePart] = dateStr.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hour, minute] = timePart.split(':').map(Number);
+    
+    // Create a reference date in UTC
+    const utcRef = Date.UTC(year, month - 1, day, hour, minute);
+    
+    // Find the offset of the target timezone at this approximate time
+    const testDate = new Date(utcRef);
+    const utcString = testDate.toLocaleString('en-US', { timeZone: 'UTC' });
+    const tzString = testDate.toLocaleString('en-US', { timeZone: timezone });
+    
+    const utcTime = new Date(utcString).getTime();
+    const tzTime = new Date(tzString).getTime();
+    const offset = tzTime - utcTime;
+    
+    // The actual UTC time is the local time minus the offset
+    return new Date(utcRef - offset);
+  } catch {
+    // Fallback: just parse as-is
+    return new Date(dateStr);
+  }
+}
+
 export interface GeoLocation {
   name: string;
   latitude: number;
@@ -134,8 +186,9 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
       temperatureMin: data.daily.temperature_2m_min[i],
       weatherCode: data.daily.weather_code[i],
       precipitationProbabilityMax: data.daily.precipitation_probability_max[i],
-      sunrise: new Date(data.daily.sunrise[i]),
-      sunset: new Date(data.daily.sunset[i]),
+      // Parse sunrise/sunset with timezone to get correct UTC timestamp
+      sunrise: parseDateInTimezone(data.daily.sunrise[i], data.timezone),
+      sunset: parseDateInTimezone(data.daily.sunset[i], data.timezone),
     })),
     timezone: data.timezone,
   };
