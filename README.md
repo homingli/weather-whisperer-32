@@ -8,6 +8,9 @@ A modern, responsive weather application built with React and TypeScript. Featur
 - **Multi-Language Support**: English and Traditional Chinese interface
 - **Location Services**: Auto-detect user location or search for any city worldwide
 - **Weather Data**: Current conditions, hourly forecasts (6 hours), and daily forecasts (7 days)
+- **Local Timezone Display**: Shows date and time in the selected location's timezone
+- **High/Low Temperatures**: Daily minimum and maximum temperatures displayed in the hero section
+- **Sun Events**: Displays sunset or sunrise times based on current day/night status
 - **Hourly Charts**: Interactive line charts showing temperature and precipitation probability with PSR (Probability of Significant Rain) labels
 - **Weather Alerts**: Real-time weather warnings and alerts (HKO source only)
 - **Responsive Design**: Optimized for mobile, tablet, and desktop devices
@@ -107,7 +110,14 @@ npm run preview
 ## Features Breakdown
 
 ### Current Weather
-Displays current temperature, weather condition, humidity, wind speed, and real feel temperature.
+The hero section displays:
+- **Date and Time**: Current date and time formatted in the selected location's timezone
+- **Weather Icon**: Large weather icon indicating current conditions
+- **Temperature**: Current apparent temperature with "feels like" label
+- **Daily Range**: High and low temperatures for the day with visual indicators
+- **Weather Condition**: Current precipitation and humidity data
+- **Umbrella Indicator**: Shows whether an umbrella is recommended based on current rain or upcoming precipitation
+- **Sun Events**: Displays the next sunset (during day) or sunrise (during night) with exact time
 
 ### Hourly Forecast
 6-hour forecast with interactive line chart showing:
