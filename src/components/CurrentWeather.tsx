@@ -69,7 +69,7 @@ export function CurrentWeather({ weather, hourlyForecast, dailyForecast, locatio
   return (
     <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
       {/* Date and time */}
-      <p className="text-lg text-muted-foreground text-center mb-4">
+      <p className="text-xl font-medium text-foreground/80 text-left mb-4">
         {timezone ? getLocalDateTime() : new Date().toLocaleDateString()}
       </p>
       
