@@ -144,6 +144,7 @@ const Index = () => {
               <CurrentWeather
                 weather={weather.current}
                 hourlyForecast={weather.hourly}
+                dailyForecast={sunTimes?.[0]}
                 locationName={selectedCity?.name}
                 timezone={weather.timezone}
               />
