@@ -10,6 +10,8 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { GeoLocation, getDefaultCity, getWeather, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
 import { getHKODailyAndWarnings, HKOWarning, isInHongKong } from "@/lib/hko-weather";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { CloudRain } from "lucide-react";
 
 interface ExtendedWeatherData extends WeatherData {
@@ -22,6 +24,7 @@ const Index = () => {
   const [selectedCity, setSelectedCity] = useState<GeoLocation | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const { language, t } = useLanguage();
+  const { setSunTimes } = useTheme();
 
   useEffect(() => {
     const initializeLocation = async () => {
@@ -92,6 +95,14 @@ const Index = () => {
   // Open-Meteo daily data is always used for sunrise/sunset (HKO doesn't provide it)
   const sunTimes = openMeteoData?.daily;
 
+  // Update theme context with sunrise/sunset times for auto mode
+  useEffect(() => {
+    if (sunTimes && sunTimes.length > 0) {
+      const todayForecast = sunTimes[0];
+      setSunTimes(todayForecast.sunrise, todayForecast.sunset);
+    }
+  }, [sunTimes, setSunTimes]);
+
   const isLoading = isLoadingOpenMeteo || (isHKCovered && isLoadingHKO);
   const error = openMeteoError;
 
@@ -157,6 +168,7 @@ const Index = () => {
         {/* Footer */}
         <footer className="text-center mt-12 text-sm text-muted-foreground space-y-2">
           <div className="flex items-center justify-center gap-2">
+            <ThemeToggle />
             <LanguageToggle />
           </div>
           <p>
