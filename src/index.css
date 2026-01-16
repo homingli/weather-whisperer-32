@@ -84,6 +84,22 @@
     --border: 222 47% 20%;
     --input: 222 47% 20%;
     --ring: 199 89% 48%;
+
+    /* Weather-specific tokens - dark mode */
+    --glass: 222 47% 15% / 0.6;
+    --glass-border: 222 47% 30% / 0.3;
+    --gradient-sky-start: 222 47% 8%;
+    --gradient-sky-mid: 230 50% 15%;
+    --gradient-sky-end: 260 45% 20%;
+
+    --sidebar-background: 222 47% 10%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 199 89% 48%;
+    --sidebar-primary-foreground: 222 47% 8%;
+    --sidebar-accent: 222 47% 18%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222 47% 20%;
+    --sidebar-ring: 199 89% 48%;
   }
 }
 
