@@ -11,55 +11,56 @@
 
 @layer base {
   :root {
-    --background: 222 47% 8%;
-    --foreground: 210 40% 98%;
+    /* Light mode - warm white/cream tones */
+    --background: 45 30% 96%;
+    --foreground: 222 47% 11%;
 
-    --card: 222 47% 12%;
-    --card-foreground: 210 40% 98%;
+    --card: 45 25% 92%;
+    --card-foreground: 222 47% 11%;
 
-    --popover: 222 47% 12%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 45 25% 94%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 199 89% 48%;
-    --primary-foreground: 222 47% 8%;
+    --primary: 199 89% 40%;
+    --primary-foreground: 45 30% 98%;
 
-    --secondary: 222 47% 18%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 45 20% 88%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 222 47% 15%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 45 15% 90%;
+    --muted-foreground: 222 30% 40%;
 
-    --accent: 280 65% 60%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 280 65% 55%;
+    --accent-foreground: 45 30% 98%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 50%;
+    --destructive-foreground: 45 30% 98%;
 
-    --border: 222 47% 20%;
-    --input: 222 47% 20%;
+    --border: 45 15% 82%;
+    --input: 45 15% 85%;
     --ring: 199 89% 48%;
 
     --radius: 1rem;
 
-    /* Weather-specific tokens */
-    --glass: 222 47% 15% / 0.6;
-    --glass-border: 222 47% 30% / 0.3;
-    --gradient-sky-start: 222 47% 8%;
-    --gradient-sky-mid: 230 50% 15%;
-    --gradient-sky-end: 260 45% 20%;
+    /* Weather-specific tokens - light mode */
+    --glass: 45 25% 95% / 0.7;
+    --glass-border: 45 15% 75% / 0.4;
+    --gradient-sky-start: 200 60% 90%;
+    --gradient-sky-mid: 210 50% 85%;
+    --gradient-sky-end: 45 30% 92%;
     
     --weather-sunny: 35 90% 55%;
     --weather-cloudy: 220 20% 50%;
     --weather-rain: 200 80% 50%;
     --weather-snow: 200 30% 85%;
 
-    --sidebar-background: 222 47% 10%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 199 89% 48%;
-    --sidebar-primary-foreground: 222 47% 8%;
-    --sidebar-accent: 222 47% 18%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222 47% 20%;
+    --sidebar-background: 45 25% 94%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 199 89% 40%;
+    --sidebar-primary-foreground: 45 30% 98%;
+    --sidebar-accent: 45 20% 88%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 45 15% 82%;
     --sidebar-ring: 199 89% 48%;
   }
 
