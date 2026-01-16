@@ -19,16 +19,16 @@ A modern, responsive weather application built with React and TypeScript. Featur
 
 ## Technology Stack
 
-- **Frontend Framework**: React 18 with TypeScript
-- **Build Tool**: Vite
-- **UI Components**: shadcn-ui with Radix UI
-- **Styling**: Tailwind CSS with custom animations
-- **Data Fetching**: TanStack React Query
-- **Routing**: React Router
+- **Frontend Framework**: React 18 with TypeScript 5
+- **Build Tool**: Vite 5
+- **UI Components**: shadcn-ui with Radix UI 1.x
+- **Styling**: Tailwind CSS 3 with custom animations
+- **Data Fetching**: TanStack React Query 5
+- **Routing**: React Router 7
 - **Icons**: Lucide React
-- **Charts**: Recharts
-- **Date Handling**: date-fns
-- **Forms**: React Hook Form with Zod validation
+- **Charts**: Recharts 2
+- **Date Handling**: date-fns 3
+- **Forms**: React Hook Form 7 with Zod 3 validation
 
 ## Project Structure
 
@@ -66,10 +66,10 @@ src/
 
 ```bash
 # Clone the repository
-git clone <YOUR_GIT_URL>
+git clone https://github.com/username/weather-whisperer.git
 
 # Navigate to project directory
-cd <YOUR_PROJECT_NAME>
+cd weather-whisperer
 
 # Install dependencies
 npm install
