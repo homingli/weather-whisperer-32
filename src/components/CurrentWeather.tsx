@@ -68,68 +68,69 @@ export function CurrentWeather({ weather, hourlyForecast, dailyForecast, locatio
 
   return (
     <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-      {/* Date and time */}
-      <p className="text-lg text-muted-foreground text-center mb-2">
-        {timezone ? getLocalDateTime() : new Date().toLocaleDateString()}
-      </p>
-      
-      {/* Hero: Feels Like Temperature */}
-      <div className="text-center py-6">
-        <div className="text-9xl font-extralight tracking-tighter">
-          {Math.round(weather.apparentTemperature)}°
-        </div>
-        <p className="text-lg text-muted-foreground mt-1">{t('weather.feelsLike')}</p>
-        
-        {/* High/Low temps */}
-        {dailyForecast && (
-          <div className="flex items-center justify-center gap-6 mt-4">
-            <div className="flex items-center gap-1.5 text-lg">
-              <ArrowUp className="h-5 w-5 text-orange-400" />
-              <span className="font-medium">{Math.round(dailyForecast.temperatureMax)}°</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-lg">
-              <ArrowDown className="h-5 w-5 text-blue-400" />
-              <span className="font-medium">{Math.round(dailyForecast.temperatureMin)}°</span>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Three equally weighted indicators */}
-      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border/30">
-        {/* Umbrella */}
-        <div className="flex flex-col items-center gap-2">
-          {needsUmbrella ? (
-            <Umbrella className="h-12 w-12 text-weather-rain" />
-          ) : (
-            <UmbrellaOff className="h-12 w-12 text-muted-foreground/40" />
-          )}
-          <p className="text-sm text-muted-foreground">
-            {needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
+      {/* Two column layout: 70% / 30% */}
+      <div className="grid grid-cols-[70%_30%] gap-4">
+        {/* Left column: Temperature focus */}
+        <div className="flex flex-col justify-center">
+          {/* Date and time */}
+          <p className="text-lg text-muted-foreground mb-2">
+            {timezone ? getLocalDateTime() : new Date().toLocaleDateString()}
           </p>
-        </div>
-        
-        {/* Sun event */}
-        <div className="flex flex-col items-center gap-2">
-          {sunEvent ? (
-            <>
-              <sunEvent.icon className="h-12 w-12 text-amber-400" />
-              <p className="text-sm text-muted-foreground">{sunEvent.time}</p>
-            </>
-          ) : (
-            <>
-              <Sunset className="h-12 w-12 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">--:--</p>
-            </>
+          
+          {/* Hero: Feels Like Temperature */}
+          <div className="text-9xl font-extralight tracking-tighter leading-none">
+            {Math.round(weather.apparentTemperature)}°
+          </div>
+          <p className="text-lg text-muted-foreground mt-2">{t('weather.feelsLike')}</p>
+          
+          {/* High/Low temps */}
+          {dailyForecast && (
+            <div className="flex items-center gap-6 mt-4">
+              <div className="flex items-center gap-1.5 text-lg">
+                <ArrowUp className="h-5 w-5 text-orange-400" />
+                <span className="font-medium">{Math.round(dailyForecast.temperatureMax)}°</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-lg">
+                <ArrowDown className="h-5 w-5 text-blue-400" />
+                <span className="font-medium">{Math.round(dailyForecast.temperatureMin)}°</span>
+              </div>
+            </div>
           )}
         </div>
         
-        {/* Weather icon */}
-        <div className="flex flex-col items-center gap-2">
-          <div className="text-5xl weather-icon-glow">
+        {/* Right column: Indicators stacked */}
+        <div className="flex flex-col items-center justify-between py-2">
+          {/* Weather icon */}
+          <div className="text-6xl weather-icon-glow">
             {getWeatherIcon(weather.weatherCode, weather.isDay)}
           </div>
-          <p className="text-sm text-muted-foreground opacity-0">spacer</p>
+          
+          {/* Sun event */}
+          <div className="flex flex-col items-center gap-1">
+            {sunEvent ? (
+              <>
+                <sunEvent.icon className="h-10 w-10 text-amber-400" />
+                <p className="text-sm text-muted-foreground">{sunEvent.time}</p>
+              </>
+            ) : (
+              <>
+                <Sunset className="h-10 w-10 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">--:--</p>
+              </>
+            )}
+          </div>
+          
+          {/* Umbrella */}
+          <div className="flex flex-col items-center gap-1">
+            {needsUmbrella ? (
+              <Umbrella className="h-10 w-10 text-weather-rain" />
+            ) : (
+              <UmbrellaOff className="h-10 w-10 text-muted-foreground/40" />
+            )}
+            <p className="text-sm text-muted-foreground">
+              {needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
+            </p>
+          </div>
         </div>
       </div>
     </div>
