@@ -69,60 +69,67 @@ export function CurrentWeather({ weather, hourlyForecast, dailyForecast, locatio
   return (
     <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
       {/* Date and time */}
-      <p className="text-xl font-medium text-foreground/80 text-left mb-4">
+      <p className="text-lg text-muted-foreground text-center mb-2">
         {timezone ? getLocalDateTime() : new Date().toLocaleDateString()}
       </p>
       
-      {/* Main hero layout */}
-      <div className="flex items-center justify-between gap-4">
-        {/* Left: Umbrella + Sun event */}
-        <div className="flex flex-col items-center gap-4 flex-shrink-0">
-          {/* Umbrella indicator */}
-          <div className="text-center">
-            {needsUmbrella ? (
-              <Umbrella className="h-10 w-10 text-weather-rain mx-auto" />
-            ) : (
-              <UmbrellaOff className="h-10 w-10 text-muted-foreground/50 mx-auto" />
-            )}
-            <p className="text-xs text-muted-foreground mt-1">
-              {needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
-            </p>
-          </div>
-          
-          {/* Next sun event */}
-          {sunEvent && (
-            <div className="text-center">
-              <sunEvent.icon className="h-10 w-10 text-amber-400 mx-auto" />
-              <p className="text-xs text-muted-foreground mt-1">{sunEvent.time}</p>
+      {/* Hero: Feels Like Temperature */}
+      <div className="text-center py-6">
+        <div className="text-9xl font-extralight tracking-tighter">
+          {Math.round(weather.apparentTemperature)}°
+        </div>
+        <p className="text-lg text-muted-foreground mt-1">{t('weather.feelsLike')}</p>
+        
+        {/* High/Low temps */}
+        {dailyForecast && (
+          <div className="flex items-center justify-center gap-6 mt-4">
+            <div className="flex items-center gap-1.5 text-lg">
+              <ArrowUp className="h-5 w-5 text-orange-400" />
+              <span className="font-medium">{Math.round(dailyForecast.temperatureMax)}°</span>
             </div>
+            <div className="flex items-center gap-1.5 text-lg">
+              <ArrowDown className="h-5 w-5 text-blue-400" />
+              <span className="font-medium">{Math.round(dailyForecast.temperatureMin)}°</span>
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Three equally weighted indicators */}
+      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border/30">
+        {/* Umbrella */}
+        <div className="flex flex-col items-center gap-2">
+          {needsUmbrella ? (
+            <Umbrella className="h-12 w-12 text-weather-rain" />
+          ) : (
+            <UmbrellaOff className="h-12 w-12 text-muted-foreground/40" />
+          )}
+          <p className="text-sm text-muted-foreground">
+            {needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
+          </p>
+        </div>
+        
+        {/* Sun event */}
+        <div className="flex flex-col items-center gap-2">
+          {sunEvent ? (
+            <>
+              <sunEvent.icon className="h-12 w-12 text-amber-400" />
+              <p className="text-sm text-muted-foreground">{sunEvent.time}</p>
+            </>
+          ) : (
+            <>
+              <Sunset className="h-12 w-12 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">--:--</p>
+            </>
           )}
         </div>
         
-        {/* Center: Temperature display */}
-        <div className="flex-1 text-center">
-          <div className="text-7xl font-light tracking-tighter mb-1">
-            {Math.round(weather.apparentTemperature)}°
+        {/* Weather icon */}
+        <div className="flex flex-col items-center gap-2">
+          <div className="text-5xl weather-icon-glow">
+            {getWeatherIcon(weather.weatherCode, weather.isDay)}
           </div>
-          <p className="text-sm text-muted-foreground">{t('weather.feelsLike')}</p>
-          
-          {/* High/Low temps */}
-          {dailyForecast && (
-            <div className="flex items-center justify-center gap-4 mt-3">
-              <div className="flex items-center gap-1 text-sm">
-                <ArrowUp className="h-4 w-4 text-orange-400" />
-                <span className="text-foreground font-medium">{Math.round(dailyForecast.temperatureMax)}°</span>
-              </div>
-              <div className="flex items-center gap-1 text-sm">
-                <ArrowDown className="h-4 w-4 text-blue-400" />
-                <span className="text-foreground font-medium">{Math.round(dailyForecast.temperatureMin)}°</span>
-              </div>
-            </div>
-          )}
-        </div>
-        
-        {/* Right: Weather Icon */}
-        <div className="text-8xl weather-icon-glow flex-shrink-0">
-          {getWeatherIcon(weather.weatherCode, weather.isDay)}
+          <p className="text-sm text-muted-foreground opacity-0">spacer</p>
         </div>
       </div>
     </div>
