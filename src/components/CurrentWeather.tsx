@@ -75,9 +75,27 @@ export function CurrentWeather({ weather, hourlyForecast, dailyForecast, locatio
       
       {/* Main hero layout */}
       <div className="flex items-center justify-between gap-4">
-        {/* Left: Weather Icon */}
-        <div className="text-8xl weather-icon-glow flex-shrink-0">
-          {getWeatherIcon(weather.weatherCode, weather.isDay)}
+        {/* Left: Umbrella + Sun event */}
+        <div className="flex flex-col items-center gap-4 flex-shrink-0">
+          {/* Umbrella indicator */}
+          <div className="text-center">
+            {needsUmbrella ? (
+              <Umbrella className="h-10 w-10 text-weather-rain mx-auto" />
+            ) : (
+              <UmbrellaOff className="h-10 w-10 text-muted-foreground/50 mx-auto" />
+            )}
+            <p className="text-xs text-muted-foreground mt-1">
+              {needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
+            </p>
+          </div>
+          
+          {/* Next sun event */}
+          {sunEvent && (
+            <div className="text-center">
+              <sunEvent.icon className="h-10 w-10 text-amber-400 mx-auto" />
+              <p className="text-xs text-muted-foreground mt-1">{sunEvent.time}</p>
+            </div>
+          )}
         </div>
         
         {/* Center: Temperature display */}
@@ -102,27 +120,9 @@ export function CurrentWeather({ weather, hourlyForecast, dailyForecast, locatio
           )}
         </div>
         
-        {/* Right: Umbrella + Sun event */}
-        <div className="flex flex-col items-center gap-4 flex-shrink-0">
-          {/* Umbrella indicator */}
-          <div className="text-center">
-            {needsUmbrella ? (
-              <Umbrella className="h-10 w-10 text-weather-rain mx-auto" />
-            ) : (
-              <UmbrellaOff className="h-10 w-10 text-muted-foreground/50 mx-auto" />
-            )}
-            <p className="text-xs text-muted-foreground mt-1">
-              {needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
-            </p>
-          </div>
-          
-          {/* Next sun event */}
-          {sunEvent && (
-            <div className="text-center">
-              <sunEvent.icon className="h-10 w-10 text-amber-400 mx-auto" />
-              <p className="text-xs text-muted-foreground mt-1">{sunEvent.time}</p>
-            </div>
-          )}
+        {/* Right: Weather Icon */}
+        <div className="text-8xl weather-icon-glow flex-shrink-0">
+          {getWeatherIcon(weather.weatherCode, weather.isDay)}
         </div>
       </div>
     </div>
