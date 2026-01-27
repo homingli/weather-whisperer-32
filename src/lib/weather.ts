@@ -182,15 +182,7 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
       isDay: data.hourly.is_day[startIndex + i] === 1,
     })),
     daily: data.daily.time.map((time: string, i: number) => ({
-      // Build a local-time Date from the YYYY-MM-DD string to avoid
-      // cross-timezone parsing issues with new Date("YYYY-MM-DD").
-      // This ensures day boundaries align with the user's locale.
-      date: (() => {
-        const year = parseInt(time.substring(0, 4), 10);
-        const month = parseInt(time.substring(5, 7), 10);
-        const day = parseInt(time.substring(8, 10), 10);
-        return new Date(year, month - 1, day);
-      })(),
+      date: new Date(time),
       temperatureMax: data.daily.temperature_2m_max[i],
       temperatureMin: data.daily.temperature_2m_min[i],
       weatherCode: data.daily.weather_code[i],
