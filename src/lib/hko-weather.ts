@@ -5,6 +5,43 @@ import { CurrentWeather, HourlyForecast, DailyForecast, WeatherData } from './we
 
 const HKO_API_BASE = 'https://data.weather.gov.hk/weatherAPI/opendata/weather.php';
 
+/**
+ * Robust date parsing utility for YYYYMMDD format from HKO API
+ * Creates date at midnight in Hong Kong timezone (Asia/Hong_Kong)
+ * Replaces brittle parseInt usage with proper validation and error handling
+ */
+function parseHkoDate(dateStr: string): Date {
+  if (!dateStr || dateStr.length !== 8) {
+    throw new Error(`Invalid HKO date format: ${dateStr}. Expected YYYYMMDD format.`);
+  }
+  
+  const year = Number(dateStr.slice(0, 4));
+  const month = Number(dateStr.slice(4, 6)) - 1; // Convert to 0-indexed month
+  const dayOfMonth = Number(dateStr.slice(6, 8));
+  
+  if (isNaN(year) || isNaN(month) || isNaN(dayOfMonth)) {
+    throw new Error(`Invalid date numbers in HKO date: ${dateStr}`);
+  }
+  
+  // Create date at midnight in Hong Kong timezone
+  // Use noon local time to avoid DST edge cases, then adjust to midnight
+  const utcRef = Date.UTC(year, month, dayOfMonth, 12, 0, 0, 0);
+  
+  // Hong Kong timezone offset (GMT+8, no DST)
+  const hkOffset = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
+  
+  // Return date at local midnight (12:00 local - 12 hours = 00:00 local)
+  // Adjust by Hong Kong offset to get the correct UTC time
+  const date = new Date(utcRef - 12 * 60 * 60 * 1000 - hkOffset);
+  
+  // Validate the created date
+  if (isNaN(date.getTime())) {
+    throw new Error(`Failed to create valid date from HKO date: ${dateStr}`);
+  }
+  
+  return date;
+}
+
 // Hong Kong approximate bounding box for coverage detection
 const HK_BOUNDS = {
   minLat: 22.15,
@@ -411,11 +448,7 @@ export async function getHKODailyAndWarnings(
 
   // Build daily forecast (up to 7 days)
   const daily: DailyForecast[] = forecastData.weatherForecast.slice(0, 7).map(day => {
-    const date = new Date(
-      parseInt(day.forecastDate.substring(0, 4)),
-      parseInt(day.forecastDate.substring(4, 6)) - 1,
-      parseInt(day.forecastDate.substring(6, 8))
-    );
+    const date = parseHkoDate(day.forecastDate);
     
     // Approximate sunrise/sunset for Hong Kong
     const sunrise = new Date(date);

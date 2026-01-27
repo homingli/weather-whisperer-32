@@ -1,5 +1,34 @@
 // Weather API service using Open-Meteo
 
+// Helper to parse daily date string "YYYY-MM-DD" as midnight in specified timezone
+function parseDailyDateInTimezone(dateStr: string, timezone: string): Date {
+  // The API returns daily time as "YYYY-MM-DD" 
+  // We need to interpret this as midnight in the city's timezone, not UTC
+  try {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    
+    // Create a date at 12:00 UTC to avoid DST edge cases
+    // This ensures we're definitely on the correct calendar day in the target timezone
+    const utcRef = Date.UTC(year, month - 1, day, 12, 0, 0, 0);
+    
+    // Find the offset of the target timezone at noon on this date
+    const testDate = new Date(utcRef);
+    const utcString = testDate.toLocaleString('en-US', { timeZone: 'UTC' });
+    const tzString = testDate.toLocaleString('en-US', { timeZone: timezone });
+    
+    const utcTime = new Date(utcString).getTime();
+    const tzTime = new Date(tzString).getTime();
+    const offset = tzTime - utcTime;
+    
+    // Return date at local midnight (12:00 UTC - offset - 12 hours = 00:00 local)
+    // The UTC time that corresponds to midnight in the target timezone
+    return new Date(utcRef - offset - 12 * 60 * 60 * 1000);
+  } catch {
+    // Fallback: just parse as-is (this will be midnight UTC)
+    return new Date(dateStr);
+  }
+}
+
 // Helper to parse a datetime string in a specific timezone and return correct UTC Date
 function parseDateInTimezone(dateStr: string, timezone: string): Date {
   // The API returns times like "2024-01-08T07:03" without timezone
@@ -105,7 +134,7 @@ export async function searchCities(query: string): Promise<GeoLocation[]> {
   if (query.length > 100) return [];
   
   // Validate input contains only allowed characters
-  if (!/^[a-zA-Z0-9\s\-',\.]+$/.test(query)) return [];
+  if (!/^[a-zA-Z0-9\s\-',.]+$/.test(query)) return [];
   
   const response = await fetch(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en&format=json`
@@ -114,7 +143,7 @@ export async function searchCities(query: string): Promise<GeoLocation[]> {
   if (!response.ok) throw new Error('Failed to search cities');
   
   const data = await response.json();
-  return (data.results || []).map((r: any) => ({
+  return (data.results || []).map((r: { name: string; latitude: number; longitude: number; country: string; admin1?: string }) => ({
     name: r.name,
     latitude: r.latitude,
     longitude: r.longitude,
@@ -182,7 +211,7 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
       isDay: data.hourly.is_day[startIndex + i] === 1,
     })),
     daily: data.daily.time.map((time: string, i: number) => ({
-      date: new Date(time),
+      date: parseDailyDateInTimezone(time, data.timezone),
       temperatureMax: data.daily.temperature_2m_max[i],
       temperatureMin: data.daily.temperature_2m_min[i],
       weatherCode: data.daily.weather_code[i],
