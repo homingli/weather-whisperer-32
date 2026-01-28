@@ -64,7 +64,7 @@ const Index = () => {
       return getWeather(selectedCity!.latitude, selectedCity!.longitude);
     },
     enabled: !!selectedCity,
-    refetchInterval: 5 * 60 * 1000,
+    refetchInterval: 10 * 60 * 1000,
     staleTime: 2 * 60 * 1000,
   });
 
@@ -76,7 +76,7 @@ const Index = () => {
       return getHKODailyAndWarnings(hkoLang, selectedCity!.latitude, selectedCity!.longitude);
     },
     enabled: !!selectedCity && isHKCovered,
-    refetchInterval: 5 * 60 * 1000,
+    refetchInterval: 10 * 60 * 1000,
     staleTime: 2 * 60 * 1000,
   });
 
