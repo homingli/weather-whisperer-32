@@ -1,7 +1,7 @@
 import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from "@/lib/weather";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from "recharts";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, memo } from "react";
 
 interface HourlyForecastProps {
   forecast: HourlyForecastType[];
@@ -9,11 +9,11 @@ interface HourlyForecastProps {
   timezone?: string;
 }
 
-export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProps) {
+export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecastProps) => {
   const { language, t } = useLanguage();
 
   const hoursData = forecast.slice(0, 8);
-  
+
   // Format time in the city's timezone
   const formatTimeInTimezone = useCallback((date: Date) => {
     try {
@@ -31,7 +31,7 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
       return `${hour12}${ampm}`;
     }
   }, [timezone, language]);
-  
+
   const chartData = hoursData.map((hour, index) => ({
     time: hour.time.getTime(),
     displayTime: index === 0 ? t('hourly.now') : formatTimeInTimezone(hour.time),
@@ -62,11 +62,11 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
   // Find sunrise/sunset times within the forecast window
   const sunEvents = useMemo(() => {
     if (!daily || daily.length === 0 || hoursData.length === 0) return [];
-    
+
     const events: { time: number; type: 'sunrise' | 'sunset'; label: string; timeLabel: string }[] = [];
     const startTime = hoursData[0].time.getTime();
     const endTime = hoursData[hoursData.length - 1].time.getTime();
-    
+
     daily.slice(0, 2).forEach(day => {
       if (day.sunrise) {
         const sunriseTime = day.sunrise.getTime();
@@ -91,7 +91,7 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
         }
       }
     });
-    
+
     return events;
   }, [daily, hoursData, formatSunTime]);
 
@@ -99,12 +99,12 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
   const dayNightAreas = useMemo(() => {
     const areas: { x1: number; x2: number; isDay: boolean }[] = [];
     const dataPoints = chartData;
-    
+
     if (dataPoints.length < 2) return [];
-    
+
     let currentPeriodStart = 0;
     let currentIsDay = dataPoints[0].isDay;
-    
+
     for (let i = 1; i < dataPoints.length; i++) {
       if (dataPoints[i].isDay !== currentIsDay) {
         areas.push({
@@ -116,14 +116,14 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
         currentIsDay = dataPoints[i].isDay;
       }
     }
-    
+
     // Add the last period
     areas.push({
       x1: dataPoints[currentPeriodStart].time,
       x2: dataPoints[dataPoints.length - 1].time,
       isDay: currentIsDay,
     });
-    
+
     return areas;
   }, [chartData]);
 
@@ -132,7 +132,7 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
     if (index === 0) return t('hourly.now');
     return formatTimeInTimezone(new Date(timestamp));
   }, [t, formatTimeInTimezone]);
-  
+
   // Format time for tooltip label
   const formatTooltipLabel = useCallback((timestamp: number) => {
     try {
@@ -154,7 +154,7 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
       <h3 className="text-base font-medium text-muted-foreground mb-4 px-2">
         {t('hourly.title')}
       </h3>
-      
+
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 25, right: 50, left: 0, bottom: 10 }}>
@@ -187,20 +187,20 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
                 }}
               />
             ))}
-            <XAxis 
-              dataKey="time" 
+            <XAxis
+              dataKey="time"
               type="number"
               domain={['dataMin', 'dataMax']}
-              axisLine={false} 
+              axisLine={false}
               tickLine={false}
               tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 14 }}
               tickFormatter={formatXAxisTick}
               ticks={chartData.map(d => d.time)}
             />
-            <YAxis 
+            <YAxis
               yAxisId="left"
               domain={['dataMin - 2', 'dataMax + 2']}
-              axisLine={false} 
+              axisLine={false}
               tickLine={false}
               tick={{ fill: 'hsl(var(--weather-sunny))', fontSize: 14 }}
               tickFormatter={(value) => `${value}°`}
@@ -254,4 +254,4 @@ export function HourlyForecast({ forecast, daily, timezone }: HourlyForecastProp
       </div>
     </div>
   );
-}
+});
