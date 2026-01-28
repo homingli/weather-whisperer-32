@@ -96,7 +96,7 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
         </span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-10 w-10">
+            <Button variant="ghost" size="icon" className="h-10 w-10" aria-label="Open search menu">
               <Menu className="h-6 w-6" />
             </Button>
           </DropdownMenuTrigger>
@@ -129,11 +129,11 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
           autoFocus={isSearching}
         />
         {query ? (
-          <button onClick={() => setQuery("")} className="text-muted-foreground hover:text-foreground">
+          <button onClick={() => setQuery("")} className="text-muted-foreground hover:text-foreground" aria-label="Clear search">
             <X className="h-4 w-4" />
           </button>
         ) : currentCity ? (
-          <button onClick={() => setIsSearching(false)} className="text-muted-foreground hover:text-foreground">
+          <button onClick={() => setIsSearching(false)} className="text-muted-foreground hover:text-foreground" aria-label="Close search">
             <X className="h-4 w-4" />
           </button>
         ) : null}

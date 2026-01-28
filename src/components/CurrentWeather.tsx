@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIcon } from "@/lib/weather";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, ArrowUp, ArrowDown } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -10,7 +11,7 @@ interface CurrentWeatherProps {
   timezone?: string;
 }
 
-export function CurrentWeather({ weather, hourlyForecast, dailyForecast, locationName, timezone }: CurrentWeatherProps) {
+export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, locationName, timezone }: CurrentWeatherProps) => {
   const { language, t } = useLanguage();
 
   // Umbrella logic - use percentage-based threshold
@@ -39,11 +40,11 @@ export function CurrentWeather({ weather, hourlyForecast, dailyForecast, locatio
   // Get next sun event (sunset if day, sunrise if night)
   const getNextSunEvent = () => {
     if (!dailyForecast) return null;
-    
+
     const now = new Date();
     const sunrise = dailyForecast.sunrise;
     const sunset = dailyForecast.sunset;
-    
+
     // Format time in local timezone
     const formatTime = (date: Date) => {
       return new Intl.DateTimeFormat(language === 'tc' ? 'zh-TW' : 'en-US', {
@@ -76,41 +77,47 @@ export function CurrentWeather({ weather, hourlyForecast, dailyForecast, locatio
           <p className="text-lg text-muted-foreground mb-2">
             {timezone ? getLocalDateTime() : new Date().toLocaleDateString()}
           </p>
-          
+
           {/* Hero: Feels Like Temperature */}
-          <div className="text-9xl font-extralight tracking-tighter leading-none">
+          <div className="text-9xl font-extralight tracking-tighter leading-none" aria-label={`${Math.round(weather.apparentTemperature)} degrees`}>
             {Math.round(weather.apparentTemperature)}°
           </div>
           <p className="text-lg text-muted-foreground mt-2">{t('weather.feelsLike')}</p>
-          
+
           {/* High/Low temps */}
           {dailyForecast && (
             <div className="flex items-center gap-6 mt-4">
               <div className="flex items-center gap-1.5 text-lg">
-                <ArrowUp className="h-5 w-5 text-orange-400" />
-                <span className="font-medium">{Math.round(dailyForecast.temperatureMax)}°</span>
+                <ArrowUp className="h-5 w-5 text-orange-400" aria-hidden="true" />
+                <span className="font-medium" aria-label={`High temperature: ${Math.round(dailyForecast.temperatureMax)} degrees`}>
+                  {Math.round(dailyForecast.temperatureMax)}°
+                </span>
               </div>
               <div className="flex items-center gap-1.5 text-lg">
-                <ArrowDown className="h-5 w-5 text-blue-400" />
-                <span className="font-medium">{Math.round(dailyForecast.temperatureMin)}°</span>
+                <ArrowDown className="h-5 w-5 text-blue-400" aria-hidden="true" />
+                <span className="font-medium" aria-label={`Low temperature: ${Math.round(dailyForecast.temperatureMin)} degrees`}>
+                  {Math.round(dailyForecast.temperatureMin)}°
+                </span>
               </div>
             </div>
           )}
         </div>
-        
+
         {/* Right column: Indicators stacked */}
         <div className="flex flex-col items-center justify-between py-2">
           {/* Weather icon */}
-          <div className="text-6xl weather-icon-glow">
+          <div className="text-6xl weather-icon-glow" role="img" aria-label={t('weather.condition')}>
             {getWeatherIcon(weather.weatherCode, weather.isDay)}
           </div>
-          
+
           {/* Sun event */}
           <div className="flex flex-col items-center gap-1">
             {sunEvent ? (
               <>
-                <sunEvent.icon className="h-10 w-10 text-amber-400" />
-                <p className="text-sm text-muted-foreground">{sunEvent.time}</p>
+                <sunEvent.icon className="h-10 w-10 text-amber-400" aria-hidden="true" />
+                <p className="text-sm text-muted-foreground" aria-label={`${sunEvent.type === 'sunset' ? 'Sunset' : 'Sunrise'} at ${sunEvent.time}`}>
+                  {sunEvent.time}
+                </p>
               </>
             ) : (
               <>
@@ -119,13 +126,13 @@ export function CurrentWeather({ weather, hourlyForecast, dailyForecast, locatio
               </>
             )}
           </div>
-          
+
           {/* Umbrella */}
           <div className="flex flex-col items-center gap-1">
             {needsUmbrella ? (
-              <Umbrella className="h-10 w-10 text-weather-rain" />
+              <Umbrella className="h-10 w-10 text-weather-rain" role="img" aria-label="Umbrella recommended" />
             ) : (
-              <UmbrellaOff className="h-10 w-10 text-muted-foreground/40" />
+              <UmbrellaOff className="h-10 w-10 text-muted-foreground/40" role="img" aria-label="No umbrella needed" />
             )}
             <p className="text-sm text-muted-foreground">
               {needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
@@ -135,4 +142,4 @@ export function CurrentWeather({ weather, hourlyForecast, dailyForecast, locatio
       </div>
     </div>
   );
-}
+});
