@@ -309,7 +309,7 @@ export function getUserLocation(): Promise<{ latitude: number; longitude: number
       (error) => {
         reject(error);
       },
-      { timeout: 10000, enableHighAccuracy: false }
+      { timeout: 5000, enableHighAccuracy: false }
     );
   });
 }
