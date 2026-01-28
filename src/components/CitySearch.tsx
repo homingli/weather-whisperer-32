@@ -73,7 +73,7 @@ export function CitySearch({ currentCity, onCitySelect }: CitySearchProps) {
         setResults([]);
         setIsOpen(false);
       }
-    }, 300);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, [query]);

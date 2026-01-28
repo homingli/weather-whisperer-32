@@ -68,8 +68,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     updateResolvedTheme();
     
-    // Update every minute for auto mode
-    const interval = setInterval(updateResolvedTheme, 60000);
+    // Update every 5 minutes for auto mode
+    const interval = setInterval(updateResolvedTheme, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [mode, sunTimes]);
 
