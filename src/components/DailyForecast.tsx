@@ -3,12 +3,13 @@ import { format, isToday, isTomorrow } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { Droplets } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { memo } from "react";
 
 interface DailyForecastProps {
   forecast: DailyForecastType[];
 }
 
-export function DailyForecast({ forecast }: DailyForecastProps) {
+export const DailyForecast = memo(({ forecast }: DailyForecastProps) => {
   const { language, t } = useLanguage();
   const locale = language === 'tc' ? zhTW : undefined;
 
@@ -29,7 +30,7 @@ export function DailyForecast({ forecast }: DailyForecastProps) {
       <h3 className="text-base font-medium text-muted-foreground mb-4 px-2">
         {t('daily.title')}
       </h3>
-      
+
       <div className="space-y-1">
         {forecast.map((day) => {
           const minPercent = ((day.temperatureMin - weekMin) / tempRange) * 100;
@@ -47,25 +48,34 @@ export function DailyForecast({ forecast }: DailyForecastProps) {
                 <span className="text-muted-foreground">{format(day.date, "d/M")}</span>
                 <span className="font-medium ml-1">{formatDay(day.date)}</span>
               </div>
-              
-              <span className="text-3xl w-12 text-center">{getWeatherIcon(day.weatherCode, true)}</span>
-              
+
+              <span className="text-3xl w-12 text-center" role="img" aria-label={getWeatherDescription(day.weatherCode)}>
+                {getWeatherIcon(day.weatherCode, true)}
+              </span>
+
               <div className="flex items-center gap-1 w-16">
                 {(showPSR || showPercentage) && (
                   <>
-                    <Droplets className="h-4 w-4 text-weather-rain flex-shrink-0" />
-                    <span className="text-sm text-weather-rain truncate">
+                    <Droplets className="h-4 w-4 text-weather-rain flex-shrink-0" aria-hidden="true" />
+                    <span className="text-sm text-weather-rain truncate" aria-label={`Precipitation probability: ${showPSR ? day.precipitationProbabilityRaw : `${day.precipitationProbabilityMax}%`}`}>
                       {showPSR ? day.precipitationProbabilityRaw : `${day.precipitationProbabilityMax}%`}
                     </span>
                   </>
                 )}
               </div>
-              
+
               <span className="w-12 text-right text-base text-muted-foreground">
                 {Math.round(day.temperatureMin)}°
               </span>
-              
-              <div className="flex-1 h-2 bg-secondary/50 rounded-full overflow-hidden relative">
+
+              <div
+                className="flex-1 h-2 bg-secondary/50 rounded-full overflow-hidden relative"
+                role="progressbar"
+                aria-valuemin={weekMin}
+                aria-valuemax={weekMax}
+                aria-valuenow={day.temperatureMax}
+                aria-label={`Temperature range: ${Math.round(day.temperatureMin)} to ${Math.round(day.temperatureMax)} degrees`}
+              >
                 <div
                   className="absolute h-full rounded-full bg-gradient-to-r from-weather-rain via-weather-sunny to-destructive"
                   style={{
@@ -74,7 +84,7 @@ export function DailyForecast({ forecast }: DailyForecastProps) {
                   }}
                 />
               </div>
-              
+
               <span className="w-12 text-base font-medium">{Math.round(day.temperatureMax)}°</span>
             </div>
           );
@@ -82,4 +92,4 @@ export function DailyForecast({ forecast }: DailyForecastProps) {
       </div>
     </div>
   );
-}
+});
