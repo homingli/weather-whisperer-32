@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CitySearch } from "@/components/CitySearch";
 import { CurrentWeather } from "@/components/CurrentWeather";
-import { HourlyForecast } from "@/components/HourlyForecast";
 import { DailyForecast } from "@/components/DailyForecast";
 import { WeatherSkeleton } from "@/components/WeatherSkeleton";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
@@ -13,6 +12,9 @@ import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CloudRain } from "lucide-react";
+
+// Lazy load heavy components
+const HourlyForecast = lazy(() => import("@/components/HourlyForecast").then(module => ({ default: module.HourlyForecast })));
 
 interface ExtendedWeatherData extends WeatherData {
   warnings?: HKOWarning[];
@@ -82,18 +84,22 @@ const Index = () => {
 
   // Combine data: Open-Meteo for current+hourly, HKO for daily+warnings when in HK
   // Always keep Open-Meteo daily for sunrise/sunset times (HKO doesn't provide these)
-  const weather: ExtendedWeatherData | undefined = openMeteoData ? {
-    current: openMeteoData.current,
-    hourly: openMeteoData.hourly,
-    daily: isHKCovered && hkoData ? hkoData.daily : openMeteoData.daily,
-    warnings: isHKCovered && hkoData ? hkoData.warnings : undefined,
-    nearestStation: hkoData?.nearestStation,
-    nearestDistrict: hkoData?.nearestDistrict,
-    timezone: isHKCovered && hkoData?.timezone ? hkoData.timezone : openMeteoData.timezone,
-  } : undefined;
+  const weather: ExtendedWeatherData | undefined = useMemo(() => {
+    if (!openMeteoData) return undefined;
+
+    return {
+      current: openMeteoData.current,
+      hourly: openMeteoData.hourly,
+      daily: isHKCovered && hkoData ? hkoData.daily : openMeteoData.daily,
+      warnings: isHKCovered && hkoData ? hkoData.warnings : undefined,
+      nearestStation: hkoData?.nearestStation,
+      nearestDistrict: hkoData?.nearestDistrict,
+      timezone: isHKCovered && hkoData?.timezone ? hkoData.timezone : openMeteoData.timezone,
+    };
+  }, [openMeteoData, isHKCovered, hkoData]);
 
   // Open-Meteo daily data is always used for sunrise/sunset (HKO doesn't provide it)
-  const sunTimes = openMeteoData?.daily;
+  const sunTimes = useMemo(() => openMeteoData?.daily, [openMeteoData]);
 
   // Update theme context with sunrise/sunset times for auto mode
   useEffect(() => {
@@ -159,7 +165,9 @@ const Index = () => {
                 locationName={selectedCity?.name}
                 timezone={weather.timezone}
               />
-              <HourlyForecast forecast={weather.hourly} daily={sunTimes} timezone={weather.timezone} />
+              <Suspense fallback={<div className="h-[300px] animate-pulse bg-muted/20 rounded-xl" />}>
+                <HourlyForecast forecast={weather.hourly} daily={sunTimes} timezone={weather.timezone} />
+              </Suspense>
               <DailyForecast forecast={weather.daily} />
             </>
           ) : null}
@@ -172,7 +180,7 @@ const Index = () => {
             <LanguageToggle />
           </div>
           <p>
-            {isHKCovered 
+            {isHKCovered
               ? formatString(t('source.poweredByBoth'), t('source.openMeteo'), t('source.hko'))
               : formatString(t('source.poweredBy'), t('source.openMeteo'))
             }
