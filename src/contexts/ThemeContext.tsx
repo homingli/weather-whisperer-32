@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 type ResolvedTheme = 'light' | 'dark';
@@ -17,22 +17,28 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem('theme-mode');
     return (saved as ThemeMode) || 'auto';
   });
-  
+
   const [sunTimes, setSunTimesState] = useState<{ sunrise: Date | null; sunset: Date | null }>({
     sunrise: null,
     sunset: null,
   });
-  
+
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light');
 
-  const setMode = (newMode: ThemeMode) => {
+  const setMode = useCallback((newMode: ThemeMode) => {
     setModeState(newMode);
     localStorage.setItem('theme-mode', newMode);
-  };
+  }, []);
 
-  const setSunTimes = (sunrise: Date | null, sunset: Date | null) => {
-    setSunTimesState({ sunrise, sunset });
-  };
+  const setSunTimes = useCallback((sunrise: Date | null, sunset: Date | null) => {
+    setSunTimesState(prev => {
+      // Only update if the values have actually changed to avoid re-renders
+      const sunriseChanged = sunrise?.getTime() !== prev.sunrise?.getTime();
+      const sunsetChanged = sunset?.getTime() !== prev.sunset?.getTime();
+      if (!sunriseChanged && !sunsetChanged) return prev;
+      return { sunrise, sunset };
+    });
+  }, []);
 
   // Determine resolved theme based on mode and sun times
   useEffect(() => {
@@ -41,12 +47,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setResolvedTheme('light');
         return;
       }
-      
+
       if (mode === 'dark') {
         setResolvedTheme('dark');
         return;
       }
-      
+
       // Auto mode: use sunrise/sunset if available, otherwise use system preference
       if (mode === 'auto') {
         if (sunTimes.sunrise && sunTimes.sunset) {
@@ -54,7 +60,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           const currentTime = now.getTime();
           const sunriseTime = sunTimes.sunrise.getTime();
           const sunsetTime = sunTimes.sunset.getTime();
-          
+
           // It's day if current time is after sunrise and before sunset
           const isDay = currentTime >= sunriseTime && currentTime < sunsetTime;
           setResolvedTheme(isDay ? 'light' : 'dark');
@@ -67,7 +73,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     };
 
     updateResolvedTheme();
-    
+
     // Update every 5 minutes for auto mode
     const interval = setInterval(updateResolvedTheme, 5 * 60 * 1000);
     return () => clearInterval(interval);

@@ -295,26 +295,62 @@ export function setDefaultCity(city: GeoLocation): void {
 // Get user's current location using Capacitor Geolocation
 export async function getUserLocation(): Promise<{ latitude: number; longitude: number }> {
   try {
-    const permissions = await Geolocation.checkPermissions();
+    console.log('Checking location permissions...');
+    try {
+      const permissions = await Geolocation.checkPermissions();
+      console.log('Current permissions:', permissions.location);
 
-    if (permissions.location !== 'granted') {
-      const request = await Geolocation.requestPermissions();
-      if (request.location !== 'granted') {
+      if (permissions.location === 'denied') {
         throw new Error('Location permission denied');
       }
+
+      if (permissions.location !== 'granted') {
+        console.log('Requesting location permissions...');
+        const request = await Geolocation.requestPermissions();
+        console.log('Request result:', request.location);
+        if (request.location === 'denied') {
+          throw new Error('Location permission denied');
+        }
+      }
+    } catch (permError) {
+      // On web, Capacitor Geolocation checkPermissions/requestPermissions may throw "Not implemented on web"
+      // We can safely ignore this on web as the browser will prompt automatically during getCurrentPosition
+      const isNotImplemented = permError instanceof Error && permError.message.includes('Not implemented');
+      if (!isNotImplemented) {
+        throw permError;
+      }
+      console.log('Permission check not implemented on web, proceeding to position request');
     }
 
-    const position = await Geolocation.getCurrentPosition({
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0 // Force a fresh position request, bypassing any cached values
-    });
+    try {
+      console.log('Attempting high accuracy location...');
+      const position = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      });
+      console.log('High accuracy location obtained');
+      return {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+    } catch (highAccuracyError) {
+      console.warn('High accuracy location failed, falling back to basic location:', highAccuracyError);
 
-    return {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-    };
+      // Fallback for browsers/devices that struggle with high accuracy (especially desktops)
+      const position = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: false,
+        timeout: 15000, // Longer timeout for fallback
+        maximumAge: 30000 // Allow slightly stale data for fallback
+      });
+      console.log('Basic accuracy location obtained');
+      return {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+    }
   } catch (error) {
+    console.error('Final location error:', error);
     if (error instanceof Error) throw error;
     throw new Error('Failed to get location');
   }
