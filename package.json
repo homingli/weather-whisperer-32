@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/geolocation": "^8.0.0",
     "@fontsource/outfit": "^5.2.8",
     "@fontsource/roboto": "^5.2.9",
     "@hookform/resolvers": "^3.10.0",

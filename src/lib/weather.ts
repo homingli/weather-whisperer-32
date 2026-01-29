@@ -1,4 +1,5 @@
 // Weather API service using Open-Meteo
+import { Geolocation } from '@capacitor/geolocation';
 
 // Helper to parse daily date string "YYYY-MM-DD" as midnight in specified timezone
 export function parseDailyDateInTimezone(dateStr: string, timezone: string): Date {
@@ -291,27 +292,32 @@ export function setDefaultCity(city: GeoLocation): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(city));
 }
 
-// Get user's current location using browser geolocation
-export function getUserLocation(): Promise<{ latitude: number; longitude: number }> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation not supported'));
-      return;
+// Get user's current location using Capacitor Geolocation
+export async function getUserLocation(): Promise<{ latitude: number; longitude: number }> {
+  try {
+    const permissions = await Geolocation.checkPermissions();
+
+    if (permissions.location !== 'granted') {
+      const request = await Geolocation.requestPermissions();
+      if (request.location !== 'granted') {
+        throw new Error('Location permission denied');
+      }
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      },
-      (error) => {
-        reject(error);
-      },
-      { timeout: 5000, enableHighAccuracy: false }
-    );
-  });
+    const position = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0 // Force a fresh position request, bypassing any cached values
+    });
+
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    };
+  } catch (error) {
+    if (error instanceof Error) throw error;
+    throw new Error('Failed to get location');
+  }
 }
 
 // Reverse geocode coordinates to get city name
