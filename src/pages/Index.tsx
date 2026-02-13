@@ -6,12 +6,13 @@ import { DailyForecast } from "@/components/DailyForecast";
 import { WeatherSkeleton } from "@/components/WeatherSkeleton";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
 import { LanguageToggle } from "@/components/LanguageToggle";
-import { GeoLocation, getDefaultCity, getWeather, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
+import { GeoLocation, getDefaultCity, getRecentCities, getWeather, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
 import { getHKODailyAndWarnings, HKOWarning, isInHongKong } from "@/lib/hko-weather";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { CloudRain } from "lucide-react";
+import { CloudRain, MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Lazy load heavy components
 const HourlyForecast = lazy(() => import("@/components/HourlyForecast").then(module => ({ default: module.HourlyForecast })));
@@ -25,8 +26,15 @@ interface ExtendedWeatherData extends WeatherData {
 const Index = () => {
   const [selectedCity, setSelectedCity] = useState<GeoLocation | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [recentCities, setRecentCities] = useState<GeoLocation[]>([]);
   const { language, t } = useLanguage();
   const { setSunTimes } = useTheme();
+
+  const handleCitySelect = (city: GeoLocation) => {
+    setSelectedCity(city);
+    setDefaultCity(city);
+    setRecentCities(getRecentCities());
+  };
 
   useEffect(() => {
     const initializeLocation = async () => {
@@ -34,6 +42,7 @@ const Index = () => {
       const defaultCity = getDefaultCity();
       if (defaultCity) {
         setSelectedCity(defaultCity);
+        setRecentCities(getRecentCities());
         return;
       }
 
@@ -44,7 +53,8 @@ const Index = () => {
         const location = await reverseGeocode(coords.latitude, coords.longitude);
         if (location) {
           setSelectedCity(location);
-          setDefaultCity(location); // Save as default
+          setDefaultCity(location);
+          setRecentCities(getRecentCities());
         }
       } catch (error) {
         console.log('Could not get location:', error);
@@ -117,8 +127,28 @@ const Index = () => {
       <div className="container max-w-2xl mx-auto px-4 pt-[10px] pb-8">
         {/* Header */}
         <header className="text-center mb-8">
+          {/* Recent locations bar */}
+          {recentCities.filter(c => !(selectedCity && c.latitude === selectedCity.latitude && c.longitude === selectedCity.longitude)).length > 0 && (
+            <div className="flex items-center justify-center gap-2 mb-2 flex-wrap">
+              {recentCities
+                .filter(c => !(selectedCity && c.latitude === selectedCity.latitude && c.longitude === selectedCity.longitude))
+                .slice(0, 2)
+                .map((city) => (
+                  <Button
+                    key={`${city.latitude}-${city.longitude}`}
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground hover:text-foreground gap-1 h-7 px-2"
+                    onClick={() => handleCitySelect(city)}
+                  >
+                    <MapPin className="h-3 w-3" />
+                    {city.name}
+                  </Button>
+                ))}
+            </div>
+          )}
           <h1 className="sr-only">Weather Forecast</h1>
-          <CitySearch currentCity={selectedCity} onCitySelect={setSelectedCity} />
+          <CitySearch currentCity={selectedCity} onCitySelect={handleCitySelect} />
           {isHKCovered && weather?.nearestStation && (
             <p className="text-base text-muted-foreground mt-1">
               {weather.nearestStation}
