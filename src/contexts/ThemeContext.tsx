@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 type ResolvedTheme = 'light' | 'dark';
@@ -25,14 +25,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light');
 
-  const setMode = (newMode: ThemeMode) => {
+  const setMode = useCallback((newMode: ThemeMode) => {
     setModeState(newMode);
     localStorage.setItem('theme-mode', newMode);
-  };
+  }, []);
 
-  const setSunTimes = (sunrise: Date | null, sunset: Date | null) => {
-    setSunTimesState({ sunrise, sunset });
-  };
+  const setSunTimes = useCallback((sunrise: Date | null, sunset: Date | null) => {
+    setSunTimesState(prev => {
+      const prevSunrise = prev.sunrise?.getTime();
+      const prevSunset = prev.sunset?.getTime();
+      const newSunrise = sunrise?.getTime();
+      const newSunset = sunset?.getTime();
+      
+      if (prevSunrise === newSunrise && prevSunset === newSunset) {
+        return prev;
+      }
+      return { sunrise, sunset };
+    });
+  }, []);
 
   // Determine resolved theme based on mode and sun times
   useEffect(() => {
@@ -83,8 +93,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [resolvedTheme]);
 
+  const value = useMemo(() => ({
+    mode, setMode, resolvedTheme, setSunTimes
+  }), [mode, setMode, resolvedTheme, setSunTimes]);
+
   return (
-    <ThemeContext.Provider value={{ mode, setMode, resolvedTheme, setSunTimes }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );
