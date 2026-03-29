@@ -1,17 +1,15 @@
 import { useEffect, useState, useMemo, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CitySearch } from "@/components/CitySearch";
 import { CurrentWeather } from "@/components/CurrentWeather";
 import { DailyForecast } from "@/components/DailyForecast";
 import { WeatherSkeleton } from "@/components/WeatherSkeleton";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
-import { LanguageToggle } from "@/components/LanguageToggle";
-import { GeoLocation, getDefaultCity, getWeather, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
+import { SettingsMenu } from "@/components/SettingsMenu";
+import { GeoLocation, getDefaultCity, getRecentCities, getWeather, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
 import { getHKODailyAndWarnings, HKOWarning, isInHongKong } from "@/lib/hko-weather";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { CloudRain } from "lucide-react";
+import { CloudRain, MapPin } from "lucide-react";
 
 // Lazy load heavy components
 const HourlyForecast = lazy(() => import("@/components/HourlyForecast").then(module => ({ default: module.HourlyForecast })));
@@ -25,8 +23,15 @@ interface ExtendedWeatherData extends WeatherData {
 const Index = () => {
   const [selectedCity, setSelectedCity] = useState<GeoLocation | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [recentCities, setRecentCities] = useState<GeoLocation[]>([]);
   const { language, t } = useLanguage();
   const { setSunTimes } = useTheme();
+
+  const handleCitySelect = (city: GeoLocation) => {
+    setSelectedCity(city);
+    setDefaultCity(city);
+    setRecentCities(getRecentCities());
+  };
 
   useEffect(() => {
     const initializeLocation = async () => {
@@ -34,6 +39,7 @@ const Index = () => {
       const defaultCity = getDefaultCity();
       if (defaultCity) {
         setSelectedCity(defaultCity);
+        setRecentCities(getRecentCities());
         return;
       }
 
@@ -44,7 +50,8 @@ const Index = () => {
         const location = await reverseGeocode(coords.latitude, coords.longitude);
         if (location) {
           setSelectedCity(location);
-          setDefaultCity(location); // Save as default
+          setDefaultCity(location);
+          setRecentCities(getRecentCities());
         }
       } catch (error) {
         console.log('Could not get location:', error);
@@ -115,12 +122,26 @@ const Index = () => {
   return (
     <div className="min-h-screen gradient-sky">
       <div className="container max-w-2xl mx-auto px-4 pt-[10px] pb-8">
+        {/* Top bar: location + settings */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            {selectedCity && (
+              <>
+                <MapPin className="h-5 w-5" />
+                <span className="text-lg font-medium">
+                  {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
+                </span>
+              </>
+            )}
+          </div>
+          <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} />
+        </div>
+
         {/* Header */}
         <header className="text-center mb-8">
           <h1 className="sr-only">Weather Forecast</h1>
-          <CitySearch currentCity={selectedCity} onCitySelect={setSelectedCity} />
           {isHKCovered && weather?.nearestStation && (
-            <p className="text-base text-muted-foreground mt-1">
+            <p className="text-base text-muted-foreground">
               {weather.nearestStation}
             </p>
           )}
@@ -174,11 +195,7 @@ const Index = () => {
         </main>
 
         {/* Footer */}
-        <footer className="text-center mt-12 text-sm text-muted-foreground space-y-2">
-          <div className="flex items-center justify-center gap-2">
-            <ThemeToggle />
-            <LanguageToggle />
-          </div>
+        <footer className="text-center mt-12 text-sm text-muted-foreground">
           <p>
             {isHKCovered
               ? formatString(t('source.poweredByBoth'), t('source.openMeteo'), t('source.hko'))
