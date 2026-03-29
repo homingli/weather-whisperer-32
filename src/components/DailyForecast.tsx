@@ -1,99 +1,236 @@
 import { DailyForecast as DailyForecastType, getWeatherIcon, getWeatherDescription } from "@/lib/weather";
-import { format, isToday, isTomorrow } from "date-fns";
-import { zhTW } from "date-fns/locale";
+import { addDays } from "date-fns";
 import { Droplets } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { memo } from "react";
+import { useMemo, useCallback, memo } from "react";
+import {
+  Bar,
+  BarChart,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 interface DailyForecastProps {
   forecast: DailyForecastType[];
+  timezone?: string;
 }
 
-export const DailyForecast = memo(({ forecast }: DailyForecastProps) => {
+function ymdInTimezone(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function tomorrowYmdInTimezone(timeZone: string): string {
+  const today = ymdInTimezone(new Date(), timeZone);
+  const [y, m, d] = today.split("-").map(Number);
+  const noon = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const next = addDays(noon, 1);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(next);
+}
+
+export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) => {
   const { language, t } = useLanguage();
-  const locale = language === 'tc' ? zhTW : undefined;
+  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  const formatDay = (date: Date) => {
-    if (isToday(date)) return t('daily.today');
-    if (isTomorrow(date)) return t('daily.tomorrow');
-    return format(date, "EEE", { locale });
-  };
+  const formatDayLine1 = useCallback(
+    (dayDate: Date): string => {
+      const dayYmd = ymdInTimezone(dayDate, tz);
+      const todayYmd = ymdInTimezone(new Date(), tz);
+      if (dayYmd === todayYmd) return t("daily.today");
+      if (dayYmd === tomorrowYmdInTimezone(tz)) return t("daily.tomorrow");
+      return new Intl.DateTimeFormat(language === "tc" ? "zh-HK" : "en-US", {
+        timeZone: tz,
+        weekday: "short",
+      }).format(dayDate);
+    },
+    [tz, t, language]
+  );
 
-  // Find min and max temps for the week to calculate bar widths
-  const allTemps = forecast.flatMap(d => [d.temperatureMin, d.temperatureMax]);
-  const weekMin = Math.min(...allTemps);
-  const weekMax = Math.max(...allTemps);
-  const tempRange = weekMax - weekMin;
+  const formatDayLine2 = useCallback(
+    (dayDate: Date): string =>
+      new Intl.DateTimeFormat(language === "tc" ? "zh-HK" : "en-US", {
+        timeZone: tz,
+        month: "numeric",
+        day: "numeric",
+      }).format(dayDate),
+    [tz, language]
+  );
+
+  const { chartData, yDomainMin, yDomainMax } = useMemo(() => {
+    const allTemps = forecast.flatMap((d) => [d.temperatureMin, d.temperatureMax]);
+    const weekMin = Math.min(...allTemps);
+    const weekMax = Math.max(...allTemps);
+    const pad = 2;
+    const yMin = weekMin - pad;
+    const yMax = weekMax + pad;
+
+    const rows = forecast.map((day, index) => {
+      const low = Math.round(day.temperatureMin);
+      const high = Math.round(day.temperatureMax);
+      const showPSR = day.precipitationProbabilityRaw;
+      const showPercentage = !showPSR && day.precipitationProbabilityMax > 0;
+      return {
+        index,
+        temperatureRange: [low, high], // Use floating bar array
+        temperatureMin: low,
+        temperatureMax: high,
+        weatherCode: day.weatherCode,
+        precipLabel: showPSR
+          ? day.precipitationProbabilityRaw
+          : showPercentage
+            ? `${day.precipitationProbabilityMax}%`
+            : null,
+        line1: formatDayLine1(day.date),
+        line2: formatDayLine2(day.date),
+      };
+    });
+
+    return { chartData: rows, yDomainMin: yMin, yDomainMax: yMax };
+  }, [forecast, formatDayLine1, formatDayLine2]);
 
   return (
     <div className="glass-card p-4 animate-fade-in" style={{ animationDelay: "0.3s" }}>
-      <h3 className="text-base font-medium text-muted-foreground mb-4 px-2">
-        {t('daily.title')}
-      </h3>
+      <h3 className="text-base font-medium text-muted-foreground mb-4 px-2">{t("daily.title")}</h3>
 
-      <div className="space-y-1">
-        {forecast.map((day) => {
-          const minPercent = ((day.temperatureMin - weekMin) / tempRange) * 100;
-          const maxPercent = ((day.temperatureMax - weekMin) / tempRange) * 100;
-          // Show PSR text if available (HKO data), otherwise show percentage
-          const showPSR = day.precipitationProbabilityRaw;
-          const showPercentage = !showPSR && day.precipitationProbabilityMax > 0;
-
-          return (
-            <div
-              key={day.date.toISOString()}
-              className="flex items-center px-2 py-3 rounded-xl hover:bg-secondary/30 transition-colors"
+      <div className="h-64 w-full min-w-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={chartData}
+            margin={{ top: 8, right: 8, left: 0, bottom: 8 }}
+            barCategoryGap="18%"
+          >
+            <defs>
+              {chartData.map((row) => {
+                const height = row.temperatureMax - row.temperatureMin;
+                const h = height === 0 ? 0.1 : height;
+                const y1 = (row.temperatureMax - yDomainMin) / h;
+                const y2 = (row.temperatureMax - yDomainMax) / h;
+                return (
+                  <linearGradient
+                    key={`grad-${row.index}`}
+                    id={`dailyTempRange-${row.index}`}
+                    x1="0"
+                    y1={y1}
+                    x2="0"
+                    y2={y2}
+                  >
+                    <stop offset="0%" stopColor="hsl(var(--weather-rain))" />
+                    <stop offset="50%" stopColor="hsl(var(--weather-sunny))" />
+                    <stop offset="100%" stopColor="hsl(var(--destructive))" />
+                  </linearGradient>
+                );
+              })}
+            </defs>
+            <XAxis
+              dataKey="index"
+              type="category"
+              axisLine={false}
+              tickLine={false}
+              tick={(props) => {
+                const { x, y, payload } = props;
+                const row = chartData[payload.value as number];
+                if (!row) return null;
+                return (
+                  <g transform={`translate(${x},${y})`}>
+                    <text
+                      textAnchor="middle"
+                      fill="hsl(var(--muted-foreground))"
+                      fontSize={11}
+                      className="font-medium"
+                    >
+                      <tspan x={0} dy={0}>
+                        {row.line1}
+                      </tspan>
+                      <tspan x={0} dy={13} className="text-muted-foreground/90">
+                        {row.line2}
+                      </tspan>
+                    </text>
+                  </g>
+                );
+              }}
+              height={48}
+              interval={0}
+            />
+            <YAxis
+              domain={[yDomainMin, yDomainMax]}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: "hsl(var(--weather-sunny))", fontSize: 12 }}
+              tickFormatter={(value) => `${value}°`}
+              width={40}
+            />
+            <Tooltip
+              cursor={{ fill: "hsl(var(--muted) / 0.15)" }}
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const row = payload[0].payload as (typeof chartData)[number];
+                if (!row) return null;
+                return (
+                  <div
+                    className="rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-md"
+                    style={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                    }}
+                  >
+                    <p className="font-medium text-foreground mb-1">
+                      {row.line1} · {row.line2}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {t("daily.low")}: {row.temperatureMin}° · {t("daily.high")}: {row.temperatureMax}°
+                    </p>
+                    {row.precipLabel && (
+                      <p className="text-weather-rain mt-1 text-xs">
+                        {t("daily.precip")}: {row.precipLabel}
+                      </p>
+                    )}
+                  </div>
+                );
+              }}
+            />
+            <Bar
+              dataKey="temperatureRange"
+              radius={[6, 6, 6, 6]}
+              isAnimationActive={false}
             >
-              {/* Date + Day inline */}
-              <div className="w-24 flex items-baseline gap-1.5 shrink-0">
-                <span className="text-sm text-muted-foreground">{format(day.date, "d/M")}</span>
-                <span className="text-base font-medium">{formatDay(day.date)}</span>
-              </div>
+              {chartData.map((row) => (
+                <Cell key={`cell-${row.index}`} fill={`url(#dailyTempRange-${row.index})`} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
 
-              {/* Weather icon */}
-              <div className="w-10 text-center shrink-0">
-                <span className="text-2xl" role="img" aria-label={getWeatherDescription(day.weatherCode)}>
-                  {getWeatherIcon(day.weatherCode, true)}
-                </span>
-              </div>
-
-              {/* Rain probability */}
-              <div className="w-14 flex items-center gap-1 shrink-0">
-                {(showPSR || showPercentage) && (
-                  <>
-                    <Droplets className="h-3.5 w-3.5 text-weather-rain flex-shrink-0" aria-hidden="true" />
-                    <span className="text-xs text-weather-rain truncate" aria-label={`Precipitation probability: ${showPSR ? day.precipitationProbabilityRaw : `${day.precipitationProbabilityMax}%`}`}>
-                      {showPSR ? day.precipitationProbabilityRaw : `${day.precipitationProbabilityMax}%`}
-                    </span>
-                  </>
-                )}
-              </div>
-
-              {/* Min temp */}
-              <span className="w-10 text-right text-sm text-muted-foreground shrink-0">
-                {Math.round(day.temperatureMin)}°
-              </span>
-
-              {/* Temp bar */}
-              <div
-                className="flex-1 h-1.5 bg-secondary/50 rounded-full overflow-hidden relative mx-2 min-w-[60px]"
-                role="progressbar"
-                aria-valuemin={weekMin}
-                aria-valuemax={weekMax}
-                aria-valuenow={day.temperatureMax}
-                aria-label={`Temperature range: ${Math.round(day.temperatureMin)} to ${Math.round(day.temperatureMax)} degrees`}
+      <div className="grid grid-cols-7 gap-1 mt-3 px-0.5 text-center">
+        {chartData.map((row) => {
+          const day = forecast[row.index];
+          return (
+            <div key={row.index} className="flex flex-col items-center gap-1 min-w-0">
+              <span
+                className="text-xl leading-none"
+                role="img"
+                aria-label={getWeatherDescription(day.weatherCode)}
               >
-                <div
-                  className="absolute h-full rounded-full bg-gradient-to-r from-weather-rain via-weather-sunny to-destructive"
-                  style={{
-                    left: `${minPercent}%`,
-                    right: `${100 - maxPercent}%`,
-                  }}
-                />
-              </div>
-
-              {/* Max temp */}
-              <span className="w-10 text-sm font-medium shrink-0">{Math.round(day.temperatureMax)}°</span>
+                {getWeatherIcon(day.weatherCode, true)}
+              </span>
+              {row.precipLabel && (
+                <div className="flex items-center justify-center gap-0.5 text-[10px] leading-tight text-weather-rain">
+                  <Droplets className="h-3 w-3 shrink-0" aria-hidden />
+                  <span className="truncate max-w-full">{row.precipLabel}</span>
+                </div>
+              )}
             </div>
           );
         })}
