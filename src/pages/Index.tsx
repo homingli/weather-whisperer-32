@@ -189,7 +189,7 @@ const Index = () => {
               <Suspense fallback={<div className="h-[300px] animate-pulse bg-muted/20 rounded-xl" />}>
                 <HourlyForecast forecast={weather.hourly} daily={sunTimes} timezone={weather.timezone} />
               </Suspense>
-              <DailyForecast forecast={weather.daily} />
+              <DailyForecast forecast={weather.daily} timezone={weather.timezone} />
             </>
           ) : null}
         </main>
