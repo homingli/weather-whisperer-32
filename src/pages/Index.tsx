@@ -122,37 +122,26 @@ const Index = () => {
   return (
     <div className="min-h-screen gradient-sky">
       <div className="container max-w-2xl mx-auto px-4 pt-[10px] pb-8">
-        {/* Top bar: settings */}
-        <div className="flex items-center justify-end mb-2">
-          <SettingsMenu />
+        {/* Top bar: location + settings */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            {selectedCity && (
+              <>
+                <MapPin className="h-5 w-5" />
+                <span className="text-lg font-medium">
+                  {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
+                </span>
+              </>
+            )}
+          </div>
+          <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} />
         </div>
 
         {/* Header */}
         <header className="text-center mb-8">
-          {/* Recent locations bar */}
-          {recentCities.filter(c => !(selectedCity && c.latitude === selectedCity.latitude && c.longitude === selectedCity.longitude)).length > 0 && (
-            <div className="flex items-center justify-center gap-2 mb-2 flex-wrap">
-              {recentCities
-                .filter(c => !(selectedCity && c.latitude === selectedCity.latitude && c.longitude === selectedCity.longitude))
-                .slice(0, 2)
-                .map((city) => (
-                  <Button
-                    key={`${city.latitude}-${city.longitude}`}
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs text-muted-foreground hover:text-foreground gap-1 h-7 px-2"
-                    onClick={() => handleCitySelect(city)}
-                  >
-                    <MapPin className="h-3 w-3" />
-                    {city.name}
-                  </Button>
-                ))}
-            </div>
-          )}
           <h1 className="sr-only">Weather Forecast</h1>
-          <CitySearch currentCity={selectedCity} onCitySelect={handleCitySelect} />
           {isHKCovered && weather?.nearestStation && (
-            <p className="text-base text-muted-foreground mt-1">
+            <p className="text-base text-muted-foreground">
               {weather.nearestStation}
             </p>
           )}
