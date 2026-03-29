@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CitySearch } from "@/components/CitySearch";
 import { CurrentWeather } from "@/components/CurrentWeather";
 import { DailyForecast } from "@/components/DailyForecast";
 import { WeatherSkeleton } from "@/components/WeatherSkeleton";
@@ -11,7 +10,6 @@ import { getHKODailyAndWarnings, HKOWarning, isInHongKong } from "@/lib/hko-weat
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { CloudRain, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 // Lazy load heavy components
 const HourlyForecast = lazy(() => import("@/components/HourlyForecast").then(module => ({ default: module.HourlyForecast })));
