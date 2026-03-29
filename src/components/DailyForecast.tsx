@@ -6,6 +6,7 @@ import { useMemo, useCallback, memo } from "react";
 import {
   Bar,
   BarChart,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -78,14 +79,11 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
     const rows = forecast.map((day, index) => {
       const low = Math.round(day.temperatureMin);
       const high = Math.round(day.temperatureMax);
-      const spacer = low - yMin;
-      const range = high - low;
       const showPSR = day.precipitationProbabilityRaw;
       const showPercentage = !showPSR && day.precipitationProbabilityMax > 0;
       return {
         index,
-        spacer,
-        range,
+        temperatureRange: [low, high], // Use floating bar array
         temperatureMin: low,
         temperatureMax: high,
         weatherCode: day.weatherCode,
@@ -114,11 +112,26 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
             barCategoryGap="18%"
           >
             <defs>
-              <linearGradient id="dailyTempRange" x1="0" y1="1" x2="0" y2="0">
-                <stop offset="0%" stopColor="hsl(var(--weather-rain))" />
-                <stop offset="50%" stopColor="hsl(var(--weather-sunny))" />
-                <stop offset="100%" stopColor="hsl(var(--destructive))" />
-              </linearGradient>
+              {chartData.map((row) => {
+                const height = row.temperatureMax - row.temperatureMin;
+                const h = height === 0 ? 0.1 : height;
+                const y1 = (row.temperatureMax - yDomainMin) / h;
+                const y2 = (row.temperatureMax - yDomainMax) / h;
+                return (
+                  <linearGradient
+                    key={`grad-${row.index}`}
+                    id={`dailyTempRange-${row.index}`}
+                    x1="0"
+                    y1={y1}
+                    x2="0"
+                    y2={y2}
+                  >
+                    <stop offset="0%" stopColor="hsl(var(--weather-rain))" />
+                    <stop offset="50%" stopColor="hsl(var(--weather-sunny))" />
+                    <stop offset="100%" stopColor="hsl(var(--destructive))" />
+                  </linearGradient>
+                );
+              })}
             </defs>
             <XAxis
               dataKey="index"
@@ -187,14 +200,15 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                 );
               }}
             />
-            <Bar dataKey="spacer" stackId="range" fill="transparent" isAnimationActive={false} />
             <Bar
-              dataKey="range"
-              stackId="range"
-              fill="url(#dailyTempRange)"
-              radius={[6, 6, 0, 0]}
+              dataKey="temperatureRange"
+              radius={[6, 6, 6, 6]}
               isAnimationActive={false}
-            />
+            >
+              {chartData.map((row) => (
+                <Cell key={`cell-${row.index}`} fill={`url(#dailyTempRange-${row.index})`} />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
