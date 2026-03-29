@@ -34,6 +34,9 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.title': '7-DAY FORECAST',
     'daily.today': 'Today',
     'daily.tomorrow': 'Tomorrow',
+    'daily.low': 'Low',
+    'daily.high': 'High',
+    'daily.precip': 'Precipitation',
     
     // City search
     'search.placeholder': 'Search for a city...',
@@ -92,6 +95,9 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.title': '7日天氣預報',
     'daily.today': '今日',
     'daily.tomorrow': '明日',
+    'daily.low': '最低',
+    'daily.high': '最高',
+    'daily.precip': '降水',
     
     // City search
     'search.placeholder': '搜尋城市...',

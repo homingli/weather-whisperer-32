@@ -28,14 +28,12 @@ export function WeatherSkeleton() {
       {/* Daily forecast skeleton */}
       <div className="glass-card p-4">
         <Skeleton className="h-4 w-32 mb-4" />
-        <div className="space-y-3">
+        <Skeleton className="h-64 w-full rounded-xl mb-3" />
+        <div className="grid grid-cols-7 gap-1">
           {Array.from({ length: 7 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-8 w-8 rounded-full" />
-              <Skeleton className="h-4 w-12" />
-              <Skeleton className="h-1.5 flex-1 rounded-full" />
-              <Skeleton className="h-4 w-8" />
+            <div key={i} className="flex flex-col items-center gap-2">
+              <Skeleton className="h-7 w-7 rounded-full" />
+              <Skeleton className="h-3 w-8" />
             </div>
           ))}
         </div>
