@@ -125,6 +125,12 @@ const Index = () => {
   return (
     <div className="min-h-screen gradient-sky">
       <div className="container max-w-2xl mx-auto px-4 pt-[10px] pb-8">
+        {/* Top bar: theme & language */}
+        <div className="flex items-center justify-end gap-1 mb-2">
+          <ThemeToggle />
+          <LanguageToggle />
+        </div>
+
         {/* Header */}
         <header className="text-center mb-8">
           {/* Recent locations bar */}
