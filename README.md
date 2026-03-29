@@ -4,9 +4,10 @@ A modern, responsive weather application built with React and TypeScript. Featur
 
 ## Features
 
-- **Dual Weather Sources**: Switch between Open-Meteo and Hong Kong Observatory (HKO) APIs
+- **Dual Weather Sources**: Automatically switches between Hong Kong Observatory (HKO) and Open-Meteo based on location
+- **Consolidated Settings**: Manage location search, current location detection, theme, and language from a single menu
 - **Multi-Language Support**: English and Traditional Chinese interface
-- **Location Services**: Auto-detect user location or search for any city worldwide
+- **Location Services**: Auto-detect user location or search for any city worldwide with recent cities history
 - **Weather Data**: Current conditions, hourly forecasts (6 hours), and daily forecasts (7 days)
 - **Local Timezone Display**: Shows date and time in the selected location's timezone
 - **High/Low Temperatures**: Daily minimum and maximum temperatures displayed in the hero section
@@ -14,8 +15,7 @@ A modern, responsive weather application built with React and TypeScript. Featur
 - **Hourly Charts**: Interactive line charts showing temperature and precipitation probability with PSR (Probability of Significant Rain) labels
 - **Weather Alerts**: Real-time weather warnings and alerts (HKO source only)
 - **Responsive Design**: Optimized for mobile, tablet, and desktop devices
-- **Data Persistence**: Saves default city selection in local storage
-- **Smart Caching**: Refetches data every 5 minutes with 2-minute stale time
+- **Smart Caching**: Refetches data every 10 minutes with 2-minute stale time
 
 ## Technology Stack
 
@@ -39,14 +39,14 @@ src/
 │   ├── CurrentWeather.tsx
 │   ├── HourlyForecast.tsx
 │   ├── DailyForecast.tsx
-│   ├── CitySearch.tsx
+│   ├── SettingsMenu.tsx
 │   ├── WeatherAlerts.tsx
 │   └── ...
 ├── contexts/          # React Context providers
 │   ├── LanguageContext.tsx
-│   └── WeatherSourceContext.tsx
+│   └── ThemeContext.tsx
 ├── lib/               # Utility functions and API clients
-│   ├── weather.ts     # Open-Meteo API integration
+│   ├── weather.ts     # Open-Meteo API & Geocoding integration
 │   └── hko-weather.ts # Hong Kong Observatory API integration
 ├── pages/             # Page components
 │   ├── Index.tsx      # Main weather page
@@ -66,10 +66,10 @@ src/
 
 ```bash
 # Clone the repository
-git clone https://github.com/username/weather-whisperer.git
+git clone https://github.com/homingli/weather-whisperer-32.git
 
 # Navigate to project directory
-cd weather-whisperer
+cd weather-whisperer-32
 
 # Install dependencies
 npm install
@@ -102,7 +102,7 @@ npm run preview
 - Provides current weather, hourly, and daily forecasts
 
 ### Hong Kong Observatory (HKO)
-- Official Hong Kong weather data
+- Official Hong Kong weather data (automatically used for HK locations)
 - Includes weather warnings and alerts
 - Probability of Significant Rain (PSR) data
 - Station-based observations
@@ -111,7 +111,7 @@ npm run preview
 
 ### Current Weather
 The hero section displays:
-- **Date and Time**: Current date and time formatted in the selected location's timezone
+- **Location & Time**: Current city name and local time formatted for that timezone
 - **Weather Icon**: Large weather icon indicating current conditions
 - **Temperature**: Current apparent temperature with "feels like" label
 - **Daily Range**: High and low temperatures for the day with visual indicators
@@ -132,8 +132,13 @@ The hero section displays:
 - Precipitation probability
 - Weather icons
 
-### City Search
-Global city search with autocomplete functionality. Saves selected city as default for future visits.
+### Settings & Navigation
+The consolidated hamburger menu provides access to:
+- **Global City Search**: Autocomplete search for any location
+- **Recent Locations**: Quick access to previously visited cities
+- **Current Location**: One-tap detection of user's current position
+- **Theme Toggle**: Switch between Light, Dark, and Auto modes
+- **Language Toggle**: Switch between English and Traditional Chinese
 
 ### Weather Alerts
 Real-time weather warnings including:
@@ -142,16 +147,11 @@ Real-time weather warnings including:
 - Special weather advisories
 - Other meteorological hazards (HKO only)
 
-### Language Toggle
-Switch between English and Traditional Chinese for the entire interface.
-
-### Weather Source Toggle
-Switch between Open-Meteo (global) and HKO (Hong Kong) data sources.
-
 ## Local Storage
 
 The application stores:
 - Default city selection (persists across sessions)
+- Recent search history
 
 ## Browser Support
 
@@ -162,32 +162,11 @@ The application stores:
 
 ## Performance
 
-- Automatic data refetch every 5 minutes
+- Automatic data refetch every 10 minutes
 - Efficient caching with React Query
 - Optimized animations with Tailwind CSS
 - Responsive images and lazy loading
 - Production-optimized build with Vite
-
-## Customization
-
-### Adding a New Weather Source
-
-1. Create a new API integration file in `src/lib/`
-2. Export functions matching the existing API patterns
-3. Add a toggle option in the WeatherSourceContext
-4. Update the Index page to handle the new source
-
-### Styling
-
-All styles use Tailwind CSS with custom weather-themed variables defined in `src/index.css`. Modify the CSS custom properties to customize colors and animations.
-
-## Troubleshooting
-
-**Location not detected**: Ensure your browser has permission to access location services and you're on a secure (HTTPS) connection.
-
-**Weather data not loading**: Check your internet connection and ensure the selected API source is available.
-
-**UI looks broken**: Clear browser cache and ensure you're using a modern browser with JavaScript enabled.
 
 ## License
 
