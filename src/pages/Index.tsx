@@ -210,11 +210,7 @@ const Index = () => {
         </main>
 
         {/* Footer */}
-        <footer className="text-center mt-12 text-sm text-muted-foreground space-y-2">
-          <div className="flex items-center justify-center gap-2">
-            <ThemeToggle />
-            <LanguageToggle />
-          </div>
+        <footer className="text-center mt-12 text-sm text-muted-foreground">
           <p>
             {isHKCovered
               ? formatString(t('source.poweredByBoth'), t('source.openMeteo'), t('source.hko'))
