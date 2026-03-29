@@ -5,12 +5,11 @@ import { CurrentWeather } from "@/components/CurrentWeather";
 import { DailyForecast } from "@/components/DailyForecast";
 import { WeatherSkeleton } from "@/components/WeatherSkeleton";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
-import { LanguageToggle } from "@/components/LanguageToggle";
+import { SettingsMenu } from "@/components/SettingsMenu";
 import { GeoLocation, getDefaultCity, getRecentCities, getWeather, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
 import { getHKODailyAndWarnings, HKOWarning, isInHongKong } from "@/lib/hko-weather";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { CloudRain, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
