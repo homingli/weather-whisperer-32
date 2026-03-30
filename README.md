@@ -141,11 +141,12 @@ The consolidated hamburger menu provides access to:
 - **Language Toggle**: Switch between English and Traditional Chinese
 
 ### Weather Alerts
-Real-time weather warnings including:
+Real-time weather warnings featuring a streamlined, compact UI including:
 - Typhoon signals
 - Rainstorm warnings
 - Special weather advisories
 - Other meteorological hazards (HKO only)
+- Space-efficient layout with cleanly aligned issue times
 
 ## Local Storage
 
