@@ -124,28 +124,28 @@ const Index = () => {
       <div className="container max-w-2xl mx-auto px-4 pt-[10px] pb-8">
         {/* Top bar: location + settings */}
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
             {selectedCity && (
               <>
-                <MapPin className="h-5 w-5" />
-                <span className="text-lg font-medium">
-                  {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
-                </span>
+                <MapPin className="h-5 w-5 shrink-0" />
+                <div className="flex items-center flex-wrap gap-2">
+                  <span className="text-lg font-medium text-foreground">
+                    {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
+                  </span>
+                  {isHKCovered && weather?.nearestStation && (
+                    <span className="text-sm px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                      {weather.nearestStation}
+                    </span>
+                  )}
+                </div>
               </>
             )}
           </div>
           <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} />
         </div>
 
-        {/* Header */}
-        <header className="text-center mb-8">
-          <h1 className="sr-only">Weather Forecast</h1>
-          {isHKCovered && weather?.nearestStation && (
-            <p className="text-base text-muted-foreground">
-              {weather.nearestStation}
-            </p>
-          )}
-        </header>
+        {/* Screen reader only header */}
+        <h1 className="sr-only">Weather Forecast</h1>
 
         {/* Main content */}
         <main className="space-y-6">
