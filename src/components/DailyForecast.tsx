@@ -213,11 +213,11 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
         </ResponsiveContainer>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 mt-3 px-0.5 text-center">
+      <div className="grid grid-cols-7 mt-3 text-center" style={{ marginLeft: "40px", marginRight: "8px" }}>
         {chartData.map((row) => {
           const day = forecast[row.index];
           return (
-            <div key={row.index} className="flex flex-col items-center gap-1 min-w-0">
+            <div key={row.index} className="flex flex-col items-center gap-1 min-w-0 px-0.5">
               <span
                 className="text-xl leading-none"
                 role="img"
