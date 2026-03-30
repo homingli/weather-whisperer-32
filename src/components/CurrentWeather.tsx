@@ -79,10 +79,10 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
           </p>
 
           {/* Hero: Feels Like Temperature */}
+          <p className="text-lg text-muted-foreground mb-2">{t('weather.feelsLike')}</p>
           <div className="text-9xl font-extralight tracking-tighter leading-none" aria-label={`${Math.round(weather.apparentTemperature)} degrees`}>
             {Math.round(weather.apparentTemperature)}°
           </div>
-          <p className="text-lg text-muted-foreground mt-2">{t('weather.feelsLike')}</p>
 
           {/* High/Low temps */}
           {dailyForecast && (
