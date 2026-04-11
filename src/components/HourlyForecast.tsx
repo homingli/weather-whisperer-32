@@ -37,6 +37,8 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
     displayTime: index === 0 ? t('hourly.now') : formatTimeInTimezone(hour.time),
     temperature: Math.round(hour.temperature),
     rainChance: hour.precipitationProbability,
+    windSpeed: hour.windSpeed,
+    windDirection: hour.windDirection,
     isDay: hour.isDay,
   }));
 
@@ -224,11 +226,35 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
               labelFormatter={(value: number) => formatTooltipLabel(value)}
-              formatter={(value: number, name: string) => {
-                if (name === 'temperature') {
-                  return [`${value}°`, t('hourly.temperature')];
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  return (
+                    <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-md" style={{ backgroundColor: 'hsl(var(--card))' }}>
+                      <p className="font-medium text-foreground mb-1">{formatTooltipLabel(label)}</p>
+                      <div className="space-y-1">
+                        <p className="text-weather-sunny flex justify-between gap-4">
+                          <span>{t('hourly.temperature')}:</span>
+                          <span className="font-semibold">{data.temperature}°</span>
+                        </p>
+                        <p className="text-weather-rain flex justify-between gap-4">
+                          <span>{t('hourly.rainChance')}:</span>
+                          <span className="font-semibold">{data.rainChance}%</span>
+                        </p>
+                        <div className="text-sky-400 flex justify-between gap-4">
+                          <span>{t('weather.wind')}:</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold">{Math.round(data.windSpeed)} {t('unit.kmh')}</span>
+                            <div style={{ transform: `rotate(${data.windDirection}deg)` }} className="inline-block transition-transform duration-500">
+                              <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[8px] border-b-sky-400" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
                 }
-                return [`${value}%`, t('hourly.rainChance')];
+                return null;
               }}
             />
             <Line

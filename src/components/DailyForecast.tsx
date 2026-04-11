@@ -87,6 +87,8 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
         temperatureMin: low,
         temperatureMax: high,
         weatherCode: day.weatherCode,
+        windSpeedMax: day.windSpeedMax,
+        windDirectionDominant: day.windDirectionDominant,
         precipLabel: showPSR
           ? day.precipitationProbabilityRaw
           : showPercentage
@@ -196,6 +198,12 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                         {t("daily.precip")}: {row.precipLabel}
                       </p>
                     )}
+                    <div className="text-sky-400 mt-1 text-xs flex items-center justify-between">
+                      <span>{t('weather.wind')}: {Math.round(row.windSpeedMax)} {t('unit.kmh')}</span>
+                      <div style={{ transform: `rotate(${row.windDirectionDominant}deg)` }} className="inline-block transition-transform duration-500 ml-2">
+                        <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[6px] border-b-sky-400" />
+                      </div>
+                    </div>
                   </div>
                 );
               }}
