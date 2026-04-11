@@ -121,15 +121,15 @@ const Index = () => {
 
   return (
     <div className="min-h-screen gradient-sky">
-      <div className="container max-w-2xl mx-auto px-4 pt-[10px] pb-8">
+      <div className="w-full max-w-2xl lg:max-w-5xl xl:max-w-7xl mx-auto px-4 pt-[10px] pb-8 transition-all duration-300">
         {/* Top bar: location + settings */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
             {selectedCity && (
               <>
-                <MapPin className="h-5 w-5 shrink-0" />
+                <MapPin className="h-6 w-6 shrink-0" />
                 <div className="flex items-center flex-wrap gap-2">
-                  <span className="text-lg font-medium text-foreground">
+                  <span className="text-xl font-medium text-foreground">
                     {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
                   </span>
                   {isHKCovered && weather?.nearestStation && (
@@ -148,12 +148,7 @@ const Index = () => {
         <h1 className="sr-only">Weather Forecast</h1>
 
         {/* Main content */}
-        <main className="space-y-6">
-          {/* Weather Alerts (HKO coverage only) */}
-          {isHKCovered && weather?.warnings && weather.warnings.length > 0 && (
-            <WeatherAlerts warnings={weather.warnings} />
-          )}
-
+        <main className="w-full">
           {isLocating ? (
             <div className="text-center py-20 animate-fade-in">
               <CloudRain className="h-20 w-20 mx-auto mb-4 text-primary animate-pulse-glow" />
@@ -178,19 +173,31 @@ const Index = () => {
               <p className="text-base text-muted-foreground">{t('loading.tryAgain')}</p>
             </div>
           ) : weather ? (
-            <>
-              <CurrentWeather
-                weather={weather.current}
-                hourlyForecast={weather.hourly}
-                dailyForecast={sunTimes?.[0]}
-                locationName={selectedCity?.name}
-                timezone={weather.timezone}
-              />
-              <Suspense fallback={<div className="h-[300px] animate-pulse bg-muted/20 rounded-xl" />}>
-                <HourlyForecast forecast={weather.hourly} daily={sunTimes} timezone={weather.timezone} />
-              </Suspense>
-              <DailyForecast forecast={weather.daily} timezone={weather.timezone} />
-            </>
+            <div className="space-y-6 lg:space-y-8">
+              {/* Top Row: Alerts and Hero (Full Width) */}
+              <div className="space-y-6">
+                {isHKCovered && weather.warnings && weather.warnings.length > 0 && (
+                  <WeatherAlerts warnings={weather.warnings} />
+                )}
+                
+                <CurrentWeather
+                  weather={weather.current}
+                  hourlyForecast={weather.hourly}
+                  dailyForecast={sunTimes?.[0]}
+                  locationName={selectedCity?.name}
+                  timezone={weather.timezone}
+                />
+              </div>
+
+              {/* Secondary Row: Split Forecasts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+                <Suspense fallback={<div className="h-[300px] animate-pulse bg-muted/20 rounded-xl" />}>
+                  <HourlyForecast forecast={weather.hourly} daily={sunTimes} timezone={weather.timezone} />
+                </Suspense>
+                
+                <DailyForecast forecast={weather.daily} timezone={weather.timezone} />
+              </div>
+            </div>
           ) : null}
         </main>
 
