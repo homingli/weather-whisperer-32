@@ -95,6 +95,7 @@ export interface CurrentWeather {
   humidity: number;
   weatherCode: number;
   windSpeed: number;
+  windDirection: number;
   precipitation: number;
   precipitationProbability: number;
   precipitationProbabilityRaw?: string; // Raw PSR value for HKO (e.g., "Medium Low", "中低")
@@ -105,6 +106,8 @@ export interface HourlyForecast {
   time: Date;
   temperature: number;
   weatherCode: number;
+  windSpeed: number;
+  windDirection: number;
   precipitationProbability: number;
   precipitationProbabilityRaw?: string; // Raw PSR value for HKO
   isDay: boolean;
@@ -115,6 +118,8 @@ export interface DailyForecast {
   temperatureMax: number;
   temperatureMin: number;
   weatherCode: number;
+  windSpeedMax: number;
+  windDirectionDominant: number;
   precipitationProbabilityMax: number;
   precipitationProbabilityRaw?: string; // Raw PSR value for HKO
   sunrise: Date;
@@ -157,9 +162,9 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
   const params = new URLSearchParams({
     latitude: latitude.toString(),
     longitude: longitude.toString(),
-    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,is_day',
-    hourly: 'temperature_2m,weather_code,precipitation_probability,is_day',
-    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset',
+    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,is_day',
+    hourly: 'temperature_2m,weather_code,precipitation_probability,wind_speed_10m,wind_direction_10m,is_day',
+    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_dominant,sunrise,sunset',
     timezone: 'auto',
     forecast_days: '7',
   });
@@ -198,6 +203,7 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
       humidity: data.current.relative_humidity_2m,
       weatherCode: data.current.weather_code,
       windSpeed: data.current.wind_speed_10m,
+      windDirection: data.current.wind_direction_10m,
       precipitation: data.current.precipitation,
       precipitationProbability: currentPrecipProb,
       isDay: data.current.is_day === 1,
@@ -207,6 +213,8 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
       time: parseDateInTimezone(time, data.timezone),
       temperature: data.hourly.temperature_2m[startIndex + i],
       weatherCode: data.hourly.weather_code[startIndex + i],
+      windSpeed: data.hourly.wind_speed_10m[startIndex + i],
+      windDirection: data.hourly.wind_direction_10m[startIndex + i],
       precipitationProbability: data.hourly.precipitation_probability[startIndex + i],
       isDay: data.hourly.is_day[startIndex + i] === 1,
     })),
@@ -215,6 +223,8 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
       temperatureMax: data.daily.temperature_2m_max[i],
       temperatureMin: data.daily.temperature_2m_min[i],
       weatherCode: data.daily.weather_code[i],
+      windSpeedMax: data.daily.wind_speed_10m_max[i],
+      windDirectionDominant: data.daily.wind_direction_10m_dominant[i],
       precipitationProbabilityMax: data.daily.precipitation_probability_max[i],
       // Parse sunrise/sunset with timezone to get correct UTC timestamp
       sunrise: parseDateInTimezone(data.daily.sunrise[i], data.timezone),

@@ -69,6 +69,10 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Current weather
     'weather.feelsLike': 'Feels like',
+    'weather.wind': 'Wind',
+    'weather.windSpeed': 'Wind Speed',
+    'weather.windDirection': 'Wind Direction',
+    'unit.kmh': 'km/h',
   },
   tc: {
     // Header
@@ -130,6 +134,10 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Current weather
     'weather.feelsLike': '體感溫度',
+    'weather.wind': '風',
+    'weather.windSpeed': '風速',
+    'weather.windDirection': '風向',
+    'unit.kmh': '公里/小時',
   },
 };
 
