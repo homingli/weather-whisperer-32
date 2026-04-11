@@ -140,7 +140,8 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
             <div className="flex flex-col items-center md:items-start">
               {/* Hero: Feels Like Temperature */}
               <p className="text-base text-muted-foreground font-medium uppercase tracking-tight mb-1">{t('weather.feelsLike')}</p>
-              <div className="text-9xl font-extralight tracking-tighter leading-none" aria-label={`${Math.round(weather.apparentTemperature)} degrees`}>
+              <div className="text-9xl font-extralight tracking-tighter leading-none flex items-center" aria-label={`${Math.round(weather.apparentTemperature)} degrees`}>
+                <span className="opacity-0">°</span>
                 {Math.round(weather.apparentTemperature)}°
               </div>
             </div>

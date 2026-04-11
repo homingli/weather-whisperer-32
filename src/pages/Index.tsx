@@ -190,7 +190,7 @@ const Index = () => {
               </div>
 
               {/* Secondary Row: Split Forecasts */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
                 <Suspense fallback={<div className="h-[300px] animate-pulse bg-muted/20 rounded-xl" />}>
                   <HourlyForecast forecast={weather.hourly} daily={sunTimes} timezone={weather.timezone} />
                 </Suspense>

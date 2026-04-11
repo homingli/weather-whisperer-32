@@ -152,14 +152,14 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
   }, [timezone, language]);
 
   return (
-    <div className="glass-card p-4 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+    <div className="glass-card p-4 flex flex-col h-[350px] animate-fade-in" style={{ animationDelay: "0.2s" }}>
       <h3 className="text-base font-medium text-muted-foreground mb-4 px-2">
         {t('hourly.title')}
       </h3>
 
-      <div className="h-64">
+      <div className="flex-1 w-full min-h-0">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 25, right: 50, left: 0, bottom: 10 }}>
+          <LineChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 10 }}>
             {/* Day/night background areas */}
             {dayNightAreas.map((area, index) => (
               <ReferenceArea
@@ -216,7 +216,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
               tickLine={false}
               tick={{ fill: 'hsl(var(--weather-rain))', fontSize: 12 }}
               tickFormatter={(value) => `${value}%`}
-              width={45}
+              width={35}
             />
             <Tooltip
               contentStyle={{
