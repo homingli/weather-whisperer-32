@@ -7,6 +7,7 @@ import {
   Bar,
   BarChart,
   Cell,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -103,14 +104,13 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
   }, [forecast, formatDayLine1, formatDayLine2]);
 
   return (
-    <div className="glass-card p-4 animate-fade-in" style={{ animationDelay: "0.3s" }}>
+    <div className="glass-card p-4 flex flex-col h-[350px] animate-fade-in" style={{ animationDelay: "0.3s" }}>
       <h3 className="text-base font-medium text-muted-foreground mb-4 px-2">{t("daily.title")}</h3>
-
-      <div className="h-64 w-full min-w-0">
+      <div className="flex-1 min-h-0 w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
-            margin={{ top: 8, right: 8, left: 0, bottom: 8 }}
+            margin={{ top: 16, right: 8, left: 0, bottom: 8 }}
             barCategoryGap="18%"
           >
             <defs>
@@ -138,6 +138,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
             <XAxis
               dataKey="index"
               type="category"
+              orientation="top"
               axisLine={false}
               tickLine={false}
               tick={(props) => {
@@ -152,7 +153,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                       fontSize={11}
                       className="font-medium"
                     >
-                      <tspan x={0} dy={0}>
+                      <tspan x={0} dy={-25}>
                         {row.line1}
                       </tspan>
                       <tspan x={0} dy={13} className="text-muted-foreground/90">
@@ -166,12 +167,8 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
               interval={0}
             />
             <YAxis
+              hide
               domain={[yDomainMin, yDomainMax]}
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "hsl(var(--weather-sunny))", fontSize: 12 }}
-              tickFormatter={(value) => `${value}°`}
-              width={40}
             />
             <Tooltip
               cursor={{ fill: "hsl(var(--muted) / 0.15)" }}
@@ -213,6 +210,20 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
               radius={[6, 6, 6, 6]}
               isAnimationActive={false}
             >
+              <LabelList
+                dataKey="temperatureMax"
+                position="top"
+                offset={8}
+                style={{ fontSize: '13px', fill: 'hsl(var(--foreground))', fontWeight: 600 }}
+                formatter={(val: number) => `${val}°`}
+              />
+              <LabelList
+                dataKey="temperatureMin"
+                position="bottom"
+                offset={8}
+                style={{ fontSize: '12px', fill: 'hsl(var(--muted-foreground))', fontWeight: 500 }}
+                formatter={(val: number) => `${val}°`}
+              />
               {chartData.map((row) => (
                 <Cell key={`cell-${row.index}`} fill={`url(#dailyTempRange-${row.index})`} />
               ))}
@@ -221,7 +232,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
         </ResponsiveContainer>
       </div>
 
-      <div className="grid grid-cols-7 mt-3 text-center" style={{ marginLeft: "40px", marginRight: "8px" }}>
+      <div className="grid grid-cols-7 mt-3 text-center">
         {chartData.map((row) => {
           const day = forecast[row.index];
           return (
