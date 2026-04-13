@@ -90,14 +90,23 @@ const Index = () => {
   });
 
   // Combine data: Open-Meteo for current+hourly, HKO for daily+warnings when in HK
-  // Always keep Open-Meteo daily for sunrise/sunset times (HKO doesn't provide these)
+  // Always keep Open-Meteo daily for sunrise/sunset times (HKO doesn't provide these reliably)
   const weather: ExtendedWeatherData | undefined = useMemo(() => {
     if (!openMeteoData) return undefined;
+
+    const daily = (isHKCovered && hkoData) 
+      ? hkoData.daily.map((day, i) => ({
+          ...day,
+          // Inject sun times from Open-Meteo if available for the same day
+          sunrise: openMeteoData.daily[i]?.sunrise || day.sunrise,
+          sunset: openMeteoData.daily[i]?.sunset || day.sunset,
+        }))
+      : openMeteoData.daily;
 
     return {
       current: openMeteoData.current,
       hourly: openMeteoData.hourly,
-      daily: isHKCovered && hkoData ? hkoData.daily : openMeteoData.daily,
+      daily,
       warnings: isHKCovered && hkoData ? hkoData.warnings : undefined,
       nearestStation: hkoData?.nearestStation,
       nearestDistrict: hkoData?.nearestDistrict,
@@ -183,7 +192,7 @@ const Index = () => {
                 <CurrentWeather
                   weather={weather.current}
                   hourlyForecast={weather.hourly}
-                  dailyForecast={sunTimes?.[0]}
+                  dailyForecast={weather.daily[0]}
                   locationName={selectedCity?.name}
                   timezone={weather.timezone}
                 />
