@@ -37,6 +37,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
     displayTime: index === 0 ? t('hourly.now') : formatTimeInTimezone(hour.time),
     temperature: Math.round(hour.temperature),
     rainChance: hour.precipitationProbability,
+    rainIntensity: hour.precipitation,
     windSpeed: hour.windSpeed,
     windDirection: hour.windDirection,
     isDay: hour.isDay,
@@ -239,7 +240,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
                         </p>
                         <p className="text-weather-rain flex justify-between gap-4">
                           <span>{t('hourly.rainChance')}:</span>
-                          <span className="font-semibold">{data.rainChance}%</span>
+                          <span className="font-semibold">{data.rainChance}% {data.rainIntensity > 0 ? `(${data.rainIntensity}mm)` : ''}</span>
                         </p>
                         <div className="text-sky-400 flex justify-between gap-4">
                           <span>{t('weather.wind')}:</span>

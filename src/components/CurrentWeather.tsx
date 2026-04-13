@@ -15,10 +15,12 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
   const { language, t } = useLanguage();
 
   // Umbrella logic - use percentage-based threshold
-  const isCurrentlyRaining = weather.precipitation > 0;
+  const isCurrentlyRaining = weather.precipitation > 2;
   const next6Hours = hourlyForecast.slice(0, 6);
   const firstRainyHour = next6Hours.find(hour => hour.precipitationProbability >= 25);
-  const needsUmbrella = isCurrentlyRaining || !!firstRainyHour;
+  // Also consider daily max probability (handles HKO PSR mismatch)
+  const isRainyDay = dailyForecast ? dailyForecast.precipitationProbabilityMax >= 50 : false;
+  const needsUmbrella = isCurrentlyRaining || !!firstRainyHour || isRainyDay;
 
   const [currentTime, setCurrentTime] = useState(new Date());
   
