@@ -136,4 +136,13 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  .glass-card-sub {
+    @apply bg-background/40 border border-border/20 rounded-xl backdrop-blur-sm;
+  }
+
+  .vertical-text {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
 }
