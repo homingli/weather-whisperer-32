@@ -1,6 +1,6 @@
 import { memo, useState, useEffect } from "react";
 import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIcon } from "@/lib/weather";
-import { Umbrella, UmbrellaOff, Sunrise, Sunset, ArrowUp, ArrowDown, Navigation } from "lucide-react";
+import { Umbrella, UmbrellaOff, Sunrise, Sunset, ArrowUp, ArrowDown, MoveUp, Droplets, Sun } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CurrentWeatherProps {
@@ -88,114 +88,137 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
 
   const sunEvent = getNextSunEvent();
 
-  return (
-    <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-      {/* Two column layout: 70% / 30% */}
-      <div className="grid grid-cols-1 md:grid-cols-[25%_50%_25%] gap-6 md:gap-4 items-stretch">
-        {/* Column 1: High/Low Temperatures */}
-        <div className="flex flex-col justify-center items-center md:items-start md:border-r md:border-border/50 md:pr-6">
-          {dailyForecast ? (
-            <div className="flex flex-row md:flex-col gap-8 md:gap-4">
-              <div className="flex flex-col items-center md:items-start gap-1">
-                <div className="flex items-center gap-2">
-                  <ArrowUp className="h-6 w-6 text-orange-400" aria-hidden="true" />
-                  <span className="text-3xl font-light tabular-nums" aria-label={`High temperature: ${Math.round(dailyForecast.temperatureMax)} degrees`}>
-                    {Math.round(dailyForecast.temperatureMax)}°
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-col items-center md:items-start gap-1">
-                <div className="flex items-center gap-2">
-                  <ArrowDown className="h-6 w-6 text-blue-400" aria-hidden="true" />
-                  <span className="text-3xl font-light tabular-nums" aria-label={`Low temperature: ${Math.round(dailyForecast.temperatureMin)} degrees`}>
-                    {Math.round(dailyForecast.temperatureMin)}°
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="animate-pulse flex flex-col gap-4">
-              <div className="h-10 w-20 bg-muted/20 rounded-md" />
-              <div className="h-10 w-20 bg-muted/20 rounded-md" />
-            </div>
-          )}
-        </div>
+  // UV interpretation
+  const getUvLevel = (uv: number) => {
+    if (uv <= 2) return { color: 'text-green-400', bg: 'bg-green-400/10' };
+    if (uv <= 5) return { color: 'text-yellow-400', bg: 'bg-yellow-400/10' };
+    if (uv <= 7) return { color: 'text-orange-400', bg: 'bg-orange-400/10' };
+    if (uv <= 10) return { color: 'text-red-400', bg: 'bg-red-400/10' };
+    return { color: 'text-purple-400', bg: 'bg-purple-400/10' };
+  };
 
-        {/* Column 2: Date, Time & Temperature Focus */}
-        <div className="flex flex-col items-center justify-center py-6 md:py-0">
+  const uvInfo = getUvLevel(weather.uvIndex);
+
+  return (
+    <div className="glass-card p-8 animate-fade-in" style={{ animationDelay: "0.1s" }}>
+      <div className="flex flex-col md:grid md:grid-cols-[45%_55%] gap-8 items-center md:items-stretch">
+        
+        {/* Left Column: Main Info (Date, Time, Hero Temperature) */}
+        <div className="flex flex-col items-center justify-center text-center md:text-left md:items-start space-y-8 md:border-r md:border-border/50 md:pr-12">
           {/* Date and time */}
-          <div className="text-center mb-6">
-            <p className="text-base text-muted-foreground uppercase tracking-widest mb-1">
+          <div>
+            <p className="text-base text-muted-foreground uppercase tracking-[0.2em] mb-2">
               {timezone ? getLocalDate() : currentTime.toLocaleDateString()}
             </p>
-            <p className="text-4xl font-extralight text-foreground tracking-tighter tabular-nums">
+            <p className="text-5xl font-extralight text-foreground tracking-tighter tabular-nums leading-none">
               {timezone ? getLocalTime() : currentTime.toLocaleTimeString()}
             </p>
           </div>
 
-          <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
-            {/* Weather icon */}
-            <div className="text-8xl weather-icon-glow mb-2 md:mb-0" role="img" aria-label={t('weather.condition')}>
-              {getWeatherIcon(weather.weatherCode, weather.isDay)}
-            </div>
+          <div className="flex flex-col items-center md:items-start gap-4">
+            <div className="flex items-center gap-6">
+              {/* Weather icon */}
+              <div className="text-9xl weather-icon-glow leading-none select-none" role="img" aria-label={t('weather.condition')}>
+                {getWeatherIcon(weather.weatherCode, weather.isDay)}
+              </div>
 
-            <div className="flex flex-col items-center md:items-start">
-              {/* Hero: Feels Like Temperature */}
-              <p className="text-base text-muted-foreground font-medium uppercase tracking-tight mb-1">{t('weather.feelsLike')}</p>
-              <div className="text-9xl font-extralight tracking-tighter leading-none flex items-center" aria-label={`${Math.round(weather.apparentTemperature)} degrees`}>
-                <span className="opacity-0">°</span>
-                {Math.round(weather.apparentTemperature)}°
+              <div className="flex flex-col">
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest mb-1">{t('weather.feelsLike')}</p>
+                <div className="text-9xl font-extralight tracking-tighter leading-none flex items-baseline" aria-label={`${Math.round(weather.apparentTemperature)} degrees`}>
+                  {Math.round(weather.apparentTemperature)}
+                  <span className="text-5xl self-start mt-2">°</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Column 3: Environmental Indicators */}
-        <div className="flex flex-row md:flex-col items-center justify-around md:justify-center gap-4 md:gap-8 md:border-l md:border-border/50 md:pl-6">
-          {/* Sun event */}
-          <div className="flex flex-col items-center gap-2 group">
-            <div className="p-3 rounded-full bg-amber-400/10 group-hover:bg-amber-400/20 transition-colors">
-              {sunEvent ? (
-                <sunEvent.icon className="h-8 w-8 text-amber-400" aria-hidden="true" />
-              ) : (
-                <Sunset className="h-8 w-8 text-muted-foreground/40" />
-              )}
+        {/* Right Column: Detailed Indicators */}
+        <div className="w-full flex flex-col justify-center space-y-8 md:pl-4 md:pr-8">
+          {/* High/Low and Sun Event Row */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* High/Low */}
+            <div className="glass-card-sub p-4 flex items-center justify-center md:justify-start gap-4">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3">
+                  <ArrowUp className="h-5 w-5 text-orange-400" />
+                  <span className="text-2xl font-light tabular-nums">{Math.round(dailyForecast?.temperatureMax || 0)}°</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <ArrowDown className="h-5 w-5 text-blue-400" />
+                  <span className="text-2xl font-light tabular-nums">{Math.round(dailyForecast?.temperatureMin || 0)}°</span>
+                </div>
+              </div>
+              <p className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-wider vertical-text ml-auto">
+                {t('daily.today')}
+              </p>
             </div>
-            <div className="text-center">
-              <p className="text-sm font-semibold tabular-nums">
+
+            {/* Sun Event */}
+            <div className="glass-card-sub p-4 flex items-center justify-center md:justify-start gap-4">
+              <div className="p-2.5 rounded-full bg-amber-400/10">
+                {sunEvent ? (
+                  <sunEvent.icon className="h-6 w-6 text-amber-400" />
+                ) : (
+                  <Sunset className="h-6 w-6 text-muted-foreground/40" />
+                )}
+              </div>
+              <p className="text-xl font-medium tabular-nums leading-tight">
                 {sunEvent?.time || '--:--'}
               </p>
-            </div>
-          </div>
-
-          {/* Wind */}
-          <div className="flex flex-col items-center gap-2 group">
-            <div className="p-3 rounded-full bg-sky-400/10 group-hover:bg-sky-400/20 transition-colors">
-              <div style={{ transform: `rotate(${weather.windDirection}deg)` }} className="transition-transform duration-1000 ease-in-out">
-                <Navigation className="h-8 w-8 text-sky-400" aria-hidden="true" />
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center gap-0.5 justify-center">
-                <span className="text-sm font-semibold tabular-nums">{Math.round(weather.windSpeed)}</span>
-                <span className="text-[10px] text-muted-foreground font-medium">{t('unit.kmh')}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Umbrella */}
-          <div className="flex flex-col items-center gap-2 group">
-            <div className={`p-3 rounded-full transition-colors ${needsUmbrella ? 'bg-weather-rain/10 group-hover:bg-weather-rain/20' : 'bg-muted/10 group-hover:bg-muted/20'}`}>
-              {needsUmbrella ? (
-                <Umbrella className="h-8 w-8 text-weather-rain" role="img" aria-label="Umbrella recommended" />
-              ) : (
-                <UmbrellaOff className="h-8 w-8 text-muted-foreground/40" role="img" aria-label="No umbrella needed" />
-              )}
-            </div>
-            <div className="text-center">
-              <p className={`text-sm font-semibold uppercase ${needsUmbrella ? 'text-weather-rain' : 'text-muted-foreground'}`}>
-                {needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
+              <p className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-wider vertical-text ml-auto">
+                {sunEvent?.type === 'sunset' ? t('daily.sunset') : t('daily.sunrise')}
               </p>
+            </div>
+          </div>
+
+          {/* Environmental Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Umbrella */}
+            <div className="p-4 rounded-2xl bg-blue-400/5 flex flex-col items-center gap-2 transition-colors">
+              {needsUmbrella ? (
+                <Umbrella className="h-6 w-6 text-weather-rain" />
+              ) : (
+                <UmbrellaOff className="h-6 w-6 text-muted-foreground/40" />
+              )}
+              <div className="text-center">
+                <span className={`text-sm font-semibold block leading-none mb-1 ${needsUmbrella ? 'text-weather-rain' : 'text-muted-foreground'}`}>
+                  {needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
+                </span>
+                <span className="text-[9px] text-muted-foreground uppercase font-medium">{t('umbrella.label')}</span>
+              </div>
+            </div>
+
+            {/* Humidity */}
+            <div className="p-4 rounded-2xl bg-blue-400/5 flex flex-col items-center gap-2">
+              <Droplets className="h-6 w-6 text-blue-400" />
+              <div className="text-center">
+                <span className="text-sm font-semibold block leading-none mb-1">{Math.round(weather.humidity)}%</span>
+                <span className="text-[9px] text-muted-foreground uppercase font-medium">{t('weather.humidity')}</span>
+              </div>
+            </div>
+
+            {/* Wind */}
+            <div className="p-4 rounded-2xl bg-sky-400/5 flex flex-col items-center gap-2">
+              <div style={{ transform: `rotate(${weather.windDirection + 180}deg)` }}>
+                <MoveUp className="h-6 w-6 text-sky-400" />
+              </div>
+              <div className="text-center">
+                <span className="text-sm font-semibold block leading-none mb-1">
+                  {Math.round(weather.windSpeed)}
+                  <span className="text-[10px] font-normal opacity-70 ml-0.5">{t('unit.kmh')}</span>
+                </span>
+                <span className="text-[9px] text-muted-foreground uppercase font-medium">{t('weather.wind')}</span>
+              </div>
+            </div>
+
+            {/* UV Index */}
+            <div className="p-4 rounded-2xl bg-blue-400/5 flex flex-col items-center gap-2">
+              <Sun className={`h-6 w-6 ${uvInfo.color}`} />
+              <div className="text-center">
+                <span className="text-sm font-semibold block leading-none mb-1">{weather.uvIndex.toFixed(1)}</span>
+                <span className="text-[9px] text-muted-foreground uppercase font-medium">{t('weather.uvIndex')}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -203,3 +226,4 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
     </div>
   );
 });
+

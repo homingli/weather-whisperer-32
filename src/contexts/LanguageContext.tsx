@@ -23,6 +23,7 @@ const translations: Record<Language, Record<string, string>> = {
     'umbrella.no': 'NO',
     'umbrella.raining': "It's currently raining",
     'umbrella.chanceAt': '{0}% chance of rain at {1}',
+    'umbrella.label': 'Umbrella',
     
     // Hourly forecast
     'hourly.title': 'HOURLY FORECAST',
@@ -37,6 +38,8 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.low': 'Low',
     'daily.high': 'High',
     'daily.precip': 'Precipitation',
+    'daily.sunrise': 'Sunrise',
+    'daily.sunset': 'Sunset',
     
     // City search
     'search.placeholder': 'Search for a city...',
@@ -60,8 +63,8 @@ const translations: Record<Language, Record<string, string>> = {
     'source.openMeteoDesc': 'Global weather data',
     'source.hko': 'HK Observatory',
     'source.hkoDesc': 'Hong Kong only',
-    'source.poweredByBoth': 'Powered by {0} & {1}',
-    'source.poweredBy': 'Powered by {0}',
+    'source.poweredByBoth': 'Data from {0} & {1}',
+    'source.poweredBy': 'Data from {0}',
     
     // Language
     'language.en': 'English',
@@ -72,6 +75,8 @@ const translations: Record<Language, Record<string, string>> = {
     'weather.wind': 'Wind',
     'weather.windSpeed': 'Wind Speed',
     'weather.windDirection': 'Wind Direction',
+    'weather.humidity': 'Humidity',
+    'weather.uvIndex': 'UV Index',
     'unit.kmh': 'km/h',
   },
   tc: {
@@ -88,6 +93,7 @@ const translations: Record<Language, Record<string, string>> = {
     'umbrella.no': '不需要',
     'umbrella.raining': '現正下雨',
     'umbrella.chanceAt': '{1}有{0}%機會下雨',
+    'umbrella.label': '雨傘',
     
     // Hourly forecast
     'hourly.title': '每小時預報',
@@ -102,6 +108,8 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.low': '最低',
     'daily.high': '最高',
     'daily.precip': '降水',
+    'daily.sunrise': '日出',
+    'daily.sunset': '日落',
     
     // City search
     'search.placeholder': '搜尋城市...',
@@ -137,6 +145,8 @@ const translations: Record<Language, Record<string, string>> = {
     'weather.wind': '風',
     'weather.windSpeed': '風速',
     'weather.windDirection': '風向',
+    'weather.humidity': '濕度',
+    'weather.uvIndex': '紫外線指數',
     'unit.kmh': '公里/小時',
   },
 };
