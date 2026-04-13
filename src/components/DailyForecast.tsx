@@ -106,6 +106,30 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
   return (
     <div className="glass-card p-4 flex flex-col h-[350px] animate-fade-in" style={{ animationDelay: "0.3s" }}>
       <h3 className="text-base font-medium text-muted-foreground mb-4 px-2">{t("daily.title")}</h3>
+      
+      <div className="grid grid-cols-7 mb-4 text-center">
+        {chartData.map((row) => {
+          const day = forecast[row.index];
+          return (
+            <div key={row.index} className="flex flex-col items-center gap-1 min-w-0 px-0.5">
+              <span
+                className="text-xl leading-none"
+                role="img"
+                aria-label={getWeatherDescription(day.weatherCode)}
+              >
+                {getWeatherIcon(day.weatherCode, true)}
+              </span>
+              {row.precipLabel && (
+                <div className="flex items-center justify-center gap-0.5 text-[10px] leading-tight text-weather-rain">
+                  <Droplets className="h-3 w-3 shrink-0" aria-hidden />
+                  <span className="truncate max-w-full">{row.precipLabel}</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
       <div className="flex-1 min-h-0 w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -230,29 +254,6 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
             </Bar>
           </BarChart>
         </ResponsiveContainer>
-      </div>
-
-      <div className="grid grid-cols-7 mt-3 text-center">
-        {chartData.map((row) => {
-          const day = forecast[row.index];
-          return (
-            <div key={row.index} className="flex flex-col items-center gap-1 min-w-0 px-0.5">
-              <span
-                className="text-xl leading-none"
-                role="img"
-                aria-label={getWeatherDescription(day.weatherCode)}
-              >
-                {getWeatherIcon(day.weatherCode, true)}
-              </span>
-              {row.precipLabel && (
-                <div className="flex items-center justify-center gap-0.5 text-[10px] leading-tight text-weather-rain">
-                  <Droplets className="h-3 w-3 shrink-0" aria-hidden />
-                  <span className="truncate max-w-full">{row.precipLabel}</span>
-                </div>
-              )}
-            </div>
-          );
-        })}
       </div>
     </div>
   );
