@@ -109,6 +109,7 @@ export interface HourlyForecast {
   windSpeed: number;
   windDirection: number;
   precipitationProbability: number;
+  precipitation: number;
   precipitationProbabilityRaw?: string; // Raw PSR value for HKO
   isDay: boolean;
 }
@@ -163,10 +164,11 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
     latitude: latitude.toString(),
     longitude: longitude.toString(),
     current: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,is_day',
-    hourly: 'temperature_2m,weather_code,precipitation_probability,wind_speed_10m,wind_direction_10m,is_day',
+    hourly: 'temperature_2m,weather_code,precipitation_probability,precipitation,wind_speed_10m,wind_direction_10m,is_day',
     daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_dominant,sunrise,sunset',
     timezone: 'auto',
     forecast_days: '7',
+    timeformat: 'unixtime',
   });
 
   const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
@@ -175,20 +177,19 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
 
   const data = await response.json();
 
-  // The API returns hourly data in the city's local timezone
-  // We need to find the current hour based on the city's timezone, not the user's local time
-  // The first hourly time entry tells us what the city's current date is
-  const firstHourlyTime = data.hourly.time[0];
-  const cityCurrentHour = new Date(data.current.time).getHours();
-
+  // With unixtime, data.current.time and data.hourly.time are numbers (Unix seconds)
+  // Finding the current hour index is now a simple numeric comparison
+  const currentTime = data.current.time;
+  
   // Find the index for the current hour in the city's timezone
-  const currentHourIndex = data.hourly.time.findIndex((t: string) => {
-    const hourTime = new Date(t);
-    return hourTime.getHours() === cityCurrentHour &&
-      t.substring(0, 10) === data.current.time.substring(0, 10);
+  // We look for the hour that matches or is just before the current time
+  const currentHourIndex = data.hourly.time.findIndex((t: number) => {
+    // Each hourly point represents the start of the hour
+    // So we want the one where currentTime is between t and t + 3600
+    return currentTime >= t && currentTime < t + 3600;
   });
 
-  // Fallback to index 0 if we can't find the exact hour (should rarely happen)
+  // Fallback to index 0 if we can't find the exact hour
   const startIndex = currentHourIndex >= 0 ? currentHourIndex : 0;
 
   // Get precipitation probability for current hour
@@ -208,27 +209,28 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
       precipitationProbability: currentPrecipProb,
       isDay: data.current.is_day === 1,
     },
-    hourly: data.hourly.time.slice(startIndex, startIndex + 13).map((time: string, i: number) => ({
-      // Parse hourly time with timezone to get correct UTC timestamp
-      time: parseDateInTimezone(time, data.timezone),
+    hourly: data.hourly.time.slice(startIndex, startIndex + 13).map((time: number, i: number) => ({
+      // Unix timestamp to Date object (multiply by 1000 for ms)
+      time: new Date(time * 1000),
       temperature: data.hourly.temperature_2m[startIndex + i],
       weatherCode: data.hourly.weather_code[startIndex + i],
       windSpeed: data.hourly.wind_speed_10m[startIndex + i],
       windDirection: data.hourly.wind_direction_10m[startIndex + i],
       precipitationProbability: data.hourly.precipitation_probability[startIndex + i],
+      precipitation: data.hourly.precipitation[startIndex + i],
       isDay: data.hourly.is_day[startIndex + i] === 1,
     })),
-    daily: data.daily.time.map((time: string, i: number) => ({
-      date: parseDailyDateInTimezone(time, data.timezone),
+    daily: data.daily.time.map((time: number, i: number) => ({
+      // Unix timestamp to Date object
+      date: new Date(time * 1000),
       temperatureMax: data.daily.temperature_2m_max[i],
       temperatureMin: data.daily.temperature_2m_min[i],
       weatherCode: data.daily.weather_code[i],
       windSpeedMax: data.daily.wind_speed_10m_max[i],
       windDirectionDominant: data.daily.wind_direction_10m_dominant[i],
       precipitationProbabilityMax: data.daily.precipitation_probability_max[i],
-      // Parse sunrise/sunset with timezone to get correct UTC timestamp
-      sunrise: parseDateInTimezone(data.daily.sunrise[i], data.timezone),
-      sunset: parseDateInTimezone(data.daily.sunset[i], data.timezone),
+      sunrise: new Date(data.daily.sunrise[i] * 1000),
+      sunset: new Date(data.daily.sunset[i] * 1000),
     })),
     timezone: data.timezone,
   };

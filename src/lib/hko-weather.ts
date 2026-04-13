@@ -450,12 +450,8 @@ export async function getHKODailyAndWarnings(
   const daily: DailyForecast[] = forecastData.weatherForecast.slice(0, 7).map(day => {
     const date = parseHkoDate(day.forecastDate);
     
-    // Approximate sunrise/sunset for Hong Kong
-    const sunrise = new Date(date);
-    sunrise.setHours(6, 45, 0);
-    const sunset = new Date(date);
-    sunset.setHours(17, 45, 0);
-    
+    // We don't provide sunrise/sunset here anymore as Open-Meteo is more accurate
+    // and used as the primary source for sun times in the app
     return {
       date,
       temperatureMax: day.forecastMaxtemp.value,
@@ -463,8 +459,8 @@ export async function getHKODailyAndWarnings(
       weatherCode: hkoIconToWeatherCode(day.ForecastIcon),
       precipitationProbabilityMax: psrToPercentage(day.PSR),
       precipitationProbabilityRaw: day.PSR || undefined,
-      sunrise,
-      sunset,
+      sunrise: new Date(0), // Placeholder, will be replaced by Open-Meteo data in Index.tsx
+      sunset: new Date(0),  // Placeholder
     };
   });
 
