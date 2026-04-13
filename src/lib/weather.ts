@@ -93,6 +93,7 @@ export interface CurrentWeather {
   temperature: number;
   apparentTemperature: number;
   humidity: number;
+  uvIndex: number;
   weatherCode: number;
   windSpeed: number;
   windDirection: number;
@@ -163,7 +164,7 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
   const params = new URLSearchParams({
     latitude: latitude.toString(),
     longitude: longitude.toString(),
-    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,is_day',
+    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,is_day,uv_index',
     hourly: 'temperature_2m,weather_code,precipitation_probability,precipitation,wind_speed_10m,wind_direction_10m,is_day',
     daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_dominant,sunrise,sunset',
     timezone: 'auto',
@@ -202,6 +203,7 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
       temperature: data.current.temperature_2m,
       apparentTemperature: data.current.apparent_temperature,
       humidity: data.current.relative_humidity_2m,
+      uvIndex: data.current.uv_index,
       weatherCode: data.current.weather_code,
       windSpeed: data.current.wind_speed_10m,
       windDirection: data.current.wind_direction_10m,
