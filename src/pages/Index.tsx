@@ -160,7 +160,7 @@ const Index = () => {
         <main className="w-full">
           {isLocating ? (
             <div className="text-center py-20 animate-fade-in">
-              <CloudRain className="h-20 w-20 mx-auto mb-4 text-primary animate-pulse-glow" />
+              <CloudRain className="h-20 w-20 mx-auto mb-4 text-primary" />
               <h2 className="text-3xl font-semibold mb-2">{t('loading.findingLocation')}</h2>
               <p className="text-lg text-muted-foreground">
                 {t('loading.allowLocation')}
@@ -168,7 +168,7 @@ const Index = () => {
             </div>
           ) : !selectedCity ? (
             <div className="text-center py-20 animate-fade-in">
-              <CloudRain className="h-20 w-20 mx-auto mb-4 text-primary animate-pulse-glow" />
+              <CloudRain className="h-20 w-20 mx-auto mb-4 text-primary" />
               <h2 className="text-3xl font-semibold mb-2">{t('loading.welcome')}</h2>
               <p className="text-lg text-muted-foreground">
                 {t('loading.searchPrompt')}
