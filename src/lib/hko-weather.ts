@@ -342,7 +342,9 @@ export function psrToPercentage(psr: string): number {
     // English
     'Low': 10,
     'Medium Low': 25,
+    'Med Low': 25,
     'Medium': 50,
+    'Med': 50,
     'Medium High': 70,
     'High': 85,
     // Traditional Chinese
@@ -360,7 +362,7 @@ export function psrNeedsUmbrella(psr: string | undefined): boolean {
   if (!psr) return false;
   const needsUmbrellaValues = [
     // English
-    'Medium Low', 'Medium', 'Medium High', 'High',
+    'Medium Low', 'Med Low', 'Medium', 'Med', 'Medium High', 'High',
     // Traditional Chinese
     '中低', '中', '中高', '高',
   ];
@@ -458,7 +460,7 @@ export async function getHKODailyAndWarnings(
       temperatureMin: day.forecastMintemp.value,
       weatherCode: hkoIconToWeatherCode(day.ForecastIcon),
       precipitationProbabilityMax: psrToPercentage(day.PSR),
-      precipitationProbabilityRaw: day.PSR || undefined,
+      precipitationProbabilityRaw: day.PSR ? day.PSR.replace('Medium Low', 'Med Low').replace('Medium', 'Med') : undefined,
       sunrise: new Date(0), // Placeholder, will be replaced by Open-Meteo data in Index.tsx
       sunset: new Date(0),  // Placeholder
     };

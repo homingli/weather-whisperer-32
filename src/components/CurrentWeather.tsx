@@ -118,7 +118,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
           <div className="flex flex-col items-center md:items-start gap-4">
             <div className="flex items-center gap-6">
               {/* Weather icon */}
-              <div className="text-9xl weather-icon-glow leading-none select-none" role="img" aria-label={t('weather.condition')}>
+              <div className="text-9xl leading-none select-none" role="img" aria-label={t('weather.condition')}>
                 {getWeatherIcon(weather.weatherCode, weather.isDay)}
               </div>
 
@@ -185,7 +185,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
                 <span className={`text-sm font-semibold block leading-none mb-1 ${needsUmbrella ? 'text-weather-rain' : 'text-muted-foreground'}`}>
                   {needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
                 </span>
-                <span className="text-[9px] text-muted-foreground uppercase font-medium">{t('umbrella.label')}</span>
+                <span className="text-sm text-muted-foreground uppercase font-medium">{t('umbrella.label')}</span>
               </div>
             </div>
 
@@ -194,7 +194,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
               <Droplets className="h-6 w-6 text-blue-400" />
               <div className="text-center">
                 <span className="text-sm font-semibold block leading-none mb-1">{Math.round(weather.humidity)}%</span>
-                <span className="text-[9px] text-muted-foreground uppercase font-medium">{t('weather.humidity')}</span>
+                <span className="text-sm text-muted-foreground uppercase font-medium">{t('weather.humidity')}</span>
               </div>
             </div>
 
@@ -208,7 +208,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
                   {Math.round(weather.windSpeed)}
                   <span className="text-[10px] font-normal opacity-70 ml-0.5">{t('unit.kmh')}</span>
                 </span>
-                <span className="text-[9px] text-muted-foreground uppercase font-medium">{t('weather.wind')}</span>
+                <span className="text-sm text-muted-foreground uppercase font-medium">{t('weather.wind')}</span>
               </div>
             </div>
 
@@ -217,7 +217,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
               <Sun className={`h-6 w-6 ${uvInfo.color}`} />
               <div className="text-center">
                 <span className="text-sm font-semibold block leading-none mb-1">{weather.uvIndex.toFixed(1)}</span>
-                <span className="text-[9px] text-muted-foreground uppercase font-medium">{t('weather.uvIndex')}</span>
+                <span className="text-sm text-muted-foreground uppercase font-medium">{t('weather.uvIndex')}</span>
               </div>
             </div>
           </div>
