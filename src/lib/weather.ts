@@ -143,20 +143,25 @@ export async function searchCities(query: string): Promise<GeoLocation[]> {
   // Validate input contains only allowed characters
   if (!/^[a-zA-Z0-9\s\-',.]+$/.test(query)) return [];
 
-  const response = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en&format=json`
-  );
+  try {
+    const response = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en&format=json`
+    );
 
-  if (!response.ok) throw new Error('Failed to search cities');
+    if (!response.ok) throw new Error('Failed to search cities');
 
-  const data = await response.json();
-  return (data.results || []).map((r: { name: string; latitude: number; longitude: number; country: string; admin1?: string }) => ({
-    name: r.name,
-    latitude: r.latitude,
-    longitude: r.longitude,
-    country: r.country,
-    admin1: r.admin1,
-  }));
+    const data = await response.json();
+    return (data.results || []).map((r: { name: string; latitude: number; longitude: number; country: string; admin1?: string }) => ({
+      name: r.name,
+      latitude: r.latitude,
+      longitude: r.longitude,
+      country: r.country,
+      admin1: r.admin1,
+    }));
+  } catch (err) {
+    console.error('Error searching cities:', err);
+    return [];
+  }
 }
 
 // Weather API to get current and forecast data
@@ -172,11 +177,15 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
     timeformat: 'unixtime',
   });
 
-  const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
-
-  if (!response.ok) throw new Error('Failed to fetch weather');
-
-  const data = await response.json();
+  let data;
+  try {
+    const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
+    if (!response.ok) throw new Error('Failed to fetch weather');
+    data = await response.json();
+  } catch (err) {
+    console.error('Weather fetch error:', err);
+    throw err;
+  }
 
   // With unixtime, data.current.time and data.hourly.time are numbers (Unix seconds)
   // Finding the current hour index is now a simple numeric comparison
@@ -367,7 +376,8 @@ export async function reverseGeocode(latitude: number, longitude: number): Promi
     // We'll use the coordinates directly and try to find the nearest city via search
     // For now, create a location object with the coordinates
     const cityResponse = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(latitude.toString())}&lon=${encodeURIComponent(longitude.toString())}&format=json`
+      `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(latitude.toString())}&lon=${encodeURIComponent(longitude.toString())}&format=json`,
+      { headers: { 'User-Agent': 'weather-whisperer/1.0' } }
     );
 
     if (!cityResponse.ok) {
