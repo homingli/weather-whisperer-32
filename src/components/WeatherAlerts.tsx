@@ -7,14 +7,14 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface WeatherAlertsProps {
   warnings: HKOWarning[];
 }
 
-export function WeatherAlerts({ warnings }: WeatherAlertsProps) {
+export const WeatherAlerts = memo(function WeatherAlerts({ warnings }: WeatherAlertsProps) {
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
   const { language, t } = useLanguage();
   const locale = language === 'tc' ? zhTW : undefined;
@@ -23,9 +23,9 @@ export function WeatherAlerts({ warnings }: WeatherAlertsProps) {
     return null;
   }
 
-  const toggleItem = (key: string) => {
+  const toggleItem = useCallback((key: string) => {
     setOpenItems(prev => ({ ...prev, [key]: !prev[key] }));
-  };
+  }, []);
 
   return (
     <div className="animate-fade-in px-2">
@@ -101,4 +101,4 @@ export function WeatherAlerts({ warnings }: WeatherAlertsProps) {
       </div>
     </div>
   );
-}
+});
