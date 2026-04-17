@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, lazy, Suspense } from "react";
+import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CurrentWeather } from "@/components/CurrentWeather";
 import { DailyForecast } from "@/components/DailyForecast";
@@ -27,11 +27,11 @@ const Index = () => {
   const { language, t } = useLanguage();
   const { setSunTimes } = useTheme();
 
-  const handleCitySelect = (city: GeoLocation) => {
+  const handleCitySelect = useCallback((city: GeoLocation) => {
     setSelectedCity(city);
     setDefaultCity(city);
     setRecentCities(getRecentCities());
-  };
+  }, []);
 
   useEffect(() => {
     const initializeLocation = async () => {

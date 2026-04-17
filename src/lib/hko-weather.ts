@@ -408,23 +408,38 @@ function hkoIconToWeatherCode(iconCode: number): number {
 
 // Fetch 9-day forecast from HKO
 export async function getHKOForecast(lang: 'en' | 'tc' = 'en'): Promise<HKOForecastResponse> {
-  const response = await fetch(`${HKO_API_BASE}?dataType=fnd&lang=${lang}`);
-  if (!response.ok) throw new Error('Failed to fetch HKO forecast');
-  return response.json();
+  try {
+    const response = await fetch(`${HKO_API_BASE}?dataType=fnd&lang=${lang}`);
+    if (!response.ok) throw new Error('Failed to fetch HKO forecast');
+    return await response.json();
+  } catch (err) {
+    console.error('HKO forecast error:', err);
+    throw err;
+  }
 }
 
 // Fetch weather warning summary from HKO
 export async function getHKOWarningSummary(lang: 'en' | 'tc' = 'en'): Promise<HKOWarningSummaryResponse> {
-  const response = await fetch(`${HKO_API_BASE}?dataType=warnsum&lang=${lang}`);
-  if (!response.ok) throw new Error('Failed to fetch HKO warnings');
-  return response.json();
+  try {
+    const response = await fetch(`${HKO_API_BASE}?dataType=warnsum&lang=${lang}`);
+    if (!response.ok) throw new Error('Failed to fetch HKO warnings');
+    return await response.json();
+  } catch (err) {
+    console.error('HKO warnings error:', err);
+    throw err;
+  }
 }
 
 // Fetch detailed warning info from HKO
 export async function getHKOWarningInfo(lang: 'en' | 'tc' = 'en'): Promise<HKOWarningInfoResponse> {
-  const response = await fetch(`${HKO_API_BASE}?dataType=warningInfo&lang=${lang}`);
-  if (!response.ok) throw new Error('Failed to fetch HKO warning info');
-  return response.json();
+  try {
+    const response = await fetch(`${HKO_API_BASE}?dataType=warningInfo&lang=${lang}`);
+    if (!response.ok) throw new Error('Failed to fetch HKO warning info');
+    return await response.json();
+  } catch (err) {
+    console.error('HKO warning info error:', err);
+    throw err;
+  }
 }
 
 // Get HKO daily forecast and warnings only (for hybrid approach)

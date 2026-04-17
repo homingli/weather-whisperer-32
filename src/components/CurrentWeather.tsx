@@ -1,4 +1,4 @@
-import { memo, useState, useEffect } from "react";
+import { memo, useState, useEffect, useMemo, useCallback } from "react";
 import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIcon } from "@/lib/weather";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, ArrowUp, ArrowDown, MoveUp, Droplets, Sun } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -14,90 +14,68 @@ interface CurrentWeatherProps {
 export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, locationName, timezone }: CurrentWeatherProps) => {
   const { language, t } = useLanguage();
 
-  // Umbrella logic - use percentage-based threshold
-  const isCurrentlyRaining = weather.precipitation > 2;
-  const next6Hours = hourlyForecast.slice(0, 6);
-  const firstRainyHour = next6Hours.find(hour => hour.precipitationProbability >= 25);
-  // Also consider daily max probability (handles HKO PSR mismatch)
-  const isRainyDay = dailyForecast ? dailyForecast.precipitationProbabilityMax >= 50 : false;
-  const needsUmbrella = isCurrentlyRaining || !!firstRainyHour || isRainyDay;
+  // Wrap in useMemo to prevent unnecessary re-calculations on every second tick
+  const needsUmbrella = useMemo(() => {
+    const isCurrentlyRaining = weather.precipitation > 2;
+    const next6Hours = hourlyForecast.slice(0, 6);
+    const firstRainyHour = next6Hours.find(hour => hour.precipitationProbability >= 25);
+    const isRainyDay = dailyForecast ? dailyForecast.precipitationProbabilityMax >= 50 : false;
+    return isCurrentlyRaining || !!firstRainyHour || isRainyDay;
+  }, [weather.precipitation, hourlyForecast, dailyForecast]);
 
   const [currentTime, setCurrentTime] = useState(new Date());
   
-  // Update time every second
+  // Timer interval updates state every second
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const getLocalDate = () => {
-    const options: Intl.DateTimeFormatOptions = {
-      timeZone: timezone,
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      weekday: 'long',
-    };
+  // Memoize formatters to optimize rendering performance and prevent GC pressure
+  const dateFormatter = useMemo(() => new Intl.DateTimeFormat(language === 'tc' ? 'zh-TW' : 'en-US', {
+    timeZone: timezone, year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+  }), [language, timezone]);
 
-    const formatter = new Intl.DateTimeFormat(language === 'tc' ? 'zh-TW' : 'en-US', options);
-    return formatter.format(currentTime);
-  };
+  const timeFormatter = useMemo(() => new Intl.DateTimeFormat(language === 'tc' ? 'zh-TW' : 'en-US', {
+    timeZone: timezone, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: language !== 'tc'
+  }), [language, timezone]);
 
-  const getLocalTime = () => {
-    const options: Intl.DateTimeFormatOptions = {
-      timeZone: timezone,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: language !== 'tc',
-    };
+  const sunTimeFormatter = useMemo(() => new Intl.DateTimeFormat(language === 'tc' ? 'zh-TW' : 'en-US', {
+    timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: language !== 'tc'
+  }), [language, timezone]);
 
-    const formatter = new Intl.DateTimeFormat(language === 'tc' ? 'zh-TW' : 'en-US', options);
-    return formatter.format(currentTime);
-  };
+  // Format local date with fallback to prevent render crash on timezone errors
+  const getLocalDate = useCallback(() => {
+    try { return dateFormatter.format(currentTime); } catch(e) { return currentTime.toLocaleDateString(); }
+  }, [dateFormatter, currentTime]);
 
-  // Get next sun event (sunset if day, sunrise if night)
-  const getNextSunEvent = () => {
-    if (!dailyForecast) return null;
+  // Format local time with fallback to prevent render crash
+  const getLocalTime = useCallback(() => {
+    try { return timeFormatter.format(currentTime); } catch(e) { return currentTime.toLocaleTimeString(); }
+  }, [timeFormatter, currentTime]);
 
-    const now = new Date();
-    const sunrise = dailyForecast.sunrise;
-    const sunset = dailyForecast.sunset;
-
-    // Format time in local timezone
-    const formatTime = (date: Date) => {
-      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-TW' : 'en-US', {
-        timeZone: timezone,
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: language !== 'tc',
-      }).format(date);
-    };
-
-    // If it's day time, show sunset. If night, show next sunrise
-    if (weather.isDay) {
-      return { type: 'sunset', time: formatTime(sunset), icon: Sunset };
-    } else {
-      // At night - check if it's before or after midnight
-      // Show sunrise for the current or next day
-      return { type: 'sunrise', time: formatTime(sunrise), icon: Sunrise };
+  // Safely compute next sun event and format time
+  const sunEvent = useMemo(() => {
+    if (!dailyForecast || !dailyForecast.sunrise || !dailyForecast.sunset) return null;
+    try {
+      if (weather.isDay) {
+        return { type: 'sunset', time: sunTimeFormatter.format(new Date(dailyForecast.sunset)), icon: Sunset };
+      }
+      return { type: 'sunrise', time: sunTimeFormatter.format(new Date(dailyForecast.sunrise)), icon: Sunrise };
+    } catch(e) {
+      return null;
     }
-  };
+  }, [dailyForecast, weather.isDay, sunTimeFormatter]);
 
-  const sunEvent = getNextSunEvent();
-
-  // UV interpretation
-  const getUvLevel = (uv: number) => {
+  // Memoize UV style object derived from index
+  const uvInfo = useMemo(() => {
+    const uv = weather.uvIndex;
     if (uv <= 2) return { color: 'text-green-400', bg: 'bg-green-400/10' };
     if (uv <= 5) return { color: 'text-yellow-400', bg: 'bg-yellow-400/10' };
     if (uv <= 7) return { color: 'text-orange-400', bg: 'bg-orange-400/10' };
     if (uv <= 10) return { color: 'text-red-400', bg: 'bg-red-400/10' };
     return { color: 'text-purple-400', bg: 'bg-purple-400/10' };
-  };
-
-  const uvInfo = getUvLevel(weather.uvIndex);
+  }, [weather.uvIndex]);
 
   return (
     <div className="glass-card p-8 animate-fade-in" style={{ animationDelay: "0.1s" }}>
