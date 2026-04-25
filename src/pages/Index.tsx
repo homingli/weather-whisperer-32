@@ -6,10 +6,11 @@ import { WeatherSkeleton } from "@/components/WeatherSkeleton";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { GeoLocation, getDefaultCity, getRecentCities, getWeather, getUserLocation, reverseGeocode, setDefaultCity, WeatherData, getLastWeatherFetchTime } from "@/lib/weather";
+import { usePwaInstall } from "@/hooks/usePwaInstall";
 import { getHKODailyAndWarnings, HKOWarning, isInHongKong } from "@/lib/hko-weather";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { CloudRain, MapPin } from "lucide-react";
+import { CloudRain, MapPin, Download } from "lucide-react";
 
 // Lazy load heavy components
 const HourlyForecast = lazy(() => import("@/components/HourlyForecast").then(module => ({ default: module.HourlyForecast })));
@@ -77,12 +78,6 @@ const Index = () => {
     staleTime: 2 * 60 * 1000,
   });
 
-  // Freshness indicator: show last fetch time (uses cached/open network data)
-  const lastFetchISO = getLastWeatherFetchTime();
-  const lastFetchLabel = lastFetchISO
-    ? `Fresh data as of ${new Date(lastFetchISO).toLocaleString()}`
-    : null;
-
   // Fetch HKO data for daily forecast and warnings (only when in HK)
   const { data: hkoData, isLoading: isLoadingHKO } = useQuery({
     queryKey: ["weather-hko", language, selectedCity?.latitude, selectedCity?.longitude],
@@ -134,6 +129,16 @@ const Index = () => {
   const isLoading = isLoadingOpenMeteo || (isHKCovered && isLoadingHKO);
   const error = openMeteoError;
 
+  // PWA install
+  const { deferredPrompt, isInstalled, install } = usePwaInstall();
+
+  // Freshness indicator: only show when using cached/stale data
+  // Show when we have cached data (not currently loading, but have stale data displayed)
+  const lastFetchISO = getLastWeatherFetchTime();
+  const cacheLabel = !isLoadingOpenMeteo && openMeteoData && lastFetchISO
+    ? `Fresh data as of ${new Date(lastFetchISO).toLocaleString()}`
+    : null;
+
   return (
     <div className="min-h-screen gradient-sky">
       <div className="w-full max-w-2xl lg:max-w-5xl xl:max-w-7xl mx-auto px-4 pt-[10px] pb-8 transition-all duration-300">
@@ -155,13 +160,26 @@ const Index = () => {
                 </div>
               </>
             )}
-            {lastFetchLabel && (
+            {cacheLabel && (
               <div className="ml-2 text-sm text-muted-foreground" aria-label="data-freshness">
-                {lastFetchLabel}
+                {cacheLabel}
               </div>
             )}
           </div>
-          <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} />
+          <div className="flex items-center gap-2">
+            <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} />
+            {(deferredPrompt || isInstalled) && (
+              <button
+                onClick={install}
+                disabled={!deferredPrompt || isInstalled}
+                className="h-9 px-3 flex items-center gap-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={isInstalled ? 'Installed' : 'Install app'}
+              >
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">{isInstalled ? 'Installed' : 'Install'}</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Screen reader only header */}
