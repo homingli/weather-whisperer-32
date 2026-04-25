@@ -5,7 +5,7 @@ import { DailyForecast } from "@/components/DailyForecast";
 import { WeatherSkeleton } from "@/components/WeatherSkeleton";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
 import { SettingsMenu } from "@/components/SettingsMenu";
-import { GeoLocation, getDefaultCity, getRecentCities, getWeather, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
+import { GeoLocation, getDefaultCity, getRecentCities, getWeather, getUserLocation, reverseGeocode, setDefaultCity, WeatherData, getLastWeatherFetchTime } from "@/lib/weather";
 import { getHKODailyAndWarnings, HKOWarning, isInHongKong } from "@/lib/hko-weather";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -76,6 +76,12 @@ const Index = () => {
     refetchInterval: 10 * 60 * 1000,
     staleTime: 2 * 60 * 1000,
   });
+
+  // Freshness indicator: show last fetch time (uses cached/open network data)
+  const lastFetchISO = getLastWeatherFetchTime();
+  const lastFetchLabel = lastFetchISO
+    ? `Fresh data as of ${new Date(lastFetchISO).toLocaleString()}`
+    : null;
 
   // Fetch HKO data for daily forecast and warnings (only when in HK)
   const { data: hkoData, isLoading: isLoadingHKO } = useQuery({
@@ -148,6 +154,11 @@ const Index = () => {
                   )}
                 </div>
               </>
+            )}
+            {lastFetchLabel && (
+              <div className="ml-2 text-sm text-muted-foreground" aria-label="data-freshness">
+                {lastFetchLabel}
+              </div>
             )}
           </div>
           <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} />

@@ -19,9 +19,8 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
     const isCurrentlyRaining = weather.precipitation > 2;
     const next6Hours = hourlyForecast.slice(0, 6);
     const firstRainyHour = next6Hours.find(hour => hour.precipitationProbability >= 25);
-    const isRainyDay = dailyForecast ? dailyForecast.precipitationProbabilityMax >= 50 : false;
-    return isCurrentlyRaining || !!firstRainyHour || isRainyDay;
-  }, [weather.precipitation, hourlyForecast, dailyForecast]);
+    return isCurrentlyRaining || !!firstRainyHour;
+  }, [weather.precipitation, hourlyForecast]);
 
   const [currentTime, setCurrentTime] = useState(new Date());
   
