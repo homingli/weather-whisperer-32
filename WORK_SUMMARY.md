@@ -9,6 +9,8 @@
 2.  **PWA Metadata**: Added `theme-color`, `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, and `apple-mobile-web-app-title` meta tags to `index.html`.
 3.  **PWA Links**: Added `<link rel="apple-touch-icon">` and `<link rel="manifest">` to `index.html` for iOS and Android PWA support.
 4.  **Note**: PWA icons are configured but not present at `/icons/icon-192x192.png` and `/icons/icon-512x512.png` - these need to be added to `public/icons/` for full PWA functionality.
+5.  **PWA Routing Fix**: Added `public/_redirects` for Cloudflare Pages SPA routing (serving static PWA files directly, falling back to index.html for other routes).
+6.  **Vercel PWA Support**: Added `vercel.json` with rewrites to serve PWA files directly while routing SPA to index.html.
 
 ---
 
