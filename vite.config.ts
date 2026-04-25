@@ -34,7 +34,13 @@ export default defineConfig(({ mode }) => ({
             src: '/icons/icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-          }
+          },
+          {
+            src: '/icons/icon-512x512-maskable.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable',
+          },
         ],
       },
       workbox: {
