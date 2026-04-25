@@ -25,3 +25,6 @@ dist-ssr
 .env
 
 GEMINI.*
+
+# Affects Cloudflare deployment
+bun.lock*
