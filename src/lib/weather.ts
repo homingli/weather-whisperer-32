@@ -165,6 +165,18 @@ export async function searchCities(query: string): Promise<GeoLocation[]> {
 }
 
 // Weather API to get current and forecast data
+// Persist last successful fetch timestamp to provide UI freshness info
+const WEATHER_LAST_FETCH_KEY = 'weather:last-fetch';
+
+export function getLastWeatherFetchTime(): string | null {
+  try {
+    return localStorage.getItem(WEATHER_LAST_FETCH_KEY);
+  } catch {
+    return null;
+  }
+}
+
+// Weather API to get current and forecast data
 export async function getWeather(latitude: number, longitude: number): Promise<WeatherData> {
   const params = new URLSearchParams({
     latitude: latitude.toString(),
@@ -185,6 +197,13 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
   } catch (err) {
     console.error('Weather fetch error:', err);
     throw err;
+  }
+  // Record the fetch time to indicate freshness in the UI
+  try {
+    const ts = new Date().toISOString();
+    localStorage.setItem(WEATHER_LAST_FETCH_KEY, ts);
+  } catch {
+    // If storage isn't available (e.g., in some environments), skip silently
   }
 
   // With unixtime, data.current.time and data.hourly.time are numbers (Unix seconds)
