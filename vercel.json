@@ -9,6 +9,6 @@
     { "source": "/registerSW.js", "destination": "/registerSW.js" },
     { "source": "/manifest.webmanifest", "destination": "/manifest.webmanifest" },
     { "source": "/workbox-:file", "destination": "/workbox-:file" },
-    { "source": "/:path", "destination": "/index.html", "status": 200 }
+    { "source": "/:path", "destination": "/index.html" }
   ]
 }
