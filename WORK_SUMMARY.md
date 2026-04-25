@@ -11,6 +11,8 @@
 4.  **Note**: PWA icons are configured but not present at `/icons/icon-192x192.png` and `/icons/icon-512x512.png` - these need to be added to `public/icons/` for full PWA functionality.
 5.  **PWA Routing Fix**: Added `public/_redirects` for Cloudflare Pages SPA routing (serving static PWA files directly, falling back to index.html for other routes).
 6.  **Vercel PWA Support**: Added `vercel.json` with rewrites to serve PWA files directly while routing SPA to index.html.
+7.  **PWA Install Button**: Added `usePwaInstall` hook and install button beside settings menu at the top (only shows when PWA is installable).
+8.  **Data Freshness**: Modified `lastFetchLabel` to show only when using cached/stale data (not during initial fetch).
 
 ---
 
