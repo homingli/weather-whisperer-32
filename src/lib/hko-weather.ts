@@ -529,34 +529,52 @@ export async function getHKODailyAndWarnings(
   };
 }
 
-// Get warning color based on type
 export function getWarningColor(code: string): string {
-  if (code.includes('RED') || code.includes('R') || code === 'WFIRER') return 'destructive';
-  if (code.includes('BLACK') || code.includes('B') || code === 'WRAINB') return 'destructive';
-  if (code.includes('AMBER') || code.includes('A') || code === 'WRAINA') return 'warning';
-  if (code.includes('YELLOW') || code.includes('Y') || code === 'WFIREY') return 'warning';
+  const redWarnings = ['WFIRER', 'WRAINR', 'WRAINB', 'WTMW', 'TC8NE', 'TC8SE', 'TC8NW', 'TC8SW', 'TC9', 'TC10'];
+  const yellowWarnings = ['WFIREY', 'WRAINA', 'WTS', 'TC3'];
+  
+  if (redWarnings.includes(code)) return 'destructive';
+  if (yellowWarnings.includes(code)) return 'warning';
+  
   return 'secondary';
 }
 
-// Get warning icon
 export function getWarningIcon(warningCode: string): string {
+  const baseUrl = 'https://www.hko.gov.hk/en/wxinfo/dailywx/images';
   const iconMap: Record<string, string> = {
-    'WFIRE': '🔥',
-    'WFROST': '❄️',
-    'WHOT': '🌡️',
-    'WCOLD': '🥶',
-    'WMSGNL': '💨',
-    'WRAIN': '🌧️',
-    'WFNTSA': '🌊',
-    'WL': '⛰️',
-    'WTCSGNL': '🌀',
-    'WTMW': '🌊',
-    'WTS': '⛈️',
+    'WFIREY': 'firey.gif',
+    'WFIRER': 'firer.gif',
+    'WFROST': 'frost.gif',
+    'WHOT': 'vhot.gif',
+    'WCOLD': 'cold.gif',
+    'WMSGNL': 'sms.gif',
+    'WRAINA': 'raina.gif',
+    'WRAINR': 'rainr.gif',
+    'WRAINB': 'rainb.gif',
+    'WFNTSA': 'ntfl.gif',
+    'WL': 'landslip.gif',
+    'TC1': 'tc1.gif',
+    'TC3': 'tc3.gif',
+    'TC8NE': 'tc8ne.gif',
+    'TC8SE': 'tc8b.gif',
+    'TC8NW': 'tc8d.gif',
+    'TC8SW': 'tc8c.gif',
+    'TC9': 'tc9.gif',
+    'TC10': 'tc10.gif',
+    'WTMW': 'tsunami-warn.gif',
+    'WTS': 'ts.gif',
   };
-  
-  // Extract the base warning type
-  for (const [key, icon] of Object.entries(iconMap)) {
-    if (warningCode.startsWith(key)) return icon;
+
+  if (iconMap[warningCode]) {
+    return `${baseUrl}/${iconMap[warningCode]}`;
   }
-  return '⚠️';
+
+  // Fallbacks for base codes
+  if (warningCode.startsWith('WFIRE')) return `${baseUrl}/firey.gif`;
+  if (warningCode.startsWith('WRAIN')) return `${baseUrl}/raina.gif`;
+  if (warningCode.startsWith('TC') || warningCode.startsWith('WTCSGNL')) return `${baseUrl}/tc1.gif`;
+  if (warningCode.startsWith('WFNTSA')) return `${baseUrl}/ntfl.gif`;
+
+  // Provide a generic fallback or null, returning warning symbol icon
+  return `${baseUrl}/ts.gif`; // or maybe empty
 }
