@@ -132,10 +132,25 @@ const Index = () => {
   // PWA install
   const { deferredPrompt, isInstalled, install } = usePwaInstall();
 
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   // Freshness indicator: only show when using cached/stale data
-  // Show when we have cached data (not currently loading, but have stale data displayed)
+  // Show when offline and we have cached data
   const lastFetchISO = getLastWeatherFetchTime();
-  const cacheLabel = !isLoadingOpenMeteo && openMeteoData && lastFetchISO
+  const cacheLabel = isOffline && !isLoadingOpenMeteo && openMeteoData && lastFetchISO
     ? `Fresh data as of ${new Date(lastFetchISO).toLocaleString()}`
     : null;
 
@@ -168,15 +183,14 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-2">
             <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} />
-            {(deferredPrompt || isInstalled) && (
+            {deferredPrompt && !isInstalled && (
               <button
                 onClick={install}
-                disabled={!deferredPrompt || isInstalled}
-                className="h-9 px-3 flex items-center gap-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                title={isInstalled ? 'Installed' : 'Install app'}
+                className="h-9 px-3 flex items-center gap-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                title="Install app"
               >
                 <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">{isInstalled ? 'Installed' : 'Install'}</span>
+                <span className="hidden sm:inline">Install</span>
               </button>
             )}
           </div>
@@ -205,7 +219,7 @@ const Index = () => {
             </div>
           ) : isLoading ? (
             <WeatherSkeleton />
-          ) : error ? (
+          ) : !weather && error ? (
             <div className="text-center py-20 glass-card">
               <p className="text-lg text-destructive mb-2">{t('loading.failed')}</p>
               <p className="text-base text-muted-foreground">{t('loading.tryAgain')}</p>
