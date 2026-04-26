@@ -1,5 +1,18 @@
 # Work Summary
 
+**Timestamp:** 2026-04-26 09:16:00
+**Commit Hash:** N/A (Local architecture doc & PWA offline enhancements)
+
+## Changes Implemented
+
+1.  **Architecture Documentation**: Created `ARCHITECTURE.md` detailing the project structure, tech stack, and the dual-source (HKO + Open-Meteo) fetching mechanisms.
+2.  **PWA Offline Resilience**: Implemented a localized offline fallback caching layer. Altered `getWeather` and HKO fetch functions in `lib/weather.ts` and `lib/hko-weather.ts` to cache raw JSON responses directly to `localStorage` upon success, preventing offline UI crashes when the service worker cache is unavailable.
+3.  **PWA Install Logic Refinement**: Modified the install button in `Index.tsx` to automatically hide completely after installation finishes (`!isInstalled`).
+4.  **Vite PWA Config Expansion**: Expanded the runtime caching `urlPattern` regex in `vite.config.ts` to intercept `api.open-meteo.com`, `geocoding-api.open-meteo.com`, `data.weather.gov.hk`, and `nominatim.openstreetmap.org` for `NetworkFirst` handling.
+5.  **Offline State UI**: Added active network state listeners (`navigator.onLine`) in `Index.tsx` to conditionally render the "Fresh data from..." indicators and intelligently prefer cached data rendering over failure error states.
+
+---
+
 **Timestamp:** 2026-04-26 10:30:00
 **Commit Hash:** N/A (Local PWA fixes)
 
