@@ -1,4 +1,4 @@
-import { HKOWarning, getWarningIcon } from '@/lib/hko-weather';
+import { HKOWarning, getWarningIcon, getWarningColor } from '@/lib/hko-weather';
 import { AlertTriangle, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
@@ -28,39 +28,46 @@ export const WeatherAlerts = memo(function WeatherAlerts({ warnings }: WeatherAl
   }, []);
 
   return (
-    <div className="animate-fade-in px-2">
-      <div className="flex items-center gap-2 mb-3 px-1">
-        <AlertTriangle className="h-5 w-5 text-destructive" />
-        <h3 className="font-semibold text-base text-foreground">{t('alerts.title')}</h3>
-      </div>
-      
-      <div className="flex flex-col border border-border/20 rounded-lg bg-background/30 backdrop-blur-sm overflow-hidden">
+    <div className="animate-fade-in px-2 mb-4">
+      <div className="flex flex-col border border-border/20 rounded-lg bg-background/30 backdrop-blur-sm shadow-sm overflow-hidden">
         {warnings.map((warning, index) => {
           const itemKey = warning.code + index;
           const hasDetails = warning.details?.contents && warning.details.contents.length > 0;
           const isOpen = openItems[itemKey];
+          const warningColor = getWarningColor(warning.code);
+          let bgClass = "bg-orange-500/10 hover:bg-orange-500/20"; // Otherwise / Default
+          if (warningColor === 'destructive') {
+            bgClass = "bg-red-500/10 hover:bg-red-500/20";
+          } else if (warningColor === 'warning') {
+            bgClass = "bg-yellow-500/10 hover:bg-yellow-500/20";
+          }
 
           return (
-            <Collapsible
+              <Collapsible
               key={itemKey}
               open={isOpen}
               onOpenChange={() => hasDetails && toggleItem(itemKey)}
-              className="border-b border-border/20 last:border-0"
+              className={`border-b border-border/20 last:border-0 transition-colors ${bgClass}`}
             >
               <CollapsibleTrigger
                 className={`w-full text-left group ${hasDetails ? 'cursor-pointer' : 'cursor-default'}`}
                 disabled={!hasDetails}
               >
                 <div
-                  className={`flex items-center gap-3 py-2 px-3 transition-colors ${
+                  className={`flex items-center gap-4 py-3 px-4 transition-colors ${
                     hasDetails ? 'hover:bg-foreground/5' : ''
                   }`}
                 >
-                  <span className="text-xl shrink-0" role="img" aria-label={warning.name}>
-                    {getWarningIcon(warning.code)}
+                  <span className="shrink-0 flex items-center justify-center w-10 h-10 rounded-md bg-white/20 dark:bg-black/20 shadow-sm border border-border/10" aria-label={warning.name}>
+                    <img 
+                      src={getWarningIcon(warning.code)} 
+                      alt={warning.name} 
+                      className="object-contain w-8 h-8 drop-shadow-sm"
+                      loading="lazy"
+                    />
                   </span>
                   <div className="flex-1 flex items-center justify-between min-w-0">
-                    <div className="font-medium text-foreground text-sm truncate pr-2">
+                    <div className="font-bold text-foreground text-base md:text-lg truncate pr-2">
                       <span className="truncate">{warning.name}</span>
                       {warning.type && (
                         <span className="ml-1.5 text-xs font-normal text-muted-foreground shrink-0">
@@ -88,9 +95,9 @@ export const WeatherAlerts = memo(function WeatherAlerts({ warnings }: WeatherAl
               
               {hasDetails && (
                 <CollapsibleContent>
-                  <div className="mb-3 mx-3 ml-11 p-3 rounded-md text-xs text-foreground/80 space-y-2 border-l-2 border-destructive/40 bg-foreground/5">
+                  <div className="mb-4 mx-4 ml-[4.5rem] pr-4 text-sm text-foreground/90 space-y-3 leading-relaxed">
                     {warning.details!.contents!.map((content, i) => (
-                      <p key={i} className="leading-relaxed">{content}</p>
+                      <p key={i}>{content}</p>
                     ))}
                   </div>
                 </CollapsibleContent>
