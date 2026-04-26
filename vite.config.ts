@@ -47,7 +47,7 @@ export default defineConfig(({ mode }) => ({
         // Basic offline caching; no push notifications by default
         runtimeCaching: [
           {
-            urlPattern: /\/api\//,
+            urlPattern: /^https:\/\/(api\.open-meteo\.com|geocoding-api\.open-meteo\.com|data\.weather\.gov\.hk|nominatim\.openstreetmap\.org)\/.*/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
@@ -55,6 +55,9 @@ export default defineConfig(({ mode }) => ({
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60 * 24, // 1 day
               },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
             },
           },
         ],
