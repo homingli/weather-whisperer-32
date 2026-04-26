@@ -189,21 +189,33 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
     timeformat: 'unixtime',
   });
 
+  const cacheKey = `weather_data_${latitude}_${longitude}`;
   let data;
+  let isFromCache = false;
   try {
     const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
     if (!response.ok) throw new Error('Failed to fetch weather');
     data = await response.json();
+    try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch {}
+    
+    // Record the fetch time to indicate freshness in the UI
+    try {
+      const ts = new Date().toISOString();
+      localStorage.setItem(WEATHER_LAST_FETCH_KEY, ts);
+    } catch {}
   } catch (err) {
     console.error('Weather fetch error:', err);
-    throw err;
-  }
-  // Record the fetch time to indicate freshness in the UI
-  try {
-    const ts = new Date().toISOString();
-    localStorage.setItem(WEATHER_LAST_FETCH_KEY, ts);
-  } catch {
-    // If storage isn't available (e.g., in some environments), skip silently
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        data = JSON.parse(cached);
+        isFromCache = true;
+      } else {
+        throw err;
+      }
+    } catch {
+      throw err;
+    }
   }
 
   // With unixtime, data.current.time and data.hourly.time are numbers (Unix seconds)
