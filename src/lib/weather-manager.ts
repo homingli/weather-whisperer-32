@@ -1,8 +1,9 @@
 import { cache } from './cache';
-import { getWeather as getOpenMeteoWeather, WeatherData, isInHongKong } from './weather';
+import { getWeather as getOpenMeteoWeather, WeatherData } from './weather';
+import { isInHongKong } from './hko-weather';
 import { getHKODailyAndWarnings } from './hko-weather';
 
-const WEATHER_CACHE_TTL = 1000 * 60 * 30; // 30 mins
+const WEATHER_CACHE_TTL = 1000 * 60 * 10; // 10 mins
 
 export async function fetchWeather(lat: number, lon: number, lang: 'en' | 'tc' = 'en'): Promise<WeatherData> {
   const cacheKey = `weather_combined_${lat}_${lon}_${lang}`;
@@ -18,7 +19,14 @@ export async function fetchWeather(lat: number, lon: number, lang: 'en' | 'tc' =
 
     const combined: WeatherData = {
       ...omData,
-      daily: hkoData.daily, // Prefer HKO daily for higher accuracy in HK
+      daily: hkoData.daily.map((day, i) => ({
+        ...day,
+        // HKO doesn't provide sun times, so we use Open-Meteo's
+        sunrise: omData.daily[i]?.sunrise || day.sunrise,
+        sunset: omData.daily[i]?.sunset || day.sunset,
+      })),
+      nearestStation: hkoData.nearestStation,
+      nearestDistrict: hkoData.nearestDistrict,
     };
 
     cache.set(cacheKey, combined);

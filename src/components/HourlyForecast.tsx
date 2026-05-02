@@ -22,7 +22,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
         hour12: true,
         timeZone: timezone || undefined,
       };
-      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-US', options).format(date);
+      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-GB', options).format(date);
     } catch {
       // Fallback if timezone is invalid
       const hours = date.getHours();
@@ -33,8 +33,8 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
   }, [timezone, language]);
 
   const chartData = hoursData.map((hour, index) => ({
-    time: hour.time.getTime(),
-    displayTime: index === 0 ? t('hourly.now') : formatTimeInTimezone(hour.time),
+    time: (hour.time instanceof Date) ? hour.time.getTime() : new Date(hour.time).getTime(),
+    displayTime: index === 0 ? t('hourly.now') : formatTimeInTimezone(hour.time instanceof Date ? hour.time : new Date(hour.time)),
     temperature: Math.round(hour.temperature),
     rainChance: hour.precipitationProbability,
     rainIntensity: hour.precipitation,
@@ -52,7 +52,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
         hour12: true,
         timeZone: timezone || undefined,
       };
-      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-US', options).format(date);
+      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-GB', options).format(date);
     } catch {
       const hours = date.getHours();
       const minutes = date.getMinutes();
@@ -67,29 +67,32 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
     if (!daily || daily.length === 0 || hoursData.length === 0) return [];
 
     const events: { time: number; type: 'sunrise' | 'sunset'; label: string; timeLabel: string }[] = [];
-    const startTime = hoursData[0].time.getTime();
-    const endTime = hoursData[hoursData.length - 1].time.getTime();
+    const startTime = (hoursData[0].time instanceof Date) ? hoursData[0].time.getTime() : new Date(hoursData[0].time).getTime();
+    const endTime = (hoursData[hoursData.length - 1].time instanceof Date) ? hoursData[hoursData.length - 1].time.getTime() : new Date(hoursData[hoursData.length - 1].time).getTime();
 
     daily.slice(0, 2).forEach(day => {
-      if (day.sunrise) {
-        const sunriseTime = day.sunrise.getTime();
+      const sunrise = day.sunrise instanceof Date ? day.sunrise : new Date(day.sunrise);
+      const sunset = day.sunset instanceof Date ? day.sunset : new Date(day.sunset);
+
+      if (!isNaN(sunrise.getTime())) {
+        const sunriseTime = sunrise.getTime();
         if (sunriseTime >= startTime && sunriseTime <= endTime) {
           events.push({
             time: sunriseTime,
             type: 'sunrise',
             label: '☀︎',
-            timeLabel: formatSunTime(day.sunrise)
+            timeLabel: formatSunTime(sunrise)
           });
         }
       }
-      if (day.sunset) {
-        const sunsetTime = day.sunset.getTime();
+      if (!isNaN(sunset.getTime())) {
+        const sunsetTime = sunset.getTime();
         if (sunsetTime >= startTime && sunsetTime <= endTime) {
           events.push({
             time: sunsetTime,
             type: 'sunset',
             label: '☾',
-            timeLabel: formatSunTime(day.sunset)
+            timeLabel: formatSunTime(sunset)
           });
         }
       }
@@ -146,7 +149,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
         hour12: true,
         timeZone: timezone || undefined,
       };
-      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-US', options).format(date);
+      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-GB', options).format(date);
     } catch {
       return new Date(timestamp).toLocaleTimeString();
     }

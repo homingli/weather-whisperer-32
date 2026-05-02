@@ -19,15 +19,15 @@
 - Logic: `isInHongKong(lat, lon)` check routing.
 - Used `src/lib/cache.ts` for storage.
 
-### 3. PWA Cleanup
+### 3. PWA Cleanup (DONE)
 - Confirm `public/icons` files existence.
-- Add missing icons.
+- Add missing icons (Confirmed present).
 
-### 4. Code Hygiene
+### 4. Code Hygiene (DONE)
 - Remove unused `src/components/ui` components.
 - Standardize `use-toast` location.
 
 ## Next Steps
-1. Update UI (Index.tsx) to use `WeatherManager.fetchWeather`.
-2. Remove unused `ui` components.
-3. Add PWA icons.
+1. Final review.
+2. Commit hygiene.
+3. Merge to main.

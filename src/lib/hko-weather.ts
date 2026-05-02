@@ -476,7 +476,7 @@ export async function getHKODailyAndWarnings(
       weatherCode: hkoIconToWeatherCode(day.ForecastIcon),
       precipitationProbabilityMax: psrToPercentage(day.PSR),
       precipitationProbabilityRaw: day.PSR ? day.PSR.replace('Medium Low', 'Med Low').replace('Medium', 'Med') : undefined,
-      sunrise: new Date(0), // Placeholder, will be replaced by Open-Meteo data in Index.tsx
+      sunrise: new Date(0), // Placeholder, will be replaced by Open-Meteo data in weather-manager.ts
       sunset: new Date(0),  // Placeholder
     };
   });
