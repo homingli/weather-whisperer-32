@@ -1,5 +1,9 @@
 // Weather API service using Open-Meteo
 
+export function isValidDate(d: Date): boolean {
+  return d instanceof Date && !isNaN(d.getTime());
+}
+
 // Helper to parse daily date string "YYYY-MM-DD" as midnight in specified timezone
 export function parseDailyDateInTimezone(dateStr: string, timezone: string): Date {
   // The API returns daily time as "YYYY-MM-DD" 
@@ -133,6 +137,8 @@ export interface WeatherData {
   hourly: HourlyForecast[];
   daily: DailyForecast[];
   timezone?: string;
+  nearestStation?: string;
+  nearestDistrict?: string;
 }
 
 // Geocoding API to search for cities
@@ -196,38 +202,18 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
     const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
     if (!response.ok) throw new Error('Failed to fetch weather');
     data = await response.json();
-    try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch {}
-    
-    // Record the fetch time to indicate freshness in the UI
-    try {
-      const ts = new Date().toISOString();
-      localStorage.setItem(WEATHER_LAST_FETCH_KEY, ts);
-    } catch {}
   } catch (err) {
     console.error('Weather fetch error:', err);
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        data = JSON.parse(cached);
-        isFromCache = true;
-      } else {
-        throw err;
-      }
-    } catch {
-      throw err;
-    }
+    throw err;
   }
 
   // With unixtime, data.current.time and data.hourly.time are numbers (Unix seconds)
   // Finding the current hour index is now a simple numeric comparison
-  const currentTime = data.current.time;
+  const nowUnix = Math.floor(Date.now() / 1000);
   
   // Find the index for the current hour in the city's timezone
-  // We look for the hour that matches or is just before the current time
   const currentHourIndex = data.hourly.time.findIndex((t: number) => {
-    // Each hourly point represents the start of the hour
-    // So we want the one where currentTime is between t and t + 3600
-    return currentTime >= t && currentTime < t + 3600;
+    return nowUnix >= t && nowUnix < t + 3600;
   });
 
   // Fallback to index 0 if we can't find the exact hour

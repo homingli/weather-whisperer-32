@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage, Language, formatString } from '@/contexts/LanguageContext';
@@ -160,9 +160,9 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect }: Settin
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Search Dialog */}
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden">
+          <DialogTitle className="sr-only">{t('search.city')}</DialogTitle>
           <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
             <Search className="h-5 w-5 text-muted-foreground flex-shrink-0" />
             <Input

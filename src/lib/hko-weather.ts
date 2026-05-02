@@ -408,57 +408,36 @@ function hkoIconToWeatherCode(iconCode: number): number {
 
 // Fetch 9-day forecast from HKO
 export async function getHKOForecast(lang: 'en' | 'tc' = 'en'): Promise<HKOForecastResponse> {
-  const cacheKey = `hko_forecast_${lang}`;
   try {
     const response = await fetch(`${HKO_API_BASE}?dataType=fnd&lang=${lang}`);
     if (!response.ok) throw new Error('Failed to fetch HKO forecast');
-    const data = await response.json();
-    try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch {}
-    return data;
+    return await response.json();
   } catch (err) {
     console.error('HKO forecast error:', err);
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) return JSON.parse(cached);
-    } catch {}
     throw err;
   }
 }
 
 // Fetch weather warning summary from HKO
 export async function getHKOWarningSummary(lang: 'en' | 'tc' = 'en'): Promise<HKOWarningSummaryResponse> {
-  const cacheKey = `hko_warnings_${lang}`;
   try {
     const response = await fetch(`${HKO_API_BASE}?dataType=warnsum&lang=${lang}`);
     if (!response.ok) throw new Error('Failed to fetch HKO warnings');
-    const data = await response.json();
-    try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch {}
-    return data;
+    return await response.json();
   } catch (err) {
     console.error('HKO warnings error:', err);
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) return JSON.parse(cached);
-    } catch {}
     throw err;
   }
 }
 
 // Fetch detailed warning info from HKO
 export async function getHKOWarningInfo(lang: 'en' | 'tc' = 'en'): Promise<HKOWarningInfoResponse> {
-  const cacheKey = `hko_warning_info_${lang}`;
   try {
     const response = await fetch(`${HKO_API_BASE}?dataType=warningInfo&lang=${lang}`);
     if (!response.ok) throw new Error('Failed to fetch HKO warning info');
-    const data = await response.json();
-    try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch {}
-    return data;
+    return await response.json();
   } catch (err) {
     console.error('HKO warning info error:', err);
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) return JSON.parse(cached);
-    } catch {}
     throw err;
   }
 }
@@ -497,7 +476,7 @@ export async function getHKODailyAndWarnings(
       weatherCode: hkoIconToWeatherCode(day.ForecastIcon),
       precipitationProbabilityMax: psrToPercentage(day.PSR),
       precipitationProbabilityRaw: day.PSR ? day.PSR.replace('Medium Low', 'Med Low').replace('Medium', 'Med') : undefined,
-      sunrise: new Date(0), // Placeholder, will be replaced by Open-Meteo data in Index.tsx
+      sunrise: new Date(0), // Placeholder, will be replaced by Open-Meteo data in weather-manager.ts
       sunset: new Date(0),  // Placeholder
     };
   });
