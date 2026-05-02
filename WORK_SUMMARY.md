@@ -1,5 +1,22 @@
 # Work Summary
 
+**Timestamp:** 2026-05-03 04:50:00
+**Commit Hash:** N/A (Local date formatting and cache resilience fixes)
+
+## Changes Implemented
+
+1.  **Date Formatting Fix**: Resolved `RangeError: date value is not finite` in `DailyForecast.tsx` by implementing robust date validity checks and `try-catch` blocks for all `Intl.DateTimeFormat` operations.
+2.  **Cache Resilience**: Updated `Index.tsx` and `DailyForecast.tsx` to correctly handle stringified dates from `localStorage` cache, ensuring that x-axis labels and the "Auto" theme (day/night mode) function correctly when data is served from the local cache.
+3.  **Sunrise/Sunset Indicators**: Fixed a data merging bug in `weather-manager.ts` where HKO daily forecast data was overwriting Open-Meteo's sun time data for Hong Kong locations. Correctly merged Open-Meteo's sunrise/sunset times into the HKO-sourced daily forecast.
+4.  **UI/UX Improvements**:
+    *   Switched to `weekday: "short"` for Traditional Chinese locale in `DailyForecast.tsx` to prevent ambiguous single-character labels and fixed the "dot" rendering issue in Hong Kong.
+    *   Optimized `DailyForecast` x-axis label positioning (`dy` adjustments) and chart margins to prevent clipping and improve readability.
+    *   Adjusted chart margins in `HourlyForecast.tsx` to ensure sunrise/sunset indicator labels are fully visible.
+
+---
+
+# Work Summary
+
 **Timestamp:** 2026-04-26 09:16:00
 **Commit Hash:** N/A (Local architecture doc & PWA offline enhancements)
 

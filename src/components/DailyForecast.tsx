@@ -20,6 +20,7 @@ interface DailyForecastProps {
 }
 
 function ymdInTimezone(date: Date, timeZone: string): string {
+  if (!(date instanceof Date) || isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
@@ -30,6 +31,7 @@ function ymdInTimezone(date: Date, timeZone: string): string {
 
 function tomorrowYmdInTimezone(timeZone: string): string {
   const today = ymdInTimezone(new Date(), timeZone);
+  if (!today) return "";
   const [y, m, d] = today.split("-").map(Number);
   const noon = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
   const next = addDays(noon, 1);
@@ -46,26 +48,42 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
   const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const formatDayLine1 = useCallback(
-    (dayDate: Date): string => {
-      const dayYmd = ymdInTimezone(dayDate, tz);
-      const todayYmd = ymdInTimezone(new Date(), tz);
-      if (dayYmd === todayYmd) return t("daily.today");
-      if (dayYmd === tomorrowYmdInTimezone(tz)) return t("daily.tomorrow");
-      return new Intl.DateTimeFormat(language === "tc" ? "zh-HK" : "en-US", {
-        timeZone: tz,
-        weekday: "short",
-      }).format(dayDate);
+    (inputDate: Date | string): string => {
+      const dayDate = inputDate instanceof Date ? inputDate : new Date(inputDate);
+      if (isNaN(dayDate.getTime())) return "";
+
+      try {
+        const dayYmd = ymdInTimezone(dayDate, tz);
+        const todayYmd = ymdInTimezone(new Date(), tz);
+        if (dayYmd && dayYmd === todayYmd) return t("daily.today");
+        const tomorrowYmd = tomorrowYmdInTimezone(tz);
+        if (dayYmd && dayYmd === tomorrowYmd) return t("daily.tomorrow");
+        
+        return new Intl.DateTimeFormat(language === "tc" ? "zh-HK" : "en-US", {
+          timeZone: tz,
+          weekday: "short",
+        }).format(dayDate);
+      } catch (e) {
+        return "";
+      }
     },
     [tz, t, language]
   );
 
   const formatDayLine2 = useCallback(
-    (dayDate: Date): string =>
-      new Intl.DateTimeFormat(language === "tc" ? "zh-HK" : "en-US", {
-        timeZone: tz,
-        month: "numeric",
-        day: "numeric",
-      }).format(dayDate),
+    (inputDate: Date | string): string => {
+      const dayDate = inputDate instanceof Date ? inputDate : new Date(inputDate);
+      if (isNaN(dayDate.getTime())) return "";
+      try {
+        return new Intl.DateTimeFormat(language === "tc" ? "zh-HK" : "en-US", {
+          timeZone: tz,
+          month: "numeric",
+          day: "numeric",
+        }).format(dayDate);
+      } catch (e) {
+        return "";
+      }
+    },
     [tz, language]
   );
 
@@ -134,7 +152,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
-            margin={{ top: 16, right: 8, left: 0, bottom: 8 }}
+            margin={{ top: 0, right: 8, left: 0, bottom: 8 }}
             barCategoryGap="18%"
           >
             <defs>
@@ -177,17 +195,17 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                       fontSize={11}
                       className="font-medium"
                     >
-                      <tspan x={0} dy={-25}>
+                      <tspan x={0} dy={-22}>
                         {row.line1}
                       </tspan>
-                      <tspan x={0} dy={13} className="text-muted-foreground/90">
+                      <tspan x={0} dy={13} className="text-muted-foreground font-medium">
                         {row.line2}
                       </tspan>
                     </text>
                   </g>
                 );
               }}
-              height={48}
+              height={40}
               interval={0}
             />
             <YAxis
