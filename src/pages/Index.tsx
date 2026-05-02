@@ -10,6 +10,7 @@ import { GeoLocation, getDefaultCity, getRecentCities, getUserLocation, reverseG
 import { isInHongKong } from "@/lib/hko-weather";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { usePwaInstall } from "@/hooks/usePwaInstall";
 import { CloudRain, MapPin, Download } from "lucide-react";
 
 // Lazy load heavy components
@@ -81,7 +82,13 @@ const Index = () => {
   useEffect(() => {
     if (sunTimes && sunTimes.length > 0) {
       const todayForecast = sunTimes[0];
-      setSunTimes(todayForecast.sunrise, todayForecast.sunset);
+      // Robustly handle both Date objects and stringified dates from cache
+      const sunrise = todayForecast.sunrise instanceof Date ? todayForecast.sunrise : new Date(todayForecast.sunrise);
+      const sunset = todayForecast.sunset instanceof Date ? todayForecast.sunset : new Date(todayForecast.sunset);
+      
+      if (!isNaN(sunrise.getTime()) && !isNaN(sunset.getTime())) {
+        setSunTimes(sunrise, sunset);
+      }
     }
   }, [sunTimes, setSunTimes]);
 
@@ -125,6 +132,11 @@ const Index = () => {
                   {weather?.nearestStation && (
                     <span className="text-sm px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
                       {weather.nearestStation}
+                    </span>
+                  )}
+                  {weather?.nearestDistrict && (
+                    <span className="text-sm px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                      {weather.nearestDistrict}
                     </span>
                   )}
                 </div>
