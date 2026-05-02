@@ -22,7 +22,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
         hour12: true,
         timeZone: timezone || undefined,
       };
-      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-GB', options).format(date);
+      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-US', options).format(date);
     } catch {
       // Fallback if timezone is invalid
       const hours = date.getHours();
@@ -52,7 +52,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
         hour12: true,
         timeZone: timezone || undefined,
       };
-      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-GB', options).format(date);
+      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-US', options).format(date);
     } catch {
       const hours = date.getHours();
       const minutes = date.getMinutes();
@@ -149,7 +149,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
         hour12: true,
         timeZone: timezone || undefined,
       };
-      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-GB', options).format(date);
+      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-US', options).format(date);
     } catch {
       return new Date(timestamp).toLocaleTimeString();
     }
