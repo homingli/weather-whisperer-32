@@ -5,21 +5,15 @@ import { DailyForecast } from "@/components/DailyForecast";
 import { WeatherSkeleton } from "@/components/WeatherSkeleton";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
 import { SettingsMenu } from "@/components/SettingsMenu";
-import { GeoLocation, getDefaultCity, getRecentCities, getWeather, getUserLocation, reverseGeocode, setDefaultCity, WeatherData, getLastWeatherFetchTime } from "@/lib/weather";
-import { usePwaInstall } from "@/hooks/usePwaInstall";
-import { getHKODailyAndWarnings, HKOWarning, isInHongKong } from "@/lib/hko-weather";
+import { fetchWeather } from "@/lib/weather-manager";
+import { GeoLocation, getDefaultCity, getRecentCities, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
+import { isInHongKong } from "@/lib/hko-weather";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { CloudRain, MapPin, Download } from "lucide-react";
 
 // Lazy load heavy components
 const HourlyForecast = lazy(() => import("@/components/HourlyForecast").then(module => ({ default: module.HourlyForecast })));
-
-interface ExtendedWeatherData extends WeatherData {
-  warnings?: HKOWarning[];
-  nearestStation?: string;
-  nearestDistrict?: string;
-}
 
 const Index = () => {
   const [selectedCity, setSelectedCity] = useState<GeoLocation | null>(null);
@@ -66,57 +60,22 @@ const Index = () => {
 
   // Determine if selected city is in Hong Kong coverage area
   const isHKCovered = selectedCity ? isInHongKong(selectedCity.latitude, selectedCity.longitude) : false;
+  // Note: I used the bounds from hko-weather.ts directly for simplicity in Index if I don't want to import isInHongKong
+  // But I should import it.
 
-  // Fetch Open-Meteo data for current weather and hourly forecast
-  const { data: openMeteoData, isLoading: isLoadingOpenMeteo, error: openMeteoError } = useQuery({
-    queryKey: ["weather-openmeteo", selectedCity?.latitude, selectedCity?.longitude],
+  // Fetch unified weather data via WeatherManager
+  const { data: weather, isLoading, error } = useQuery({
+    queryKey: ["weather-unified", language, selectedCity?.latitude, selectedCity?.longitude],
     queryFn: async () => {
-      return getWeather(selectedCity!.latitude, selectedCity!.longitude);
+      return fetchWeather(selectedCity!.latitude, selectedCity!.longitude, language === 'tc' ? 'tc' : 'en');
     },
     enabled: !!selectedCity,
     refetchInterval: 10 * 60 * 1000,
     staleTime: 2 * 60 * 1000,
   });
 
-  // Fetch HKO data for daily forecast and warnings (only when in HK)
-  const { data: hkoData, isLoading: isLoadingHKO } = useQuery({
-    queryKey: ["weather-hko", language, selectedCity?.latitude, selectedCity?.longitude],
-    queryFn: async () => {
-      const hkoLang = language === 'tc' ? 'tc' : 'en';
-      return getHKODailyAndWarnings(hkoLang, selectedCity!.latitude, selectedCity!.longitude);
-    },
-    enabled: !!selectedCity && isHKCovered,
-    refetchInterval: 10 * 60 * 1000,
-    staleTime: 2 * 60 * 1000,
-  });
-
-  // Combine data: Open-Meteo for current+hourly, HKO for daily+warnings when in HK
-  // Always keep Open-Meteo daily for sunrise/sunset times (HKO doesn't provide these reliably)
-  const weather: ExtendedWeatherData | undefined = useMemo(() => {
-    if (!openMeteoData) return undefined;
-
-    const daily = (isHKCovered && hkoData) 
-      ? hkoData.daily.map((day, i) => ({
-          ...day,
-          // Inject sun times from Open-Meteo if available for the same day
-          sunrise: openMeteoData.daily[i]?.sunrise || day.sunrise,
-          sunset: openMeteoData.daily[i]?.sunset || day.sunset,
-        }))
-      : openMeteoData.daily;
-
-    return {
-      current: openMeteoData.current,
-      hourly: openMeteoData.hourly,
-      daily,
-      warnings: isHKCovered && hkoData ? hkoData.warnings : undefined,
-      nearestStation: hkoData?.nearestStation,
-      nearestDistrict: hkoData?.nearestDistrict,
-      timezone: isHKCovered && hkoData?.timezone ? hkoData.timezone : openMeteoData.timezone,
-    };
-  }, [openMeteoData, isHKCovered, hkoData]);
-
   // Open-Meteo daily data is always used for sunrise/sunset (HKO doesn't provide it)
-  const sunTimes = useMemo(() => openMeteoData?.daily, [openMeteoData]);
+  const sunTimes = useMemo(() => weather?.daily, [weather?.daily]);
 
   // Update theme context with sunrise/sunset times for auto mode
   useEffect(() => {
@@ -125,9 +84,6 @@ const Index = () => {
       setSunTimes(todayForecast.sunrise, todayForecast.sunset);
     }
   }, [sunTimes, setSunTimes]);
-
-  const isLoading = isLoadingOpenMeteo || (isHKCovered && isLoadingHKO);
-  const error = openMeteoError;
 
   // PWA install
   const { deferredPrompt, isInstalled, install } = usePwaInstall();
@@ -149,9 +105,8 @@ const Index = () => {
 
   // Freshness indicator: only show when using cached/stale data
   // Show when offline and we have cached data
-  const lastFetchISO = getLastWeatherFetchTime();
-  const cacheLabel = isOffline && !isLoadingOpenMeteo && openMeteoData && lastFetchISO
-    ? `Fresh data as of ${new Date(lastFetchISO).toLocaleString()}`
+  const cacheLabel = isOffline && !isLoading && weather 
+    ? t('data.usingCached')
     : null;
 
   return (
@@ -167,7 +122,7 @@ const Index = () => {
                   <span className="text-xl font-medium text-foreground">
                     {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
                   </span>
-                  {isHKCovered && weather?.nearestStation && (
+                  {weather?.nearestStation && (
                     <span className="text-sm px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
                       {weather.nearestStation}
                     </span>
@@ -228,7 +183,7 @@ const Index = () => {
             <div className="space-y-6 lg:space-y-8">
               {/* Top Row: Alerts and Hero (Full Width) */}
               <div className="space-y-6">
-                {isHKCovered && weather.warnings && weather.warnings.length > 0 && (
+                {weather.warnings && weather.warnings.length > 0 && (
                   <WeatherAlerts warnings={weather.warnings} />
                 )}
                 
