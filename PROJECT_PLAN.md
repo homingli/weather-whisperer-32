@@ -13,11 +13,11 @@
 - Centralize `localStorage` JSON read/write.
 - Standardize expiration logic.
 
-### 2. Weather Gateway (Architectural Cleanup)
-- Refactor `src/lib/weather.ts` and `hko-weather.ts` into a unified controller `src/lib/weather-manager.ts`.
+### 2. Weather Gateway (DONE)
+- Refactor `src/lib/weather.ts` and `hko-weather.ts` into `src/lib/weather-manager.ts`.
 - Single interface: `fetchWeather(lat, lon)`. 
-- Logic: `if (isHK(lat, lon)) return hkoClient.fetch() else return openMeteoClient.fetch()`.
-- Use `src/lib/cache.ts` for all storage operations.
+- Logic: `isInHongKong(lat, lon)` check routing.
+- Used `src/lib/cache.ts` for storage.
 
 ### 3. PWA Cleanup
 - Confirm `public/icons` files existence.
@@ -28,7 +28,6 @@
 - Standardize `use-toast` location.
 
 ## Next Steps
-1. Consolidate `localStorage` calls into `src/lib/cache.ts`.
-2. Implement `WeatherManager` interface in `src/lib/weather-manager.ts`.
-3. Update UI to use `WeatherManager`.
-4. Remove unused `ui` components.
+1. Update UI (Index.tsx) to use `WeatherManager.fetchWeather`.
+2. Remove unused `ui` components.
+3. Add PWA icons.
