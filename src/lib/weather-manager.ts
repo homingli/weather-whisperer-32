@@ -12,26 +12,42 @@ export async function fetchWeather(lat: number, lon: number, lang: 'en' | 'tc' =
 
   if (isInHongKong(lat, lon)) {
     // Hybrid: Open-Meteo for hourly/current, HKO for warnings/daily
-    const [omData, hkoData] = await Promise.all([
-      getOpenMeteoWeather(lat, lon),
-      getHKODailyAndWarnings(lang, lat, lon),
-    ]);
+    // We fetch both in parallel, but HKO is treated as an enhancement
+    try {
+      const omPromise = getOpenMeteoWeather(lat, lon);
+      const hkoPromise = getHKODailyAndWarnings(lang, lat, lon).catch(err => {
+        console.warn('HKO data enhancement failed, falling back to Open-Meteo only:', err);
+        return null;
+      });
 
-    const combined: WeatherData = {
-      ...omData,
-      daily: hkoData.daily.map((day, i) => ({
-        ...day,
-        // HKO doesn't provide sun times, so we use Open-Meteo's
-        sunrise: omData.daily[i]?.sunrise || day.sunrise,
-        sunset: omData.daily[i]?.sunset || day.sunset,
-      })),
-      warnings: hkoData.warnings,
-      nearestStation: hkoData.nearestStation,
-      nearestDistrict: hkoData.nearestDistrict,
-    };
+      const [omData, hkoData] = await Promise.all([omPromise, hkoPromise]);
 
-    cache.set(cacheKey, combined);
-    return combined;
+      if (!hkoData) {
+        cache.set(cacheKey, omData);
+        return omData;
+      }
+
+      const combined: WeatherData = {
+        ...omData,
+        daily: hkoData.daily.map((day, i) => ({
+          ...day,
+          // HKO doesn't provide sun times, so we use Open-Meteo's
+          sunrise: omData.daily[i]?.sunrise || day.sunrise,
+          sunset: omData.daily[i]?.sunset || day.sunset,
+        })),
+        warnings: hkoData.warnings,
+        nearestStation: hkoData.nearestStation,
+        nearestDistrict: hkoData.nearestDistrict,
+      };
+
+      cache.set(cacheKey, combined);
+      return combined;
+    } catch (err) {
+      console.error('Unified fetch failed, attempting Open-Meteo fallback:', err);
+      const data = await getOpenMeteoWeather(lat, lon);
+      cache.set(cacheKey, data);
+      return data;
+    }
   }
 
   // Global fallback

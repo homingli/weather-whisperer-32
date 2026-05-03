@@ -4,6 +4,7 @@
 import { CurrentWeather, HourlyForecast, DailyForecast, WeatherData } from './weather';
 
 const HKO_API_BASE = 'https://data.weather.gov.hk/weatherAPI/opendata/weather.php';
+import { fetchWithTimeout } from './fetch-utils';
 
 /**
  * Robust date parsing utility for YYYYMMDD format from HKO API
@@ -408,36 +409,45 @@ function hkoIconToWeatherCode(iconCode: number): number {
 
 // Fetch 9-day forecast from HKO
 export async function getHKOForecast(lang: 'en' | 'tc' = 'en'): Promise<HKOForecastResponse> {
+  const start = Date.now();
   try {
-    const response = await fetch(`${HKO_API_BASE}?dataType=fnd&lang=${lang}`);
-    if (!response.ok) throw new Error('Failed to fetch HKO forecast');
-    return await response.json();
+    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=fnd&lang=${lang}`, { timeout: 5000 });
+    if (!response.ok) throw new Error(`Failed to fetch HKO forecast: ${response.status}`);
+    const data = await response.json();
+    console.log(`HKO forecast fetch took ${Date.now() - start}ms`);
+    return data;
   } catch (err) {
-    console.error('HKO forecast error:', err);
+    console.error(`HKO forecast error after ${Date.now() - start}ms:`, err);
     throw err;
   }
 }
 
 // Fetch weather warning summary from HKO
 export async function getHKOWarningSummary(lang: 'en' | 'tc' = 'en'): Promise<HKOWarningSummaryResponse> {
+  const start = Date.now();
   try {
-    const response = await fetch(`${HKO_API_BASE}?dataType=warnsum&lang=${lang}`);
-    if (!response.ok) throw new Error('Failed to fetch HKO warnings');
-    return await response.json();
+    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=warnsum&lang=${lang}`, { timeout: 3000 });
+    if (!response.ok) throw new Error(`Failed to fetch HKO warnings: ${response.status}`);
+    const data = await response.json();
+    console.log(`HKO warnings fetch took ${Date.now() - start}ms`);
+    return data;
   } catch (err) {
-    console.error('HKO warnings error:', err);
+    console.error(`HKO warnings error after ${Date.now() - start}ms:`, err);
     throw err;
   }
 }
 
 // Fetch detailed warning info from HKO
 export async function getHKOWarningInfo(lang: 'en' | 'tc' = 'en'): Promise<HKOWarningInfoResponse> {
+  const start = Date.now();
   try {
-    const response = await fetch(`${HKO_API_BASE}?dataType=warningInfo&lang=${lang}`);
-    if (!response.ok) throw new Error('Failed to fetch HKO warning info');
-    return await response.json();
+    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=warningInfo&lang=${lang}`, { timeout: 3000 });
+    if (!response.ok) throw new Error(`Failed to fetch HKO warning info: ${response.status}`);
+    const data = await response.json();
+    console.log(`HKO warning info fetch took ${Date.now() - start}ms`);
+    return data;
   } catch (err) {
-    console.error('HKO warning info error:', err);
+    console.error(`HKO warning info error after ${Date.now() - start}ms:`, err);
     throw err;
   }
 }
