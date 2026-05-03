@@ -136,6 +136,7 @@ export interface WeatherData {
   current: CurrentWeather;
   hourly: HourlyForecast[];
   daily: DailyForecast[];
+  warnings?: any[];
   timezone?: string;
   nearestStation?: string;
   nearestDistrict?: string;
