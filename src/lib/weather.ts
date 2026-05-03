@@ -1,4 +1,5 @@
 // Weather API service using Open-Meteo
+import { fetchWithTimeout } from './fetch-utils';
 
 export function isValidDate(d: Date): boolean {
   return d instanceof Date && !isNaN(d.getTime());
@@ -199,12 +200,14 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
   const cacheKey = `weather_data_${latitude}_${longitude}`;
   let data;
   let isFromCache = false;
+  const start = Date.now();
   try {
-    const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
-    if (!response.ok) throw new Error('Failed to fetch weather');
+    const response = await fetchWithTimeout(`https://api.open-meteo.com/v1/forecast?${params}`, { timeout: 6000 });
+    if (!response.ok) throw new Error(`Failed to fetch weather: ${response.status}`);
     data = await response.json();
+    console.log(`Open-Meteo fetch took ${Date.now() - start}ms`);
   } catch (err) {
-    console.error('Weather fetch error:', err);
+    console.error(`Weather fetch error after ${Date.now() - start}ms:`, err);
     throw err;
   }
 
@@ -393,12 +396,17 @@ export async function reverseGeocode(latitude: number, longitude: number): Promi
     // Open-Meteo doesn't have reverse geocoding, so we'll use a different approach
     // We'll use the coordinates directly and try to find the nearest city via search
     // For now, create a location object with the coordinates
-    const cityResponse = await fetch(
+    const start = Date.now();
+    const cityResponse = await fetchWithTimeout(
       `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(latitude.toString())}&lon=${encodeURIComponent(longitude.toString())}&format=json`,
-      { headers: { 'User-Agent': 'weather-whisperer/1.0' } }
+      { 
+        headers: { 'User-Agent': 'weather-whisperer/1.0' },
+        timeout: 4000
+      }
     );
 
     if (!cityResponse.ok) {
+      console.warn(`Reverse geocode failed with status ${cityResponse.status} after ${Date.now() - start}ms`);
       // Fallback: just use coordinates
       return {
         name: 'Current Location',
