@@ -25,6 +25,7 @@ export async function fetchWeather(lat: number, lon: number, lang: 'en' | 'tc' =
         sunrise: omData.daily[i]?.sunrise || day.sunrise,
         sunset: omData.daily[i]?.sunset || day.sunset,
       })),
+      warnings: hkoData.warnings,
       nearestStation: hkoData.nearestStation,
       nearestDistrict: hkoData.nearestDistrict,
     };
