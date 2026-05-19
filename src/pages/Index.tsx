@@ -15,6 +15,7 @@ import { CloudRain, MapPin, Download } from "lucide-react";
 
 // Lazy load heavy components
 const HourlyForecast = lazy(() => import("@/components/HourlyForecast").then(module => ({ default: module.HourlyForecast })));
+const RainfallMap = lazy(() => import("@/components/RainfallMap").then(module => ({ default: module.RainfallMap })));
 
 const Index = () => {
   const [selectedCity, setSelectedCity] = useState<GeoLocation | null>(null);
@@ -216,6 +217,13 @@ const Index = () => {
                 
                 <DailyForecast forecast={weather.daily} timezone={weather.timezone} />
               </div>
+
+              {/* Bottom Row: Optional Map */}
+              {isHKCovered && (
+                <Suspense fallback={<div className="h-[400px] animate-pulse bg-muted/20 rounded-xl" />}>
+                  <RainfallMap />
+                </Suspense>
+              )}
             </div>
           ) : null}
         </main>

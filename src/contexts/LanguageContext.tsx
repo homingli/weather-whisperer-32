@@ -78,6 +78,16 @@ const translations: Record<Language, Record<string, string>> = {
     'weather.humidity': 'Humidity',
     'weather.uvIndex': 'UV Index',
     'unit.kmh': 'km/h',
+    
+    // Nowcast Map
+    'nowcast.title': 'Rain Cloud Nowcast',
+    'nowcast.subtitle': 'Is the rain coming in the next hour? Shall I stay or shall I leave?',
+    'nowcast.load': 'Load Map (~2.7MB)',
+    'nowcast.error': 'Could not load gridded rainfall data.',
+    'nowcast.view': 'View Rainfall Map',
+    'nowcast.desc': 'Load the real-time gridded rainfall nowcast to see if rain is approaching in the next 2 hours.',
+    'nowcast.legend': 'Rainfall (mm)',
+    'nowcast.updated': 'Updated: {0}',
   },
   tc: {
     // Header
@@ -148,6 +158,16 @@ const translations: Record<Language, Record<string, string>> = {
     'weather.humidity': '濕度',
     'weather.uvIndex': '紫外線指數',
     'unit.kmh': '公里/小時',
+    
+    // Nowcast Map
+    'nowcast.title': '雨雲即時預報',
+    'nowcast.subtitle': '未來一小時會下雨嗎？我該留下還是離開？',
+    'nowcast.load': '載入地圖 (~2.7MB)',
+    'nowcast.error': '無法載入雨量預報數據。',
+    'nowcast.view': '查看降雨地圖',
+    'nowcast.desc': '載入即時雨雲預報地圖，以查看未來兩小時是否有降雨接近。',
+    'nowcast.legend': '降雨量 (毫米)',
+    'nowcast.updated': '更新時間: {0}',
   },
 };
 

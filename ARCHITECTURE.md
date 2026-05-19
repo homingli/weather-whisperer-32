@@ -22,6 +22,7 @@ Weather Whisperer is a modern, responsive weather dashboard built with React and
   - `CurrentWeather.tsx`: Hero section displaying real-time conditions
   - `HourlyForecast.tsx`: Interactive 6-hour line chart (temperature & precipitation)
   - `DailyForecast.tsx`: 7-day forecast with min/max bounds
+  - `RainfallMap.tsx`: Interactive Leaflet map visualizing HKO's gridded rainfall nowcast
   - `SettingsMenu.tsx`: Global settings controls (Language, Theme, Location)
   - `CitySearch.tsx`: Autocomplete geocoding search
   - `WeatherAlerts.tsx`: Active warnings widget, customized for HKO alerts
@@ -40,17 +41,24 @@ Weather Whisperer is a modern, responsive weather dashboard built with React and
 
 ## Key Logic Concepts
 
-### Dual Source Data Fetching
-React Query manages robust data fetching. The logic checks if coordinates fall within Hong Kong boundaries:
-- **Inside HK**: `src/lib/hko-weather.ts` provides local features (PSR, HKO localized warnings, district tracking).
-- **Outside HK**: `src/lib/weather.ts` supplies global data via Open-Meteo.
-Both sources' outputs are fused and normalized before passing to UI components.
+### Unified Weather Gateway
+The orchestrator at `src/lib/weather-manager.ts` acts as a single point of entry for all weather data. It manages:
+- **Location Routing**: Uses `isInHongKong(lat, lon)` to determine if HKO enhancements should be applied.
+- **Hybrid Fetching**: Fetches global data from Open-Meteo and localized enhancements from HKO in parallel.
+- **Resilient Merging**: Merges sources while ensuring critical data (like Open-Meteo's more accurate sunrise/sunset times) takes precedence over HKO's placeholders.
+- **Fault Tolerance**: If HKO (secondary source) fails or times out, the gateway automatically falls back to Open-Meteo (primary source) to ensure the UI stays populated.
 
-### Resilient Offline Capabilities (PWA)
+## Testing Strategy
+The project uses **Vitest** for unit and integration testing:
+- **Unit Tests**: Coverage for HKO date parsing, PSR-to-percentage mapping, and WMO weather code translations.
+- **Integration Tests**: `weather-manager.test.ts` validates the end-to-end flow from coordinate input to combined weather output, including cache interaction and fallback behaviors.
+- **Warning Validation**: Specific test cases in `hko-weather.test.ts` ensure that the HKO Warning API's various signal codes (Tropical Cyclones, Rainstorms, etc.) are correctly mapped and include their detailed safety messages.
+
+## Resilient Offline Capabilities (PWA)
 Progressive Web App support relies on dual-layer caching to ensure instant startup when disconnected:
 1. **Service Worker Layer**: `vite.config.ts` forces a `NetworkFirst` policy for external API requests (Open-Meteo, HKO).
 2. **App-Level Fallback Layer**: Core `fetch` requests save their raw JSON to `localStorage`. If `fetch` violently fails (offline with no active SW cache), the app immediately falls back to `JSON.parse` on `localStorage`, allowing React Query to render stale but successful payloads instantly.
 
-### State Management & Styling
+## State Management & Styling
 - **React Context API** handles user preferences with persistence (Theme/Language bounds).
 - **Tailwind CSS** drives responsive layouts (multi-column grids for desktop, vertical stacks for mobile) while adhering to a premium glass-morphism aesthetic. Micro-animations prevent static UIs (staggered fade-ins, hover elevations).
