@@ -10,6 +10,13 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      '/hko-data': {
+        target: 'https://data.weather.gov.hk/weatherAPI/hko_data',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/hko-data/, '')
+      }
+    }
   },
   plugins: [
     react(),

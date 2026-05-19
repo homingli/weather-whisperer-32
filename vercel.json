@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/hko-data/:path*", "destination": "https://data.weather.gov.hk/weatherAPI/hko_data/:path*" },
     { "source": "/assets/:file", "destination": "/assets/:file" },
     { "source": "/favicon.ico", "destination": "/favicon.ico" },
     { "source": "/robots.txt", "destination": "/robots.txt" },

@@ -27,7 +27,16 @@
 - Remove unused `src/components/ui` components.
 - Standardize `use-toast` location.
 
+### 5. Test Suite Implementation (DONE)
+- Created `src/lib/hko-weather.test.ts` for API parsing validation.
+- Created `src/lib/weather-manager.test.ts` for gateway integration validation.
+- Verified HKO warning signals coverage.
+
+### 6. Environment Stabilizing (DONE)
+- Fixed Vite/Vitest version mismatch.
+- Executed `npm audit fix` for security updates.
+
 ## Next Steps
-1. Final review.
-2. Commit hygiene.
+1. Final verification of PWA icons in the build (DONE).
+2. Commit hygiene and cleanup of scratch files (DONE).
 3. Merge to main.
