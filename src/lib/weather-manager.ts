@@ -1,12 +1,13 @@
 import { cache } from './cache';
 import { getWeather as getOpenMeteoWeather, WeatherData } from './weather';
-import { isInHongKong } from './hko-weather';
-import { getHKODailyAndWarnings } from './hko-weather';
+import { isInHongKong, getHKODailyAndWarnings, fetchHKOWeatherData } from './hko-weather';
 
 const WEATHER_CACHE_TTL = 1000 * 60 * 10; // 10 mins
 
 export async function fetchWeather(lat: number, lon: number, lang: 'en' | 'tc' = 'en'): Promise<WeatherData> {
   const cacheKey = `weather_combined_${lat}_${lon}_${lang}`;
+  
+  // Try normal cache first (non-expired)
   const cached = cache.get<WeatherData>(cacheKey, WEATHER_CACHE_TTL);
   if (cached) return cached;
 
@@ -43,15 +44,39 @@ export async function fetchWeather(lat: number, lon: number, lang: 'en' | 'tc' =
       cache.set(cacheKey, combined);
       return combined;
     } catch (err) {
-      console.error('Unified fetch failed, attempting Open-Meteo fallback:', err);
+      console.error('Unified fetch failed, attempting HKO fallback for HK region:', err);
+      try {
+        const hkoData = await fetchHKOWeatherData(lat, lon, lang);
+        // Cache fallback data for 5 minutes instead of 10 to encourage recovery attempts
+        cache.set(cacheKey, hkoData);
+        return hkoData;
+      } catch (hkoErr) {
+        console.error('HKO fallback failed too:', hkoErr);
+      }
+    }
+  } else {
+    // Global fallback
+    try {
       const data = await getOpenMeteoWeather(lat, lon);
       cache.set(cacheKey, data);
       return data;
+    } catch (err) {
+      console.error('Open-Meteo fetch failed for non-HK region:', err);
     }
   }
 
-  // Global fallback
-  const data = await getOpenMeteoWeather(lat, lon);
-  cache.set(cacheKey, data);
-  return data;
+  // Fallback to expired cache if API calls failed
+  const rawCached = cache.getRaw<WeatherData>(cacheKey);
+  if (rawCached && rawCached.data) {
+    console.log('Using expired cache as last resort fallback');
+    return {
+      ...rawCached.data,
+      isFallback: true,
+      fallbackSource: 'cache',
+    };
+  }
+
+  // If even cache is not found, throw error
+  throw new Error('All weather API requests and cache fallbacks failed');
 }
+
