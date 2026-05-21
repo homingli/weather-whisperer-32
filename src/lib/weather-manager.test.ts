@@ -7,7 +7,8 @@ import * as hkoWeather from './hko-weather';
 vi.mock('./cache', () => ({
   cache: {
     get: vi.fn(),
-    set: vi.fn()
+    set: vi.fn(),
+    getRaw: vi.fn()
   }
 }));
 
@@ -17,7 +18,8 @@ vi.mock('./weather', () => ({
 
 vi.mock('./hko-weather', () => ({
   isInHongKong: vi.fn(),
-  getHKODailyAndWarnings: vi.fn()
+  getHKODailyAndWarnings: vi.fn(),
+  fetchHKOWeatherData: vi.fn()
 }));
 
 describe('Weather Manager', () => {
@@ -90,5 +92,45 @@ describe('Weather Manager', () => {
     expect(result.daily[0].temperatureMax).toBe(25); // Fallback to OM
     expect(result.warnings).toBeUndefined();
     expect(cache.set).toHaveBeenCalled();
+  });
+
+  it('should fallback to HKO-only if Open-Meteo fails in HK', async () => {
+    vi.mocked(hkoWeather.isInHongKong).mockReturnValue(true);
+    vi.mocked(weather.getWeather).mockRejectedValue(new Error('Open-Meteo failed'));
+    
+    const mockHKOOnlyData = {
+      current: { temperature: 26 },
+      daily: [{ temperatureMax: 29 }],
+      isFallback: true,
+      fallbackSource: 'HKO'
+    };
+    vi.mocked(hkoWeather.fetchHKOWeatherData).mockResolvedValue(mockHKOOnlyData as any);
+
+    const result = await fetchWeather(22.3, 114.17);
+    
+    expect(hkoWeather.fetchHKOWeatherData).toHaveBeenCalledWith(22.3, 114.17, 'en');
+    expect(result.current.temperature).toBe(26);
+    expect(result.isFallback).toBe(true);
+    expect(result.fallbackSource).toBe('HKO');
+  });
+
+  it('should fallback to expired cache if all else fails', async () => {
+    vi.mocked(hkoWeather.isInHongKong).mockReturnValue(false);
+    vi.mocked(weather.getWeather).mockRejectedValue(new Error('Open-Meteo failed'));
+    
+    const mockExpiredCache = {
+      data: {
+        current: { temperature: 18 },
+        daily: [{ temperatureMax: 22 }]
+      },
+      timestamp: Date.now() - 1000 * 60 * 60
+    };
+    vi.mocked(cache.getRaw).mockReturnValue(mockExpiredCache as any);
+
+    const result = await fetchWeather(51.5, -0.1);
+    
+    expect(result.current.temperature).toBe(18);
+    expect(result.isFallback).toBe(true);
+    expect(result.fallbackSource).toBe('cache');
   });
 });

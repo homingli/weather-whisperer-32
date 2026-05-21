@@ -27,4 +27,4 @@ dist-ssr
 GEMINI.*
 
 # Affects Cloudflare deployment
-bun.lock*
+*.lock*
