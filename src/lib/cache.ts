@@ -5,11 +5,24 @@ export const cache = {
   get: <T>(key: string, ttlMs: number): T | null => {
     const item = localStorage.getItem(key);
     if (!item) return null;
-    const { data, timestamp } = JSON.parse(item);
-    if (Date.now() - timestamp > ttlMs) {
-      localStorage.removeItem(key);
+    try {
+      const { data, timestamp } = JSON.parse(item);
+      if (Date.now() - timestamp > ttlMs) {
+        return null;
+      }
+      return data as T;
+    } catch {
       return null;
     }
-    return data as T;
+  },
+  getRaw: <T>(key: string): { data: T; timestamp: number } | null => {
+    const item = localStorage.getItem(key);
+    if (!item) return null;
+    try {
+      return JSON.parse(item);
+    } catch {
+      return null;
+    }
   },
 };
+
