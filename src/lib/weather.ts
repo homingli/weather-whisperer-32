@@ -141,6 +141,9 @@ export interface WeatherData {
   timezone?: string;
   nearestStation?: string;
   nearestDistrict?: string;
+  isFallback?: boolean;
+  fallbackSource?: 'HKO' | 'cache';
+  isExpiredCache?: boolean;
 }
 
 // Geocoding API to search for cities

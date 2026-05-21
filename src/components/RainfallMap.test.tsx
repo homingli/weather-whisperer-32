@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { RainfallMap } from './RainfallMap';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock react-leaflet to avoid JSDOM rendering issues
 vi.mock('react-leaflet', () => ({
@@ -28,10 +29,19 @@ describe('RainfallMap Component', () => {
   });
 
   const renderWithLanguage = (ui: React.ReactElement) => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
     return render(
-      <LanguageProvider>
-        {ui}
-      </LanguageProvider>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          {ui}
+        </LanguageProvider>
+      </QueryClientProvider>
     );
   };
 
@@ -45,8 +55,11 @@ describe('RainfallMap Component', () => {
 
     renderWithLanguage(<RainfallMap />);
 
+    // Click load button to start fetching
+    screen.getByRole('button', { name: /Load Map/i }).click();
+
     // Check header/title renders
-    expect(screen.getByText('Gridded Rainfall Nowcast')).toBeInTheDocument();
+    expect(screen.getByText('Rain Cloud Nowcast')).toBeInTheDocument();
 
     // Wait for the data to load and render
     await waitFor(() => {
@@ -74,6 +87,9 @@ describe('RainfallMap Component', () => {
     global.fetch = mockFetch;
 
     renderWithLanguage(<RainfallMap />);
+
+    // Click load button to start fetching
+    screen.getByRole('button', { name: /Load Map/i }).click();
 
     // Wait for error state
     await waitFor(() => {

@@ -11,7 +11,7 @@ import { isInHongKong } from "@/lib/hko-weather";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
-import { CloudRain, MapPin, Download } from "lucide-react";
+import { CloudRain, MapPin, Download, AlertTriangle } from "lucide-react";
 
 // Lazy load heavy components
 const HourlyForecast = lazy(() => import("@/components/HourlyForecast").then(module => ({ default: module.HourlyForecast })));
@@ -194,6 +194,25 @@ const Index = () => {
             </div>
           ) : weather ? (
             <div className="space-y-6 lg:space-y-8">
+              {/* Fallback Banner */}
+              {weather.isFallback && (
+                <div className="glass-card border-amber-500/20 bg-amber-500/5 p-4 rounded-xl flex items-start gap-3 text-amber-600 dark:text-amber-400 animate-fade-in">
+                  <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-sm">
+                      {weather.fallbackSource === 'HKO' 
+                        ? t('fallback.hkoTitle') 
+                        : t('fallback.cacheTitle')}
+                    </h4>
+                    <p className="text-xs opacity-90 mt-1">
+                      {weather.fallbackSource === 'HKO'
+                        ? t('fallback.hkoDesc')
+                        : t('fallback.cacheDesc')}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Top Row: Alerts and Hero (Full Width) */}
               <div className="space-y-6">
                 {weather.warnings && weather.warnings.length > 0 && (
