@@ -6,6 +6,7 @@ import { WeatherSkeleton } from "@/components/WeatherSkeleton";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { fetchWeather } from "@/lib/weather-manager";
+import { cache } from "@/lib/cache";
 import { GeoLocation, getDefaultCity, getRecentCities, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
 import { isInHongKong } from "@/lib/hko-weather";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
@@ -66,7 +67,7 @@ const Index = () => {
   // But I should import it.
 
   // Fetch unified weather data via WeatherManager
-  const { data: weather, isLoading, error } = useQuery({
+  const { data: weather, isLoading, error, refetch } = useQuery({
     queryKey: ["weather-unified", language, selectedCity?.latitude, selectedCity?.longitude],
     queryFn: async () => {
       return fetchWeather(selectedCity!.latitude, selectedCity!.longitude, language === 'tc' ? 'tc' : 'en');
@@ -75,6 +76,11 @@ const Index = () => {
     refetchInterval: 10 * 60 * 1000,
     staleTime: 2 * 60 * 1000,
   });
+
+  const handleForceRefresh = useCallback(async () => {
+    cache.clearWeather();
+    await refetch();
+  }, [refetch]);
 
   // Open-Meteo daily data is always used for sunrise/sunset (HKO doesn't provide it)
   const sunTimes = useMemo(() => weather?.daily, [weather?.daily]);
@@ -150,7 +156,7 @@ const Index = () => {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} />
+            <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} onRefresh={handleForceRefresh} />
             {deferredPrompt && !isInstalled && (
               <button
                 onClick={install}
@@ -209,6 +215,17 @@ const Index = () => {
                         ? t('fallback.hkoDesc')
                         : t('fallback.cacheDesc')}
                     </p>
+                  </div>
+                </div>
+              )}
+
+              {/* HKO Data Failed Banner (Open-Meteo ok but HKO failed) */}
+              {weather.hkoFailed && !weather.isFallback && isHKCovered && (
+                <div className="glass-card border-amber-500/20 bg-amber-500/5 p-4 rounded-xl flex items-start gap-3 text-amber-600 dark:text-amber-400 animate-fade-in">
+                  <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-sm">{t('fallback.hkoFailedTitle')}</h4>
+                    <p className="text-xs opacity-90 mt-1">{t('fallback.hkoFailedDesc')}</p>
                   </div>
                 </div>
               )}

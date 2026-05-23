@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, Sun, Moon, SunMoon, Globe, Check, Search, LocateFixed, MapPin } from 'lucide-react';
+import { Menu, Sun, Moon, SunMoon, Globe, Check, Search, LocateFixed, MapPin, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -25,9 +25,10 @@ interface SettingsMenuProps {
   currentCity: GeoLocation | null;
   recentCities: GeoLocation[];
   onCitySelect: (city: GeoLocation) => void;
+  onRefresh?: () => Promise<void>;
 }
 
-export function SettingsMenu({ currentCity, recentCities, onCitySelect }: SettingsMenuProps) {
+export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefresh }: SettingsMenuProps) {
   const { mode, setMode } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -35,6 +36,21 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect }: Settin
   const [results, setResults] = useState<GeoLocation[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefreshData = async () => {
+    if (!onRefresh || isRefreshing) return;
+    setIsRefreshing(true);
+    toast.info(t('data.refreshing'));
+    try {
+      await onRefresh();
+      toast.success(t('data.refreshed'));
+    } catch {
+      toast.error(t('data.refreshFailed'));
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const themeLabels = {
     light: language === 'tc' ? '淺色模式' : 'Light',
@@ -121,6 +137,14 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect }: Settin
               ))}
             </>
           )}
+
+          <DropdownMenuSeparator />
+
+          {/* Refresh section */}
+          <DropdownMenuItem onClick={handleRefreshData} disabled={isRefreshing} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {t('data.refresh')}
+          </DropdownMenuItem>
 
           <DropdownMenuSeparator />
 
