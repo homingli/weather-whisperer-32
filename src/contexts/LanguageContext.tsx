@@ -63,6 +63,14 @@ const translations: Record<Language, Record<string, string>> = {
     'fallback.hkoDesc': 'Open-Meteo weather API is currently experiencing connection issues. Showing live weather data from the Hong Kong Observatory instead.',
     'fallback.cacheTitle': 'Weather Service Offline',
     'fallback.cacheDesc': 'All weather APIs are currently offline. Showing cached weather data from your last successful load.',
+    'fallback.hkoFailedTitle': 'HKO Data Unavailable',
+    'fallback.hkoFailedDesc': 'Hong Kong Observatory data could not be loaded. Warnings and local forecast may be missing.',
+    
+    // Data
+    'data.refresh': 'Refresh Data',
+    'data.refreshing': 'Refreshing weather data...',
+    'data.refreshed': 'Weather data refreshed',
+    'data.refreshFailed': 'Failed to refresh data',
     
     // Weather source
     'source.openMeteo': 'Open-Meteo',
@@ -149,6 +157,14 @@ const translations: Record<Language, Record<string, string>> = {
     'fallback.hkoDesc': 'Open-Meteo 天氣 API 目前連線出現問題。已自動為您切換至香港天文台的即時天氣數據。',
     'fallback.cacheTitle': '天氣服務離線',
     'fallback.cacheDesc': '所有天氣服務 API 目前皆處於離線狀態。正在顯示上次成功載入的快照資料。',
+    'fallback.hkoFailedTitle': '天文台數據未能載入',
+    'fallback.hkoFailedDesc': '未能載入香港天文台數據，天氣警告及本地預報可能缺失。',
+    
+    // Data
+    'data.refresh': '刷新資料',
+    'data.refreshing': '正在刷新天氣資料...',
+    'data.refreshed': '天氣資料已刷新',
+    'data.refreshFailed': '刷新資料失敗',
     
     // Weather source
     'source.openMeteo': 'Open-Meteo',

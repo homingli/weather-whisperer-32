@@ -144,6 +144,7 @@ export interface WeatherData {
   isFallback?: boolean;
   fallbackSource?: 'HKO' | 'cache';
   isExpiredCache?: boolean;
+  hkoFailed?: boolean;
 }
 
 // Geocoding API to search for cities

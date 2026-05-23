@@ -1,27 +1,43 @@
 # Work Summary
-2: 
-3: **Timestamp:** 2026-05-03 17:50:00
-4: **Commit Hash:** N/A (Hybrid HKO/OM Fetching & Testing)
-5: 
-6: ## Changes Implemented
-7: 
-8: 1.  **Hybrid Weather Orchestration**: Refactored `weather-manager.ts` to implement a non-blocking hybrid fetching strategy. The app now fetches Open-Meteo for core current/hourly data and merges it with Hong Kong Observatory (HKO) data for daily forecasts and warning signals when in HK bounds. HKO data is treated as an enhancement; if it fails, the app gracefully falls back to Open-Meteo.
-9: 2.  **Comprehensive Testing Suite**:
-10:     *   **HKO Unit Tests**: Created `hko-weather.test.ts` to verify the parsing of HKO's 9-day forecast and warning summary APIs.
-11:     *   **Weather Manager Tests**: Created `weather-manager.test.ts` to validate cache logic, non-HK fetching (OM only), and the HK hybrid merge logic.
-12:     *   **HKO Warning Validation**: Specifically ensured that warning signals (e.g., Fire Danger, Rainstorm, Tropical Cyclone) and their detailed contents are part of the test cases.
-13: 3.  **Dependency & Environment Fixes**:
-14:     *   Resolved `ERR_PACKAGE_PATH_NOT_EXPORTED` error by downgrading `vitest` to `^2.1.8` to match `vite@5` compatibility.
-15:     *   Executed `npm audit fix` to address several security vulnerabilities in the dependency tree.
-16: 4.  **Performance Optimization**: Implemented `fetchWithTimeout` and non-blocking `Promise.all` patterns in the weather gateway to prevent slow HKO responses from delaying the rendering of primary weather data.
+
+**Timestamp:** 2026-05-24 00:40:00
+**Branch:** feature/refresh-and-hko-fix
+
+## Changes Implemented
+
+1.  **Manual Force Refresh**:
+    *   Added a "Refresh Data" item to the settings hamburger menu.
+    *   Implemented `clearWeather()` in `cache.ts` to invalidate cached weather data.
+    *   Exposed `refetch` from React Query to trigger fresh fetch after cache clearing.
+2.  **HKO Silent Failure Resilience & Cross-Language Consistency**:
+    *   Fixed a bug where a silent failure on the HKO API (e.g. from network errors or language-specific fetch misses) returned Open-Meteo data with missing warnings and no indication of fallback.
+    *   Introduced `hkoFailed` flag to `WeatherData` set during HKO fetch failures in the hybrid gateway.
+    *   Added an amber warning banner showing "HKO Data Unavailable" in the UI to consistently notify users in both English and Traditional Chinese when HKO alerts/forecast enhancements are missing.
+
+---
+
+**Timestamp:** 2026-05-03 17:50:00
+**Commit Hash:** N/A (Hybrid HKO/OM Fetching & Testing)
+
+## Changes Implemented
+
+1.  **Hybrid Weather Orchestration**: Refactored `weather-manager.ts` to implement a non-blocking hybrid fetching strategy. The app now fetches Open-Meteo for core current/hourly data and merges it with Hong Kong Observatory (HKO) data for daily forecasts and warning signals when in HK bounds. HKO data is treated as an enhancement; if it fails, the app gracefully falls back to Open-Meteo.
+2.  **Comprehensive Testing Suite**:
+    *   **HKO Unit Tests**: Created `hko-weather.test.ts` to verify the parsing of HKO's 9-day forecast and warning summary APIs.
+    *   **Weather Manager Tests**: Created `weather-manager.test.ts` to validate cache logic, non-HK fetching (OM only), and the HK hybrid merge logic.
+    *   **HKO Warning Validation**: Specifically ensured that warning signals (e.g., Fire Danger, Rainstorm, Tropical Cyclone) and their detailed contents are part of the test cases.
+3.  **Dependency & Environment Fixes**:
+    *   Resolved `ERR_PACKAGE_PATH_NOT_EXPORTED` error by downgrading `vitest` to `^2.1.8` to match `vite@5` compatibility.
+    *   Executed `npm audit fix` to address several security vulnerabilities in the dependency tree.
+4.  **Performance Optimization**: Implemented `fetchWithTimeout` and non-blocking `Promise.all` patterns in the weather gateway to prevent slow HKO responses from delaying the rendering of primary weather data.
 5.  **PWA & Build Verification**:
     *   Verified PWA manifest and icon presence in the production build (`dist/`).
     *   Cleaned up build artifacts and verified repository hygiene.
     *   Synchronized `package.json` and `package-lock.json` through `npm install` and `npm audit fix`.
-17: 
-18: ---
-19: 
-20: # Work Summary
+
+---
+
+# Work Summary
 
 **Timestamp:** 2026-05-03 04:50:00
 **Commit Hash:** N/A (Local date formatting and cache resilience fixes)
