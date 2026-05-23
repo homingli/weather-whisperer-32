@@ -5,7 +5,7 @@ A modern, responsive weather application built with React and TypeScript. Featur
 ## Features
 
 - **Dual Weather Sources**: Automatically switches between Hong Kong Observatory (HKO) and Open-Meteo based on location
-- **Consolidated Settings**: Manage location search, current location detection, theme, and language from a single menu
+- **Consolidated Settings**: Manage location search, current location detection, theme, language, and manual data refresh from a single menu
 - **Multi-Language Support**: English and Traditional Chinese interface
 - **Location Services**: Auto-detect user location or search for any city worldwide with recent cities history
 - **Weather Data**: Current conditions, hourly forecasts (6 hours), and daily forecasts (7 days)
@@ -139,6 +139,7 @@ The consolidated hamburger menu provides access to:
 - **Current Location**: One-tap detection of user's current position
 - **Theme Toggle**: Switch between Light, Dark, and Auto modes
 - **Language Toggle**: Switch between English and Traditional Chinese
+- **Manual Data Refresh**: Force clear local caches and fetch fresh weather data on-demand
 
 ### Weather Alerts
 Real-time weather warnings featuring a streamlined, compact UI including:

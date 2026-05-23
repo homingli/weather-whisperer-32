@@ -24,8 +24,9 @@ export async function fetchWeather(lat: number, lon: number, lang: 'en' | 'tc' =
       const [omData, hkoData] = await Promise.all([omPromise, hkoPromise]);
 
       if (!hkoData) {
-        cache.set(cacheKey, omData);
-        return omData;
+        const fallbackData = { ...omData, hkoFailed: true };
+        cache.set(cacheKey, fallbackData);
+        return fallbackData;
       }
 
       const combined: WeatherData = {
