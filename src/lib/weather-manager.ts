@@ -2,7 +2,7 @@ import { cache } from './cache';
 import { getWeather as getOpenMeteoWeather, WeatherData } from './weather';
 import { isInHongKong, getHKODailyAndWarnings, fetchHKOWeatherData } from './hko-weather';
 
-const WEATHER_CACHE_TTL = 1000 * 60 * 10; // 10 mins
+const WEATHER_CACHE_TTL = 1000 * 60 * 5; // 5 mins
 
 export async function fetchWeather(lat: number, lon: number, lang: 'en' | 'tc' = 'en'): Promise<WeatherData> {
   const cacheKey = `weather_combined_${lat}_${lon}_${lang}`;
@@ -25,7 +25,7 @@ export async function fetchWeather(lat: number, lon: number, lang: 'en' | 'tc' =
 
       if (!hkoData) {
         const fallbackData = { ...omData, hkoFailed: true };
-        cache.set(cacheKey, fallbackData);
+        cache.set(cacheKey, fallbackData, 60 * 1000); // 1 minute (HKO failed)
         return fallbackData;
       }
 
@@ -48,8 +48,8 @@ export async function fetchWeather(lat: number, lon: number, lang: 'en' | 'tc' =
       console.error('Unified fetch failed, attempting HKO fallback for HK region:', err);
       try {
         const hkoData = await fetchHKOWeatherData(lat, lon, lang);
-        // Cache fallback data for 5 minutes instead of 10 to encourage recovery attempts
-        cache.set(cacheKey, hkoData);
+        // Cache fallback data for 1 minute instead of 10 to encourage recovery attempts
+        cache.set(cacheKey, hkoData, 60 * 1000); // 1 minute (HKO fallback)
         return hkoData;
       } catch (hkoErr) {
         console.error('HKO fallback failed too:', hkoErr);
