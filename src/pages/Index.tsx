@@ -24,6 +24,7 @@ const Index = () => {
   const [recentCities, setRecentCities] = useState<GeoLocation[]>([]);
   const { language, t } = useLanguage();
   const { setSunTimes } = useTheme();
+  const [hasFailure, setHasFailure] = useState(false);
 
   const handleCitySelect = useCallback((city: GeoLocation) => {
     setSelectedCity(city);
@@ -73,9 +74,17 @@ const Index = () => {
       return fetchWeather(selectedCity!.latitude, selectedCity!.longitude, language === 'tc' ? 'tc' : 'en');
     },
     enabled: !!selectedCity,
-    refetchInterval: 10 * 60 * 1000,
-    staleTime: 2 * 60 * 1000,
+    refetchInterval: hasFailure ? 60 * 1000 : 5 * 60 * 1000,
+    staleTime: hasFailure ? 60 * 1000 : 2.5 * 60 * 1000,
   });
+
+  useEffect(() => {
+    if (weather) {
+      setHasFailure(!!(weather.hkoFailed || weather.isFallback));
+    } else {
+      setHasFailure(false);
+    }
+  }, [weather]);
 
   const handleForceRefresh = useCallback(async () => {
     cache.clearWeather();
