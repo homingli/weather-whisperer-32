@@ -46,7 +46,7 @@ describe('Weather Manager', () => {
     expect(result.current.temperature).toBe(15);
     expect(mockGetWeather).toHaveBeenCalledWith(51.5, -0.1);
     expect(hkoWeather.getHKODailyAndWarnings).not.toHaveBeenCalled();
-    expect(cache.set).toHaveBeenCalled();
+    expect(cache.set).toHaveBeenCalledWith(expect.any(String), expect.any(Object));
   });
 
   it('should fetch hybrid data if in HK', async () => {
@@ -74,7 +74,7 @@ describe('Weather Manager', () => {
     expect(result.warnings).toHaveLength(1);
     expect(result.warnings![0].code).toBe('WFIREY');
     expect(result.nearestStation).toBe("King's Park");
-    expect(cache.set).toHaveBeenCalled();
+    expect(cache.set).toHaveBeenCalledWith(expect.any(String), expect.any(Object));
   });
 
   it('should fallback to Open-Meteo if HKO fails', async () => {
@@ -91,7 +91,7 @@ describe('Weather Manager', () => {
     
     expect(result.daily[0].temperatureMax).toBe(25); // Fallback to OM
     expect(result.warnings).toBeUndefined();
-    expect(cache.set).toHaveBeenCalled();
+    expect(cache.set).toHaveBeenCalledWith(expect.any(String), expect.any(Object), 60000);
   });
 
   it('should fallback to HKO-only if Open-Meteo fails in HK', async () => {
@@ -112,6 +112,7 @@ describe('Weather Manager', () => {
     expect(result.current.temperature).toBe(26);
     expect(result.isFallback).toBe(true);
     expect(result.fallbackSource).toBe('HKO');
+    expect(cache.set).toHaveBeenCalledWith(expect.any(String), expect.any(Object), 60000);
   });
 
   it('should fallback to expired cache if all else fails', async () => {

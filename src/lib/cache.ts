@@ -1,13 +1,14 @@
 export const cache = {
-  set: (key: string, data: any) => {
-    localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
+  set: (key: string, data: any, ttlMs?: number) => {
+    localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now(), ttl: ttlMs }));
   },
   get: <T>(key: string, ttlMs: number): T | null => {
     const item = localStorage.getItem(key);
     if (!item) return null;
     try {
-      const { data, timestamp } = JSON.parse(item);
-      if (Date.now() - timestamp > ttlMs) {
+      const { data, timestamp, ttl } = JSON.parse(item);
+      const activeTtl = ttl !== undefined ? ttl : ttlMs;
+      if (Date.now() - timestamp > activeTtl) {
         return null;
       }
       return data as T;
