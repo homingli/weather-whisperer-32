@@ -61,7 +61,7 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Fallback banners
     'fallback.hkoTitle': 'Open-Meteo API Offline',
-    'fallback.hkoDesc': 'Open-Meteo weather API is currently experiencing connection issues. Showing live weather data from the Hong Kong Observatory instead.',
+    'fallback.hkoDesc': 'Open-Meteo weather API is currently experiencing connection issues. Showing live weather data from the Hong Kong Observatory instead. Check latest status: https://status.open-meteo.com/',
     'fallback.cacheTitle': 'Weather Service Offline',
     'fallback.cacheDesc': 'All weather APIs are currently offline. Showing cached weather data from your last successful load.',
     'fallback.hkoFailedTitle': 'HKO Data Unavailable',
@@ -156,7 +156,7 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Fallback banners
     'fallback.hkoTitle': 'Open-Meteo API 離線',
-    'fallback.hkoDesc': 'Open-Meteo 天氣 API 目前連線出現問題。已自動為您切換至香港天文台的即時天氣數據。',
+    'fallback.hkoDesc': 'Open-Meteo 天氣 API 目前連線出現問題。已自動為您切換至香港天文台的即時天氣數據。最新狀態請查看：https://status.open-meteo.com/',
     'fallback.cacheTitle': '天氣服務離線',
     'fallback.cacheDesc': '所有天氣服務 API 目前皆處於離線狀態。正在顯示上次成功載入的快照資料。',
     'fallback.hkoFailedTitle': '天文台數據未能載入',

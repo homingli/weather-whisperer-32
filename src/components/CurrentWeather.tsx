@@ -69,6 +69,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
   // Memoize UV style object derived from index
   const uvInfo = useMemo(() => {
     const uv = weather.uvIndex;
+    if (uv == null) return { color: 'text-muted-foreground/40', bg: 'bg-muted/10' };
     if (uv <= 2) return { color: 'text-green-400', bg: 'bg-green-400/10' };
     if (uv <= 5) return { color: 'text-yellow-400', bg: 'bg-yellow-400/10' };
     if (uv <= 7) return { color: 'text-orange-400', bg: 'bg-orange-400/10' };
@@ -193,7 +194,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
             <div className="p-4 rounded-2xl bg-blue-400/5 flex flex-col items-center gap-2">
               <Sun className={`h-6 w-6 ${uvInfo.color}`} />
               <div className="text-center">
-                <span className="text-sm font-semibold block leading-none mb-1">{weather.uvIndex.toFixed(1)}</span>
+                <span className="text-sm font-semibold block leading-none mb-1">{weather.uvIndex == null ? '--' : weather.uvIndex.toFixed(1)}</span>
                 <span className="text-sm text-muted-foreground uppercase font-medium">{t('weather.uvIndex')}</span>
               </div>
             </div>
@@ -203,4 +204,3 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
     </div>
   );
 });
-
