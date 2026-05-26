@@ -185,6 +185,123 @@ function deg2rad(deg: number): number {
   return deg * (Math.PI / 180);
 }
 
+// Local mappings for English ↔ Traditional Chinese names
+export const STATION_TC_TO_EN: Record<string, string> = {
+  "京士柏": "King's Park",
+  "香港天文台": "Hong Kong Observatory",
+  "黃竹坑": "Wong Chuk Hang",
+  "打鼓嶺": "Ta Kwu Ling",
+  "流浮山": "Lau Fau Shan",
+  "大埔": "Tai Po",
+  "沙田": "Sha Tin",
+  "屯門": "Tuen Mun",
+  "將軍澳": "Tseung Kwan O",
+  "西貢": "Sai Kung",
+  "長洲": "Cheung Chau",
+  "赤鱲角": "Chek Lap Kok",
+  "青衣": "Tsing Yi",
+  "石崗": "Shek Kong",
+  "荃灣可觀": "Tsuen Wan Ho Koon",
+  "荃灣城門谷": "Tsuen Wan Shing Mun Valley",
+  "香港公園": "Hong Kong Park",
+  "筲箕灣": "Shau Kei Wan",
+  "九龍城": "Kowloon City",
+  "跑馬地": "Happy Valley",
+  "黃大仙": "Wong Tai Sin",
+  "赤柱": "Stanley",
+  "觀塘": "Kwun Tong",
+  "深水埗": "Sham Shui Po",
+  "啟德跑道公園": "Kai Tak Runway Park",
+  "元朗公園": "Yuen Long Park",
+  "大美督": "Tai Mei Tuk",
+};
+
+export const STATION_EN_TO_TC: Record<string, string> = Object.fromEntries(
+  Object.entries(STATION_TC_TO_EN).map(([tc, en]) => [en, tc])
+);
+
+export const DISTRICT_TC_TO_EN: Record<string, string> = {
+  "中西區": "Central & Western District",
+  "東區": "Eastern District",
+  "葵青": "Kwai Tsing",
+  "離島區": "Islands District",
+  "北區": "North District",
+  "西貢": "Sai Kung",
+  "沙田": "Sha Tin",
+  "南區": "Southern District",
+  "大埔": "Tai Po",
+  "荃灣": "Tsuen Wan",
+  "屯門": "Tuen Mun",
+  "灣仔": "Wan Chai",
+  "元朗": "Yuen Long",
+  "油尖旺": "Yau Tsim Mong",
+  "深水埗": "Sham Shui Po",
+  "九龍城": "Kowloon City",
+  "黃大仙": "Wong Tai Sin",
+  "觀塘": "Kwun Tong",
+};
+
+export const DISTRICT_EN_TO_TC: Record<string, string> = Object.fromEntries(
+  Object.entries(DISTRICT_TC_TO_EN).map(([tc, en]) => [en, tc])
+);
+
+// Translation helpers
+export function translateStationName(name: string, lang: 'en' | 'tc'): string {
+  if (lang === 'tc') {
+    return STATION_EN_TO_TC[name] || name;
+  }
+  return STATION_TC_TO_EN[name] || name;
+}
+
+export function translateDistrictName(name: string, lang: 'en' | 'tc'): string {
+  if (lang === 'tc') {
+    return DISTRICT_EN_TO_TC[name] || name;
+  }
+  return DISTRICT_TC_TO_EN[name] || name;
+}
+
+export function translatePsr(psr: string | undefined, lang: 'en' | 'tc'): string | null {
+  if (!psr) return null;
+  const labels: Record<string, Record<string, string>> = {
+    en: {
+      'Low': 'Low',
+      'Med Low': 'Med Low',
+      'Med': 'Med',
+      'Med High': 'Med High',
+      'High': 'High',
+    },
+    tc: {
+      'Low': '低',
+      'Med Low': '中低',
+      'Med': '中',
+      'Med High': '中高',
+      'High': '高',
+    }
+  };
+  return labels[lang]?.[psr] || psr;
+}
+
+export function normalizePsr(psr: string | undefined): string | undefined {
+  if (!psr) return undefined;
+  const psrMap: Record<string, string> = {
+    // English
+    'Low': 'Low',
+    'Medium Low': 'Med Low',
+    'Med Low': 'Med Low',
+    'Medium': 'Med',
+    'Med': 'Med',
+    'Medium High': 'Med High',
+    'High': 'High',
+    // Chinese
+    '低': 'Low',
+    '中低': 'Med Low',
+    '中': 'Med',
+    '中高': 'Med High',
+    '高': 'High',
+  };
+  return psrMap[psr] || undefined;
+}
+
 // Find the nearest station to given coordinates
 export function findNearestStation(
   lat: number, 
@@ -426,7 +543,7 @@ export async function getHKOForecast(lang: 'en' | 'tc' = 'en'): Promise<HKOForec
 export async function getHKOWarningSummary(lang: 'en' | 'tc' = 'en'): Promise<HKOWarningSummaryResponse> {
   const start = Date.now();
   try {
-    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=warnsum&lang=${lang}`, { timeout: 3000 });
+    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=warnsum&lang=${lang}`, { timeout: 5000 });
     if (!response.ok) throw new Error(`Failed to fetch HKO warnings: ${response.status}`);
     const data = await response.json();
     console.log(`HKO warnings fetch took ${Date.now() - start}ms`);
@@ -441,7 +558,7 @@ export async function getHKOWarningSummary(lang: 'en' | 'tc' = 'en'): Promise<HK
 export async function getHKOWarningInfo(lang: 'en' | 'tc' = 'en'): Promise<HKOWarningInfoResponse> {
   const start = Date.now();
   try {
-    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=warningInfo&lang=${lang}`, { timeout: 3000 });
+    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=warningInfo&lang=${lang}`, { timeout: 5000 });
     if (!response.ok) throw new Error(`Failed to fetch HKO warning info: ${response.status}`);
     const data = await response.json();
     console.log(`HKO warning info fetch took ${Date.now() - start}ms`);
@@ -464,13 +581,13 @@ export async function getHKODailyAndWarnings(
     getHKOWarningInfo(lang).catch(() => ({ details: [] } as HKOWarningInfoResponse)),
   ]);
 
-  // Find nearest station and district if coordinates provided
+  // Find nearest station and district if coordinates provided - ALWAYS in English to act as neutral key
   let nearestStation: { name: string; distance: number } | null = null;
   let nearestDistrict: { name: string; distance: number } | null = null;
   
   if (lat !== undefined && lon !== undefined) {
-    nearestStation = findNearestStation(lat, lon, lang);
-    nearestDistrict = findNearestDistrict(lat, lon, lang);
+    nearestStation = findNearestStation(lat, lon, 'en');
+    nearestDistrict = findNearestDistrict(lat, lon, 'en');
   }
 
   // Build daily forecast (up to 7 days)
@@ -485,7 +602,7 @@ export async function getHKODailyAndWarnings(
       temperatureMin: day.forecastMintemp.value,
       weatherCode: hkoIconToWeatherCode(day.ForecastIcon),
       precipitationProbabilityMax: psrToPercentage(day.PSR),
-      precipitationProbabilityRaw: day.PSR ? day.PSR.replace('Medium Low', 'Med Low').replace('Medium', 'Med') : undefined,
+      precipitationProbabilityRaw: normalizePsr(day.PSR),
       sunrise: new Date(0), // Placeholder, will be replaced by Open-Meteo data in weather-manager.ts
       sunset: new Date(0),  // Placeholder
     };

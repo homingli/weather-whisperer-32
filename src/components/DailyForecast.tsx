@@ -2,6 +2,7 @@ import { DailyForecast as DailyForecastType, getWeatherIcon, getWeatherDescripti
 import { addDays } from "date-fns";
 import { Droplets } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { translatePsr } from "@/lib/hko-weather";
 import { useMemo, useCallback, memo } from "react";
 import {
   Bar,
@@ -109,7 +110,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
         windSpeedMax: day.windSpeedMax,
         windDirectionDominant: day.windDirectionDominant,
         precipLabel: showPSR
-          ? day.precipitationProbabilityRaw
+          ? translatePsr(day.precipitationProbabilityRaw, language as 'en' | 'tc')
           : showPercentage
             ? `${day.precipitationProbabilityMax}%`
             : null,
