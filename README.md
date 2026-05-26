@@ -15,7 +15,7 @@ A modern, responsive weather application built with React and TypeScript. Featur
 - **Hourly Charts**: Interactive line charts showing temperature and precipitation probability with PSR (Probability of Significant Rain) labels
 - **Weather Alerts**: Real-time weather warnings and alerts (HKO source only)
 - **Responsive Design**: Optimized for mobile, tablet, and desktop devices
-- **Smart Caching**: Refetches data every 10 minutes with 2-minute stale time
+- **Smart Caching**: Refetches data every 5 minutes (2.5-minute stale time) under normal conditions, and falls back to 1-minute active polling during API failures.
 
 ## Technology Stack
 
@@ -164,7 +164,7 @@ The application stores:
 
 ## Performance
 
-- Automatic data refetch every 10 minutes
+- Automatic data refetch every 5 minutes (falls back to 1 minute during API failures)
 - Efficient caching with React Query
 - Optimized animations with Tailwind CSS
 - Responsive images and lazy loading
