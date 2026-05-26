@@ -98,7 +98,7 @@ export interface CurrentWeather {
   temperature: number;
   apparentTemperature: number;
   humidity: number;
-  uvIndex: number;
+  uvIndex: number | null;
   weatherCode: number;
   windSpeed: number;
   windDirection: number;
