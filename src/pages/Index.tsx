@@ -8,7 +8,7 @@ import { SettingsMenu } from "@/components/SettingsMenu";
 import { fetchWeather } from "@/lib/weather-manager";
 import { cache } from "@/lib/cache";
 import { GeoLocation, getDefaultCity, getRecentCities, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
-import { isInHongKong } from "@/lib/hko-weather";
+import { isInHongKong, translateStationName, translateDistrictName } from "@/lib/hko-weather";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
@@ -23,6 +23,46 @@ const Index = () => {
   const [isLocating, setIsLocating] = useState(false);
   const [recentCities, setRecentCities] = useState<GeoLocation[]>([]);
   const { language, t } = useLanguage();
+  const [loadProgress, setLoadProgress] = useState<{
+    openMeteo: 'idle' | 'fetching' | 'cached' | 'success' | 'error';
+    hko: 'idle' | 'fetching' | 'cached' | 'success' | 'error';
+  }>({ openMeteo: 'idle', hko: 'idle' });
+
+  const renderStatusBadge = (status: 'idle' | 'fetching' | 'cached' | 'success' | 'error') => {
+    switch (status) {
+      case 'cached':
+        return (
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-secondary/80 text-secondary-foreground border border-border">
+            Loaded from Cache
+          </span>
+        );
+      case 'fetching':
+        return (
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
+            Fetching...
+          </span>
+        );
+      case 'success':
+        return (
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+            Success
+          </span>
+        );
+      case 'error':
+        return (
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
+            Error
+          </span>
+        );
+      default:
+        return (
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
+            Waiting...
+          </span>
+        );
+    }
+  };
   const { setSunTimes } = useTheme();
   const [hasFailure, setHasFailure] = useState(false);
 
@@ -71,7 +111,18 @@ const Index = () => {
   const { data: weather, isLoading, error, refetch } = useQuery({
     queryKey: ["weather-unified", language, selectedCity?.latitude, selectedCity?.longitude],
     queryFn: async () => {
-      return fetchWeather(selectedCity!.latitude, selectedCity!.longitude, language === 'tc' ? 'tc' : 'en');
+      setLoadProgress({
+        openMeteo: 'fetching',
+        hko: isInHongKong(selectedCity!.latitude, selectedCity!.longitude) ? 'fetching' : 'idle'
+      });
+      return fetchWeather(
+        selectedCity!.latitude,
+        selectedCity!.longitude,
+        language === 'tc' ? 'tc' : 'en',
+        (service, status) => {
+          setLoadProgress(prev => ({ ...prev, [service]: status }));
+        }
+      );
     },
     enabled: !!selectedCity,
     refetchInterval: hasFailure ? 60 * 1000 : 5 * 60 * 1000,
@@ -147,12 +198,12 @@ const Index = () => {
                   </span>
                   {weather?.nearestStation && (
                     <span className="text-sm px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                      {weather.nearestStation}
+                      {translateStationName(weather.nearestStation, language === 'tc' ? 'tc' : 'en')}
                     </span>
                   )}
                   {weather?.nearestDistrict && (
                     <span className="text-sm px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                      {weather.nearestDistrict}
+                      {translateDistrictName(weather.nearestDistrict, language === 'tc' ? 'tc' : 'en')}
                     </span>
                   )}
                 </div>
@@ -201,7 +252,44 @@ const Index = () => {
               </p>
             </div>
           ) : isLoading ? (
-            <WeatherSkeleton />
+            <div className="space-y-6 lg:space-y-8 w-full animate-fade-in">
+              {/* Premium Loading Progress Card */}
+              <div className="glass-card p-5 border border-primary/10 flex flex-col gap-4">
+                <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                  <h3 className="font-semibold text-foreground text-sm tracking-wider uppercase">
+                    {t('loading.fetchingData')}
+                  </h3>
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Open-Meteo Status */}
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-black/5 dark:bg-white/5 border border-border/20">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-foreground">Global Weather Data</span>
+                      <span className="text-xs text-muted-foreground">Open-Meteo API</span>
+                    </div>
+                    {renderStatusBadge(loadProgress.openMeteo)}
+                  </div>
+
+                  {/* HKO Status (Only if within HK coverage) */}
+                  {isHKCovered && (
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-black/5 dark:bg-white/5 border border-border/20">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-foreground">Local Weather Data</span>
+                        <span className="text-xs text-muted-foreground">HK Observatory API</span>
+                      </div>
+                      {renderStatusBadge(loadProgress.hko)}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <WeatherSkeleton />
+            </div>
           ) : !weather && error ? (
             <div className="text-center py-20 glass-card">
               <p className="text-lg text-destructive mb-2">{t('loading.failed')}</p>

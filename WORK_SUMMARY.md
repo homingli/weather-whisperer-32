@@ -1,5 +1,21 @@
 # Work Summary
 
+**Timestamp:** 2026-05-26 00:08:00
+**Branch:** main (merged fix/hko-cache-persistence)
+
+## Changes Implemented
+
+1.  **Resolved HKO Cache Persistence & Active Polling**:
+    *   Modified [cache.ts](file:///Users/homingli/Github/weather-whisperer-32/src/lib/cache.ts) to support an optional custom TTL in the local cache.
+    *   Reduced HKO API fallback cache duration from 10/5 minutes to **1 minute** upon failure, enabling rapid recovery.
+    *   Decreased default combined weather cache TTL from 10 minutes to **5 minutes** to improve overall data freshness.
+    *   Implemented dynamic polling in [Index.tsx](file:///Users/homingli/Github/weather-whisperer-32/src/pages/Index.tsx): when HKO fails or fallback mode is active, React Query polling (`refetchInterval`) and `staleTime` are throttled down to **1 minute**. Under normal operation, they default to 5 minutes and 2.5 minutes respectively.
+    *   Adjusted HKO forecast and current weather fetch timeouts to **3.5 seconds** in [hko-weather.ts](file:///Users/homingli/Github/weather-whisperer-32/src/lib/hko-weather.ts) for faster client-side failure detection.
+    *   Updated the Vitest integration suite in [weather-manager.test.ts](file:///Users/homingli/Github/weather-whisperer-32/src/lib/weather-manager.test.ts) to validate the new custom TTL expectations.
+
+---
+
+
 **Timestamp:** 2026-05-24 00:40:00
 **Branch:** feature/refresh-and-hko-fix
 

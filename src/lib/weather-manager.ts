@@ -4,36 +4,91 @@ import { isInHongKong, getHKODailyAndWarnings, fetchHKOWeatherData } from './hko
 
 const WEATHER_CACHE_TTL = 1000 * 60 * 5; // 5 mins
 
-export async function fetchWeather(lat: number, lon: number, lang: 'en' | 'tc' = 'en'): Promise<WeatherData> {
-  const cacheKey = `weather_combined_${lat}_${lon}_${lang}`;
-  
-  // Try normal cache first (non-expired)
-  const cached = cache.get<WeatherData>(cacheKey, WEATHER_CACHE_TTL);
-  if (cached) return cached;
+export async function fetchWeather(
+  lat: number,
+  lon: number,
+  lang: 'en' | 'tc' = 'en',
+  onProgress?: (service: 'openMeteo' | 'hko', status: 'fetching' | 'success' | 'error' | 'cached') => void
+): Promise<WeatherData> {
+  let omData: any = null;
+  let omSuccess = false;
 
-  if (isInHongKong(lat, lon)) {
-    // Hybrid: Open-Meteo for hourly/current, HKO for warnings/daily
-    // We fetch both in parallel, but HKO is treated as an enhancement
+  const combinedCacheKey = `weather_combined_${lat}_${lon}_${lang}`;
+
+  // 1. Open-Meteo cache & fetch
+  const omCacheKey = `weather_openmeteo_${lat}_${lon}`;
+  const cachedOm = cache.get<any>(omCacheKey, WEATHER_CACHE_TTL);
+
+  if (cachedOm) {
+    console.log(`[Cache Hit] Open-Meteo data loaded from cache for ${lat}, ${lon}`);
+    onProgress?.('openMeteo', 'cached');
+    omData = cachedOm;
+    omSuccess = true;
+  } else {
+    console.log(`[Network Fetch] Open-Meteo data fetched from API for ${lat}, ${lon}`);
+    onProgress?.('openMeteo', 'fetching');
     try {
-      const omPromise = getOpenMeteoWeather(lat, lon);
-      const hkoPromise = getHKODailyAndWarnings(lang, lat, lon).catch(err => {
-        console.warn('HKO data enhancement failed, falling back to Open-Meteo only:', err);
-        return null;
-      });
+      omData = await getOpenMeteoWeather(lat, lon);
+      cache.set(omCacheKey, omData);
+      onProgress?.('openMeteo', 'success');
+      omSuccess = true;
+    } catch (err) {
+      console.warn('Open-Meteo fetch failed:', err);
+      onProgress?.('openMeteo', 'error');
+    }
+  }
 
-      const [omData, hkoData] = await Promise.all([omPromise, hkoPromise]);
+  // 2. HKO fetch or fallback if needed
+  if (isInHongKong(lat, lon)) {
+    if (!omSuccess) {
+      // Open-Meteo failed, do HKO fallback only
+      console.log('Open-Meteo failed. Attempting HKO fallback.');
+      onProgress?.('hko', 'fetching');
+      try {
+        const hkoFallbackData = await fetchHKOWeatherData(lat, lon, lang);
+        // Cache fallback data for 1 minute (60000ms)
+        cache.set(combinedCacheKey, hkoFallbackData, 60 * 1000);
+        onProgress?.('hko', 'success');
+        return hkoFallbackData;
+      } catch (err) {
+        onProgress?.('hko', 'error');
+        console.error('HKO fallback failed too:', err);
+      }
+    } else {
+      // Normal path: combine Open-Meteo with HKO
+      const hkoCacheKey = `weather_hko_${lat}_${lon}_${lang}`;
+      let hkoData = cache.get<any>(hkoCacheKey, WEATHER_CACHE_TTL);
+
+      if (hkoData) {
+        console.log(`[Cache Hit] HKO data loaded from cache for ${lat}, ${lon} (${lang})`);
+        onProgress?.('hko', 'cached');
+      } else {
+        console.log(`[Network Fetch] HKO data fetched from API for ${lat}, ${lon} (${lang})`);
+        onProgress?.('hko', 'fetching');
+        try {
+          hkoData = await getHKODailyAndWarnings(lang, lat, lon);
+          cache.set(hkoCacheKey, hkoData);
+          onProgress?.('hko', 'success');
+        } catch (err) {
+          console.warn('HKO fetch failed:', err);
+          onProgress?.('hko', 'error');
+        }
+      }
 
       if (!hkoData) {
-        const fallbackData = { ...omData, hkoFailed: true };
-        cache.set(cacheKey, fallbackData, 60 * 1000); // 1 minute (HKO failed)
+        const fallbackData = {
+          ...omData,
+          hkoFailed: true,
+        };
+        // Cache fallback data for 1 minute (60000ms)
+        cache.set(combinedCacheKey, fallbackData, 60 * 1000);
         return fallbackData;
       }
 
       const combined: WeatherData = {
         ...omData,
-        daily: hkoData.daily.map((day, i) => ({
+        daily: hkoData.daily.map((day: any, i: number) => ({
           ...day,
-          // HKO doesn't provide sun times, so we use Open-Meteo's
           sunrise: omData.daily[i]?.sunrise || day.sunrise,
           sunset: omData.daily[i]?.sunset || day.sunset,
         })),
@@ -42,32 +97,23 @@ export async function fetchWeather(lat: number, lon: number, lang: 'en' | 'tc' =
         nearestDistrict: hkoData.nearestDistrict,
       };
 
-      cache.set(cacheKey, combined);
+      // Cache combined data under old key
+      cache.set(combinedCacheKey, combined);
       return combined;
-    } catch (err) {
-      console.error('Unified fetch failed, attempting HKO fallback for HK region:', err);
-      try {
-        const hkoData = await fetchHKOWeatherData(lat, lon, lang);
-        // Cache fallback data for 1 minute instead of 10 to encourage recovery attempts
-        cache.set(cacheKey, hkoData, 60 * 1000); // 1 minute (HKO fallback)
-        return hkoData;
-      } catch (hkoErr) {
-        console.error('HKO fallback failed too:', hkoErr);
-      }
     }
   } else {
-    // Global fallback
-    try {
-      const data = await getOpenMeteoWeather(lat, lon);
-      cache.set(cacheKey, data);
-      return data;
-    } catch (err) {
-      console.error('Open-Meteo fetch failed for non-HK region:', err);
+    // Non-HK region
+    onProgress?.('hko', 'cached'); // Immediate ready/cached
+    if (omSuccess) {
+      // Cache combined data under old key
+      const combined = { ...omData };
+      cache.set(combinedCacheKey, combined);
+      return combined;
     }
   }
 
   // Fallback to expired cache if API calls failed
-  const rawCached = cache.getRaw<WeatherData>(cacheKey);
+  const rawCached = cache.getRaw<WeatherData>(combinedCacheKey);
   if (rawCached && rawCached.data) {
     console.log('Using expired cache as last resort fallback');
     return {
@@ -77,7 +123,6 @@ export async function fetchWeather(lat: number, lon: number, lang: 'en' | 'tc' =
     };
   }
 
-  // If even cache is not found, throw error
   throw new Error('All weather API requests and cache fallbacks failed');
 }
 

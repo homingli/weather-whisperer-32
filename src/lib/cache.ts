@@ -29,7 +29,11 @@ export const cache = {
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith('weather_combined_')) {
+      if (key && (
+        key.startsWith('weather_combined_') ||
+        key.startsWith('weather_openmeteo_') ||
+        key.startsWith('weather_hko_')
+      )) {
         keysToRemove.push(key);
       }
     }

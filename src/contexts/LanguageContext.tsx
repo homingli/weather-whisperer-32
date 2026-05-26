@@ -51,6 +51,7 @@ const translations: Record<Language, Record<string, string>> = {
     'search.locationError': 'Could not get your location. Please check permissions.',
     
     // Loading states
+    'loading.fetchingData': 'Loading Weather Data...',
     'loading.findingLocation': 'Finding your location...',
     'loading.allowLocation': 'Please allow location access for local weather',
     'loading.welcome': 'Welcome to Weather',
@@ -145,6 +146,7 @@ const translations: Record<Language, Record<string, string>> = {
     'search.locationError': '無法取得位置，請檢查權限設定。',
     
     // Loading states
+    'loading.fetchingData': '正在載入天氣數據...',
     'loading.findingLocation': '正在取得位置...',
     'loading.allowLocation': '請允許存取位置以獲取當地天氣',
     'loading.welcome': '歡迎使用天氣',

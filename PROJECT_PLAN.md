@@ -36,6 +36,12 @@
 - Fixed Vite/Vitest version mismatch.
 - Executed `npm audit fix` for security updates.
 
+### 7. HKO Cache Persistence Banner Resolution (DONE)
+- Modified `cache.set` to support custom TTL parameter.
+- Reduced weather data TTL to 5 minutes normally, and 1 minute on HKO failures.
+- Implemented dynamic active polling (staleTime & refetchInterval down to 1 minute) during failures in `Index.tsx`.
+
+
 ## Next Steps
 1. Final verification of PWA icons in the build (DONE).
 2. Commit hygiene and cleanup of scratch files (DONE).
