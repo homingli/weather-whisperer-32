@@ -4,6 +4,10 @@ import { isInHongKong, getHKODailyAndWarnings, fetchHKOWeatherData } from './hko
 
 const WEATHER_CACHE_TTL = 1000 * 60 * 5; // 5 mins
 
+function isTimeoutError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === 'TimeoutError';
+}
+
 export async function fetchWeather(
   lat: number,
   lon: number,
@@ -71,7 +75,14 @@ export async function fetchWeather(
           onProgress?.('hko', 'success');
         } catch (err) {
           console.warn('HKO fetch failed:', err);
-          onProgress?.('hko', 'error');
+          const staleHkoData = isTimeoutError(err) ? cache.getRaw<any>(hkoCacheKey)?.data : null;
+          if (staleHkoData) {
+            console.log('HKO timeout; using stale HKO cache');
+            hkoData = staleHkoData;
+            onProgress?.('hko', 'cached');
+          } else {
+            onProgress?.('hko', 'error');
+          }
         }
       }
 
@@ -125,4 +136,3 @@ export async function fetchWeather(
 
   throw new Error('All weather API requests and cache fallbacks failed');
 }
-
