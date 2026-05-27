@@ -94,6 +94,41 @@ describe('Weather Manager', () => {
     expect(cache.set).toHaveBeenCalledWith(expect.any(String), expect.any(Object), 60000);
   });
 
+  it('should use stale HKO cache if live HKO fetch times out', async () => {
+    vi.mocked(hkoWeather.isInHongKong).mockReturnValue(true);
+    
+    const mockOMData = {
+      current: { temperature: 22 },
+      daily: [{ sunrise: new Date(1), sunset: new Date(2), temperatureMax: 25 }]
+    };
+    vi.mocked(weather.getWeather).mockResolvedValue(mockOMData as any);
+    vi.mocked(hkoWeather.getHKODailyAndWarnings).mockRejectedValue(
+      new DOMException('Request timed out after 8000ms', 'TimeoutError')
+    );
+
+    vi.mocked(cache.getRaw).mockImplementation((key: string) => {
+      if (key.startsWith('weather_hko_')) {
+        return {
+          data: {
+            daily: [{ temperatureMax: 30, sunrise: new Date(0), sunset: new Date(0) }],
+            warnings: [{ code: 'WFIREY', name: 'Yellow Fire Danger' }],
+            nearestStation: "King's Park",
+            nearestDistrict: 'Yau Tsim Mong'
+          },
+          timestamp: Date.now() - 1000 * 60 * 30
+        } as any;
+      }
+      return null;
+    });
+
+    const result = await fetchWeather(22.3, 114.17);
+    
+    expect(result.daily[0].temperatureMax).toBe(30);
+    expect(result.daily[0].sunrise).toEqual(new Date(1));
+    expect(result.warnings![0].code).toBe('WFIREY');
+    expect(result.hkoFailed).toBeUndefined();
+  });
+
   it('should fallback to HKO-only if Open-Meteo fails in HK', async () => {
     vi.mocked(hkoWeather.isInHongKong).mockReturnValue(true);
     vi.mocked(weather.getWeather).mockRejectedValue(new Error('Open-Meteo failed'));
