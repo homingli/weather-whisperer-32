@@ -528,13 +528,14 @@ function hkoIconToWeatherCode(iconCode: number): number {
 export async function getHKOForecast(lang: 'en' | 'tc' = 'en'): Promise<HKOForecastResponse> {
   const start = Date.now();
   try {
-    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=fnd&lang=${lang}`, { timeout: 3500 });
+    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=fnd&lang=${lang}`, { timeout: 8000 });
     if (!response.ok) throw new Error(`Failed to fetch HKO forecast: ${response.status}`);
     const data = await response.json();
     console.log(`HKO forecast fetch took ${Date.now() - start}ms`);
     return data;
   } catch (err) {
-    console.error(`HKO forecast error after ${Date.now() - start}ms:`, err);
+    const label = err instanceof DOMException && err.name === 'TimeoutError' ? 'timeout' : 'error';
+    console.log(`HKO forecast ${label} after ${Date.now() - start}ms:`, err);
     throw err;
   }
 }
@@ -543,13 +544,14 @@ export async function getHKOForecast(lang: 'en' | 'tc' = 'en'): Promise<HKOForec
 export async function getHKOWarningSummary(lang: 'en' | 'tc' = 'en'): Promise<HKOWarningSummaryResponse> {
   const start = Date.now();
   try {
-    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=warnsum&lang=${lang}`, { timeout: 5000 });
+    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=warnsum&lang=${lang}`, { timeout: 8000 });
     if (!response.ok) throw new Error(`Failed to fetch HKO warnings: ${response.status}`);
     const data = await response.json();
     console.log(`HKO warnings fetch took ${Date.now() - start}ms`);
     return data;
   } catch (err) {
-    console.error(`HKO warnings error after ${Date.now() - start}ms:`, err);
+    const label = err instanceof DOMException && err.name === 'TimeoutError' ? 'timeout' : 'error';
+    console.log(`HKO warnings ${label} after ${Date.now() - start}ms:`, err);
     throw err;
   }
 }
@@ -558,13 +560,14 @@ export async function getHKOWarningSummary(lang: 'en' | 'tc' = 'en'): Promise<HK
 export async function getHKOWarningInfo(lang: 'en' | 'tc' = 'en'): Promise<HKOWarningInfoResponse> {
   const start = Date.now();
   try {
-    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=warningInfo&lang=${lang}`, { timeout: 5000 });
+    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=warningInfo&lang=${lang}`, { timeout: 8000 });
     if (!response.ok) throw new Error(`Failed to fetch HKO warning info: ${response.status}`);
     const data = await response.json();
     console.log(`HKO warning info fetch took ${Date.now() - start}ms`);
     return data;
   } catch (err) {
-    console.error(`HKO warning info error after ${Date.now() - start}ms:`, err);
+    const label = err instanceof DOMException && err.name === 'TimeoutError' ? 'timeout' : 'error';
+    console.log(`HKO warning info ${label} after ${Date.now() - start}ms:`, err);
     throw err;
   }
 }
@@ -639,13 +642,14 @@ export async function getHKODailyAndWarnings(
 export async function getHKOCurrentWeather(lang: 'en' | 'tc' = 'en'): Promise<HKOCurrentWeatherResponse> {
   const start = Date.now();
   try {
-    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=rhrread&lang=${lang}`, { timeout: 3500 });
+    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=rhrread&lang=${lang}`, { timeout: 8000 });
     if (!response.ok) throw new Error(`Failed to fetch HKO current weather: ${response.status}`);
     const data = await response.json();
     console.log(`HKO current weather fetch took ${Date.now() - start}ms`);
     return data;
   } catch (err) {
-    console.error(`HKO current weather error after ${Date.now() - start}ms:`, err);
+    const label = err instanceof DOMException && err.name === 'TimeoutError' ? 'timeout' : 'error';
+    console.log(`HKO current weather ${label} after ${Date.now() - start}ms:`, err);
     throw err;
   }
 }
