@@ -1,9 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type LatLngExpression } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MapContainer, TileLayer, Rectangle } from 'react-leaflet';
+import { MapContainer, TileLayer, Rectangle, Marker } from 'react-leaflet';
+import L from 'leaflet';
 import { CloudRain, AlertCircle, RefreshCw, Play, Pause } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import 'leaflet/dist/leaflet.css';
+
+interface UserLocation {
+  latitude: number;
+  longitude: number;
+}
+
+// Fix Leaflet default icon path issue in Vite
+delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
+
+// Shared blue location pin icon
+const locationIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  shadowSize: [41, 41],
+});
 
 interface RainfallData {
   lat: number;
@@ -114,7 +132,8 @@ const fetchRainfallNowcast = async (): Promise<NowcastResult> => {
   return parseRainfallCSV(csvText);
 };
 
-export const RainfallMap = () => {
+export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) => {
+  const mapRef = useRef<L.Map | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -151,6 +170,19 @@ export const RainfallMap = () => {
       if (interval) clearInterval(interval);
     };
   }, [isPlaying, timeSteps]);
+
+  // When user location is available, zoom the map to show it
+  useEffect(() => {
+    if (userLocation && mapRef.current) {
+      const map = mapRef.current;
+      const bounds: LatLngExpression = [
+        [22.15, 113.82],
+        [22.56, 114.43],
+        userLocation,
+      ];
+      map.fitBounds(bounds, { padding: [80, 80] });
+    }
+  }, [userLocation]);
 
   const activeStep = timeSteps[activeStepIndex];
   const activePoints = activeStep?.points || [];
@@ -219,11 +251,12 @@ export const RainfallMap = () => {
           </div>
         )}
 
-        <MapContainer 
-          center={[22.3193, 114.1694]} 
-          zoom={10} 
+        <MapContainer
+          center={[22.3193, 114.1694]}
+          zoom={10}
           scrollWheelZoom={false}
           className="w-full h-full z-0"
+          ref={mapRef}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -241,6 +274,15 @@ export const RainfallMap = () => {
               }}
             />
           ))}
+
+          {/* Current location indicator */}
+          {userLocation && (
+            <Marker
+              position={[userLocation.latitude, userLocation.longitude]}
+              icon={locationIcon}
+              zIndexOffset={1000}
+            />
+          )}
         </MapContainer>
         
         {/* Legend */}

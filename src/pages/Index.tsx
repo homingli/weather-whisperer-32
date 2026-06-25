@@ -354,7 +354,7 @@ const Index = () => {
               {/* Bottom Row: Optional Map */}
               {isHKCovered && (
                 <Suspense fallback={<div className="h-[400px] animate-pulse bg-muted/20 rounded-xl" />}>
-                  <RainfallMap />
+                  <RainfallMap userLocation={selectedCity ? { latitude: selectedCity.latitude, longitude: selectedCity.longitude } : undefined} />
                 </Suspense>
               )}
             </div>
