@@ -61,6 +61,26 @@ export function isInHongKong(lat: number, lon: number): boolean {
   );
 }
 
+// Pearl River Delta bounding box for the gridded rainfall nowcast map
+// Covers Hong Kong + Guangdong China (Shenzhen, Guangzhou, Zhuhai, Macau, etc.)
+// Matches the actual HKO F3 nowcast grid extent: ~21.33°N-23.49°N, 112.96°E-115.29°E
+const PRD_BOUNDS = {
+  minLat: 21.30,
+  maxLat: 23.50,
+  minLon: 112.95,
+  maxLon: 115.30,
+};
+
+// Check if coordinates are within the Pearl River Delta rainfall nowcast coverage area
+export function isInRainfallRegion(lat: number, lon: number): boolean {
+  return (
+    lat >= PRD_BOUNDS.minLat &&
+    lat <= PRD_BOUNDS.maxLat &&
+    lon >= PRD_BOUNDS.minLon &&
+    lon <= PRD_BOUNDS.maxLon
+  );
+}
+
 // HKO weather station coordinates mapping (English names)
 // These are the stations used in the rhrread API for temperature readings
 export const HKO_STATIONS_EN: Record<string, { lat: number; lon: number }> = {
