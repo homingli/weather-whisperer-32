@@ -28,3 +28,6 @@ GEMINI.*
 
 # Affects Cloudflare deployment
 *.lock*
+
+# Large test data files
+data.csv
