@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, type LatLngExpression } from 'react';
+import { useState, useEffect, useMemo, useRef, type LatLngExpression } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapContainer, TileLayer, Rectangle, Marker, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import { CloudRain, AlertCircle, RefreshCw, Play, Pause } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
+import { PRD_BOUNDS } from '@/lib/hko-weather';
 import 'leaflet/dist/leaflet.css';
 
 interface UserLocation {
@@ -148,6 +149,25 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   const updateTime = data?.updateTime || '';
   const { t } = useLanguage();
 
+  // Compute the overall lat/lon extent across all timesteps for data-driven map view
+  const dataBounds = useMemo(() => {
+    if (timeSteps.length === 0) return null;
+    let minLat = Infinity, maxLat = -Infinity;
+    let minLon = Infinity, maxLon = -Infinity;
+    for (const step of timeSteps) {
+      for (const point of step.points) {
+        if (point.lat < minLat) minLat = point.lat;
+        if (point.lat > maxLat) maxLat = point.lat;
+        if (point.lon < minLon) minLon = point.lon;
+        if (point.lon > maxLon) maxLon = point.lon;
+      }
+    }
+    // Add a small padding (~2%) to avoid clipping the outermost cells
+    const latPad = (maxLat - minLat) * 0.02;
+    const lonPad = (maxLon - minLon) * 0.02;
+    return { minLat: minLat - latPad, maxLat: maxLat + latPad, minLon: minLon - lonPad, maxLon: maxLon + lonPad };
+  }, [data]);
+
   // Reset active step index when data is refetched
   useEffect(() => {
     if (timeSteps.length > 0) {
@@ -168,22 +188,30 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
     };
   }, [isPlaying, timeSteps]);
 
-  // Zoom behavior: user location → zoom 14; no location → HK bounds
+  // Zoom behavior: data-loaded → fit to data extent (expand if user outside coords);
+  // no data yet → zoom to user; nothing available → PRD bounds
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (userLocation) {
-      // Zoom tightly to user's location
+    if (dataBounds) {
+      // Data loaded: fit to data extent, expanding to include user location if outside
+      let minLat = dataBounds.minLat, maxLat = dataBounds.maxLat;
+      let minLon = dataBounds.minLon, maxLon = dataBounds.maxLon;
+      if (userLocation) {
+        if (userLocation.latitude < minLat) minLat = userLocation.latitude;
+        if (userLocation.latitude > maxLat) maxLat = userLocation.latitude;
+        if (userLocation.longitude < minLon) minLon = userLocation.longitude;
+        if (userLocation.longitude > maxLon) maxLon = userLocation.longitude;
+      }
+      map.fitBounds([[minLat, minLon], [maxLat, maxLon]], { padding: [50, 50] });
+    } else if (userLocation) {
+      // No data yet: zoom to user
       map.setView([userLocation.latitude, userLocation.longitude], 14, { animate: true });
     } else {
-      // Fit to HK coverage area when no user location
-      const bounds: LatLngExpression = [
-        [22.15, 113.82],
-        [22.56, 114.43],
-      ];
-      map.fitBounds(bounds, { padding: [50, 50] });
+      // Fall back to Pearl River Delta bounds when nothing is available
+      map.fitBounds([[PRD_BOUNDS.minLat, PRD_BOUNDS.minLon], [PRD_BOUNDS.maxLat, PRD_BOUNDS.maxLon]], { padding: [50, 50] });
     }
-  }, [userLocation]);
+  }, [userLocation, dataBounds]);
 
   const activeStep = timeSteps[activeStepIndex];
   const activePoints = activeStep?.points || [];
@@ -253,8 +281,8 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         )}
 
         <MapContainer
-          center={[22.3193, 114.1694]}
-          zoom={10}
+          center={[22.40, 114.10]}
+          zoom={9}
           scrollWheelZoom
           doubleClickZoom
           className="w-full h-full z-0"
