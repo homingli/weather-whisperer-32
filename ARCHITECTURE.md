@@ -22,7 +22,7 @@ Weather Whisperer is a modern, responsive weather dashboard built with React and
   - `CurrentWeather.tsx`: Hero section displaying real-time conditions
   - `HourlyForecast.tsx`: Interactive 6-hour line chart (temperature & precipitation)
   - `DailyForecast.tsx`: 7-day forecast with min/max bounds
-  - `RainfallMap.tsx`: Interactive Leaflet map visualizing HKO's gridded rainfall nowcast
+  - `RainfallMap.tsx`: Interactive Leaflet map visualizing HKO's gridded rainfall nowcast for HK + Pearl River Delta (Guangdong, China). Data-driven viewport fit
   - `SettingsMenu.tsx`: Global settings controls (Language, Theme, Location)
   - `CitySearch.tsx`: Autocomplete geocoding search
   - `WeatherAlerts.tsx`: Active warnings widget, customized for HKO alerts
@@ -43,7 +43,7 @@ Weather Whisperer is a modern, responsive weather dashboard built with React and
 
 ### Unified Weather Gateway
 The orchestrator at `src/lib/weather-manager.ts` acts as a single point of entry for all weather data. It manages:
-- **Location Routing**: Uses `isInHongKong(lat, lon)` to determine if HKO enhancements should be applied.
+- **Location Routing**: Uses `isInHongKong(lat, lon)` to determine if HKO enhancements should be applied. Rainfall map uses `isInRainfallRegion(lat, lon)` (broader Pearl River Delta check) so Shenzhen/Guangzhou users also see nowcast data.
 - **Hybrid Fetching**: Fetches global data from Open-Meteo and localized enhancements from HKO in parallel.
 - **Resilient Merging**: Merges sources while ensuring critical data (like Open-Meteo's more accurate sunrise/sunset times) takes precedence over HKO's placeholders.
 - **Fault Tolerance**: If HKO (secondary source) fails or times out, the gateway automatically falls back to Open-Meteo (primary source) to ensure the UI stays populated.

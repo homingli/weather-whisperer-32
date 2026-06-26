@@ -2,13 +2,13 @@ import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from "react
 import { useQuery } from "@tanstack/react-query";
 import { CurrentWeather } from "@/components/CurrentWeather";
 import { DailyForecast } from "@/components/DailyForecast";
-import { WeatherSkeleton } from "@/components/WeatherSkeleton";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { fetchWeather } from "@/lib/weather-manager";
 import { GeoLocation, getDefaultCity, getRecentCities, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
 import { cache } from "@/lib/cache";
-import { isInHongKong, translateStationName, translateDistrictName } from "@/lib/hko-weather";
+import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName } from "@/lib/hko-weather";
+import { PLACEHOLDER_SENTINEL } from "@/lib/constants";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
@@ -18,8 +18,9 @@ import { CloudRain, MapPin, Download, AlertTriangle } from "lucide-react";
 const HourlyForecast = lazy(() => import("@/components/HourlyForecast").then(module => ({ default: module.HourlyForecast })));
 const RainfallMap = lazy(() => import("@/components/RainfallMap").then(module => ({ default: module.RainfallMap })));
 
-// Default weather.current shape used when data is null (avoid inline object per render)
-const EMPTY_CURRENT_WEATHER = { precipitation: 0, precipitationProbability: 0, isDay: false, temperature: 0, apparentTemperature: 0, humidity: 0, uvIndex: null, weatherCode: 3, windSpeed: 0, windDirection: 0 };
+// Placeholder used when weather.current is null during transitions
+// All display values set to PLACEHOLDER_SENTINEL so CurrentWeather shows `-` instead of 0
+const PLACEHOLDER_CURRENT = { temperature: PLACEHOLDER_SENTINEL, apparentTemperature: PLACEHOLDER_SENTINEL, humidity: PLACEHOLDER_SENTINEL, uvIndex: PLACEHOLDER_SENTINEL, windSpeed: PLACEHOLDER_SENTINEL, windDirection: 0, precipitation: 0, precipitationProbability: 0, isDay: false, weatherCode: 3 };
 
 const Index = () => {
   const [selectedCity, setSelectedCity] = useState<GeoLocation | null>(null);
@@ -100,18 +101,20 @@ const Index = () => {
         const coords = await getUserLocation();
         const geoLocation = await reverseGeocode(coords.latitude, coords.longitude);
         if (geoLocation) {
-          // Only swap if different from saved default
-          const currentCity = selectedCity ?? defaultCity;
-          if (
-            !currentCity ||
-            currentCity.latitude !== geoLocation.latitude ||
-            currentCity.longitude !== geoLocation.longitude
-          ) {
-            setSelectedCity(geoLocation);
-            setDefaultCity(geoLocation);
-            setRecentCities(getRecentCities());
+            // Only swap if significantly different from saved default
+            // Use approximate comparison (~1km tolerance) to avoid unnecessary
+            // query key changes from float-precision coordinate differences
+            const currentCity = selectedCity ?? defaultCity;
+            if (
+              !currentCity ||
+              Math.abs(currentCity.latitude - geoLocation.latitude) > 0.01 ||
+              Math.abs(currentCity.longitude - geoLocation.longitude) > 0.01
+            ) {
+              setSelectedCity(geoLocation);
+              setDefaultCity(geoLocation);
+              setRecentCities(getRecentCities());
+            }
           }
-        }
       } catch (error) {
         console.log('Could not get location:', error);
       } finally {
@@ -234,6 +237,12 @@ const Index = () => {
                 {cacheLabel}
               </div>
             )}
+            {isFetching && weather && !isLoading && (
+              <div className="ml-2 flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="refreshing-data">
+                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <span>Refreshing...</span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} onRefresh={handleForceRefresh} />
@@ -272,43 +281,55 @@ const Index = () => {
               </p>
             </div>
           ) : isLoading ? (
-            <div className="space-y-6 lg:space-y-8 w-full animate-fade-in">
-              {/* Premium Loading Progress Card */}
-              <div className="glass-card p-5 border border-primary/10 flex flex-col gap-4">
-                <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                  <h3 className="font-semibold text-foreground text-sm tracking-wider uppercase">
-                    {t('loading.fetchingData')}
-                  </h3>
-                  <span className="relative flex h-2.5 w-2.5">
+            <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
+              {/* Fetching Status Screen */}
+              <div className="glass-card p-8 border border-primary/10 w-full max-w-lg flex flex-col items-center gap-6">
+                {/* Animated cloud icon */}
+                <div className="relative">
+                  <CloudRain className="h-16 w-16 text-primary animate-pulse" />
+                  <span className="absolute -bottom-1 -right-1 flex h-4 w-4">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+                    <span className="relative inline-flex rounded-full h-4 w-4 bg-primary"></span>
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Title */}
+                <div className="text-center">
+                  <h2 className="text-2xl font-semibold text-foreground mb-1">
+                    {t('loading.fetchingData')}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {t('loading.allowLocation')}
+                  </p>
+                </div>
+
+                {/* Source Status Rows */}
+                <div className="w-full space-y-3">
                   {/* Open-Meteo Status */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-black/5 dark:bg-white/5 border border-border/20">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-foreground">Global Weather Data</span>
-                      <span className="text-xs text-muted-foreground">Open-Meteo API</span>
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-black/5 dark:bg-white/5 border border-border/20">
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-foreground">{t('source.openMeteo')}</span>
+                        <span className="text-xs text-muted-foreground">{t('source.openMeteoDesc')}</span>
+                      </div>
                     </div>
                     {renderStatusBadge(loadProgress.openMeteo)}
                   </div>
 
                   {/* HKO Status (Only if within HK coverage) */}
                   {isHKCovered && (
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-black/5 dark:bg-white/5 border border-border/20">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground">Local Weather Data</span>
-                        <span className="text-xs text-muted-foreground">HK Observatory API</span>
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-black/5 dark:bg-white/5 border border-border/20">
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-foreground">{t('source.hko')}</span>
+                          <span className="text-xs text-muted-foreground">{t('source.hkoDesc')}</span>
+                        </div>
                       </div>
                       {renderStatusBadge(loadProgress.hko)}
                     </div>
                   )}
                 </div>
               </div>
-
-              <WeatherSkeleton />
             </div>
           ) : !weather && error ? (
             <div className="text-center py-20 glass-card">
@@ -316,7 +337,7 @@ const Index = () => {
               <p className="text-base text-muted-foreground">{t('loading.tryAgain')}</p>
             </div>
           ) : weather ? (
-            <div className="space-y-6 lg:space-y-8">
+            <div className="space-y-6 lg:space-y-8 animate-fade-in">
               {/* Fallback Banner */}
               {weather.isFallback && (
                 <div className="glass-card border-amber-500/20 bg-amber-500/5 p-4 rounded-xl flex items-start gap-3 text-amber-600 dark:text-amber-400 animate-fade-in">
@@ -354,7 +375,7 @@ const Index = () => {
                 )}
 
                 <CurrentWeather
-                  weather={weather.current ?? EMPTY_CURRENT_WEATHER}
+                  weather={weather.current ?? PLACEHOLDER_CURRENT}
                   hourlyForecast={weather.hourly || []}
                   dailyForecast={weather?.daily?.[0]}
                   locationName={selectedCity?.name}
@@ -371,8 +392,8 @@ const Index = () => {
                 <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
               </div>
 
-              {/* Bottom Row: Optional Map */}
-              {isHKCovered && (
+              {/* Bottom Row: Optional Map — available for Pearl River Delta region (HK + Guangdong) */}
+              {selectedCity && isInRainfallRegion(selectedCity.latitude, selectedCity.longitude) && (
                 <Suspense fallback={<div className="h-[400px] animate-pulse bg-muted/20 rounded-xl" />}>
                   <RainfallMap userLocation={selectedCity ? { latitude: selectedCity.latitude, longitude: selectedCity.longitude } : undefined} />
                 </Suspense>
