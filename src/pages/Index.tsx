@@ -6,8 +6,8 @@ import { WeatherSkeleton } from "@/components/WeatherSkeleton";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { fetchWeather } from "@/lib/weather-manager";
-import { cache } from "@/lib/cache";
 import { GeoLocation, getDefaultCity, getRecentCities, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
+import { cache } from "@/lib/cache";
 import { isInHongKong, translateStationName, translateDistrictName } from "@/lib/hko-weather";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -24,18 +24,12 @@ const Index = () => {
   const [recentCities, setRecentCities] = useState<GeoLocation[]>([]);
   const { language, t } = useLanguage();
   const [loadProgress, setLoadProgress] = useState<{
-    openMeteo: 'idle' | 'fetching' | 'cached' | 'success' | 'error';
-    hko: 'idle' | 'fetching' | 'cached' | 'success' | 'error';
+    openMeteo: 'idle' | 'fetching' | 'success' | 'error';
+    hko: 'idle' | 'fetching' | 'success' | 'error';
   }>({ openMeteo: 'idle', hko: 'idle' });
 
-  const renderStatusBadge = (status: 'idle' | 'fetching' | 'cached' | 'success' | 'error') => {
+  const renderStatusBadge = (status: 'idle' | 'fetching' | 'success' | 'error') => {
     switch (status) {
-      case 'cached':
-        return (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-secondary/80 text-secondary-foreground border border-border">
-            Loaded from Cache
-          </span>
-        );
       case 'fetching':
         return (
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse flex items-center gap-1.5">
@@ -72,25 +66,44 @@ const Index = () => {
     setRecentCities(getRecentCities());
   }, []);
 
+  // Clear stale custom cache entries left over from the previous cache layer.
+  // The old cache stored raw Open-Meteo API responses (flat shape, no `current` wrapper)
+  // that are incompatible with the current `WeatherData` shape expected by the UI.
+  useEffect(() => {
+    cache.clearWeather();
+  }, []);
+
+  // Dual-fetch location initialization (Option C):
+  // 1. Show saved default city weather immediately
+  // 2. Fetch geolocation in background, swap if different
   useEffect(() => {
     const initializeLocation = async () => {
-      // First check if there's a saved default city
       const defaultCity = getDefaultCity();
       if (defaultCity) {
         setSelectedCity(defaultCity);
         setRecentCities(getRecentCities());
-        return;
+        // Still try to get geo location in background
       }
 
-      // Otherwise, try to get user's current location
-      setIsLocating(true);
+      if (!defaultCity) {
+        setIsLocating(true);
+      }
+
       try {
         const coords = await getUserLocation();
-        const location = await reverseGeocode(coords.latitude, coords.longitude);
-        if (location) {
-          setSelectedCity(location);
-          setDefaultCity(location);
-          setRecentCities(getRecentCities());
+        const geoLocation = await reverseGeocode(coords.latitude, coords.longitude);
+        if (geoLocation) {
+          // Only swap if different from saved default
+          const currentCity = selectedCity ?? defaultCity;
+          if (
+            !currentCity ||
+            currentCity.latitude !== geoLocation.latitude ||
+            currentCity.longitude !== geoLocation.longitude
+          ) {
+            setSelectedCity(geoLocation);
+            setDefaultCity(geoLocation);
+            setRecentCities(getRecentCities());
+          }
         }
       } catch (error) {
         console.log('Could not get location:', error);
@@ -104,11 +117,12 @@ const Index = () => {
 
   // Determine if selected city is in Hong Kong coverage area
   const isHKCovered = selectedCity ? isInHongKong(selectedCity.latitude, selectedCity.longitude) : false;
-  // Note: I used the bounds from hko-weather.ts directly for simplicity in Index if I don't want to import isInHongKong
-  // But I should import it.
 
   // Fetch unified weather data via WeatherManager
-  const { data: weather, isLoading, error, refetch } = useQuery({
+  // - keepPreviousData: smooth transition when city swaps (geo vs default)
+  // - staleTime 5 min + refetchInterval 5 min: consistent caching
+  // - No custom cache layer — React Query handles all TTL/dedup
+  const { data: weather, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["weather-unified", language, selectedCity?.latitude, selectedCity?.longitude],
     queryFn: async () => {
       setLoadProgress({
@@ -126,7 +140,8 @@ const Index = () => {
     },
     enabled: !!selectedCity,
     refetchInterval: hasFailure ? 60 * 1000 : 5 * 60 * 1000,
-    staleTime: hasFailure ? 60 * 1000 : 2.5 * 60 * 1000,
+    staleTime: hasFailure ? 60 * 1000 : 5 * 60 * 1000,
+    placeholderData: 'keepPreviousData',
   });
 
   useEffect(() => {
@@ -138,7 +153,7 @@ const Index = () => {
   }, [weather]);
 
   const handleForceRefresh = useCallback(async () => {
-    cache.clearWeather();
+    // Force a fresh network fetch via React Query invalidate
     await refetch();
   }, [refetch]);
 
@@ -149,10 +164,9 @@ const Index = () => {
   useEffect(() => {
     if (sunTimes && sunTimes.length > 0) {
       const todayForecast = sunTimes[0];
-      // Robustly handle both Date objects and stringified dates from cache
       const sunrise = todayForecast.sunrise instanceof Date ? todayForecast.sunrise : new Date(todayForecast.sunrise);
       const sunset = todayForecast.sunset instanceof Date ? todayForecast.sunset : new Date(todayForecast.sunset);
-      
+
       if (!isNaN(sunrise.getTime()) && !isNaN(sunset.getTime())) {
         setSunTimes(sunrise, sunset);
       }
@@ -167,10 +181,10 @@ const Index = () => {
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
-    
+
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
@@ -178,8 +192,7 @@ const Index = () => {
   }, []);
 
   // Freshness indicator: only show when using cached/stale data
-  // Show when offline and we have cached data
-  const cacheLabel = isOffline && !isLoading && weather 
+  const cacheLabel = isOffline && !isLoading && weather
     ? t('data.usingCached')
     : null;
 
@@ -264,7 +277,7 @@ const Index = () => {
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
                   </span>
                 </div>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Open-Meteo Status */}
                   <div className="flex items-center justify-between p-3 rounded-lg bg-black/5 dark:bg-white/5 border border-border/20">
@@ -287,7 +300,7 @@ const Index = () => {
                   )}
                 </div>
               </div>
-              
+
               <WeatherSkeleton />
             </div>
           ) : !weather && error ? (
@@ -303,8 +316,8 @@ const Index = () => {
                   <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-semibold text-sm">
-                      {weather.fallbackSource === 'HKO' 
-                        ? t('fallback.hkoTitle') 
+                      {weather.fallbackSource === 'HKO'
+                        ? t('fallback.hkoTitle')
                         : t('fallback.cacheTitle')}
                     </h4>
                     <p className="text-xs opacity-90 mt-1">
@@ -332,11 +345,11 @@ const Index = () => {
                 {weather.warnings && weather.warnings.length > 0 && (
                   <WeatherAlerts warnings={weather.warnings} />
                 )}
-                
+
                 <CurrentWeather
-                  weather={weather.current}
-                  hourlyForecast={weather.hourly}
-                  dailyForecast={weather.daily[0]}
+                  weather={weather.current ?? { precipitation: 0, precipitationProbability: 0, isDay: false, temperature: 0, apparentTemperature: 0, humidity: 0, uvIndex: null, weatherCode: 3, windSpeed: 0, windDirection: 0 }}
+                  hourlyForecast={weather.hourly || []}
+                  dailyForecast={weather?.daily?.[0]}
                   locationName={selectedCity?.name}
                   timezone={weather.timezone}
                 />
@@ -345,10 +358,10 @@ const Index = () => {
               {/* Secondary Row: Split Forecasts */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
                 <Suspense fallback={<div className="h-[300px] animate-pulse bg-muted/20 rounded-xl" />}>
-                  <HourlyForecast forecast={weather.hourly} daily={sunTimes} timezone={weather.timezone} />
+                  <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} />
                 </Suspense>
-                
-                <DailyForecast forecast={weather.daily} timezone={weather.timezone} />
+
+                <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
               </div>
 
               {/* Bottom Row: Optional Map */}

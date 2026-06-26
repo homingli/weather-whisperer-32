@@ -16,11 +16,11 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
 
   // Wrap in useMemo to prevent unnecessary re-calculations on every second tick
   const needsUmbrella = useMemo(() => {
-    const isCurrentlyRaining = weather.precipitation > 2;
+    const isCurrentlyRaining = (weather.precipitation ?? 0) > 2;
     const next6Hours = hourlyForecast.slice(0, 6);
     const firstRainyHour = next6Hours.find(hour => hour.precipitationProbability >= 25);
     return isCurrentlyRaining || !!firstRainyHour;
-  }, [weather.precipitation, hourlyForecast]);
+  }, [weather, hourlyForecast]);
 
   const [currentTime, setCurrentTime] = useState(new Date());
   
