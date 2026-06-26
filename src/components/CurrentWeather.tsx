@@ -14,6 +14,12 @@ interface CurrentWeatherProps {
 export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, locationName, timezone }: CurrentWeatherProps) => {
   const { language, t } = useLanguage();
 
+  // Sentinel check — values from PLACEHOLDER_CURRENT use -999 to signal "no data yet"
+  const isEmpty = weather.apparentTemperature < -100;
+
+  // Format a value: render `-` when placeholder sentinel detected
+  const fmt = (v: number, suffix = '') => v < -100 ? '-' : `${Math.round(v)}${suffix}`;
+
   // Wrap in useMemo to prevent unnecessary re-calculations on every second tick
   const needsUmbrella = useMemo(() => {
     const isCurrentlyRaining = (weather.precipitation ?? 0) > 2;
@@ -102,9 +108,8 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
 
               <div className="flex flex-col">
                 <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest mb-1">{t('weather.feelsLike')}</p>
-                <div className="text-9xl font-extralight tracking-tighter leading-none flex items-baseline" aria-label={`${Math.round(weather.apparentTemperature)} degrees`}>
-                  {Math.round(weather.apparentTemperature)}
-                  <span className="text-5xl self-start mt-2">°</span>
+                <div className="text-9xl font-extralight tracking-tighter leading-none flex items-baseline" aria-label={isEmpty ? '-' : `${Math.round(weather.apparentTemperature)} degrees`}>
+                  {fmt(weather.apparentTemperature, '°')}
                 </div>
               </div>
             </div>
@@ -120,11 +125,11 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-3">
                   <ArrowUp className="h-5 w-5 text-orange-400" />
-                  <span className="text-2xl font-light tabular-nums">{Math.round(dailyForecast?.temperatureMax || 0)}°</span>
+                  <span className="text-2xl font-light tabular-nums">{dailyForecast ? fmt(dailyForecast.temperatureMax, '°') : '-'}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <ArrowDown className="h-5 w-5 text-blue-400" />
-                  <span className="text-2xl font-light tabular-nums">{Math.round(dailyForecast?.temperatureMin || 0)}°</span>
+                  <span className="text-2xl font-light tabular-nums">{dailyForecast ? fmt(dailyForecast.temperatureMin, '°') : '-'}</span>
                 </div>
               </div>
               <p className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-wider vertical-text ml-auto">
@@ -171,19 +176,19 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
             <div className="p-4 rounded-2xl bg-blue-400/5 flex flex-col items-center gap-2">
               <Droplets className="h-6 w-6 text-blue-400" />
               <div className="text-center">
-                <span className="text-sm font-semibold block leading-none mb-1">{Math.round(weather.humidity)}%</span>
+                <span className="text-sm font-semibold block leading-none mb-1">{fmt(weather.humidity, '%')}</span>
                 <span className="text-sm text-muted-foreground uppercase font-medium">{t('weather.humidity')}</span>
               </div>
             </div>
 
             {/* Wind */}
             <div className="p-4 rounded-2xl bg-sky-400/5 flex flex-col items-center gap-2">
-              <div style={{ transform: `rotate(${weather.windDirection + 180}deg)` }}>
+              <div style={{ transform: isEmpty ? 'rotate(0deg)' : `rotate(${weather.windDirection + 180}deg)` }}>
                 <MoveUp className="h-6 w-6 text-sky-400" />
               </div>
               <div className="text-center">
                 <span className="text-sm font-semibold block leading-none mb-1">
-                  {Math.round(weather.windSpeed)}
+                  {fmt(weather.windSpeed)}
                   <span className="text-[10px] font-normal opacity-70 ml-0.5">{t('unit.kmh')}</span>
                 </span>
                 <span className="text-sm text-muted-foreground uppercase font-medium">{t('weather.wind')}</span>
@@ -192,9 +197,9 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
 
             {/* UV Index */}
             <div className="p-4 rounded-2xl bg-blue-400/5 flex flex-col items-center gap-2">
-              <Sun className={`h-6 w-6 ${uvInfo.color}`} />
+              <Sun className={`h-6 w-6 ${isEmpty ? 'text-muted-foreground/20' : uvInfo.color}`} />
               <div className="text-center">
-                <span className="text-sm font-semibold block leading-none mb-1">{weather.uvIndex == null ? '--' : weather.uvIndex.toFixed(1)}</span>
+                <span className="text-sm font-semibold block leading-none mb-1">{isEmpty ? '-' : weather.uvIndex == null ? '--' : weather.uvIndex.toFixed(1)}</span>
                 <span className="text-sm text-muted-foreground uppercase font-medium">{t('weather.uvIndex')}</span>
               </div>
             </div>

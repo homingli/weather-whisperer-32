@@ -17,8 +17,9 @@ import { CloudRain, MapPin, Download, AlertTriangle } from "lucide-react";
 const HourlyForecast = lazy(() => import("@/components/HourlyForecast").then(module => ({ default: module.HourlyForecast })));
 const RainfallMap = lazy(() => import("@/components/RainfallMap").then(module => ({ default: module.RainfallMap })));
 
-// Default weather.current shape used when data is null (avoid inline object per render)
-const EMPTY_CURRENT_WEATHER = { precipitation: 0, precipitationProbability: 0, isDay: false, temperature: 0, apparentTemperature: 0, humidity: 0, uvIndex: null, weatherCode: 3, windSpeed: 0, windDirection: 0 };
+// Placeholder used when weather.current is null during transitions
+// All display values set to flag so CurrentWeather shows `-` instead of 0
+const PLACEHOLDER_CURRENT = { temperature: -999, apparentTemperature: -999, humidity: -999, uvIndex: -999, windSpeed: -999, windDirection: 0, precipitation: 0, precipitationProbability: 0, isDay: false, weatherCode: 3 };
 
 const Index = () => {
   const [selectedCity, setSelectedCity] = useState<GeoLocation | null>(null);
@@ -373,7 +374,7 @@ const Index = () => {
                 )}
 
                 <CurrentWeather
-                  weather={weather.current ?? EMPTY_CURRENT_WEATHER}
+                  weather={weather.current ?? PLACEHOLDER_CURRENT}
                   hourlyForecast={weather.hourly || []}
                   dailyForecast={weather?.daily?.[0]}
                   locationName={selectedCity?.name}
