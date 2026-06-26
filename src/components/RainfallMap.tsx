@@ -132,6 +132,8 @@ const fetchRainfallNowcast = async (): Promise<NowcastResult> => {
 
 export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) => {
   const mapRef = useRef<L.Map | null>(null);
+  const viewportInit = useRef(false);
+  const prevUserLoc = useRef<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -188,28 +190,29 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
     };
   }, [isPlaying, timeSteps]);
 
-  // Zoom behavior: data-loaded → fit to data extent (expand if user outside coords);
-  // no data yet → zoom to user; nothing available → PRD bounds
+  // Zoom behavior: set view ONCE on init. Never re-zoom on data load — keeps user zoom.
+  // userLocation change (new city) → re-center on new city.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (dataBounds) {
-      // Data loaded: fit to data extent, expanding to include user location if outside
-      let minLat = dataBounds.minLat, maxLat = dataBounds.maxLat;
-      let minLon = dataBounds.minLon, maxLon = dataBounds.maxLon;
+
+    const locKey = userLocation ? `${userLocation.latitude},${userLocation.longitude}` : null;
+    const prevKey = prevUserLoc.current;
+    const userChanged = locKey && locKey !== prevKey;
+
+    if (!viewportInit.current || userChanged) {
       if (userLocation) {
-        if (userLocation.latitude < minLat) minLat = userLocation.latitude;
-        if (userLocation.latitude > maxLat) maxLat = userLocation.latitude;
-        if (userLocation.longitude < minLon) minLon = userLocation.longitude;
-        if (userLocation.longitude > maxLon) maxLon = userLocation.longitude;
+        map.setView([userLocation.latitude, userLocation.longitude], 14, { animate: true });
+        prevUserLoc.current = locKey;
+        viewportInit.current = true;
+      } else if (dataBounds) {
+        map.fitBounds([[dataBounds.minLat, dataBounds.minLon], [dataBounds.maxLat, dataBounds.maxLon]], { padding: [50, 50] });
+        viewportInit.current = true;
+      } else {
+        // Fall back to Pearl River Delta bounds when nothing available
+        map.fitBounds([[PRD_BOUNDS.minLat, PRD_BOUNDS.minLon], [PRD_BOUNDS.maxLat, PRD_BOUNDS.maxLon]], { padding: [50, 50] });
+        viewportInit.current = true;
       }
-      map.fitBounds([[minLat, minLon], [maxLat, maxLon]], { padding: [50, 50] });
-    } else if (userLocation) {
-      // No data yet: zoom to user
-      map.setView([userLocation.latitude, userLocation.longitude], 14, { animate: true });
-    } else {
-      // Fall back to Pearl River Delta bounds when nothing is available
-      map.fitBounds([[PRD_BOUNDS.minLat, PRD_BOUNDS.minLon], [PRD_BOUNDS.maxLat, PRD_BOUNDS.maxLon]], { padding: [50, 50] });
     }
   }, [userLocation, dataBounds]);
 
