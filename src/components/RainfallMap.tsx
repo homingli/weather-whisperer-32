@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Rectangle, Marker, ZoomControl } from 'react-l
 import L from 'leaflet';
 import { CloudRain, AlertCircle, RefreshCw, Play, Pause } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
+import { PRD_BOUNDS } from '@/lib/hko-weather';
 import 'leaflet/dist/leaflet.css';
 
 interface UserLocation {
@@ -167,12 +168,6 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
     return { minLat: minLat - latPad, maxLat: maxLat + latPad, minLon: minLon - lonPad, maxLon: maxLon + lonPad };
   }, [data]);
 
-  // Pearl River Delta default bounds cover HK + Guangdong (used before data loads)
-  const PRD_DEFAULT_BOUNDS: [[number, number], [number, number]] = [
-    [21.30, 112.95],
-    [23.50, 115.30],
-  ];
-
   // Reset active step index when data is refetched
   useEffect(() => {
     if (timeSteps.length > 0) {
@@ -214,7 +209,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
       map.setView([userLocation.latitude, userLocation.longitude], 14, { animate: true });
     } else {
       // Fall back to Pearl River Delta bounds when nothing is available
-      map.fitBounds(PRD_DEFAULT_BOUNDS, { padding: [50, 50] });
+      map.fitBounds([[PRD_BOUNDS.minLat, PRD_BOUNDS.minLon], [PRD_BOUNDS.maxLat, PRD_BOUNDS.maxLon]], { padding: [50, 50] });
     }
   }, [userLocation, dataBounds]);
 

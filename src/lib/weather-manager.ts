@@ -1,5 +1,5 @@
 import { getWeather as getOpenMeteoWeather, WeatherData } from './weather';
-import { isInHongKong, getHKODailyAndWarnings, fetchHKOWeatherData } from './hko-weather';
+import { isInHongKong, getHKODailyAndWarnings, getHKOCurrentWeather, buildHKOWeatherData } from './hko-weather';
 
 export async function fetchWeather(
   lat: number,
@@ -68,9 +68,19 @@ export async function fetchWeather(
     }
   }
 
-  if (!omData) {
-    // Open-Meteo failed but HKO succeeded — unlikely but handle
-    return fetchHKOWeatherData(lat, lon, lang);
+  if (!omData && hkoResult.data) {
+    // Open-Meteo failed, HKO daily succeeded — fetch only HKO current weather,
+    // merge with already-parsed daily data (avoids re-fetching daily/warnings)
+    onProgress?.('hko', 'fetching');
+    try {
+      const hkoCurrent = await getHKOCurrentWeather(lang);
+      onProgress?.('hko', 'success');
+      return buildHKOWeatherData(hkoCurrent, hkoResult.data, lat, lon, lang);
+    } catch (err) {
+      onProgress?.('hko', 'error');
+      console.error('HKO fallback failed too:', err);
+      throw new Error('Both Open-Meteo and HKO APIs failed');
+    }
   }
 
   if (hkoErr) {

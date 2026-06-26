@@ -64,7 +64,7 @@ export function isInHongKong(lat: number, lon: number): boolean {
 // Pearl River Delta bounding box for the gridded rainfall nowcast map
 // Covers Hong Kong + Guangdong China (Shenzhen, Guangzhou, Zhuhai, Macau, etc.)
 // Matches the actual HKO F3 nowcast grid extent: ~21.33°N-23.49°N, 112.96°E-115.29°E
-const PRD_BOUNDS = {
+export const PRD_BOUNDS = {
   minLat: 21.30,
   maxLat: 23.50,
   minLon: 112.95,
@@ -674,6 +674,82 @@ export async function getHKOCurrentWeather(lang: 'en' | 'tc' = 'en'): Promise<HK
   }
 }
 
+// Build full HKO WeatherData from already-fetched current + daily/warnings.
+// Shared by fetchHKOWeatherData and weather-manager fallback path.
+export async function buildHKOWeatherData(
+  currentHko: HKOCurrentWeatherResponse,
+  dailyAndWarnings: { daily: DailyForecast[]; warnings: HKOWarning[]; nearestStation?: string; nearestDistrict?: string; timezone?: string },
+  lat: number,
+  lon: number,
+  lang: 'en' | 'tc' = 'en'
+): Promise<WeatherData> {
+  const nearestStation = findNearestStation(lat, lon, lang);
+  const stationName = nearestStation?.name || (lang === 'tc' ? '香港天文台' : 'Hong Kong Observatory');
+
+  let temperature = 25;
+  const tempReading = currentHko.temperature.data.find(t => t.place === stationName)
+    || currentHko.temperature.data.find(t => t.place === (lang === 'tc' ? '香港天文台' : 'Hong Kong Observatory'))
+    || currentHko.temperature.data[0];
+  if (tempReading) temperature = tempReading.value;
+
+  let humidity = 75;
+  const humReading = currentHko.humidity.data.find(h => h.place === (lang === 'tc' ? '香港天文台' : 'Hong Kong Observatory'))
+    || currentHko.humidity.data[0];
+  if (humReading) humidity = humReading.value;
+
+  let precipitation = 0;
+  const nearestDistrict = findNearestDistrict(lat, lon, lang);
+  if (nearestDistrict && currentHko.rainfall?.data) {
+    const rainReading = currentHko.rainfall.data.find(r => r.place === nearestDistrict.name);
+    if (rainReading) precipitation = rainReading.max;
+  }
+
+  let uvIndex = 0;
+  if (currentHko.uvindex?.data?.length) uvIndex = currentHko.uvindex.data[0].value;
+
+  let weatherCode = 3;
+  if (currentHko.icon?.length) weatherCode = hkoIconToWeatherCode(currentHko.icon[0]);
+
+  const currentHour = new Date().getHours();
+  const isDay = currentHour >= 6 && currentHour < 19;
+
+  const eVal = (humidity / 100) * 6.105 * Math.exp((17.27 * temperature) / (237.7 + temperature));
+  const apparentTemperature = Math.round(temperature + 0.33 * eVal - 4.0);
+
+  const current: CurrentWeather = {
+    temperature, apparentTemperature, humidity, uvIndex, weatherCode,
+    windSpeed: 0, windDirection: 0, precipitation,
+    precipitationProbability: dailyAndWarnings.daily[0]?.precipitationProbabilityMax || 0,
+    precipitationProbabilityRaw: dailyAndWarnings.daily[0]?.precipitationProbabilityRaw,
+    isDay,
+  };
+
+  const hourly: HourlyForecast[] = [];
+  const startHour = new Date();
+  startHour.setMinutes(0, 0, 0);
+  for (let i = 0; i < 8; i++) {
+    const hourTime = new Date(startHour.getTime() + i * 60 * 60 * 1000);
+    hourly.push({
+      time: hourTime, temperature, weatherCode,
+      windSpeed: 0, windDirection: 0,
+      precipitationProbability: current.precipitationProbability,
+      precipitation: 0,
+      isDay: hourTime.getHours() >= 6 && hourTime.getHours() < 19,
+    });
+  }
+
+  return {
+    current, hourly,
+    daily: dailyAndWarnings.daily,
+    warnings: dailyAndWarnings.warnings,
+    timezone: 'Asia/Hong_Kong',
+    nearestStation: dailyAndWarnings.nearestStation,
+    nearestDistrict: dailyAndWarnings.nearestDistrict,
+    isFallback: true,
+    fallbackSource: 'HKO',
+  };
+}
+
 // Fetch complete HKO-only weather data as fallback
 export async function fetchHKOWeatherData(
   lat: number,
@@ -684,104 +760,7 @@ export async function fetchHKOWeatherData(
     getHKOCurrentWeather(lang),
     getHKODailyAndWarnings(lang, lat, lon),
   ]);
-
-  // Find nearest station temperature
-  const nearestStation = findNearestStation(lat, lon, lang);
-  const stationName = nearestStation?.name || (lang === 'tc' ? '香港天文台' : 'Hong Kong Observatory');
-  
-  let temperature = 25; // default fallback
-  const tempReading = currentHko.temperature.data.find(t => t.place === stationName) 
-    || currentHko.temperature.data.find(t => t.place === (lang === 'tc' ? '香港天文台' : 'Hong Kong Observatory'))
-    || currentHko.temperature.data[0];
-  if (tempReading) {
-    temperature = tempReading.value;
-  }
-
-  // Humidity
-  let humidity = 75; // default fallback
-  const humReading = currentHko.humidity.data.find(h => h.place === (lang === 'tc' ? '香港天文台' : 'Hong Kong Observatory'))
-    || currentHko.humidity.data[0];
-  if (humReading) {
-    humidity = humReading.value;
-  }
-
-  // Rainfall/Precipitation
-  let precipitation = 0;
-  const nearestDistrict = findNearestDistrict(lat, lon, lang);
-  if (nearestDistrict && currentHko.rainfall && currentHko.rainfall.data) {
-    const rainReading = currentHko.rainfall.data.find(r => r.place === nearestDistrict.name);
-    if (rainReading) {
-      precipitation = rainReading.max;
-    }
-  }
-
-  // UV index
-  let uvIndex = 0;
-  if (currentHko.uvindex && currentHko.uvindex.data && currentHko.uvindex.data.length > 0) {
-    uvIndex = currentHko.uvindex.data[0].value;
-  }
-
-  // Weather Code
-  let weatherCode = 3; // Default cloudy
-  if (currentHko.icon && currentHko.icon.length > 0) {
-    weatherCode = hkoIconToWeatherCode(currentHko.icon[0]);
-  }
-
-  // Day/Night status
-  const currentHour = new Date().getHours();
-  const isDay = currentHour >= 6 && currentHour < 19;
-
-  // Calculate apparent temperature
-  // e = (humidity / 100) * 6.105 * exp((17.27 * temp) / (237.7 + temp))
-  // AT = temp + 0.33 * e - 4.0
-  const eVal = (humidity / 100) * 6.105 * Math.exp((17.27 * temperature) / (237.7 + temperature));
-  const apparentTemperature = Math.round(temperature + 0.33 * eVal - 4.0);
-
-  const current: CurrentWeather = {
-    temperature,
-    apparentTemperature,
-    humidity,
-    uvIndex,
-    weatherCode,
-    windSpeed: 0,
-    windDirection: 0,
-    precipitation,
-    precipitationProbability: dailyAndWarnings.daily[0]?.precipitationProbabilityMax || 0,
-    precipitationProbabilityRaw: dailyAndWarnings.daily[0]?.precipitationProbabilityRaw,
-    isDay,
-  };
-
-  // Build a dummy hourly forecast around the current hour since HKO doesn't have it
-  // This prevents UI charts from breaking or being completely empty
-  const hourly: HourlyForecast[] = [];
-  const startHour = new Date();
-  startHour.setMinutes(0, 0, 0);
-  for (let i = 0; i < 8; i++) {
-    const hourTime = new Date(startHour.getTime() + i * 60 * 60 * 1000);
-    const hourVal = hourTime.getHours();
-    hourly.push({
-      time: hourTime,
-      temperature: temperature,
-      weatherCode: weatherCode,
-      windSpeed: 0,
-      windDirection: 0,
-      precipitationProbability: current.precipitationProbability,
-      precipitation: 0,
-      isDay: hourVal >= 6 && hourVal < 19,
-    });
-  }
-
-  return {
-    current,
-    hourly,
-    daily: dailyAndWarnings.daily,
-    warnings: dailyAndWarnings.warnings,
-    timezone: 'Asia/Hong_Kong',
-    nearestStation: dailyAndWarnings.nearestStation,
-    nearestDistrict: dailyAndWarnings.nearestDistrict,
-    isFallback: true,
-    fallbackSource: 'HKO',
-  };
+  return buildHKOWeatherData(currentHko, dailyAndWarnings, lat, lon, lang);
 }
 
 export function getWarningColor(code: string): string {
