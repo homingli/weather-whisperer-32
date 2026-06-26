@@ -1,10 +1,6 @@
 import { getWeather as getOpenMeteoWeather, WeatherData } from './weather';
 import { isInHongKong, getHKODailyAndWarnings, fetchHKOWeatherData } from './hko-weather';
 
-function isTimeoutError(err: unknown): boolean {
-  return err instanceof DOMException && err.name === 'TimeoutError';
-}
-
 export async function fetchWeather(
   lat: number,
   lon: number,
@@ -51,10 +47,6 @@ export async function fetchWeather(
     } catch (err) {
       console.warn('HKO fetch failed:', err);
       onProgress?.('hko', 'error');
-      // Stale cache recovery on timeout only
-      if (isTimeoutError(err)) {
-        // React Query's keepPreviousData handles stale UI; don't fall back to stale here
-      }
       hkoFailed = true;
     }
 
@@ -68,7 +60,7 @@ export async function fetchWeather(
     // Combine Open-Meteo with HKO daily/warnings
     const combined: WeatherData = {
       ...omData,
-      daily: hkoData.daily.map((day: any, i: number) => ({
+      daily: (hkoData.daily ?? []).filter(Boolean).map((day: any, i: number) => ({
         ...day,
         sunrise: omData.daily[i]?.sunrise || day.sunrise,
         sunset: omData.daily[i]?.sunset || day.sunset,
