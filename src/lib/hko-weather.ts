@@ -775,7 +775,7 @@ export function getWarningColor(code: string): string {
 }
 
 export function getWarningIcon(warningCode: string): string {
-  const baseUrl = 'https://www.hko.gov.hk/en/wxinfo/dailywx/images';
+  const baseUrl = '/icons/hko-warnings';
   const iconMap: Record<string, string> = {
     'WFIREY': 'firey.gif',
     'WFIRER': 'firer.gif',
