@@ -99,18 +99,20 @@ const Index = () => {
         const coords = await getUserLocation();
         const geoLocation = await reverseGeocode(coords.latitude, coords.longitude);
         if (geoLocation) {
-          // Only swap if different from saved default
-          const currentCity = selectedCity ?? defaultCity;
-          if (
-            !currentCity ||
-            currentCity.latitude !== geoLocation.latitude ||
-            currentCity.longitude !== geoLocation.longitude
-          ) {
-            setSelectedCity(geoLocation);
-            setDefaultCity(geoLocation);
-            setRecentCities(getRecentCities());
+            // Only swap if significantly different from saved default
+            // Use approximate comparison (~1km tolerance) to avoid unnecessary
+            // query key changes from float-precision coordinate differences
+            const currentCity = selectedCity ?? defaultCity;
+            if (
+              !currentCity ||
+              Math.abs(currentCity.latitude - geoLocation.latitude) > 0.01 ||
+              Math.abs(currentCity.longitude - geoLocation.longitude) > 0.01
+            ) {
+              setSelectedCity(geoLocation);
+              setDefaultCity(geoLocation);
+              setRecentCities(getRecentCities());
+            }
           }
-        }
       } catch (error) {
         console.log('Could not get location:', error);
       } finally {
@@ -233,6 +235,12 @@ const Index = () => {
                 {cacheLabel}
               </div>
             )}
+            {isFetching && weather && !isLoading && (
+              <div className="ml-2 flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="refreshing-data">
+                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <span>Refreshing...</span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} onRefresh={handleForceRefresh} />
@@ -327,7 +335,7 @@ const Index = () => {
               <p className="text-base text-muted-foreground">{t('loading.tryAgain')}</p>
             </div>
           ) : weather ? (
-            <div className="space-y-6 lg:space-y-8">
+            <div className="space-y-6 lg:space-y-8 animate-fade-in">
               {/* Fallback Banner */}
               {weather.isFallback && (
                 <div className="glass-card border-amber-500/20 bg-amber-500/5 p-4 rounded-xl flex items-start gap-3 text-amber-600 dark:text-amber-400 animate-fade-in">

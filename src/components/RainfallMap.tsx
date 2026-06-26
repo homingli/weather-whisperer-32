@@ -193,22 +193,27 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
     };
   }, [isPlaying, timeSteps]);
 
-  // Zoom behavior: user location → zoom 14; no location → fit to data extent or PRD bounds
+  // Zoom behavior: data-loaded → fit to data extent (expand if user outside coords);
+  // no data yet → zoom to user; nothing available → PRD bounds
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (userLocation) {
-      // Zoom tightly to user's location
+    if (dataBounds) {
+      // Data loaded: fit to data extent, expanding to include user location if outside
+      let minLat = dataBounds.minLat, maxLat = dataBounds.maxLat;
+      let minLon = dataBounds.minLon, maxLon = dataBounds.maxLon;
+      if (userLocation) {
+        if (userLocation.latitude < minLat) minLat = userLocation.latitude;
+        if (userLocation.latitude > maxLat) maxLat = userLocation.latitude;
+        if (userLocation.longitude < minLon) minLon = userLocation.longitude;
+        if (userLocation.longitude > maxLon) maxLon = userLocation.longitude;
+      }
+      map.fitBounds([[minLat, minLon], [maxLat, maxLon]], { padding: [50, 50] });
+    } else if (userLocation) {
+      // No data yet: zoom to user
       map.setView([userLocation.latitude, userLocation.longitude], 14, { animate: true });
-    } else if (dataBounds) {
-      // Fit to the actual data coverage area (computed from fetched CSV)
-      const bounds: LatLngExpression = [
-        [dataBounds.minLat, dataBounds.minLon],
-        [dataBounds.maxLat, dataBounds.maxLon],
-      ];
-      map.fitBounds(bounds, { padding: [50, 50] });
     } else {
-      // Fall back to Pearl River Delta bounds when no data loaded yet
+      // Fall back to Pearl River Delta bounds when nothing is available
       map.fitBounds(PRD_DEFAULT_BOUNDS, { padding: [50, 50] });
     }
   }, [userLocation, dataBounds]);
