@@ -8,6 +8,7 @@ import { fetchWeather } from "@/lib/weather-manager";
 import { GeoLocation, getDefaultCity, getRecentCities, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
 import { cache } from "@/lib/cache";
 import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName } from "@/lib/hko-weather";
+import { PLACEHOLDER_SENTINEL } from "@/lib/constants";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
@@ -18,8 +19,8 @@ const HourlyForecast = lazy(() => import("@/components/HourlyForecast").then(mod
 const RainfallMap = lazy(() => import("@/components/RainfallMap").then(module => ({ default: module.RainfallMap })));
 
 // Placeholder used when weather.current is null during transitions
-// All display values set to flag so CurrentWeather shows `-` instead of 0
-const PLACEHOLDER_CURRENT = { temperature: -999, apparentTemperature: -999, humidity: -999, uvIndex: -999, windSpeed: -999, windDirection: 0, precipitation: 0, precipitationProbability: 0, isDay: false, weatherCode: 3 };
+// All display values set to PLACEHOLDER_SENTINEL so CurrentWeather shows `-` instead of 0
+const PLACEHOLDER_CURRENT = { temperature: PLACEHOLDER_SENTINEL, apparentTemperature: PLACEHOLDER_SENTINEL, humidity: PLACEHOLDER_SENTINEL, uvIndex: PLACEHOLDER_SENTINEL, windSpeed: PLACEHOLDER_SENTINEL, windDirection: 0, precipitation: 0, precipitationProbability: 0, isDay: false, weatherCode: 3 };
 
 const Index = () => {
   const [selectedCity, setSelectedCity] = useState<GeoLocation | null>(null);

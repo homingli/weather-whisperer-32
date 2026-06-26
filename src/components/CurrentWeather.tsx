@@ -1,5 +1,6 @@
 import { memo, useState, useEffect, useMemo, useCallback } from "react";
 import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIcon } from "@/lib/weather";
+import { SENTINEL_THRESHOLD } from "@/lib/constants";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, ArrowUp, ArrowDown, MoveUp, Droplets, Sun } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -14,11 +15,11 @@ interface CurrentWeatherProps {
 export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, locationName, timezone }: CurrentWeatherProps) => {
   const { language, t } = useLanguage();
 
-  // Sentinel check — values from PLACEHOLDER_CURRENT use -999 to signal "no data yet"
-  const isEmpty = weather.apparentTemperature < -100;
+  // Sentinel check — values from PLACEHOLDER_CURRENT use PLACEHOLDER_SENTINEL to signal "no data yet"
+  const isEmpty = weather.apparentTemperature < SENTINEL_THRESHOLD;
 
   // Format a value: render `-` when placeholder sentinel detected
-  const fmt = (v: number, suffix = '') => v < -100 ? '-' : `${Math.round(v)}${suffix}`;
+  const fmt = (v: number, suffix = '') => v < SENTINEL_THRESHOLD ? '-' : `${Math.round(v)}${suffix}`;
 
   // Wrap in useMemo to prevent unnecessary re-calculations on every second tick
   const needsUmbrella = useMemo(() => {
