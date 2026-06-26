@@ -1,6 +1,6 @@
 # Weather Forecast Application
 
-A modern, responsive weather application built with React and TypeScript. Features real-time weather data from multiple sources including the Hong Kong Observatory (HKO) and Open-Meteo, with support for multiple languages and a sleek glass-morphism design.
+A modern, responsive weather application built with React and TypeScript. Features real-time weather data from multiple sources including the Hong Kong Observatory (HKO) and Open-Meteo, with support for multiple languages, a gridded rainfall nowcast map, and a sleek glass-morphism design.
 
 ## Features
 
@@ -13,9 +13,13 @@ A modern, responsive weather application built with React and TypeScript. Featur
 - **High/Low Temperatures**: Daily minimum and maximum temperatures displayed in the hero section
 - **Sun Events**: Displays sunset or sunrise times based on current day/night status
 - **Hourly Charts**: Interactive line charts showing temperature and precipitation probability with PSR (Probability of Significant Rain) labels
-- **Weather Alerts**: Real-time weather warnings and alerts (HKO source only)
+- **Gridded Rainfall Nowcast Map**: Interactive Leaflet map with timeline slider showing HKO gridded rainfall data for Hong Kong and the Pearl River Delta (including Guangdong, China)
+- **User Location Marker**: Blue pin marker on the rainfall map showing user's current position
+- **Weather Alerts**: Real-time weather warnings and alerts with 20 HKO warning GIFs (HKO source only)
+- **Data-Driven Map Zoom**: Rainfall map auto-fits viewport to actual data extent; covers HK + Guangdong
+- **Per-Source Loading Indicators**: Visual status badges for Open-Meteo and HKO fetch states without placeholder skeletons
 - **Responsive Design**: Optimized for mobile, tablet, and desktop devices
-- **Smart Caching**: Refetches data every 5 minutes (2.5-minute stale time) under normal conditions, and falls back to 1-minute active polling during API failures.
+- **Consistent Caching**: All queries refetch every 5 minutes under normal conditions, with 1-minute fallback during API failures. React Query handles all TTL without a separate cache layer.
 
 ## Technology Stack
 
@@ -39,6 +43,7 @@ src/
 │   ├── CurrentWeather.tsx
 │   ├── HourlyForecast.tsx
 │   ├── DailyForecast.tsx
+│   ├── RainfallMap.tsx
 │   ├── SettingsMenu.tsx
 │   ├── WeatherAlerts.tsx
 │   └── ...
@@ -143,17 +148,29 @@ The consolidated hamburger menu provides access to:
 
 ### Weather Alerts
 Real-time weather warnings featuring a streamlined, compact UI including:
-- Typhoon signals
-- Rainstorm warnings
-- Special weather advisories
-- Other meteorological hazards (HKO only)
+- Typhoon signals (TC1, TC3, TC8, TC8B-D, TC9, TC10)
+- Rainstorm warnings (Red, Amber)
+- Special weather advisories (Hot Weather, Cold Weather, Frost, etc.)
+- Tsunami and landslip warnings
+- 20 locally-hosted animated warning GIFs (no CDN dependencies)
 - Space-efficient layout with cleanly aligned issue times
+
+### Gridded Rainfall Nowcast
+- HKO gridded rainfall data visualized on an interactive Leaflet map
+- Covers Hong Kong and the Pearl River Delta (Shenzhen, Guangzhou, Macau, Zhuhai — extends into Guangdong, China)
+- Timeline slider to play through forecast steps
+- Precise ending timestamps from raw CSV data
+- User location blue pin marker with automatic map zoom to data extent
+- Scroll wheel zoom, double-click zoom, and zoom controls
 
 ## Local Storage
 
 The application stores:
 - Default city selection (persists across sessions)
 - Recent search history
+- Cache migration flag (v2)
+
+All icons (Leaflet markers, 20 HKO warning GIFs) are locally hosted under `public/icons/` — no external CDN dependencies.
 
 ## Browser Support
 
@@ -165,10 +182,11 @@ The application stores:
 ## Performance
 
 - Automatic data refetch every 5 minutes (falls back to 1 minute during API failures)
-- Efficient caching with React Query
+- Efficient caching with React Query (no separate cache layer)
 - Optimized animations with Tailwind CSS
 - Responsive images and lazy loading
 - Production-optimized build with Vite
+- Preconnect/dns-prefetch for external APIs and basemap tiles
 
 ## License
 

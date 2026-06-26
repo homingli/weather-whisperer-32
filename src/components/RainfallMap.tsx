@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type LatLngExpression } from 'react';
+import { useState, useEffect, useMemo, useRef, type LatLngExpression } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapContainer, TileLayer, Rectangle, Marker, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
@@ -148,6 +148,31 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   const updateTime = data?.updateTime || '';
   const { t } = useLanguage();
 
+  // Compute the overall lat/lon extent across all timesteps for data-driven map view
+  const dataBounds = useMemo(() => {
+    if (timeSteps.length === 0) return null;
+    let minLat = Infinity, maxLat = -Infinity;
+    let minLon = Infinity, maxLon = -Infinity;
+    for (const step of timeSteps) {
+      for (const point of step.points) {
+        if (point.lat < minLat) minLat = point.lat;
+        if (point.lat > maxLat) maxLat = point.lat;
+        if (point.lon < minLon) minLon = point.lon;
+        if (point.lon > maxLon) maxLon = point.lon;
+      }
+    }
+    // Add a small padding (~2%) to avoid clipping the outermost cells
+    const latPad = (maxLat - minLat) * 0.02;
+    const lonPad = (maxLon - minLon) * 0.02;
+    return { minLat: minLat - latPad, maxLat: maxLat + latPad, minLon: minLon - lonPad, maxLon: maxLon + lonPad };
+  }, [data]);
+
+  // Pearl River Delta default bounds cover HK + Guangdong (used before data loads)
+  const PRD_DEFAULT_BOUNDS: [[number, number], [number, number]] = [
+    [21.30, 112.95],
+    [23.50, 115.30],
+  ];
+
   // Reset active step index when data is refetched
   useEffect(() => {
     if (timeSteps.length > 0) {
@@ -168,22 +193,25 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
     };
   }, [isPlaying, timeSteps]);
 
-  // Zoom behavior: user location → zoom 14; no location → HK bounds
+  // Zoom behavior: user location → zoom 14; no location → fit to data extent or PRD bounds
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     if (userLocation) {
       // Zoom tightly to user's location
       map.setView([userLocation.latitude, userLocation.longitude], 14, { animate: true });
-    } else {
-      // Fit to HK coverage area when no user location
+    } else if (dataBounds) {
+      // Fit to the actual data coverage area (computed from fetched CSV)
       const bounds: LatLngExpression = [
-        [22.15, 113.82],
-        [22.56, 114.43],
+        [dataBounds.minLat, dataBounds.minLon],
+        [dataBounds.maxLat, dataBounds.maxLon],
       ];
       map.fitBounds(bounds, { padding: [50, 50] });
+    } else {
+      // Fall back to Pearl River Delta bounds when no data loaded yet
+      map.fitBounds(PRD_DEFAULT_BOUNDS, { padding: [50, 50] });
     }
-  }, [userLocation]);
+  }, [userLocation, dataBounds]);
 
   const activeStep = timeSteps[activeStepIndex];
   const activePoints = activeStep?.points || [];
@@ -253,8 +281,8 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         )}
 
         <MapContainer
-          center={[22.3193, 114.1694]}
-          zoom={10}
+          center={[22.40, 114.10]}
+          zoom={9}
           scrollWheelZoom
           doubleClickZoom
           className="w-full h-full z-0"

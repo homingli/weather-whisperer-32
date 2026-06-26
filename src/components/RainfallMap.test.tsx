@@ -9,18 +9,22 @@ vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }: any) => <div data-testid="map-container">{children}</div>,
   TileLayer: () => <div data-testid="tile-layer" />,
   Rectangle: ({ bounds, pathOptions }: any) => (
-    <div 
-      data-testid="rectangle" 
-      data-bounds={JSON.stringify(bounds)} 
-      style={{ backgroundColor: pathOptions.fillColor }} 
+    <div
+      data-testid="rectangle"
+      data-bounds={JSON.stringify(bounds)}
+      style={{ backgroundColor: pathOptions.fillColor }}
     />
   ),
+  ZoomControl: () => <div data-testid="zoom-control" />,
+  Marker: ({ position }: any) => <div data-testid="marker" data-position={JSON.stringify(position)} />,
 }));
 
 const mockCsvData = `Updated Date and Time (in Hong Kong Time),Ending Date and Time (in Hong Kong Time),Latitude (degree),Longitude (degree),Half-hourly Nowcast Accumulated Rainfall (mm)
 202605171600,202605171630,22.3119,114.1728,1.5
 202605171600,202605171630,22.3019,114.1742,0.0
 202605171600,202605171630,22.2478,114.1736,12.5
+202605171600,202605171630,23.1290,113.2640,3.5
+202605171600,202605171630,23.4870,112.9560,0.8
 `;
 
 describe('RainfallMap Component', () => {
@@ -70,16 +74,19 @@ describe('RainfallMap Component', () => {
     expect(screen.getByTestId('map-container')).toBeInTheDocument();
 
     // Verify only values > 0 are rendered as Rectangles
-    // mockCsvData has 3 lines (excluding header), 2 have value > 0 (1.5 and 12.5)
+    // mockCsvData has 5 lines (excluding header), 4 have value > 0: 1.5, 12.5, 3.5, 0.8
     const rectangles = screen.getAllByTestId('rectangle');
-    expect(rectangles).toHaveLength(2);
+    expect(rectangles).toHaveLength(4);
 
     // Verify colors mapped correctly
     // 1.5 mm -> '#4facfe' (Moderate-light)
     // 12.5 mm -> '#f6d365' (Heavy)
+    // 3.5 mm -> '#00f2fe' (Moderate)
+    // 0.8 mm -> '#4facfe' (Moderate-light)
     const backgroundColors = rectangles.map(el => el.style.backgroundColor);
     expect(backgroundColors).toContain('rgb(79, 172, 254)'); // rgb equivalent of #4facfe
     expect(backgroundColors).toContain('rgb(246, 211, 101)'); // rgb equivalent of #f6d365
+    expect(backgroundColors).toContain('rgb(0, 242, 254)'); // rgb equivalent of #00f2fe
   });
 
   it('handles fetch errors gracefully', async () => {
