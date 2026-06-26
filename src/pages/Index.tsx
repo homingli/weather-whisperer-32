@@ -18,6 +18,9 @@ import { CloudRain, MapPin, Download, AlertTriangle } from "lucide-react";
 const HourlyForecast = lazy(() => import("@/components/HourlyForecast").then(module => ({ default: module.HourlyForecast })));
 const RainfallMap = lazy(() => import("@/components/RainfallMap").then(module => ({ default: module.RainfallMap })));
 
+// Default weather.current shape used when data is null (avoid inline object per render)
+const EMPTY_CURRENT_WEATHER = { precipitation: 0, precipitationProbability: 0, isDay: false, temperature: 0, apparentTemperature: 0, humidity: 0, uvIndex: null, weatherCode: 3, windSpeed: 0, windDirection: 0 };
+
 const Index = () => {
   const [selectedCity, setSelectedCity] = useState<GeoLocation | null>(null);
   const [isLocating, setIsLocating] = useState(false);
@@ -69,8 +72,12 @@ const Index = () => {
   // Clear stale custom cache entries left over from the previous cache layer.
   // The old cache stored raw Open-Meteo API responses (flat shape, no `current` wrapper)
   // that are incompatible with the current `WeatherData` shape expected by the UI.
+  // Version-gated: only runs once to avoid nuking new-format cache on subsequent mounts.
   useEffect(() => {
-    cache.clearWeather();
+    if (!localStorage.getItem('cache_migrated_v2')) {
+      cache.clearWeather();
+      localStorage.setItem('cache_migrated_v2', '1');
+    }
   }, []);
 
   // Dual-fetch location initialization (Option C):
@@ -347,7 +354,7 @@ const Index = () => {
                 )}
 
                 <CurrentWeather
-                  weather={weather.current ?? { precipitation: 0, precipitationProbability: 0, isDay: false, temperature: 0, apparentTemperature: 0, humidity: 0, uvIndex: null, weatherCode: 3, windSpeed: 0, windDirection: 0 }}
+                  weather={weather.current ?? EMPTY_CURRENT_WEATHER}
                   hourlyForecast={weather.hourly || []}
                   dailyForecast={weather?.daily?.[0]}
                   locationName={selectedCity?.name}
