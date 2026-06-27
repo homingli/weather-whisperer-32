@@ -273,11 +273,11 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
 }
 
 // Weather code descriptions and icons
-export function getWeatherDescription(code: number, isDay?: boolean): string {
+export function getWeatherDescription(code: number): string {
   const descriptions: Record<number, string> = {
-    0: isDay ? 'Clear sky' : 'Clear night',
-    1: isDay ? 'Mainly clear' : 'Mostly clear',
-    2: isDay ? 'Partly cloudy' : 'Mostly cloudy',
+    0: 'Clear sky',
+    1: 'Mainly clear',
+    2: 'Partly cloudy',
     3: 'Overcast',
     45: 'Foggy',
     48: 'Depositing rime fog',
