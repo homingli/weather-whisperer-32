@@ -290,7 +290,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
           doubleClickZoom
           className="w-full h-full z-0"
           ref={mapRef}
-          aria-label={t('nowcast.mapLabel', 'Gridded rainfall nowcast map')}
+          aria-label={t('nowcast.mapLabel')}
           role="application"
         >
           <ZoomControl position="topright" />
@@ -346,7 +346,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
               onClick={() => setIsPlaying(!isPlaying)}
               className="p-2.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors shadow-sm"
               title={isPlaying ? 'Pause' : 'Play timeline'}
-              aria-label={isPlaying ? t('nowcast.pause', 'Pause timeline') : t('nowcast.play', 'Play timeline')}
+              aria-label={isPlaying ? t('nowcast.pause') : t('nowcast.play')}
             >
               {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
             </button>
@@ -367,7 +367,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
                 setIsPlaying(false); // Stop playing on manual drag
               }}
               className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none"
-              aria-label={t('nowcast.slider', 'Rainfall timeline')}
+              aria-label={t('nowcast.slider')}
             />
             <div className="flex justify-between text-xs font-semibold text-muted-foreground px-1">
               {timeSteps.map((step, index) => (
