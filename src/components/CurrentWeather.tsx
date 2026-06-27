@@ -1,5 +1,5 @@
 import { memo, useState, useEffect, useMemo, useCallback } from "react";
-import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIcon } from "@/lib/weather";
+import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIcon, getWeatherDescription } from "@/lib/weather";
 import { SENTINEL_THRESHOLD } from "@/lib/constants";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, ArrowUp, ArrowDown, MoveUp, Droplets, Sun } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -103,13 +103,13 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
           <div className="flex flex-col items-center md:items-start gap-4">
             <div className="flex items-center gap-6">
               {/* Weather icon */}
-              <div className="text-9xl leading-none select-none" role="img" aria-label={t('weather.condition')}>
+              <div className="text-5xl sm:text-9xl leading-none select-none" role="img" aria-label={getWeatherDescription(weather.weatherCode)}>
                 {getWeatherIcon(weather.weatherCode, weather.isDay)}
               </div>
 
               <div className="flex flex-col">
                 <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest mb-1">{t('weather.feelsLike')}</p>
-                <div className="text-9xl font-extralight tracking-tighter leading-none flex items-baseline" aria-label={isEmpty ? '-' : `${Math.round(weather.apparentTemperature)} degrees`}>
+                <div className="text-5xl sm:text-9xl font-extralight tracking-tighter leading-none flex items-baseline" aria-label={isEmpty ? '-' : `${Math.round(weather.apparentTemperature)} degrees`}>
                   {fmt(weather.apparentTemperature, '°')}
                 </div>
               </div>
