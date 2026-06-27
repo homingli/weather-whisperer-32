@@ -273,11 +273,11 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
 }
 
 // Weather code descriptions and icons
-export function getWeatherDescription(code: number): string {
+export function getWeatherDescription(code: number, isDay?: boolean): string {
   const descriptions: Record<number, string> = {
-    0: 'Clear sky',
-    1: 'Mainly clear',
-    2: 'Partly cloudy',
+    0: isDay ? 'Clear sky' : 'Clear night',
+    1: isDay ? 'Mainly clear' : 'Mostly clear',
+    2: isDay ? 'Partly cloudy' : 'Mostly cloudy',
     3: 'Overcast',
     45: 'Foggy',
     48: 'Depositing rime fog',
@@ -392,14 +392,7 @@ export async function reverseGeocode(latitude: number, longitude: number): Promi
   }
 
   try {
-    // Use Open-Meteo's geocoding with a search nearby the coordinates
-    const response = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=city&count=1&language=en&format=json`
-    );
-
-    // Open-Meteo doesn't have reverse geocoding, so we'll use a different approach
-    // We'll use the coordinates directly and try to find the nearest city via search
-    // For now, create a location object with the coordinates
+    // Open-Meteo doesn't have reverse geocoding; use Nominatim for coordinate-to-address lookup
     const start = Date.now();
     const cityResponse = await fetchWithTimeout(
       `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(latitude.toString())}&lon=${encodeURIComponent(longitude.toString())}&format=json`,
