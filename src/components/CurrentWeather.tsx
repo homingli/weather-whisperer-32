@@ -103,7 +103,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
           <div className="flex flex-col items-center md:items-start gap-4">
             <div className="flex items-center gap-6">
               {/* Weather icon */}
-              <div className="text-5xl sm:text-9xl leading-none select-none" role="img" aria-label={getWeatherDescription(weather.weatherCode, weather.isDay)}>
+              <div className="text-5xl sm:text-9xl leading-none select-none" role="img" aria-label={getWeatherDescription(weather.weatherCode)}>
                 {getWeatherIcon(weather.weatherCode, weather.isDay)}
               </div>
 
