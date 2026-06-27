@@ -392,14 +392,7 @@ export async function reverseGeocode(latitude: number, longitude: number): Promi
   }
 
   try {
-    // Use Open-Meteo's geocoding with a search nearby the coordinates
-    const response = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=city&count=1&language=en&format=json`
-    );
-
-    // Open-Meteo doesn't have reverse geocoding, so we'll use a different approach
-    // We'll use the coordinates directly and try to find the nearest city via search
-    // For now, create a location object with the coordinates
+    // Open-Meteo doesn't have reverse geocoding; use Nominatim for coordinate-to-address lookup
     const start = Date.now();
     const cityResponse = await fetchWithTimeout(
       `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(latitude.toString())}&lon=${encodeURIComponent(longitude.toString())}&format=json`,
