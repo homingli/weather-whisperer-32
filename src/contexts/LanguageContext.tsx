@@ -103,6 +103,10 @@ const translations: Record<Language, Record<string, string>> = {
     'nowcast.desc': 'Load the real-time gridded rainfall nowcast to see if rain is approaching in the next 2 hours.',
     'nowcast.legend': 'Rainfall (mm)',
     'nowcast.updated': 'Updated: {0}',
+    'nowcast.mapLabel': 'Gridded rainfall nowcast map',
+    'nowcast.play': 'Play timeline',
+    'nowcast.pause': 'Pause timeline',
+    'nowcast.slider': 'Rainfall timeline',
   },
   tc: {
     // Header
@@ -198,6 +202,10 @@ const translations: Record<Language, Record<string, string>> = {
     'nowcast.desc': '載入即時雨雲預報地圖，以查看未來兩小時是否有降雨接近。',
     'nowcast.legend': '降雨量 (毫米)',
     'nowcast.updated': '更新時間: {0}',
+    'nowcast.mapLabel': '網格雨量預報地圖',
+    'nowcast.play': '播放時間線',
+    'nowcast.pause': '暫停時間線',
+    'nowcast.slider': '雨量時間線',
   },
 };
 
