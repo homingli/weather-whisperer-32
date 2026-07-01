@@ -1,5 +1,19 @@
 # Work Summary
 
+**Timestamp:** 2026-07-01 19:35:00
+**Branch:** feat/alert-modal
+
+## Changes Implemented
+
+1. **Alert UI Redesign**:
+   - Replaced the full-width collapsible alert banner with per-warning HKO icon buttons in the top bar (left of hamburger menu)
+   - Clicking an icon opens a modal dialog showing the warning title, type, issue time, and full details inline
+   - Cancelled warnings filtered out via `actionCode !== 'Cancel'` and detail text check (`/cancelled|取消/i`)
+   - Modal uses opaque `bg-background` with a colored left border accent for severity
+   - Removed `Collapsible` dependency; added `Dialog` integration
+
+---
+
 **Timestamp:** 2026-05-26 00:08:00
 **Branch:** main (merged fix/hko-cache-persistence)
 

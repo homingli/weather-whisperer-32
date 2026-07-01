@@ -28,7 +28,12 @@ export const WeatherAlerts = memo(function WeatherAlerts({ warnings }: WeatherAl
   // Filter out cancelled warnings and sort by issue time (most recent first)
   const activeWarnings = useMemo(() => {
     return (warnings || [])
-      .filter(w => w.actionCode !== 'Cancel')
+      .filter(w => {
+        if (w.actionCode === 'Cancel') return false;
+        // Hide warnings whose detail text explicitly says cancelled
+        if (w.details?.contents?.some(c => /cancelled|取消/i.test(c))) return false;
+        return true;
+      })
       .sort((a, b) => new Date(b.issueTime).getTime() - new Date(a.issueTime).getTime());
   }, [warnings]);
 
