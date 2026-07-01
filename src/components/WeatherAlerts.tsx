@@ -1,111 +1,94 @@
 import { HKOWarning, getWarningIcon, getWarningColor } from '@/lib/hko-weather';
-import { AlertTriangle, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { useState, useCallback, memo } from 'react';
+import { useState, memo, useMemo } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface WeatherAlertsProps {
   warnings: HKOWarning[];
 }
 
+function getBorderClass(code: string): string {
+  const color = getWarningColor(code);
+  if (color === 'destructive') return 'border-l-red-500';
+  if (color === 'warning') return 'border-l-yellow-500';
+  return 'border-l-orange-500';
+}
+
 export const WeatherAlerts = memo(function WeatherAlerts({ warnings }: WeatherAlertsProps) {
-  const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
-  const { language, t } = useLanguage();
+  const [selectedWarning, setSelectedWarning] = useState<HKOWarning | null>(null);
+  const { language } = useLanguage();
   const locale = language === 'tc' ? zhTW : undefined;
 
-  if (!warnings || warnings.length === 0) {
-    return null;
-  }
+  // Filter out cancelled warnings and sort by issue time (most recent first)
+  const activeWarnings = useMemo(() => {
+    return (warnings || [])
+      .filter(w => w.actionCode !== 'Cancel')
+      .sort((a, b) => new Date(b.issueTime).getTime() - new Date(a.issueTime).getTime());
+  }, [warnings]);
 
-  const toggleItem = useCallback((key: string) => {
-    setOpenItems(prev => ({ ...prev, [key]: !prev[key] }));
-  }, []);
+  if (activeWarnings.length === 0) return null;
 
   return (
-    <div className="animate-fade-in px-2 mb-4">
-      <div className="flex flex-col border border-border/20 rounded-lg bg-background/30 backdrop-blur-sm shadow-sm overflow-hidden">
-        {warnings.map((warning, index) => {
-          const itemKey = warning.code + index;
-          const hasDetails = warning.details?.contents && warning.details.contents.length > 0;
-          const isOpen = openItems[itemKey];
-          const warningColor = getWarningColor(warning.code);
-          let bgClass = "bg-orange-500/10 hover:bg-orange-500/20"; // Otherwise / Default
-          if (warningColor === 'destructive') {
-            bgClass = "bg-red-500/10 hover:bg-red-500/20";
-          } else if (warningColor === 'warning') {
-            bgClass = "bg-yellow-500/10 hover:bg-yellow-500/20";
-          }
-
-          return (
-              <Collapsible
-              key={itemKey}
-              open={isOpen}
-              onOpenChange={() => hasDetails && toggleItem(itemKey)}
-              className={`border-b border-border/20 last:border-0 transition-colors ${bgClass}`}
-            >
-              <CollapsibleTrigger
-                className={`w-full text-left group ${hasDetails ? 'cursor-pointer' : 'cursor-default'}`}
-                disabled={!hasDetails}
-              >
-                <div
-                  className={`flex items-center gap-4 py-3 px-4 transition-colors ${
-                    hasDetails ? 'hover:bg-foreground/5' : ''
-                  }`}
-                >
-                  <span className="shrink-0 flex items-center justify-center w-10 h-10 rounded-md bg-white/20 dark:bg-black/20 shadow-sm border border-border/10" aria-label={warning.name}>
-                    <img 
-                      src={getWarningIcon(warning.code)} 
-                      alt={warning.name} 
-                      className="object-contain w-8 h-8 drop-shadow-sm"
-                      loading="lazy"
-                    />
-                  </span>
-                  <div className="flex-1 flex items-center justify-between min-w-0">
-                    <div className="font-bold text-foreground text-base md:text-lg truncate pr-2">
-                      <span className="truncate">{warning.name}</span>
-                      {warning.type && (
-                        <span className="ml-1.5 text-xs font-normal text-muted-foreground shrink-0">
-                          ({warning.type})
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {format(new Date(warning.issueTime), language === 'tc' ? 'M月d日 HH:mm' : 'MMM d, h:mm a', { locale })}
-                      </span>
-                      {hasDetails ? (
-                        <ChevronDown
-                          className={`h-4 w-4 text-muted-foreground transition-transform ${
-                            isOpen ? 'rotate-180' : ''
-                          }`}
-                        />
-                      ) : (
-                        <div className="w-4" />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CollapsibleTrigger>
-              
-              {hasDetails && (
-                <CollapsibleContent>
-                  <div className="mb-4 mx-4 ml-[4.5rem] pr-4 text-sm text-foreground/90 space-y-3 leading-relaxed">
-                    {warning.details!.contents!.map((content, i) => (
-                      <p key={i}>{content}</p>
-                    ))}
-                  </div>
-                </CollapsibleContent>
-              )}
-            </Collapsible>
-          );
-        })}
+    <>
+      <div className="flex items-center gap-1">
+        {activeWarnings.map((warning, index) => (
+          <button
+            key={warning.code + index}
+            onClick={() => setSelectedWarning(warning)}
+            className="h-9 w-9 flex items-center justify-center rounded-md transition-colors hover:bg-red-500/10"
+            title={warning.name}
+          >
+            <img
+              src={getWarningIcon(warning.code)}
+              alt={warning.name}
+              className="object-contain w-7 h-7 drop-shadow-sm"
+            />
+          </button>
+        ))}
       </div>
-    </div>
+
+      <Dialog open={!!selectedWarning} onOpenChange={(open) => { if (!open) setSelectedWarning(null); }}>
+        {selectedWarning && (
+          <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+            <DialogTitle className="sr-only">{selectedWarning.name}</DialogTitle>
+            <div className={`pl-4 -ml-6 border-l-4 ${getBorderClass(selectedWarning.code)}`}>
+              <div className="flex items-start gap-3">
+                <img
+                  src={getWarningIcon(selectedWarning.code)}
+                  alt={selectedWarning.name}
+                  className="object-contain w-8 h-8 shrink-0 mt-0.5"
+                />
+                <div className="min-w-0">
+                  <div className="font-semibold text-foreground">
+                    {selectedWarning.name}
+                    {selectedWarning.type && (
+                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                        ({selectedWarning.type})
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {format(new Date(selectedWarning.issueTime), language === 'tc' ? 'M月d日 HH:mm' : 'MMM d, h:mm a', { locale })}
+                  </div>
+                  {selectedWarning.details?.contents && selectedWarning.details.contents.length > 0 && (
+                    <div className="mt-4 text-sm text-foreground/90 space-y-2 leading-relaxed">
+                      {selectedWarning.details.contents.map((content, i) => (
+                        <p key={i}>{content}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+    </>
   );
 });
