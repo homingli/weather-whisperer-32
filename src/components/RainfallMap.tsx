@@ -1,11 +1,14 @@
-import { useState, useEffect, useMemo, useRef, type LatLngExpression } from 'react';
+import { useState, useEffect, useMemo, useRef, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MapContainer, TileLayer, Rectangle, Marker, ZoomControl } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, Marker, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import { CloudRain, AlertCircle, RefreshCw, Play, Pause } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { PRD_BOUNDS } from '@/lib/hko-weather';
 import 'leaflet/dist/leaflet.css';
+
+// Module-level empty array to avoid allocations
+const EMPTY_POINTS: StepData[] = [];
 
 interface UserLocation {
   latitude: number;
@@ -21,104 +24,161 @@ const locationIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
-interface RainfallData {
-  lat: number;
-  lon: number;
-  value: number;
-  bounds: [[number, number], [number, number]];
+interface NowcastResult {
+  timeSteps: StepData[];
+  updateTime: string;
+  globalBounds: {
+    minLat: number;
+    maxLat: number;
+    minLon: number;
+    maxLon: number;
+  };
 }
 
-interface TimeStep {
+// Color scale for legend rendering
+const COLOR_SCALE = [
+  { color: '#a0c4ff', label: '< 0.5' },
+  { color: '#4facfe', label: '0.5 - 2' },
+  { color: '#00f2fe', label: '2 - 5' },
+  { color: '#43e97b', label: '5 - 10' },
+  { color: '#f6d365', label: '10 - 20' },
+  { color: '#ff0844', label: '20 - 30' },
+  { color: '#9d0b0b', label: '> 30' },
+] as const;
+
+// Color buckets per timestep: maps rainfall color to array of [lat, lon] pairs
+interface StepData {
   endTime: string;
   formattedTime: string;
-  points: RainfallData[];
+  /** color -> [cellCoords, ...] where each cellCoords is 4 [lat,lon] corners */
+  cellsByColor: Map<string, [number, number][][]>;
 }
 
-interface NowcastResult {
-  timeSteps: TimeStep[];
-  updateTime: string;
-}
+// Memoized color function — called once per cell at parse time
+const getRainfallColor = ((value: number): string => {
+  if (value <= 0.5) return '#a0c4ff';
+  if (value <= 2) return '#4facfe';
+  if (value <= 5) return '#00f2fe';
+  if (value <= 10) return '#43e97b';
+  if (value <= 20) return '#f6d365';
+  if (value <= 30) return '#ff0844';
+  return '#9d0b0b';
+}) satisfies (value: number) => string;
 
-// Function to get color based on rainfall intensity (mm)
-const getRainfallColor = (value: number) => {
-  if (value <= 0.5) return '#a0c4ff'; // Light rain
-  if (value <= 2) return '#4facfe'; // Moderate-light
-  if (value <= 5) return '#00f2fe'; // Moderate
-  if (value <= 10) return '#43e97b'; // Moderate-heavy
-  if (value <= 20) return '#f6d365'; // Heavy
-  if (value <= 30) return '#ff0844'; // Very heavy
-  return '#9d0b0b'; // Extreme
-};
+// GeoJSON layer for one color bucket — memoized so React skips re-render when data unchanged
+const ColorGeoLayer = memo(({ color, coordinates, stepIndex }: {
+  color: string;
+  coordinates: [number, number][][];
+  stepIndex: number;
+}) => {
+  const geoJSONData = useMemo(() => ({
+    type: 'FeatureCollection' as const,
+    features: coordinates.map(coords => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Polygon' as const, coordinates: [coords] },
+    })),
+  }), [coordinates]);
 
-// Blazing fast client-side CSV parser customized for HKO Gridded Rainfall data
+  return (
+    <GeoJSON
+      key={`${stepIndex}-${color}`}
+      data={geoJSONData}
+      style={() => ({ fillColor: color, fillOpacity: 0.6, color: color, weight: 0 })}
+    />
+  );
+}, (prev, next) =>
+  prev.stepIndex === next.stepIndex && prev.color === next.color && prev.coordinates === next.coordinates
+);
+
+// CSV parser: two-pass, builds color-bucketed steps + global bounds in O(n)
 const parseRainfallCSV = (csvText: string): NowcastResult => {
   const lines = csvText.split('\n');
   let updateTime = '';
 
-  // Track all unique end times to ensure empty time steps are still represented
-  const groups: Record<string, RainfallData[]> = {};
+  // Global bounds across all timesteps
+  let globalMinLat = Infinity, globalMaxLat = -Infinity;
+  let globalMinLon = Infinity, globalMaxLon = -Infinity;
 
-  // Skip header, loop through grid rows
+  // Pass 1: collect bounds + update time
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
     if (!line) continue;
-
     const parts = line.split(',');
-    if (parts.length >= 5) {
-      const endTime = parts[1];
-      if (!endTime) continue;
+    if (parts.length < 5) continue;
 
-      if (!groups[endTime]) {
-        groups[endTime] = [];
-      }
+    const value = parseFloat(parts[4]);
+    if (value <= 0) continue;
 
-      // Capture update time from first row
-      if (i === 1 && parts[0]) {
-        const lastUpdate = parts[0];
-        if (lastUpdate.length >= 12) {
-          const year = lastUpdate.substring(0, 4);
-          const month = lastUpdate.substring(4, 6);
-          const day = lastUpdate.substring(6, 8);
-          const hour = lastUpdate.substring(8, 10);
-          const min = lastUpdate.substring(10, 12);
-          updateTime = `${year}-${month}-${day} ${hour}:${min}`;
-        }
-      }
+    const lat = parseFloat(parts[2]);
+    const lon = parseFloat(parts[3]);
 
-      const value = parseFloat(parts[4]);
-      if (value > 0) {
-        const lat = parseFloat(parts[2]);
-        const lon = parseFloat(parts[3]);
-
-        // Bounding box dimensions approximating the 0.018 lat / 0.019 lon HKO grid resolution
-        const bounds: [[number, number], [number, number]] = [
-          [lat - 0.009, lon - 0.0095],
-          [lat + 0.009, lon + 0.0095]
-        ];
-
-        groups[endTime].push({ lat, lon, value, bounds });
-      }
+    if (i === 1 && parts[0] && parts[0].length >= 12) {
+      updateTime = `${parts[0].substring(0, 4)}-${parts[0].substring(4, 6)}-${parts[0].substring(6, 8)} ${parts[0].substring(8, 10)}:${parts[0].substring(10, 12)}`;
     }
+
+    if (lat < globalMinLat) globalMinLat = lat;
+    if (lat > globalMaxLat) globalMaxLat = lat;
+    if (lon < globalMinLon) globalMinLon = lon;
+    if (lon > globalMaxLon) globalMaxLon = lon;
   }
 
-  // Convert groups to sorted array of timesteps
-  const sortedEndTimes = Object.keys(groups).sort();
-  const timeSteps = sortedEndTimes.map(endTime => {
-    // Format ending time (YYYYMMDDHHmm -> HH:mm)
-    let formattedTime = endTime;
-    if (endTime.length >= 12) {
-      const hour = endTime.substring(8, 10);
-      const min = endTime.substring(10, 12);
-      formattedTime = `${hour}:${min}`;
+  // Pass 2: bucket cells by endTime + color
+  const temp: Record<string, Record<string, [number, number][][]>> = {};
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+    const parts = line.split(',');
+    if (parts.length < 5) continue;
+
+    const endTime = parts[1];
+    if (!endTime) continue;
+
+    const value = parseFloat(parts[4]);
+    if (value <= 0) continue;
+
+    const lat = parseFloat(parts[2]);
+    const lon = parseFloat(parts[3]);
+    const color = getRainfallColor(value);
+
+    // Cell corners as GeoJSON [lon, lat] (GeoJSON spec requires lon-first order)
+    const cellCoords: [number, number][] = [
+      [lon - 0.0095, lat - 0.009],
+      [lon + 0.0095, lat - 0.009],
+      [lon + 0.0095, lat + 0.009],
+      [lon - 0.0095, lat + 0.009],
+    ];
+
+    if (!temp[endTime]) temp[endTime] = {};
+    if (!temp[endTime][color]) temp[endTime][color] = [];
+    temp[endTime][color].push(cellCoords);
+  }
+
+  // Convert to sorted steps with per-step color buckets
+  const sortedEndTimes = Object.keys(temp).sort();
+  const timeSteps: StepData[] = sortedEndTimes.map(endTime => {
+    const byColor = temp[endTime];
+    const cellsByColor = new Map<string, [number, number][][]>();
+
+    for (const [color, coordsArray] of Object.entries(byColor)) {
+      cellsByColor.set(color, coordsArray);
     }
-    return {
-      endTime,
-      formattedTime,
-      points: groups[endTime]
-    };
+
+    const formattedTime = endTime.length >= 12
+      ? `${endTime.substring(8, 10)}:${endTime.substring(10, 12)}`
+      : endTime;
+
+    return { endTime, formattedTime, cellsByColor };
   });
 
-  return { timeSteps, updateTime };
+  const latPad = (globalMaxLat - globalMinLat) * 0.02;
+  const lonPad = (globalMaxLon - globalMinLon) * 0.02;
+
+  return { timeSteps, updateTime, globalBounds: {
+    minLat: globalMinLat - latPad,
+    maxLat: globalMaxLat + latPad,
+    minLon: globalMinLon - lonPad,
+    maxLon: globalMaxLon + lonPad,
+  }};
 };
 
 const fetchRainfallNowcast = async (): Promise<NowcastResult> => {
@@ -142,32 +202,19 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hkoGriddedRainfallNowcast'],
     queryFn: fetchRainfallNowcast,
-    staleTime: 5 * 60 * 1000,      // Keep cache fresh for 5 minutes
-    refetchInterval: 5 * 60 * 1000, // Refresh automatically every 5 minutes
-    enabled: isLoaded,              // Only fetch when user explicitly clicks to load
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+    enabled: isLoaded,
   });
 
-  const timeSteps = data?.timeSteps || [];
+  const timeSteps = data?.timeSteps || EMPTY_POINTS;
   const updateTime = data?.updateTime || '';
   const { t } = useLanguage();
 
-  // Compute the overall lat/lon extent across all timesteps for data-driven map view
+  // Global bounds computed at parse time — O(1) lookup
   const dataBounds = useMemo(() => {
-    if (timeSteps.length === 0) return null;
-    let minLat = Infinity, maxLat = -Infinity;
-    let minLon = Infinity, maxLon = -Infinity;
-    for (const step of timeSteps) {
-      for (const point of step.points) {
-        if (point.lat < minLat) minLat = point.lat;
-        if (point.lat > maxLat) maxLat = point.lat;
-        if (point.lon < minLon) minLon = point.lon;
-        if (point.lon > maxLon) maxLon = point.lon;
-      }
-    }
-    // Add a small padding (~2%) to avoid clipping the outermost cells
-    const latPad = (maxLat - minLat) * 0.02;
-    const lonPad = (maxLon - minLon) * 0.02;
-    return { minLat: minLat - latPad, maxLat: maxLat + latPad, minLon: minLon - lonPad, maxLon: maxLon + lonPad };
+    if (!data) return null;
+    return data.globalBounds;
   }, [data]);
 
   // Reset active step index when data is refetched
@@ -190,15 +237,13 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
     };
   }, [isPlaying, timeSteps]);
 
-  // Zoom behavior: set view ONCE on init. Never re-zoom on data load — keeps user zoom.
-  // userLocation change (new city) → re-center on new city.
+  // Zoom behavior: set view ONCE on init. Never re-zoom on data load.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
     const locKey = userLocation ? `${userLocation.latitude},${userLocation.longitude}` : null;
-    const prevKey = prevUserLoc.current;
-    const userChanged = locKey && locKey !== prevKey;
+    const userChanged = locKey && locKey !== prevUserLoc.current;
 
     if (!viewportInit.current || userChanged) {
       if (userLocation) {
@@ -206,18 +251,23 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         prevUserLoc.current = locKey;
         viewportInit.current = true;
       } else if (dataBounds) {
-        map.fitBounds([[dataBounds.minLat, dataBounds.minLon], [dataBounds.maxLat, dataBounds.maxLon]], { padding: [50, 50] });
+        map.fitBounds(
+          [[dataBounds.minLat, dataBounds.minLon], [dataBounds.maxLat, dataBounds.maxLon]],
+          { padding: [50, 50] }
+        );
         viewportInit.current = true;
       } else {
-        // Fall back to Pearl River Delta bounds when nothing available
-        map.fitBounds([[PRD_BOUNDS.minLat, PRD_BOUNDS.minLon], [PRD_BOUNDS.maxLat, PRD_BOUNDS.maxLon]], { padding: [50, 50] });
+        map.fitBounds(
+          [[PRD_BOUNDS.minLat, PRD_BOUNDS.minLon], [PRD_BOUNDS.maxLat, PRD_BOUNDS.maxLon]],
+          { padding: [50, 50] }
+        );
         viewportInit.current = true;
       }
     }
   }, [userLocation, dataBounds]);
 
   const activeStep = timeSteps[activeStepIndex];
-  const activePoints = activeStep?.points || [];
+  const activeCellsByColor = activeStep?.cellsByColor || null;
 
   return (
     <div className="glass-card overflow-hidden">
@@ -234,8 +284,8 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           {updateTime && <span>{formatString(t('nowcast.updated'), updateTime)}</span>}
           {isLoaded && (
-            <button 
-              onClick={() => refetch()} 
+            <button
+              onClick={() => refetch()}
               className="p-1.5 hover:bg-muted/50 rounded-md transition-colors"
               disabled={isFetching}
               title="Refresh gridded nowcast"
@@ -245,7 +295,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
           )}
         </div>
       </div>
-      
+
       <div className="relative h-[400px] w-full bg-muted/20">
         {!isLoaded && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">
@@ -254,7 +304,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
             <p className="text-muted-foreground mb-6 text-center max-w-sm">
               {t('nowcast.desc')}
             </p>
-            <button 
+            <button
               onClick={() => setIsLoaded(true)}
               className="px-6 py-2.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium"
             >
@@ -262,19 +312,19 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
             </button>
           </div>
         )}
-        
+
         {isLoading && isLoaded && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-sm">
             <RefreshCw className="w-8 h-8 animate-spin text-primary" />
           </div>
         )}
-        
+
         {error && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm p-6 text-center">
             <AlertCircle className="w-10 h-10 text-destructive mb-2" />
             <p className="text-lg font-medium text-foreground mb-1">Failed to load data</p>
             <p className="text-muted-foreground mb-4">{t('nowcast.error')}</p>
-            <button 
+            <button
               onClick={() => refetch()}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
             >
@@ -298,16 +348,14 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           />
-          {activePoints.map((point, index) => (
-            <Rectangle
-              key={`${activeStepIndex}-${index}`}
-              bounds={point.bounds}
-              pathOptions={{
-                color: getRainfallColor(point.value),
-                fillColor: getRainfallColor(point.value),
-                fillOpacity: 0.6,
-                weight: 0 // No border
-              }}
+
+          {/* Color-bucketed GeoJSON layers: ~7 components instead of ~2,000 Rectangles */}
+          {activeCellsByColor && Array.from(activeCellsByColor.entries()).map(([color, cellCoordsArray]) => (
+            <ColorGeoLayer
+              key={`${activeStepIndex}-${color}`}
+              color={color}
+              coordinates={cellCoordsArray}
+              stepIndex={activeStepIndex}
             />
           ))}
 
@@ -320,19 +368,18 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
             />
           )}
         </MapContainer>
-        
+
         {/* Legend */}
         {isLoaded && !isLoading && (
           <div className="absolute bottom-4 right-4 z-[400] bg-background/90 backdrop-blur-sm p-3 rounded-lg border border-border shadow-lg text-xs">
             <div className="font-semibold mb-2">{t('nowcast.legend')}</div>
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm" style={{backgroundColor: '#a0c4ff'}}></div>&lt; 0.5</div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm" style={{backgroundColor: '#4facfe'}}></div>0.5 - 2</div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm" style={{backgroundColor: '#00f2fe'}}></div>2 - 5</div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm" style={{backgroundColor: '#43e97b'}}></div>5 - 10</div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm" style={{backgroundColor: '#f6d365'}}></div>10 - 20</div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm" style={{backgroundColor: '#ff0844'}}></div>20 - 30</div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm" style={{backgroundColor: '#9d0b0b'}}></div>&gt; 30</div>
+              {COLOR_SCALE.map(({ color, label }) => (
+                <div key={color} className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }}></div>
+                  <span>{label}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -364,7 +411,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
               value={activeStepIndex}
               onChange={(e) => {
                 setActiveStepIndex(parseInt(e.target.value));
-                setIsPlaying(false); // Stop playing on manual drag
+                setIsPlaying(false);
               }}
               className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none"
               aria-label={t('nowcast.slider')}
