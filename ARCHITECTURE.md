@@ -25,7 +25,7 @@ Weather Whisperer is a modern, responsive weather dashboard built with React and
   - `RainfallMap.tsx`: Interactive Leaflet map visualizing HKO's gridded rainfall nowcast for HK + Pearl River Delta (Guangdong, China). Data-driven viewport fit
   - `SettingsMenu.tsx`: Global settings controls (Language, Theme, Location)
   - `CitySearch.tsx`: Autocomplete geocoding search
-  - `WeatherAlerts.tsx`: Active warnings widget, customized for HKO alerts
+  - `WeatherAlerts.tsx`: HKO warning icons in top bar; clicking opens modal with full alert details
 - `src/contexts/`: Global application state
   - `LanguageContext.tsx`: Manages i18n between English and Traditional Chinese (HK)
   - `ThemeContext.tsx`: Manages active theme (Light, Dark, and Sun-synced Auto)
