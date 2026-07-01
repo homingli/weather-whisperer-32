@@ -245,6 +245,9 @@ const Index = () => {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {weather?.warnings && weather.warnings.length > 0 && (
+              <WeatherAlerts warnings={weather.warnings} />
+            )}
             <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} onRefresh={handleForceRefresh} />
             {deferredPrompt && !isInstalled && (
               <button
@@ -368,12 +371,8 @@ const Index = () => {
                 </div>
               )}
 
-              {/* Top Row: Alerts and Hero (Full Width) */}
+              {/* Top Row: Hero (Full Width) */}
               <div className="space-y-6">
-                {weather.warnings && weather.warnings.length > 0 && (
-                  <WeatherAlerts warnings={weather.warnings} />
-                )}
-
                 <CurrentWeather
                   weather={weather.current ?? PLACEHOLDER_CURRENT}
                   hourlyForecast={weather.hourly || []}
