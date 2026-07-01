@@ -1,14 +1,15 @@
-import { useState, useEffect, useMemo, useRef, memo } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapContainer, TileLayer, GeoJSON, Marker, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
+import type { Feature, FeatureCollection } from 'geojson';
 import { CloudRain, AlertCircle, RefreshCw, Play, Pause } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { PRD_BOUNDS } from '@/lib/hko-weather';
 import 'leaflet/dist/leaflet.css';
 
 // Module-level empty array to avoid allocations
-const EMPTY_POINTS: StepData[] = [];
+const EMPTY_STEPS: StepData[] = [];
 
 interface UserLocation {
   latitude: number;
@@ -46,16 +47,15 @@ const COLOR_SCALE = [
   { color: '#9d0b0b', label: '> 30' },
 ] as const;
 
-// Color buckets per timestep: maps rainfall color to array of [lat, lon] pairs
+// Color buckets per timestep: maps rainfall color to pre-built GeoJSON FeatureCollection
 interface StepData {
   endTime: string;
   formattedTime: string;
-  /** color -> [cellCoords, ...] where each cellCoords is 4 [lat,lon] corners */
-  cellsByColor: Map<string, [number, number][][]>;
+  cellsByColor: Map<string, FeatureCollection>;
 }
 
-// Memoized color function — called once per cell at parse time
-const getRainfallColor = ((value: number): string => {
+// Called once per cell at parse time
+const getRainfallColor = (value: number): string => {
   if (value <= 0.5) return '#a0c4ff';
   if (value <= 2) return '#4facfe';
   if (value <= 5) return '#00f2fe';
@@ -63,43 +63,45 @@ const getRainfallColor = ((value: number): string => {
   if (value <= 20) return '#f6d365';
   if (value <= 30) return '#ff0844';
   return '#9d0b0b';
-}) satisfies (value: number) => string;
+};
 
-// GeoJSON layer for one color bucket — memoized so React skips re-render when data unchanged
-const ColorGeoLayer = memo(({ color, coordinates, stepIndex }: {
+// Module-level style helper — stable object, no per-feature function call
+const polygonStyle = (color: string) => ({
+  fillColor: color,
+  fillOpacity: 0.6,
+  color: color,
+  weight: 0,
+});
+
+// ColorGeoLayer — receives pre-built GeoJSON FeatureCollection, no per-render mapping
+const ColorGeoLayer = memo(({ color, data, stepIndex }: {
   color: string;
-  coordinates: [number, number][][];
+  data: FeatureCollection;
   stepIndex: number;
 }) => {
-  const geoJSONData = useMemo(() => ({
-    type: 'FeatureCollection' as const,
-    features: coordinates.map(coords => ({
-      type: 'Feature' as const,
-      geometry: { type: 'Polygon' as const, coordinates: [coords] },
-    })),
-  }), [coordinates]);
-
   return (
     <GeoJSON
       key={`${stepIndex}-${color}`}
-      data={geoJSONData}
-      style={() => ({ fillColor: color, fillOpacity: 0.6, color: color, weight: 0 })}
+      data={data}
+      style={polygonStyle(color)}
     />
   );
 }, (prev, next) =>
-  prev.stepIndex === next.stepIndex && prev.color === next.color && prev.coordinates === next.coordinates
+  prev.stepIndex === next.stepIndex && prev.color === next.color && prev.data === next.data
 );
 
-// CSV parser: two-pass, builds color-bucketed steps + global bounds in O(n)
+// CSV parser: single-pass, builds color-bucketed GeoJSON FeatureCollections + global bounds
 const parseRainfallCSV = (csvText: string): NowcastResult => {
   const lines = csvText.split('\n');
   let updateTime = '';
+  let updateTimeFound = false;
 
-  // Global bounds across all timesteps
   let globalMinLat = Infinity, globalMaxLat = -Infinity;
   let globalMinLon = Infinity, globalMaxLon = -Infinity;
 
-  // Pass 1: collect bounds + update time
+  // Single pass: track bounds + bucket cells by endTime+color, building GeoJSON features directly
+  const temp: Record<string, Record<string, FeatureCollection>> = {};
+
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
     if (!line) continue;
@@ -112,55 +114,54 @@ const parseRainfallCSV = (csvText: string): NowcastResult => {
     const lat = parseFloat(parts[2]);
     const lon = parseFloat(parts[3]);
 
-    if (i === 1 && parts[0] && parts[0].length >= 12) {
+    // Extract update time from first valid data row
+    if (!updateTimeFound && parts[0] && parts[0].length >= 12) {
       updateTime = `${parts[0].substring(0, 4)}-${parts[0].substring(4, 6)}-${parts[0].substring(6, 8)} ${parts[0].substring(8, 10)}:${parts[0].substring(10, 12)}`;
+      updateTimeFound = true;
     }
 
+    // Track global bounds
     if (lat < globalMinLat) globalMinLat = lat;
     if (lat > globalMaxLat) globalMaxLat = lat;
     if (lon < globalMinLon) globalMinLon = lon;
     if (lon > globalMaxLon) globalMaxLon = lon;
-  }
-
-  // Pass 2: bucket cells by endTime + color
-  const temp: Record<string, Record<string, [number, number][][]>> = {};
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line) continue;
-    const parts = line.split(',');
-    if (parts.length < 5) continue;
 
     const endTime = parts[1];
     if (!endTime) continue;
 
-    const value = parseFloat(parts[4]);
-    if (value <= 0) continue;
-
-    const lat = parseFloat(parts[2]);
-    const lon = parseFloat(parts[3]);
     const color = getRainfallColor(value);
 
-    // Cell corners as GeoJSON [lon, lat] (GeoJSON spec requires lon-first order)
-    const cellCoords: [number, number][] = [
-      [lon - 0.0095, lat - 0.009],
-      [lon + 0.0095, lat - 0.009],
-      [lon + 0.0095, lat + 0.009],
-      [lon - 0.0095, lat + 0.009],
-    ];
+    // Pre-built GeoJSON Feature (lon-first, closed ring per GeoJSON spec)
+    const feature: Feature = {
+      type: 'Feature',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[
+          [lon - 0.0095, lat - 0.009],
+          [lon + 0.0095, lat - 0.009],
+          [lon + 0.0095, lat + 0.009],
+          [lon - 0.0095, lat + 0.009],
+          [lon - 0.0095, lat - 0.009],
+        ]],
+      },
+      properties: null,
+    };
 
     if (!temp[endTime]) temp[endTime] = {};
-    if (!temp[endTime][color]) temp[endTime][color] = [];
-    temp[endTime][color].push(cellCoords);
+    if (!temp[endTime][color]) {
+      temp[endTime][color] = { type: 'FeatureCollection', features: [] };
+    }
+    temp[endTime][color].features.push(feature);
   }
 
-  // Convert to sorted steps with per-step color buckets
+  // Convert to sorted steps with per-color FeatureCollections
   const sortedEndTimes = Object.keys(temp).sort();
   const timeSteps: StepData[] = sortedEndTimes.map(endTime => {
     const byColor = temp[endTime];
-    const cellsByColor = new Map<string, [number, number][][]>();
+    const cellsByColor = new Map<string, FeatureCollection>();
 
-    for (const [color, coordsArray] of Object.entries(byColor)) {
-      cellsByColor.set(color, coordsArray);
+    for (const [color, fc] of Object.entries(byColor)) {
+      cellsByColor.set(color, fc);
     }
 
     const formattedTime = endTime.length >= 12
@@ -207,15 +208,12 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
     enabled: isLoaded,
   });
 
-  const timeSteps = data?.timeSteps || EMPTY_POINTS;
+  const timeSteps = data?.timeSteps || EMPTY_STEPS;
   const updateTime = data?.updateTime || '';
   const { t } = useLanguage();
 
   // Global bounds computed at parse time — O(1) lookup
-  const dataBounds = useMemo(() => {
-    if (!data) return null;
-    return data.globalBounds;
-  }, [data]);
+  const dataBounds = data?.globalBounds ?? null;
 
   // Reset active step index when data is refetched
   useEffect(() => {
@@ -350,11 +348,11 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
           />
 
           {/* Color-bucketed GeoJSON layers: ~7 components instead of ~2,000 Rectangles */}
-          {activeCellsByColor && Array.from(activeCellsByColor.entries()).map(([color, cellCoordsArray]) => (
+          {activeCellsByColor && Array.from(activeCellsByColor.entries()).map(([color, featureCollection]) => (
             <ColorGeoLayer
               key={`${activeStepIndex}-${color}`}
               color={color}
-              coordinates={cellCoordsArray}
+              data={featureCollection}
               stepIndex={activeStepIndex}
             />
           ))}
