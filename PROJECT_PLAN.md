@@ -46,3 +46,6 @@
 1. Final verification of PWA icons in the build (DONE).
 2. Commit hygiene and cleanup of scratch files (DONE).
 3. Merge to main.
+
+### Completed
+- **Alert UI Redesign**: Replaced collapsible banner with per-warning HKO icon buttons in top bar + modal dialog. Cancelled warnings filtered via `actionCode` and detail text check.
