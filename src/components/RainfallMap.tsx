@@ -294,6 +294,57 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         </div>
       </div>
 
+      {/* Time Slider Controls — placed above the map so users see the active timestep before viewing the visualization */}
+      {isLoaded && !isLoading && timeSteps.length > 0 && (
+        <div className="px-6 py-5 bg-background/50 border-b border-border/50 flex flex-col md:flex-row items-center gap-6">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              className="p-2.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors shadow-sm"
+              title={isPlaying ? 'Pause' : 'Play timeline'}
+              aria-label={isPlaying ? t('nowcast.pause') : t('nowcast.play')}
+            >
+              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
+            </button>
+            <div className="flex flex-col min-w-[80px]">
+              <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">Forecast Step</span>
+              <span className="text-lg font-bold text-foreground">{activeStep.formattedTime}</span>
+            </div>
+          </div>
+
+          <div className="flex-1 w-full flex flex-col gap-2">
+            <input
+              type="range"
+              min={0}
+              max={timeSteps.length - 1}
+              value={activeStepIndex}
+              onChange={(e) => {
+                setActiveStepIndex(parseInt(e.target.value));
+                setIsPlaying(false);
+              }}
+              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none"
+              aria-label={t('nowcast.slider')}
+            />
+            <div className="flex justify-between text-xs font-semibold text-muted-foreground px-1">
+              {timeSteps.map((step, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setActiveStepIndex(index);
+                    setIsPlaying(false);
+                  }}
+                  className={`hover:text-primary transition-colors ${
+                    index === activeStepIndex ? 'text-primary font-bold' : ''
+                  }`}
+                >
+                  {step.formattedTime}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="relative h-[400px] w-full bg-muted/20">
         {!isLoaded && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">
@@ -382,57 +433,6 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
           </div>
         )}
       </div>
-
-      {/* Time Slider Controls */}
-      {isLoaded && !isLoading && timeSteps.length > 0 && (
-        <div className="px-6 py-5 bg-background/50 border-t border-border/50 flex flex-col md:flex-row items-center gap-6">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="p-2.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors shadow-sm"
-              title={isPlaying ? 'Pause' : 'Play timeline'}
-              aria-label={isPlaying ? t('nowcast.pause') : t('nowcast.play')}
-            >
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
-            </button>
-            <div className="flex flex-col min-w-[80px]">
-              <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">Forecast Step</span>
-              <span className="text-lg font-bold text-foreground">{activeStep.formattedTime}</span>
-            </div>
-          </div>
-
-          <div className="flex-1 w-full flex flex-col gap-2">
-            <input
-              type="range"
-              min={0}
-              max={timeSteps.length - 1}
-              value={activeStepIndex}
-              onChange={(e) => {
-                setActiveStepIndex(parseInt(e.target.value));
-                setIsPlaying(false);
-              }}
-              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none"
-              aria-label={t('nowcast.slider')}
-            />
-            <div className="flex justify-between text-xs font-semibold text-muted-foreground px-1">
-              {timeSteps.map((step, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    setActiveStepIndex(index);
-                    setIsPlaying(false);
-                  }}
-                  className={`hover:text-primary transition-colors ${
-                    index === activeStepIndex ? 'text-primary font-bold' : ''
-                  }`}
-                >
-                  {step.formattedTime}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
