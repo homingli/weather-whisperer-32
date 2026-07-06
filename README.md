@@ -4,22 +4,25 @@ A modern, responsive weather application built with React and TypeScript. Featur
 
 ## Features
 
-- **Dual Weather Sources**: Automatically switches between Hong Kong Observatory (HKO) and Open-Meteo based on location
+- **Dual Weather Sources**: Automatically switches between Hong Kong Observatory (HKO) and Open-Meteo based on location; Open-Meteo is primary, HKO enhances HK areas
+- **Resilient Gateway**: Parallel fetching with per-source status badges; HKO failure degrades gracefully to Open-Meteo without blocking the UI
 - **Consolidated Settings**: Manage location search, current location detection, theme, language, and manual data refresh from a single menu
 - **Multi-Language Support**: English and Traditional Chinese interface
-- **Location Services**: Auto-detect user location or search for any city worldwide with recent cities history
+- **Location Services**: Auto-detect user location or search for any city worldwide with recent cities history (last 3)
 - **Weather Data**: Current conditions, hourly forecasts (6 hours), and daily forecasts (7 days)
 - **Local Timezone Display**: Shows date and time in the selected location's timezone
 - **High/Low Temperatures**: Daily minimum and maximum temperatures displayed in the hero section
 - **Sun Events**: Displays sunset or sunrise times based on current day/night status
 - **Hourly Charts**: Interactive line charts showing temperature and precipitation probability with PSR (Probability of Significant Rain) labels
 - **Gridded Rainfall Nowcast Map**: Interactive Leaflet map with timeline slider showing HKO gridded rainfall data for Hong Kong and the Pearl River Delta (including Guangdong, China)
-- **User Location Marker**: Blue pin marker on the rainfall map showing user's current position
-- **Weather Alerts**: Real-time weather warnings and alerts with 20 HKO warning GIFs (HKO source only)
-- **Data-Driven Map Zoom**: Rainfall map auto-fits viewport to actual data extent; covers HK + Guangdong
-- **Per-Source Loading Indicators**: Visual status badges for Open-Meteo and HKO fetch states without placeholder skeletons
+- **Forecast Step Above Map**: Time-step play/pause controls and the formatted-time label sit directly above the map so the active window is visible before the user sees the visualization
+- **User Location Marker**: Blue pin marker on the rainfall map showing the user's current position
+- **Weather Alerts**: Real-time HKO warnings rendered as compact icons in the top bar; clicking opens a modal with full safety details
+- **Data-Driven Map Zoom**: Rainfall map auto-fits viewport to actual data extent; default fallback is `PRD_BOUNDS` from `hko-weather.ts`
+- **Per-Source Loading Indicators**: Live status badges for Open-Meteo and HKO fetch states (fetching / success / error)
 - **Responsive Design**: Optimized for mobile, tablet, and desktop devices
-- **Consistent Caching**: All queries refetch every 5 minutes under normal conditions, with 1-minute fallback during API failures. React Query handles all TTL without a separate cache layer.
+- **Adaptive Cache Cadence**: React Query refetches every 5 minutes under normal conditions, drops to 1 minute during HKO failures so the app self-heals once HKO recovers
+- **PWA**: Service worker uses a NetworkFirst policy so the last successful API response is replayed when offline
 
 ## Technology Stack
 
@@ -27,45 +30,63 @@ A modern, responsive weather application built with React and TypeScript. Featur
 - **Build Tool**: Vite 5
 - **UI Components**: shadcn-ui with Radix UI 1.x
 - **Styling**: Tailwind CSS 3 with custom animations
-- **Data Fetching**: TanStack React Query 5
+- **Data Fetching**: TanStack React Query 5 (sole TTL owner — no separate cache layer)
 - **Routing**: React Router 7
+- **Map**: Leaflet 1.9 + react-leaflet 4
 - **Icons**: Lucide React
 - **Charts**: Recharts 2
 - **Date Handling**: date-fns 3
-- **Forms**: React Hook Form 7 with Zod 3 validation
+- **PWA**: vite-plugin-pwa with workbox `NetworkFirst`
+- **Testing**: Vitest 2 with Testing Library + jsdom
 
 ## Project Structure
 
 ```
 src/
 ├── components/         # Reusable UI components
-│   ├── ui/            # shadcn-ui components
+│   ├── ui/            # shadcn-ui primitives actually in use
 │   ├── CurrentWeather.tsx
 │   ├── HourlyForecast.tsx
 │   ├── DailyForecast.tsx
-│   ├── RainfallMap.tsx
+│   ├── RainfallMap.tsx          # Forecast-step slider above the map
 │   ├── SettingsMenu.tsx
-│   ├── WeatherAlerts.tsx
-│   └── ...
+│   ├── WeatherAlerts.tsx        # HKO warning icons + modal
+│   ├── CitySearch.tsx           # Autocomplete geocoding
+│   ├── WeatherSkeleton.tsx
+│   ├── LanguageToggle.tsx
+│   ├── ThemeToggle.tsx
+│   └── NavLink.tsx
 ├── contexts/          # React Context providers
 │   ├── LanguageContext.tsx
 │   └── ThemeContext.tsx
-├── lib/               # Utility functions and API clients
-│   ├── weather.ts     # Open-Meteo API & Geocoding integration
-│   └── hko-weather.ts # Hong Kong Observatory API integration
-├── pages/             # Page components
-│   ├── Index.tsx      # Main weather page
-│   └── NotFound.tsx   # 404 page
-├── App.tsx            # Root app component
-└── main.tsx           # Application entry point
+├── hooks/             # Shared React hooks
+│   └── usePwaInstall.ts
+├── lib/               # API clients, gateway, storage, helpers
+│   ├── weather.ts              # Open-Meteo + reverse geocode + city persistence
+│   ├── hko-weather.ts          # HKO API client + warnings + PRD_BOUNDS
+│   ├── weather-manager.ts      # Unified gateway (parallel fetch, merge, fallback)
+│   ├── cache.ts                # Manual-refresh helper only
+│   ├── constants.ts            # Placeholder sentinel for transitions
+│   ├── fetch-utils.ts
+│   └── utils.ts                # cn(), misc
+├── pages/             # Route components
+│   ├── Index.tsx               # Main dashboard
+│   └── NotFound.tsx            # 404
+├── test/              # Vitest setup + integration suite
+│   ├── setup.ts
+│   └── Integration.test.tsx
+├── components/*.test.tsx        # Component-level unit tests
+├── lib/*.test.ts                # API/parsing unit tests
+├── App.tsx             # Providers, router, error boundary
+└── main.tsx            # Application entry point
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v16 or higher)
-- npm or yarn package manager
+- Node.js 18+ (Vite 5 requirement)
+- npm or pnpm
 
 ### Installation
 
@@ -80,37 +101,39 @@ cd weather-whisperer-32
 npm install
 ```
 
+> Note: Lifecycle scripts are intentionally not run during install in this repo (`--ignore-scripts`); approve or run them explicitly only when you trust the dependency.
+
 ### Development
 
 ```bash
-# Start the development server
 npm run dev
 ```
 
-The application will open at `http://localhost:5173` with hot module replacement enabled.
+The application will open at `http://localhost:5173` (Vite default; check terminal output if it differs) with hot module replacement enabled.
 
-### Build
+### Build & Preview
 
 ```bash
-# Build for production
-npm run build
-
-# Preview production build locally
-npm run preview
+npm run build       # Production build
+npm run build:dev   # Development build (no minification)
+npm run preview     # Preview the production build
+npm run lint        # ESLint
+npm test            # Vitest (single run: add --run)
 ```
 
 ## API Sources
 
-### Open-Meteo
+### Open-Meteo (primary)
 - Free, open-source weather API
 - Global coverage
 - Provides current weather, hourly, and daily forecasts
 
-### Hong Kong Observatory (HKO)
-- Official Hong Kong weather data (automatically used for HK locations)
+### Hong Kong Observatory (HKO) (HK-only secondary)
+- Official Hong Kong weather data (automatically activated for HK locations)
 - Includes weather warnings and alerts
 - Probability of Significant Rain (PSR) data
 - Station-based observations
+- Gridded rainfall nowcast (CSV, served via `/hko-data/...` proxy in `vite.config.ts` and `vercel.json`)
 
 ## Features Breakdown
 
@@ -139,38 +162,42 @@ The hero section displays:
 
 ### Settings & Navigation
 The consolidated hamburger menu provides access to:
-- **Global City Search**: Autocomplete search for any location
-- **Recent Locations**: Quick access to previously visited cities
-- **Current Location**: One-tap detection of user's current position
-- **Theme Toggle**: Switch between Light, Dark, and Auto modes
+- **Global City Search**: Autocomplete search for any location (Open-Meteo Geocoding API)
+- **Recent Locations**: Quick access to the last 3 visited cities
+- **Current Location**: One-tap detection of the user's current position
+- **Theme Toggle**: Switch between Light, Dark, and Auto (sun-synced) modes
 - **Language Toggle**: Switch between English and Traditional Chinese
-- **Manual Data Refresh**: Force clear local caches and fetch fresh weather data on-demand
+- **Manual Data Refresh**: Force-clear local caches and fetch fresh weather data on-demand
 
 ### Weather Alerts
-Real-time weather warnings featuring a streamlined, compact UI including:
+Real-time weather warnings rendered as compact icons in the top bar; clicking opens a modal with the full safety text. Coverage:
 - Typhoon signals (TC1, TC3, TC8, TC8B-D, TC9, TC10)
 - Rainstorm warnings (Red, Amber)
 - Special weather advisories (Hot Weather, Cold Weather, Frost, etc.)
 - Tsunami and landslip warnings
 - 20 locally-hosted animated warning GIFs (no CDN dependencies)
-- Space-efficient layout with cleanly aligned issue times
+- Cancelled warnings are filtered via `actionCode` + detail-text check
 
 ### Gridded Rainfall Nowcast
 - HKO gridded rainfall data visualized on an interactive Leaflet map
 - Covers Hong Kong and the Pearl River Delta (Shenzhen, Guangzhou, Macau, Zhuhai — extends into Guangdong, China)
-- Timeline slider to play through forecast steps
-- Precise ending timestamps from raw CSV data
+- **Forecast step controls sit directly above the map**: Play/Pause button, the active `Forecast Step` label (formatted HH:MM), the timeline slider, and clickable per-step buttons. Layout is `flex-col` on mobile and `flex-row` on `md+` so the slider can stretch the full width.
+- Map follows underneath with the active timestep's color-bucketed GeoJSON overlay
+- Precise ending timestamps are derived from raw CSV `endTime` values
 - User location blue pin marker with automatic map zoom to data extent
 - Scroll wheel zoom, double-click zoom, and zoom controls
+- Legend overlay bottom-right with seven color buckets from `< 0.5 mm` to `> 30 mm`
 
 ## Local Storage
 
-The application stores:
-- Default city selection (persists across sessions)
-- Recent search history
-- Cache migration flag (v2)
+The application persists only minimal city metadata to `localStorage`:
+- `weather-default-city` — the last selected GeoLocation
+- `weather-recent-cities` — up to 3 recent cities (capped)
+- `cache_migrated_v2` — one-shot migration flag
 
-All icons (Leaflet markers, 20 HKO warning GIFs) are locally hosted under `public/icons/` — no external CDN dependencies.
+The `cache` module (`src/lib/cache.ts`) is reserved for manual refresh (force-clearing stale weather keys). TTL caching is handled entirely by React Query's `staleTime` / `refetchInterval`.
+
+All icon assets (Leaflet markers, 20 HKO warning GIFs) are locally hosted under `public/icons/` — no external CDN dependencies.
 
 ## Browser Support
 
@@ -181,12 +208,12 @@ All icons (Leaflet markers, 20 HKO warning GIFs) are locally hosted under `publi
 
 ## Performance
 
-- Automatic data refetch every 5 minutes (falls back to 1 minute during API failures)
-- Efficient caching with React Query (no separate cache layer)
+- Automatic data refetch every 5 minutes (falls back to 1 minute during HKO failures)
+- Single-cache strategy: React Query handles TTL/dedup; PWA service worker handles offline replay
 - Optimized animations with Tailwind CSS
-- Responsive images and lazy loading
+- Lazy-loaded heavy modules (`HourlyForecast`, `RainfallMap` via `React.lazy` + `Suspense`)
 - Production-optimized build with Vite
-- Preconnect/dns-prefetch for external APIs and basemap tiles
+- Preconnect/dns-prefetch hints for external APIs and basemap tiles
 
 ## License
 
