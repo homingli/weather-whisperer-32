@@ -4,15 +4,17 @@ import { RainfallMap } from './RainfallMap';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Mock react-leaflet to avoid JSDOM rendering issues
+// Mock react-leaflet to avoid JSDOM rendering issues.
+// The component renders color-bucketed GeoJSON FeatureCollections — one layer per
+// rainfall color — instead of per-cell rectangles (see P3-001).
 vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }: any) => <div data-testid="map-container">{children}</div>,
   TileLayer: () => <div data-testid="tile-layer" />,
-  Rectangle: ({ bounds, pathOptions }: any) => (
+  GeoJSON: ({ style, key }: any) => (
     <div
-      data-testid="rectangle"
-      data-bounds={JSON.stringify(bounds)}
-      style={{ backgroundColor: pathOptions.fillColor }}
+      data-testid="geojson"
+      data-fill-color={style?.fillColor}
+      data-key={key}
     />
   ),
   ZoomControl: () => <div data-testid="zoom-control" />,
@@ -73,20 +75,17 @@ describe('RainfallMap Component', () => {
     // Check MapContainer renders
     expect(screen.getByTestId('map-container')).toBeInTheDocument();
 
-    // Verify only values > 0 are rendered as Rectangles
-    // mockCsvData has 5 lines (excluding header), 4 have value > 0: 1.5, 12.5, 3.5, 0.8
-    const rectangles = screen.getAllByTestId('rectangle');
-    expect(rectangles).toHaveLength(4);
+    // The 4 non-zero rainfall cells fall into 3 color buckets:
+    //   - #4facfe (Moderate-light): 1.5 + 0.8 mm
+    //   - #00f2fe (Moderate):        3.5 mm
+    //   - #f6d365 (Heavy):          12.5 mm
+    const layers = screen.getAllByTestId('geojson');
+    expect(layers).toHaveLength(3);
 
-    // Verify colors mapped correctly
-    // 1.5 mm -> '#4facfe' (Moderate-light)
-    // 12.5 mm -> '#f6d365' (Heavy)
-    // 3.5 mm -> '#00f2fe' (Moderate)
-    // 0.8 mm -> '#4facfe' (Moderate-light)
-    const backgroundColors = rectangles.map(el => el.style.backgroundColor);
-    expect(backgroundColors).toContain('rgb(79, 172, 254)'); // rgb equivalent of #4facfe
-    expect(backgroundColors).toContain('rgb(246, 211, 101)'); // rgb equivalent of #f6d365
-    expect(backgroundColors).toContain('rgb(0, 242, 254)'); // rgb equivalent of #00f2fe
+    const fillColors = layers.map(el => el.getAttribute('data-fill-color'));
+    expect(fillColors).toContain('#4facfe');
+    expect(fillColors).toContain('#00f2fe');
+    expect(fillColors).toContain('#f6d365');
   });
 
   it('handles fetch errors gracefully', async () => {

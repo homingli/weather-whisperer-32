@@ -6,7 +6,6 @@ import { WeatherAlerts } from "@/components/WeatherAlerts";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { fetchWeather } from "@/lib/weather-manager";
 import { GeoLocation, getDefaultCity, getRecentCities, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
-import { cache } from "@/lib/cache";
 import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName } from "@/lib/hko-weather";
 import { PLACEHOLDER_SENTINEL } from "@/lib/constants";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
@@ -68,17 +67,6 @@ const Index = () => {
     setSelectedCity(city);
     setDefaultCity(city);
     setRecentCities(getRecentCities());
-  }, []);
-
-  // Clear stale custom cache entries left over from the previous cache layer.
-  // The old cache stored raw Open-Meteo API responses (flat shape, no `current` wrapper)
-  // that are incompatible with the current `WeatherData` shape expected by the UI.
-  // Version-gated: only runs once to avoid nuking new-format cache on subsequent mounts.
-  useEffect(() => {
-    if (!localStorage.getItem('cache_migrated_v2')) {
-      cache.clearWeather();
-      localStorage.setItem('cache_migrated_v2', '1');
-    }
   }, []);
 
   // Dual-fetch location initialization (Option C):
