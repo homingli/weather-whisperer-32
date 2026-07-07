@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapContainer, TileLayer, GeoJSON, Marker, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
@@ -68,12 +68,23 @@ const hexToRgba = (hex: string, alpha: number) => {
 };
 
 const FILL_ALPHA = 0.4;
-const polygonStyle = (color: string) => ({
-  fillColor: hexToRgba(color, FILL_ALPHA),
-  fillOpacity: 1,
-  color: hexToRgba(color, 1),
-  weight: 0.5,
-});
+
+// Per-color style cache. react-leaflet invokes style once per feature inside the
+// canvas/SVG render loop, so we memoize by hex color to keep the returned object
+// reference stable across features and re-renders.
+const polygonStyleCache = new Map<string, ReturnType<typeof polygonStyle>>();
+const polygonStyle = (color: string) => {
+  const cached = polygonStyleCache.get(color);
+  if (cached) return cached;
+  const style = {
+    fillColor: hexToRgba(color, FILL_ALPHA),
+    fillOpacity: 1,
+    color: hexToRgba(color, 1),
+    weight: 0.5,
+  };
+  polygonStyleCache.set(color, style);
+  return style;
+};
 
 const ColorGeoLayer = memo(({ color, data, stepIndex }: {
   color: string;
@@ -252,7 +263,10 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   // Region gate — the HKO gridded nowcast only covers the Pearl River Delta.
   // Show a static note (not the lazy-load button) when the user is outside
   // this coverage area so the map and button stay interactive for in-region users.
-  const inRegion = userLocation ? isInRainfallRegion(userLocation.latitude, userLocation.longitude) : true;
+  const inRegion = useMemo(
+    () => (userLocation ? isInRainfallRegion(userLocation.latitude, userLocation.longitude) : true),
+    [userLocation]
+  );
   if (userLocation && !inRegion) {
     return (
       <div className="glass-card overflow-hidden">
