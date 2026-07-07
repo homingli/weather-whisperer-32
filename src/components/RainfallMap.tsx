@@ -6,7 +6,6 @@ import type { Feature, FeatureCollection } from 'geojson';
 import { CloudRain, AlertCircle, RefreshCw, Play, Pause } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { PRD_BOUNDS } from '@/lib/hko-weather';
-import 'leaflet/dist/leaflet.css';
 
 // Module-level empty array to avoid allocations
 const EMPTY_STEPS: StepData[] = [];
@@ -36,15 +35,16 @@ interface NowcastResult {
   };
 }
 
-// Color scale for legend rendering
-const COLOR_SCALE = [
-  { color: '#a0c4ff', label: '< 0.5' },
-  { color: '#4facfe', label: '0.5 - 2' },
-  { color: '#00f2fe', label: '2 - 5' },
-  { color: '#43e97b', label: '5 - 10' },
-  { color: '#f6d365', label: '10 - 20' },
-  { color: '#ff0844', label: '20 - 30' },
-  { color: '#9d0b0b', label: '> 30' },
+// Single source of truth for rainfall thresholds. Order matters — first match wins.
+// Both the legend and getRainfallColor walk this table so the two never drift apart.
+const RAINFALL_BANDS = [
+  { max: 0.5, color: '#a0c4ff', label: '< 0.5' },
+  { max: 2, color: '#4facfe', label: '0.5 - 2' },
+  { max: 5, color: '#00f2fe', label: '2 - 5' },
+  { max: 10, color: '#43e97b', label: '5 - 10' },
+  { max: 20, color: '#f6d365', label: '10 - 20' },
+  { max: 30, color: '#ff0844', label: '20 - 30' },
+  { max: Infinity, color: '#9d0b0b', label: '> 30' },
 ] as const;
 
 // Color buckets per timestep: maps rainfall color to pre-built GeoJSON FeatureCollection
@@ -54,15 +54,13 @@ interface StepData {
   cellsByColor: Map<string, FeatureCollection>;
 }
 
-// Called once per cell at parse time
+// Called once per cell at parse time. Walks the shared RAINFALL_BANDS table.
 const getRainfallColor = (value: number): string => {
-  if (value <= 0.5) return '#a0c4ff';
-  if (value <= 2) return '#4facfe';
-  if (value <= 5) return '#00f2fe';
-  if (value <= 10) return '#43e97b';
-  if (value <= 20) return '#f6d365';
-  if (value <= 30) return '#ff0844';
-  return '#9d0b0b';
+  for (const band of RAINFALL_BANDS) {
+    if (value <= band.max) return band.color;
+  }
+  // Unreachable: Infinity band always matches. Return last color as a safety net.
+  return RAINFALL_BANDS[RAINFALL_BANDS.length - 1].color;
 };
 
 // Module-level style helper — stable object, no per-feature function call
@@ -81,7 +79,7 @@ const ColorGeoLayer = memo(({ color, data, stepIndex }: {
 }) => {
   return (
     <GeoJSON
-      key={`${stepIndex}-${color}`}
+      key={color}
       data={data}
       style={polygonStyle(color)}
     />
@@ -401,7 +399,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
           {/* Color-bucketed GeoJSON layers: ~7 components instead of ~2,000 Rectangles */}
           {activeCellsByColor && Array.from(activeCellsByColor.entries()).map(([color, featureCollection]) => (
             <ColorGeoLayer
-              key={`${activeStepIndex}-${color}`}
+              key={color}
               color={color}
               data={featureCollection}
               stepIndex={activeStepIndex}
@@ -423,7 +421,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
           <div className="absolute bottom-4 right-4 z-[400] bg-background/90 backdrop-blur-sm p-3 rounded-lg border border-border shadow-lg text-xs">
             <div className="font-semibold mb-2">{t('nowcast.legend')}</div>
             <div className="flex flex-col gap-1.5">
-              {COLOR_SCALE.map(({ color, label }) => (
+              {RAINFALL_BANDS.map(({ color, label }) => (
                 <div key={color} className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }}></div>
                   <span>{label}</span>

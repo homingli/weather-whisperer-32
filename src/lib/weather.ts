@@ -1,5 +1,6 @@
 // Weather API service using Open-Meteo
 import { fetchWithTimeout } from './fetch-utils';
+import { logTiming, logFailure, logWarn, logError } from './log';
 
 export interface GeoLocation {
   name: string;
@@ -86,7 +87,7 @@ export async function searchCities(query: string): Promise<GeoLocation[]> {
       admin1: r.admin1,
     }));
   } catch (err) {
-    console.error('Error searching cities:', err);
+    logError('Error searching cities:', err);
     return [];
   }
 }
@@ -112,9 +113,9 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
     const response = await fetchWithTimeout(`https://api.open-meteo.com/v1/forecast?${params}`, { timeout: 6000 });
     if (!response.ok) throw new Error(`Failed to fetch weather: ${response.status}`);
     data = await response.json();
-    console.log(`Open-Meteo fetch took ${Date.now() - start}ms`);
+    logTiming('Open-Meteo fetch', Date.now() - start);
   } catch (err) {
-    console.error(`Weather fetch error after ${Date.now() - start}ms:`, err);
+    logFailure('Weather fetch', Date.now() - start, err);
     throw err;
   }
 
@@ -306,7 +307,7 @@ export async function reverseGeocode(latitude: number, longitude: number): Promi
     );
 
     if (!cityResponse.ok) {
-      console.warn(`Reverse geocode failed with status ${cityResponse.status} after ${Date.now() - start}ms`);
+      logWarn(`Reverse geocode failed with status ${cityResponse.status} after ${Date.now() - start}ms`);
       // Fallback: just use coordinates
       return {
         name: 'Current Location',
