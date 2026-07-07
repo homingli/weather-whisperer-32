@@ -1,6 +1,7 @@
 import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from "@/lib/weather";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from "recharts";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { formatInTimezone, appLocale } from "@/lib/utils";
 import { useMemo, useCallback, memo } from "react";
 
 interface HourlyForecastProps {
@@ -13,24 +14,16 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
   const { language, t } = useLanguage();
 
   const hoursData = forecast.slice(0, 8);
+  const locale = appLocale(language);
 
   // Format time in the city's timezone
   const formatTimeInTimezone = useCallback((date: Date) => {
-    try {
-      const options: Intl.DateTimeFormatOptions = {
-        hour: 'numeric',
-        hour12: true,
-        timeZone: timezone || undefined,
-      };
-      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-US', options).format(date);
-    } catch {
-      // Fallback if timezone is invalid
-      const hours = date.getHours();
-      const ampm = hours >= 12 ? 'PM' : 'AM';
-      const hour12 = hours % 12 || 12;
-      return `${hour12}${ampm}`;
-    }
-  }, [timezone, language]);
+    return formatInTimezone(date, locale, {
+      hour: 'numeric',
+      hour12: true,
+      timeZone: timezone || undefined,
+    });
+  }, [timezone, locale]);
 
   const chartData = hoursData.map((hour, index) => ({
     time: (hour.time instanceof Date) ? hour.time.getTime() : new Date(hour.time).getTime(),
@@ -45,22 +38,13 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
 
   // Format sunrise/sunset time in the city's timezone
   const formatSunTime = useCallback((date: Date) => {
-    try {
-      const options: Intl.DateTimeFormatOptions = {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: timezone || undefined,
-      };
-      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-US', options).format(date);
-    } catch {
-      const hours = date.getHours();
-      const minutes = date.getMinutes();
-      const ampm = hours >= 12 ? 'PM' : 'AM';
-      const hour12 = hours % 12 || 12;
-      return `${hour12}:${minutes.toString().padStart(2, '0')}${ampm}`;
-    }
-  }, [timezone, language]);
+    return formatInTimezone(date, locale, {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: timezone || undefined,
+    });
+  }, [timezone, locale]);
 
   // Find sunrise/sunset times within the forecast window
   const sunEvents = useMemo(() => {
@@ -141,19 +125,13 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
 
   // Format time for tooltip label
   const formatTooltipLabel = useCallback((timestamp: number) => {
-    try {
-      const date = new Date(timestamp);
-      const options: Intl.DateTimeFormatOptions = {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: timezone || undefined,
-      };
-      return new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-US', options).format(date);
-    } catch {
-      return new Date(timestamp).toLocaleTimeString();
-    }
-  }, [timezone, language]);
+    return formatInTimezone(new Date(timestamp), locale, {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: timezone || undefined,
+    });
+  }, [timezone, locale]);
 
   return (
     <div className="glass-card p-4 flex flex-col h-[350px] animate-fade-in" style={{ animationDelay: "0.2s" }}>

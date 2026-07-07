@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 type ResolvedTheme = 'light' | 'dark';
@@ -44,44 +44,64 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Determine resolved theme based on mode and sun times
-  useEffect(() => {
-    const updateResolvedTheme = () => {
-      if (mode === 'light') {
-        setResolvedTheme('light');
-        return;
-      }
-      
-      if (mode === 'dark') {
-        setResolvedTheme('dark');
-        return;
-      }
-      
-      // Auto mode: use sunrise/sunset if available, otherwise use system preference
-      if (mode === 'auto') {
-        if (sunTimes.sunrise && sunTimes.sunset) {
-          const now = new Date();
-          const currentTime = now.getTime();
-          const sunriseTime = sunTimes.sunrise.getTime();
-          const sunsetTime = sunTimes.sunset.getTime();
-          
-          // It's day if current time is after sunrise and before sunset
-          const isDay = currentTime >= sunriseTime && currentTime < sunsetTime;
-          setResolvedTheme(isDay ? 'light' : 'dark');
-        } else {
-          // Fallback to system preference
-          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          setResolvedTheme(prefersDark ? 'dark' : 'light');
-        }
-      }
-    };
+  // Determine resolved theme based on mode and sun times.
+// useCallback gives this a stable identity so the useEffect below doesn't
+// re-subscribe its interval on every render. The interval is intended to
+// reset only when `mode` changes (e.g. user toggles auto/light/dark).
+const updateResolvedTheme = useCallback(() => {
+  if (mode === 'light') {
+    setResolvedTheme('light');
+    return;
+  }
 
+  if (mode === 'dark') {
+    setResolvedTheme('dark');
+    return;
+  }
+
+  // Auto mode: use sunrise/sunset if available, otherwise use system preference
+  if (mode === 'auto') {
+    const currentSunTimes = sunTimesRef.current;
+    if (currentSunTimes.sunrise && currentSunTimes.sunset) {
+      const now = new Date();
+      const currentTime = now.getTime();
+      const sunriseTime = currentSunTimes.sunrise.getTime();
+      const sunsetTime = currentSunTimes.sunset.getTime();
+
+      // It's day if current time is after sunrise and before sunset
+      const isDay = currentTime >= sunriseTime && currentTime < sunsetTime;
+      setResolvedTheme(isDay ? 'light' : 'dark');
+    } else {
+      // Fallback to system preference
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setResolvedTheme(prefersDark ? 'dark' : 'light');
+    }
+  }
+}, [mode]);
+
+// Stable ref for the latest sunTimes so updateResolvedTheme can read it without
+// becoming a useCallback dep. Without this, every weather refresh would give
+// sunTimes a new object reference, which would give updateResolvedTheme a new
+// identity, which would cause the 5-min interval below to be cleared and
+// re-created on every refresh -- churning the timer for no benefit.
+//
+// We also re-evaluate the theme here whenever sunTimes changes so the
+// day/night switch takes effect immediately on the initial weather load
+// (and on every subsequent refresh), not on the next 5-min interval tick.
+const sunTimesRef = useRef(sunTimes);
+useEffect(() => {
+  sunTimesRef.current = sunTimes;
+  updateResolvedTheme();
+}, [sunTimes, updateResolvedTheme]);
+
+  // Recompute theme on mode/sun-time change, and tick every 5 minutes in auto mode.
+  // Light/dark modes don't need the periodic tick.
+  useEffect(() => {
     updateResolvedTheme();
-    
-    // Update every 5 minutes for auto mode
+    if (mode !== 'auto') return;
     const interval = setInterval(updateResolvedTheme, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [mode, sunTimes]);
+  }, [updateResolvedTheme, mode]);
 
   // Apply theme to document
   useEffect(() => {
