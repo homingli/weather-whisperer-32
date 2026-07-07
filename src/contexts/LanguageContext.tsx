@@ -107,6 +107,7 @@ const translations: Record<Language, Record<string, string>> = {
     'nowcast.play': 'Play timeline',
     'nowcast.pause': 'Pause timeline',
     'nowcast.slider': 'Rainfall timeline',
+    'nowcast.outOfRegion': 'The HKO gridded rainfall nowcast only covers the Pearl River Delta region (Hong Kong and Guangdong).',
   },
   tc: {
     // Header
@@ -206,6 +207,7 @@ const translations: Record<Language, Record<string, string>> = {
     'nowcast.play': '播放時間線',
     'nowcast.pause': '暫停時間線',
     'nowcast.slider': '雨量時間線',
+    'nowcast.outOfRegion': '香港天文台的網格雨量預報只覆蓋珠三角地區（香港及廣東省）。',
   },
 };
 

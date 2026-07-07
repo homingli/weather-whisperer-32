@@ -4,9 +4,10 @@ import { CurrentWeather } from "@/components/CurrentWeather";
 import { DailyForecast } from "@/components/DailyForecast";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
 import { SettingsMenu } from "@/components/SettingsMenu";
+import { RainfallMap } from "@/components/RainfallMap";
 import { fetchWeather } from "@/lib/weather-manager";
 import { GeoLocation, getDefaultCity, getRecentCities, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
-import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName } from "@/lib/hko-weather";
+import { isInHongKong, translateStationName, translateDistrictName } from "@/lib/hko-weather";
 import { PLACEHOLDER_SENTINEL } from "@/lib/constants";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -15,7 +16,6 @@ import { CloudRain, MapPin, Download, AlertTriangle } from "lucide-react";
 
 // Lazy load heavy components
 const HourlyForecast = lazy(() => import("@/components/HourlyForecast").then(module => ({ default: module.HourlyForecast })));
-const RainfallMap = lazy(() => import("@/components/RainfallMap").then(module => ({ default: module.RainfallMap })));
 
 // Placeholder used when weather.current is null during transitions
 // All display values set to PLACEHOLDER_SENTINEL so CurrentWeather shows `-` instead of 0
@@ -204,12 +204,15 @@ const Index = () => {
               <>
                 <MapPin className="h-6 w-6 shrink-0" />
                 <div className="flex items-center flex-wrap gap-2">
-                  <span className="text-xl font-medium text-foreground">
-                    {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
-                  </span>
-                  {weather?.nearestStation && (
-                    <span className="text-sm px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                      {translateStationName(weather.nearestStation, language === 'tc' ? 'tc' : 'en')}
+                  {isHKCovered ? (
+                    weather?.nearestStation && (
+                      <span className="text-xl font-medium text-foreground">
+                        {translateStationName(weather.nearestStation, language === 'tc' ? 'tc' : 'en')}
+                      </span>
+                    )
+                  ) : (
+                    <span className="text-xl font-medium text-foreground">
+                      {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
                     </span>
                   )}
                   {weather?.nearestDistrict && (
@@ -379,12 +382,9 @@ const Index = () => {
                 <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
               </div>
 
-              {/* Bottom Row: Optional Map — available for Pearl River Delta region (HK + Guangdong) */}
-              {selectedCity && isInRainfallRegion(selectedCity.latitude, selectedCity.longitude) && (
-                <Suspense fallback={<div className="h-[400px] animate-pulse bg-muted/20 rounded-xl" />}>
-                  <RainfallMap userLocation={selectedCity ? { latitude: selectedCity.latitude, longitude: selectedCity.longitude } : undefined} />
-                </Suspense>
-              )}
+              {/* Bottom Row: Optional Map — available for Pearl River Delta region (HK + Guangdong).
+                  Always rendered so the lazy-load state survives location updates. */}
+              <RainfallMap userLocation={selectedCity ? { latitude: selectedCity.latitude, longitude: selectedCity.longitude } : undefined} />
             </div>
           ) : null}
         </main>
