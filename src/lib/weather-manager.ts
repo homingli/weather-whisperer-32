@@ -21,7 +21,7 @@ export async function fetchWeather(
         onProgress?.('openMeteo', 'success');
         return { data, error: null as Error | null };
       } catch (err) {
-        logWarn('Open-Meteo fetch failed:', err);
+        logWarn('Open-Meteo fetch failed', err);
         onProgress?.('openMeteo', 'error');
         return { data: null as WeatherData | null, error: err as Error };
       }
@@ -33,7 +33,7 @@ export async function fetchWeather(
             onProgress?.('hko', 'success');
             return { data, error: null as Error | null };
           } catch (err) {
-            logWarn('HKO fetch failed:', err);
+            logWarn('HKO fetch failed', err);
             onProgress?.('hko', 'error');
             return { data: null, error: err as Error };
           }
@@ -64,7 +64,7 @@ export async function fetchWeather(
       return hkoFallbackData;
     } catch (err) {
       onProgress?.('hko', 'error');
-      logError('HKO fallback failed too:', err);
+      logError('HKO fallback failed too', err);
       throw new Error('Both Open-Meteo and HKO APIs failed');
     }
   }
@@ -79,7 +79,7 @@ export async function fetchWeather(
       return buildHKOWeatherData(hkoCurrent, hkoResult.data, lat, lon, lang);
     } catch (err) {
       onProgress?.('hko', 'error');
-      logError('HKO fallback failed too:', err);
+      logError('HKO fallback failed too', err);
       throw new Error('Both Open-Meteo and HKO APIs failed');
     }
   }

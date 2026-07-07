@@ -27,11 +27,15 @@ export function logTiming(label: string, ms: number): void {
  * Log a failed operation's duration and error. No-op in production.
  * Uses `console.error` so it surfaces red in dev. Error is inlined into the
  * message string (not passed as a second arg) so it stays a single entry.
- * Use for retryable network calls where the cause (timeout vs error) is useful.
+ * Use for retryable network calls where the cause (timeout vs abort vs error) is useful.
  */
 export function logFailure(label: string, ms: number, err: unknown): void {
   if (isProd) return;
-  const cause = err instanceof DOMException && err.name === 'TimeoutError' ? 'timeout' : 'error';
+  // Detect both fetch timeouts (AbortController fired by a timeout) and explicit
+  // aborts. Not all runtimes wrap these as DOMException, so check by name only.
+  const name = (err as { name?: unknown } | null)?.name;
+  const cause =
+    name === 'TimeoutError' || name === 'AbortError' ? 'timeout/abort' : 'error';
   console.error(`${label} ${cause} after ${ms}ms: ${formatErr(err)}`);
 }
 
