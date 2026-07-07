@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { MapContainer, TileLayer, GeoJSON, Marker, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import type { FeatureCollection } from 'geojson';
-import { CloudRain, AlertCircle, RefreshCw, Play, Pause } from 'lucide-react';
+import { CloudRain, AlertCircle, RefreshCw, Play, Pause, Layers } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { PRD_BOUNDS, isInRainfallRegion } from '@/lib/hko-weather';
 
@@ -48,6 +48,30 @@ const RAINFALL_BANDS = [
   { max: 30, color: '#ff0844', label: '20 - 30' },
   { max: Infinity, color: '#9d0b0b', label: '> 30' },
 ] as const;
+
+type Basemap = 'positron' | 'voyager' | 'osm';
+
+const BASEMAPS: Record<Basemap, { url: string; label: string }> = {
+  positron: {
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png',
+    label: 'Positron',
+  },
+  voyager: {
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    label: 'Voyager',
+  },
+  osm: {
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    label: 'OpenStreetMap',
+  },
+};
+
+const BASEMAP_ORDER: Basemap[] = ['positron', 'voyager', 'osm'];
+
+const nextBasemap = (current: Basemap): Basemap => {
+  const idx = BASEMAP_ORDER.indexOf(current);
+  return BASEMAP_ORDER[(idx + 1) % BASEMAP_ORDER.length];
+};
 
 const getRainfallColor = (value: number): string => {
   for (const band of RAINFALL_BANDS) {
@@ -201,6 +225,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [basemap, setBasemap] = useState<Basemap>('positron');
 
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hkoGriddedRainfallNowcast'],
@@ -238,7 +263,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
 
     if (!viewportInit.current || userChanged) {
       if (userLocation) {
-        map.setView([userLocation.latitude, userLocation.longitude], 14, { animate: true });
+        map.setView([userLocation.latitude, userLocation.longitude], 12, { animate: true });
         prevUserLoc.current = locKey;
         viewportInit.current = true;
       } else if (dataBounds) {
@@ -306,14 +331,24 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           {updateTime && <span>{formatString(t('nowcast.updated'), updateTime)}</span>}
           {isLoaded && (
-            <button
-              onClick={() => refetch()}
-              className="p-1.5 hover:bg-muted/50 rounded-md transition-colors"
-              disabled={isFetching}
-              title="Refresh gridded nowcast"
-            >
-              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-primary' : ''}`} />
-            </button>
+            <>
+              <button
+                onClick={() => setBasemap(nextBasemap(basemap))}
+                className="p-1.5 hover:bg-muted/50 rounded-md transition-colors"
+                title={`Switch basemap (current: ${BASEMAPS[basemap].label})`}
+                aria-label={`Switch basemap (current: ${BASEMAPS[basemap].label})`}
+              >
+                <Layers className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => refetch()}
+                className="p-1.5 hover:bg-muted/50 rounded-md transition-colors"
+                disabled={isFetching}
+                title="Refresh gridded nowcast"
+              >
+                <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-primary' : ''}`} />
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -418,8 +453,9 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         >
           <ZoomControl position="topright" />
           <TileLayer
+            key={basemap}
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            url={BASEMAPS[basemap].url}
           />
 
           {activeCellsByColor && Array.from(activeCellsByColor.entries()).map(([color, featureCollection]) => (
