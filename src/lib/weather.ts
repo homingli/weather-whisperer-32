@@ -1,91 +1,6 @@
 // Weather API service using Open-Meteo
 import { fetchWithTimeout } from './fetch-utils';
 
-export function isValidDate(d: Date): boolean {
-  return d instanceof Date && !isNaN(d.getTime());
-}
-
-// Helper to parse daily date string "YYYY-MM-DD" as midnight in specified timezone
-export function parseDailyDateInTimezone(dateStr: string, timezone: string): Date {
-  // The API returns daily time as "YYYY-MM-DD" 
-  // We need to interpret this as midnight in the city's timezone, not UTC
-  try {
-    const [year, month, day] = dateStr.split('-').map(Number);
-
-    // Create a date at 12:00 UTC to avoid DST edge cases
-    // This ensures we're definitely on the correct calendar day in the target timezone
-    const utcRef = Date.UTC(year, month - 1, day, 12, 0, 0, 0);
-
-    // Find the offset of the target timezone at noon on this date
-    const testDate = new Date(utcRef);
-    const utcString = testDate.toLocaleString('en-US', { timeZone: 'UTC' });
-    const tzString = testDate.toLocaleString('en-US', { timeZone: timezone });
-
-    const utcTime = new Date(utcString).getTime();
-    const tzTime = new Date(tzString).getTime();
-    const offset = tzTime - utcTime;
-
-    // Return date at local midnight (12:00 UTC - offset - 12 hours = 00:00 local)
-    // The UTC time that corresponds to midnight in the target timezone
-    return new Date(utcRef - offset - 12 * 60 * 60 * 1000);
-  } catch {
-    // Fallback: just parse as-is (this will be midnight UTC)
-    return new Date(dateStr);
-  }
-}
-
-// Helper to parse a datetime string in a specific timezone and return correct UTC Date
-export function parseDateInTimezone(dateStr: string, timezone: string): Date {
-  // The API returns times like "2024-01-08T07:03" without timezone
-  // We need to interpret this as being in the city's timezone
-  try {
-    // Create a formatter that will give us the offset for this timezone at this datetime
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-
-    // Parse the date string as if it were local time
-    const localDate = new Date(dateStr);
-
-    // Get what time it would be in the target timezone if this were UTC
-    const targetParts = formatter.formatToParts(localDate);
-    const getPart = (type: string) => targetParts.find(p => p.type === type)?.value || '0';
-
-    // Calculate the offset by comparing
-    // The dateStr represents the actual time in the city
-    // We need to find what UTC time corresponds to that city time
-
-    // Use a different approach: create a date from the string parts
-    const [datePart, timePart] = dateStr.split('T');
-    const [year, month, day] = datePart.split('-').map(Number);
-    const [hour, minute] = timePart.split(':').map(Number);
-
-    // Create a reference date in UTC
-    const utcRef = Date.UTC(year, month - 1, day, hour, minute);
-
-    // Find the offset of the target timezone at this approximate time
-    const testDate = new Date(utcRef);
-    const utcString = testDate.toLocaleString('en-US', { timeZone: 'UTC' });
-    const tzString = testDate.toLocaleString('en-US', { timeZone: timezone });
-
-    const utcTime = new Date(utcString).getTime();
-    const tzTime = new Date(tzString).getTime();
-    const offset = tzTime - utcTime;
-
-    // The actual UTC time is the local time minus the offset
-    return new Date(utcRef - offset);
-  } catch {
-    // Fallback: just parse as-is
-    return new Date(dateStr);
-  }
-}
-
 export interface GeoLocation {
   name: string;
   latitude: number;
@@ -173,18 +88,6 @@ export async function searchCities(query: string): Promise<GeoLocation[]> {
   } catch (err) {
     console.error('Error searching cities:', err);
     return [];
-  }
-}
-
-// Weather API to get current and forecast data
-// Persist last successful fetch timestamp to provide UI freshness info
-const WEATHER_LAST_FETCH_KEY = 'weather:last-fetch';
-
-export function getLastWeatherFetchTime(): string | null {
-  try {
-    return localStorage.getItem(WEATHER_LAST_FETCH_KEY);
-  } catch {
-    return null;
   }
 }
 
