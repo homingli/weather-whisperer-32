@@ -79,7 +79,7 @@ const ColorGeoLayer = memo(({ color, data, stepIndex }: {
 }) => {
   return (
     <GeoJSON
-      key={color}
+      key={`${stepIndex}-${color}`}
       data={data}
       style={polygonStyle(color)}
     />
@@ -396,10 +396,13 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           />
 
-          {/* Color-bucketed GeoJSON layers: ~7 components instead of ~2,000 Rectangles */}
+          {/* Color-bucketed GeoJSON layers: ~7 components instead of ~2,000 Rectangles.
+              Key includes stepIndex so react-leaflet remounts the layer when the
+              FeatureCollection swaps — its data-prop reconciliation isn't reliable
+              enough on its own to refresh the underlying L.GeoJSON layer. */}
           {activeCellsByColor && Array.from(activeCellsByColor.entries()).map(([color, featureCollection]) => (
             <ColorGeoLayer
-              key={color}
+              key={`${activeStepIndex}-${color}`}
               color={color}
               data={featureCollection}
               stepIndex={activeStepIndex}
