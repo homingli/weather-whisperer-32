@@ -51,18 +51,21 @@ const RAINFALL_BANDS = [
 
 type Basemap = 'positron' | 'voyager' | 'osm';
 
-const BASEMAPS: Record<Basemap, { url: string; label: string }> = {
+const BASEMAPS: Record<Basemap, { url: string; label: string; attribution: string }> = {
   positron: {
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png',
     label: 'Positron',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
   },
   voyager: {
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
     label: 'Voyager',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
   },
   osm: {
     url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     label: 'OpenStreetMap',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   },
 };
 
@@ -335,7 +338,6 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
               <button
                 onClick={() => setBasemap(nextBasemap(basemap))}
                 className="p-1.5 hover:bg-muted/50 rounded-md transition-colors"
-                title={`Switch basemap (current: ${BASEMAPS[basemap].label})`}
                 aria-label={`Switch basemap (current: ${BASEMAPS[basemap].label})`}
               >
                 <Layers className="w-4 h-4" />
@@ -454,7 +456,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
           <ZoomControl position="topright" />
           <TileLayer
             key={basemap}
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            attribution={BASEMAPS[basemap].attribution}
             url={BASEMAPS[basemap].url}
           />
 
