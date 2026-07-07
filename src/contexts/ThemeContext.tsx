@@ -45,7 +45,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Determine resolved theme based on mode and sun times.
-  // Stable identity via useCallback so the interval never resets unnecessarily.
+  // useCallback gives this a stable identity so the useEffect below doesn't
+  // re-subscribe its interval on every render. The interval is intended to
+  // reset only when `mode` changes (e.g. user toggles auto/light/dark).
   const updateResolvedTheme = useCallback(() => {
     if (mode === 'light') {
       setResolvedTheme('light');

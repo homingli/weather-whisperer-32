@@ -15,7 +15,8 @@ interface LocalClockProps {
  * small subtree re-renders each tick.
  *
  * The displayed time format includes seconds, so a 1-second interval is justified.
- * If the format ever drops to minute precision, switch to setInterval(..., 60_000).
+ * TODO: if the format ever drops to minute precision, switch to setInterval(..., 60_000)
+ *       and drop the seconds from the formatter options.
  */
 export const LocalClock = memo(({ timezone }: LocalClockProps) => {
   const { language } = useLanguage();
