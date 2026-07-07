@@ -1,13 +1,12 @@
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapContainer, TileLayer, GeoJSON, Marker, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
-import type { Feature, FeatureCollection } from 'geojson';
+import type { FeatureCollection } from 'geojson';
 import { CloudRain, AlertCircle, RefreshCw, Play, Pause } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
-import { PRD_BOUNDS } from '@/lib/hko-weather';
+import { PRD_BOUNDS, isInRainfallRegion } from '@/lib/hko-weather';
 
-// Module-level empty array to avoid allocations
 const EMPTY_STEPS: StepData[] = [];
 
 interface UserLocation {
@@ -15,7 +14,6 @@ interface UserLocation {
   longitude: number;
 }
 
-// Local blue location pin icon — replaces external CDN URLs for reliability
 const locationIcon = new L.Icon({
   iconUrl: '/icons/marker-icon-2x-blue.png',
   shadowUrl: '/icons/marker-shadow.png',
@@ -35,8 +33,12 @@ interface NowcastResult {
   };
 }
 
-// Single source of truth for rainfall thresholds. Order matters — first match wins.
-// Both the legend and getRainfallColor walk this table so the two never drift apart.
+interface StepData {
+  endTime: string;
+  formattedTime: string;
+  cellsByColor: Map<string, FeatureCollection>;
+}
+
 const RAINFALL_BANDS = [
   { max: 0.5, color: '#a0c4ff', label: '< 0.5' },
   { max: 2, color: '#4facfe', label: '0.5 - 2' },
@@ -47,48 +49,58 @@ const RAINFALL_BANDS = [
   { max: Infinity, color: '#9d0b0b', label: '> 30' },
 ] as const;
 
-// Color buckets per timestep: maps rainfall color to pre-built GeoJSON FeatureCollection
-interface StepData {
-  endTime: string;
-  formattedTime: string;
-  cellsByColor: Map<string, FeatureCollection>;
-}
-
-// Called once per cell at parse time. Walks the shared RAINFALL_BANDS table.
 const getRainfallColor = (value: number): string => {
   for (const band of RAINFALL_BANDS) {
     if (value <= band.max) return band.color;
   }
-  // Unreachable: Infinity band always matches. Return last color as a safety net.
   return RAINFALL_BANDS[RAINFALL_BANDS.length - 1].color;
 };
 
-// Module-level style helper — stable object, no per-feature function call
-const polygonStyle = (color: string) => ({
-  fillColor: color,
-  fillOpacity: 0.6,
-  color: color,
-  weight: 0,
-});
+// weight: 0.5 + color matching fill fills the anti-aliasing gap between
+// adjacent polygons. Alpha is baked into the RGBA color so fillOpacity stays at 1
+// — using fillOpacity < 1 produces horizontal scan-line banding in Leaflet's SVG renderer.
+const hexToRgba = (hex: string, alpha: number) => {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
-// ColorGeoLayer — receives pre-built GeoJSON FeatureCollection, no per-render mapping
+const FILL_ALPHA = 0.4;
+
+// Per-color style cache. react-leaflet invokes style once per feature inside the
+// canvas/SVG render loop, so we memoize by hex color to keep the returned object
+// reference stable across features and re-renders.
+const polygonStyleCache = new Map<string, ReturnType<typeof polygonStyle>>();
+const polygonStyle = (color: string) => {
+  const cached = polygonStyleCache.get(color);
+  if (cached) return cached;
+  const style = {
+    fillColor: hexToRgba(color, FILL_ALPHA),
+    fillOpacity: 1,
+    color: hexToRgba(color, 1),
+    weight: 0.5,
+  };
+  polygonStyleCache.set(color, style);
+  return style;
+};
+
 const ColorGeoLayer = memo(({ color, data, stepIndex }: {
   color: string;
   data: FeatureCollection;
   stepIndex: number;
-}) => {
-  return (
-    <GeoJSON
-      key={`${stepIndex}-${color}`}
-      data={data}
-      style={polygonStyle(color)}
-    />
-  );
-}, (prev, next) =>
+}) => (
+  <GeoJSON
+    key={`${stepIndex}-${color}`}
+    data={data}
+    style={polygonStyle(color)}
+    renderer={L.canvas({ padding: 0.5 })}
+  />
+), (prev, next) =>
   prev.stepIndex === next.stepIndex && prev.color === next.color && prev.data === next.data
 );
 
-// CSV parser: single-pass, builds color-bucketed GeoJSON FeatureCollections + global bounds
 const parseRainfallCSV = (csvText: string): NowcastResult => {
   const lines = csvText.split('\n');
   let updateTime = '';
@@ -96,8 +108,6 @@ const parseRainfallCSV = (csvText: string): NowcastResult => {
 
   let globalMinLat = Infinity, globalMaxLat = -Infinity;
   let globalMinLon = Infinity, globalMaxLon = -Infinity;
-
-  // Single pass: track bounds + bucket cells by endTime+color, building GeoJSON features directly
   const temp: Record<string, Record<string, FeatureCollection>> = {};
 
   for (let i = 1; i < lines.length; i++) {
@@ -112,13 +122,11 @@ const parseRainfallCSV = (csvText: string): NowcastResult => {
     const lat = parseFloat(parts[2]);
     const lon = parseFloat(parts[3]);
 
-    // Extract update time from first valid data row
     if (!updateTimeFound && parts[0] && parts[0].length >= 12) {
       updateTime = `${parts[0].substring(0, 4)}-${parts[0].substring(4, 6)}-${parts[0].substring(6, 8)} ${parts[0].substring(8, 10)}:${parts[0].substring(10, 12)}`;
       updateTimeFound = true;
     }
 
-    // Track global bounds
     if (lat < globalMinLat) globalMinLat = lat;
     if (lat > globalMaxLat) globalMaxLat = lat;
     if (lon < globalMinLon) globalMinLon = lon;
@@ -129,8 +137,7 @@ const parseRainfallCSV = (csvText: string): NowcastResult => {
 
     const color = getRainfallColor(value);
 
-    // Pre-built GeoJSON Feature (lon-first, closed ring per GeoJSON spec)
-    const feature: Feature = {
+    const feature: L.GeoJSON.IGeoJSONFeature = {
       type: 'Feature',
       geometry: {
         type: 'Polygon',
@@ -152,39 +159,37 @@ const parseRainfallCSV = (csvText: string): NowcastResult => {
     temp[endTime][color].features.push(feature);
   }
 
-  // Convert to sorted steps with per-color FeatureCollections
   const sortedEndTimes = Object.keys(temp).sort();
   const timeSteps: StepData[] = sortedEndTimes.map(endTime => {
     const byColor = temp[endTime];
     const cellsByColor = new Map<string, FeatureCollection>();
-
     for (const [color, fc] of Object.entries(byColor)) {
       cellsByColor.set(color, fc);
     }
-
     const formattedTime = endTime.length >= 12
       ? `${endTime.substring(8, 10)}:${endTime.substring(10, 12)}`
       : endTime;
-
     return { endTime, formattedTime, cellsByColor };
   });
 
   const latPad = (globalMaxLat - globalMinLat) * 0.02;
   const lonPad = (globalMaxLon - globalMinLon) * 0.02;
 
-  return { timeSteps, updateTime, globalBounds: {
-    minLat: globalMinLat - latPad,
-    maxLat: globalMaxLat + latPad,
-    minLon: globalMinLon - lonPad,
-    maxLon: globalMaxLon + lonPad,
-  }};
+  return {
+    timeSteps,
+    updateTime,
+    globalBounds: {
+      minLat: globalMinLat - latPad,
+      maxLat: globalMaxLat + latPad,
+      minLon: globalMinLon - lonPad,
+      maxLon: globalMaxLon + lonPad,
+    },
+  };
 };
 
 const fetchRainfallNowcast = async (): Promise<NowcastResult> => {
   const response = await fetch('/hko-data/F3/Gridded_rainfall_nowcast.csv');
-  if (!response.ok) {
-    throw new Error('Failed to fetch gridded rainfall nowcast');
-  }
+  if (!response.ok) throw new Error('Failed to fetch gridded rainfall nowcast');
   const csvText = await response.text();
   return parseRainfallCSV(csvText);
 };
@@ -197,7 +202,6 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Use React Query for caching & auto-refetching (5-min, aligned with weather queries)
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hkoGriddedRainfallNowcast'],
     queryFn: fetchRainfallNowcast,
@@ -209,18 +213,12 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   const timeSteps = data?.timeSteps || EMPTY_STEPS;
   const updateTime = data?.updateTime || '';
   const { t } = useLanguage();
-
-  // Global bounds computed at parse time — O(1) lookup
   const dataBounds = data?.globalBounds ?? null;
 
-  // Reset active step index when data is refetched
   useEffect(() => {
-    if (timeSteps.length > 0) {
-      setActiveStepIndex(0);
-    }
+    if (timeSteps.length > 0) setActiveStepIndex(0);
   }, [data]);
 
-  // Autoplay handler for the time steps
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isPlaying && timeSteps.length > 0) {
@@ -228,12 +226,9 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         setActiveStepIndex((prevIndex) => (prevIndex + 1) % timeSteps.length);
       }, 1500);
     }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
+    return () => { if (interval) clearInterval(interval); };
   }, [isPlaying, timeSteps]);
 
-  // Zoom behavior: set view ONCE on init. Never re-zoom on data load.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -265,6 +260,37 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   const activeStep = timeSteps[activeStepIndex];
   const activeCellsByColor = activeStep?.cellsByColor || null;
 
+  // Region gate — the HKO gridded nowcast only covers the Pearl River Delta.
+  // Show a static note (not the lazy-load button) when the user is outside
+  // this coverage area so the map and button stay interactive for in-region users.
+  const inRegion = useMemo(
+    () => (userLocation ? isInRainfallRegion(userLocation.latitude, userLocation.longitude) : true),
+    [userLocation]
+  );
+  if (userLocation && !inRegion) {
+    return (
+      <div className="glass-card overflow-hidden">
+        <div className="px-6 py-4 border-b border-border/50 flex flex-wrap justify-between items-center gap-4">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <CloudRain className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-semibold">{t('nowcast.title')}</h2>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {t('nowcast.subtitle')}
+            </span>
+          </div>
+        </div>
+        <div className="h-[400px] w-full flex flex-col items-center justify-center bg-muted/20 text-center px-6">
+          <CloudRain className="w-10 h-10 text-muted-foreground mb-3 opacity-60" />
+          <p className="text-sm text-muted-foreground max-w-sm">
+            {t('nowcast.outOfRegion')}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="glass-card overflow-hidden">
       <div className="px-6 py-4 border-b border-border/50 flex flex-wrap justify-between items-center gap-4">
@@ -292,7 +318,6 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         </div>
       </div>
 
-      {/* Time Slider Controls — placed above the map so users see the active timestep before viewing the visualization */}
       {isLoaded && !isLoading && timeSteps.length > 0 && (
         <div className="px-6 py-5 bg-background/50 border-b border-border/50 flex flex-col md:flex-row items-center gap-6">
           <div className="flex items-center gap-3">
@@ -345,15 +370,16 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
 
       <div className="relative h-[400px] w-full bg-muted/20">
         {!isLoaded && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">
+          <div className="absolute inset-0 z-[1000] flex flex-col items-center justify-center bg-background/85 pointer-events-none">
             <CloudRain className="w-12 h-12 text-primary mb-4 opacity-80" />
             <h3 className="text-xl font-semibold mb-2">{t('nowcast.view')}</h3>
             <p className="text-muted-foreground mb-6 text-center max-w-sm">
               {t('nowcast.desc')}
             </p>
             <button
+              type="button"
               onClick={() => setIsLoaded(true)}
-              className="px-6 py-2.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium"
+              className="px-6 py-2.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium pointer-events-auto"
             >
               {t('nowcast.load')}
             </button>
@@ -385,7 +411,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
           zoom={9}
           scrollWheelZoom
           doubleClickZoom
-          className="w-full h-full z-0"
+          className="w-full h-full"
           ref={mapRef}
           aria-label={t('nowcast.mapLabel')}
           role="application"
@@ -396,10 +422,6 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           />
 
-          {/* Color-bucketed GeoJSON layers: ~7 components instead of ~2,000 Rectangles.
-              Key includes stepIndex so react-leaflet remounts the layer when the
-              FeatureCollection swaps — its data-prop reconciliation isn't reliable
-              enough on its own to refresh the underlying L.GeoJSON layer. */}
           {activeCellsByColor && Array.from(activeCellsByColor.entries()).map(([color, featureCollection]) => (
             <ColorGeoLayer
               key={`${activeStepIndex}-${color}`}
@@ -409,7 +431,6 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
             />
           ))}
 
-          {/* Current location indicator */}
           {userLocation && (
             <Marker
               position={[userLocation.latitude, userLocation.longitude]}
@@ -419,7 +440,6 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
           )}
         </MapContainer>
 
-        {/* Legend */}
         {isLoaded && !isLoading && (
           <div className="absolute bottom-4 right-4 z-[400] bg-background/90 backdrop-blur-sm p-3 rounded-lg border border-border shadow-lg text-xs">
             <div className="font-semibold mb-2">{t('nowcast.legend')}</div>
