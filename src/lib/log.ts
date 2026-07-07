@@ -4,6 +4,17 @@
 
 const isProd = import.meta.env.PROD;
 
+/** Stringify any error-like value into a single line suitable for inlining. */
+function formatErr(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
 /**
  * Log a successful operation's duration. No-op in production.
  */
@@ -14,26 +25,30 @@ export function logTiming(label: string, ms: number): void {
 
 /**
  * Log a failed operation's duration and error. No-op in production.
+ * Uses `console.error` so it surfaces red in dev. Error is inlined into the
+ * message string (not passed as a second arg) so it stays a single entry.
  * Use for retryable network calls where the cause (timeout vs error) is useful.
  */
 export function logFailure(label: string, ms: number, err: unknown): void {
   if (isProd) return;
   const cause = err instanceof DOMException && err.name === 'TimeoutError' ? 'timeout' : 'error';
-  console.log(`${label} ${cause} after ${ms}ms:`, err);
+  console.error(`${label} ${cause} after ${ms}ms: ${formatErr(err)}`);
 }
 
 /**
- * Log a non-fatal warning. No-op in production.
+ * Log a non-fatal warning. No-op in production. Error is inlined into the
+ * message string so the entry stays a single line and the stack isn't lost
+ * to a separate console object.
  */
 export function logWarn(message: string, err?: unknown): void {
   if (isProd) return;
-  console.warn(message, err);
+  console.warn(err ? `${message}: ${formatErr(err)}` : message);
 }
 
 /**
- * Log an error. No-op in production.
+ * Log an error. No-op in production. Error is inlined into the message string.
  */
 export function logError(message: string, err?: unknown): void {
   if (isProd) return;
-  console.error(message, err);
+  console.error(err ? `${message}: ${formatErr(err)}` : message);
 }
