@@ -1,8 +1,10 @@
-import { memo, useState, useEffect, useMemo, useCallback } from "react";
+import { memo, useMemo } from "react";
 import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIcon, getWeatherDescription } from "@/lib/weather";
 import { SENTINEL_THRESHOLD } from "@/lib/constants";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, ArrowUp, ArrowDown, MoveUp, Droplets, Sun } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { formatInTimezone, appLocale } from "@/lib/utils";
+import { LocalClock } from "./LocalClock";
 
 interface CurrentWeatherProps {
   weather: CurrentWeatherType;
@@ -29,49 +31,29 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
     return isCurrentlyRaining || !!firstRainyHour;
   }, [weather, hourlyForecast]);
 
-  const [currentTime, setCurrentTime] = useState(new Date());
-  
-  // Timer interval updates state every second
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Memoize formatters to optimize rendering performance and prevent GC pressure
-  const dateFormatter = useMemo(() => new Intl.DateTimeFormat(language === 'tc' ? 'zh-TW' : 'en-US', {
-    timeZone: timezone, year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
-  }), [language, timezone]);
-
-  const timeFormatter = useMemo(() => new Intl.DateTimeFormat(language === 'tc' ? 'zh-TW' : 'en-US', {
-    timeZone: timezone, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: language !== 'tc'
-  }), [language, timezone]);
-
-  const sunTimeFormatter = useMemo(() => new Intl.DateTimeFormat(language === 'tc' ? 'zh-TW' : 'en-US', {
-    timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: language !== 'tc'
-  }), [language, timezone]);
-
-  // Format local date with fallback to prevent render crash on timezone errors
-  const getLocalDate = useCallback(() => {
-    try { return dateFormatter.format(currentTime); } catch(e) { return currentTime.toLocaleDateString(); }
-  }, [dateFormatter, currentTime]);
-
-  // Format local time with fallback to prevent render crash
-  const getLocalTime = useCallback(() => {
-    try { return timeFormatter.format(currentTime); } catch(e) { return currentTime.toLocaleTimeString(); }
-  }, [timeFormatter, currentTime]);
+  const locale = appLocale(language);
+  const hour12 = language !== 'tc';
 
   // Safely compute next sun event and format time
   const sunEvent = useMemo(() => {
     if (!dailyForecast || !dailyForecast.sunrise || !dailyForecast.sunset) return null;
-    try {
-      if (weather.isDay) {
-        return { type: 'sunset', time: sunTimeFormatter.format(new Date(dailyForecast.sunset)), icon: Sunset };
-      }
-      return { type: 'sunrise', time: sunTimeFormatter.format(new Date(dailyForecast.sunrise)), icon: Sunrise };
-    } catch(e) {
-      return null;
+    if (weather.isDay) {
+      return {
+        type: 'sunset',
+        time: formatInTimezone(new Date(dailyForecast.sunset), locale, {
+          timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12,
+        }),
+        icon: Sunset,
+      };
     }
-  }, [dailyForecast, weather.isDay, sunTimeFormatter]);
+    return {
+      type: 'sunrise',
+      time: formatInTimezone(new Date(dailyForecast.sunrise), locale, {
+        timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12,
+      }),
+      icon: Sunrise,
+    };
+  }, [dailyForecast, weather.isDay, locale, timezone, hour12]);
 
   // Memoize UV style object derived from index
   const uvInfo = useMemo(() => {
@@ -90,15 +72,8 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, lo
         
         {/* Left Column: Main Info (Date, Time, Hero Temperature) */}
         <div className="flex flex-col items-center justify-center text-center md:text-left md:items-start space-y-8 md:border-r md:border-border/50 md:pr-12">
-          {/* Date and time */}
-          <div>
-            <p className="text-base text-muted-foreground uppercase tracking-[0.2em] mb-2">
-              {timezone ? getLocalDate() : currentTime.toLocaleDateString()}
-            </p>
-            <p className="text-5xl font-extralight text-foreground tracking-tighter tabular-nums leading-none">
-              {timezone ? getLocalTime() : currentTime.toLocaleTimeString()}
-            </p>
-          </div>
+          {/* Date and time — LocalClock owns the per-second tick */}
+          <LocalClock timezone={timezone} />
 
           <div className="flex flex-col items-center md:items-start gap-4">
             <div className="flex items-center gap-6">

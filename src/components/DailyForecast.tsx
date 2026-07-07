@@ -3,6 +3,7 @@ import { addDays } from "date-fns";
 import { Droplets } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { translatePsr } from "@/lib/hko-weather";
+import { getDateTimeFormatter, formatInTimezone, appLocale } from "@/lib/utils";
 import { useMemo, useCallback, memo } from "react";
 import {
   Bar,
@@ -22,7 +23,7 @@ interface DailyForecastProps {
 
 function ymdInTimezone(date: Date, timeZone: string): string {
   if (!(date instanceof Date) || isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-CA", {
+  return getDateTimeFormatter("en-CA", {
     timeZone,
     year: "numeric",
     month: "2-digit",
@@ -36,7 +37,7 @@ function tomorrowYmdInTimezone(timeZone: string): string {
   const [y, m, d] = today.split("-").map(Number);
   const noon = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
   const next = addDays(noon, 1);
-  return new Intl.DateTimeFormat("en-CA", {
+  return getDateTimeFormatter("en-CA", {
     timeZone,
     year: "numeric",
     month: "2-digit",
@@ -59,12 +60,12 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
         if (dayYmd && dayYmd === todayYmd) return t("daily.today");
         const tomorrowYmd = tomorrowYmdInTimezone(tz);
         if (dayYmd && dayYmd === tomorrowYmd) return t("daily.tomorrow");
-        
-        return new Intl.DateTimeFormat(language === "tc" ? "zh-HK" : "en-US", {
+
+        return formatInTimezone(dayDate, appLocale(language), {
           timeZone: tz,
           weekday: "short",
-        }).format(dayDate);
-      } catch (e) {
+        });
+      } catch {
         return "";
       }
     },
@@ -75,15 +76,11 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
     (inputDate: Date | string): string => {
       const dayDate = inputDate instanceof Date ? inputDate : new Date(inputDate);
       if (isNaN(dayDate.getTime())) return "";
-      try {
-        return new Intl.DateTimeFormat(language === "tc" ? "zh-HK" : "en-US", {
-          timeZone: tz,
-          month: "numeric",
-          day: "numeric",
-        }).format(dayDate);
-      } catch (e) {
-        return "";
-      }
+      return formatInTimezone(dayDate, appLocale(language), {
+        timeZone: tz,
+        month: "numeric",
+        day: "numeric",
+      });
     },
     [tz, language]
   );
