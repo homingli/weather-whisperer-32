@@ -44,15 +44,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Stable ref for the latest sunTimes so updateResolvedTheme can read it without
-// becoming a useCallback dep. Without this, every weather refresh would give
-// sunTimes a new object reference, which would give updateResolvedTheme a new
-// identity, which would cause the 5-min interval below to be cleared and
-// re-created on every refresh -- churning the timer for no benefit.
-const sunTimesRef = useRef(sunTimes);
-useEffect(() => { sunTimesRef.current = sunTimes; }, [sunTimes]);
-
-// Determine resolved theme based on mode and sun times.
+  // Determine resolved theme based on mode and sun times.
 // useCallback gives this a stable identity so the useEffect below doesn't
 // re-subscribe its interval on every render. The interval is intended to
 // reset only when `mode` changes (e.g. user toggles auto/light/dark).
@@ -86,6 +78,21 @@ const updateResolvedTheme = useCallback(() => {
     }
   }
 }, [mode]);
+
+// Stable ref for the latest sunTimes so updateResolvedTheme can read it without
+// becoming a useCallback dep. Without this, every weather refresh would give
+// sunTimes a new object reference, which would give updateResolvedTheme a new
+// identity, which would cause the 5-min interval below to be cleared and
+// re-created on every refresh -- churning the timer for no benefit.
+//
+// We also re-evaluate the theme here whenever sunTimes changes so the
+// day/night switch takes effect immediately on the initial weather load
+// (and on every subsequent refresh), not on the next 5-min interval tick.
+const sunTimesRef = useRef(sunTimes);
+useEffect(() => {
+  sunTimesRef.current = sunTimes;
+  updateResolvedTheme();
+}, [sunTimes, updateResolvedTheme]);
 
   // Recompute theme on mode/sun-time change, and tick every 5 minutes in auto mode.
   // Light/dark modes don't need the periodic tick.
