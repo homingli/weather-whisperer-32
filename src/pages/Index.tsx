@@ -1,4 +1,4 @@
-import { useMemo, useCallback, lazy, Suspense, useEffect } from 'react';
+import { useMemo, useCallback, lazy, Suspense, useEffect, useState, useRef } from 'react';
 import { CurrentWeather } from '@/components/CurrentWeather';
 import { DailyForecast } from '@/components/DailyForecast';
 import { WeatherAlerts } from '@/components/WeatherAlerts';
@@ -9,11 +9,22 @@ import { WeatherBanners } from '@/components/WeatherBanners';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
-import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName } from '@/lib/hko-weather';
+import { useWarningChangeDetector } from '@/hooks/useWarningChangeDetector';
+import {
+  useDevSimulatedWarnings,
+  useDevBaselineNonce,
+  devAddWarning,
+  devRemoveWarning,
+  devClearWarnings,
+  devResetBaseline,
+  devListWarnings,
+} from '@/lib/devWarningSimulator';
+import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName, getWarningIcon } from '@/lib/hko-weather';
 import { PLACEHOLDER_SENTINEL } from '@/lib/constants';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
+import { toast } from 'sonner';
 import { CloudRain, MapPin, Download } from 'lucide-react';
 
 // Lazy load heavy components
@@ -49,6 +60,10 @@ const Index = () => {
     await refetch();
   }, [refetch]);
 
+  const handleConsumedSelectedWarning = useCallback(() => {
+    setSelectedWarningCode(null);
+  }, []);
+
   // Open-Meteo daily data is always used for sunrise/sunset (HKO doesn't provide it)
   const sunTimes = useMemo(() => weather?.daily, [weather?.daily]);
 
@@ -70,6 +85,68 @@ const Index = () => {
 
   // Determine if selected city is in Hong Kong coverage area
   const isHKCovered = selectedCity ? isInHongKong(selectedCity.latitude, selectedCity.longitude) : false;
+
+  // Warning change detection: emit toast + pulse on newly added warnings,
+  // toast only on cancellations (badge disappears on its own).
+  // In dev, merge fake warnings from the console simulator with real data so
+  // the full add/remove/cancel flow can be tested end-to-end without a live
+  // HKO event.
+  const simulatedWarnings = useDevSimulatedWarnings();
+  const baselineNonce = useDevBaselineNonce();
+  const effectiveWarnings = useMemo(() => {
+    const real = weather?.warnings ?? [];
+    if (simulatedWarnings.length === 0) return real;
+    return [...real, ...simulatedWarnings];
+  }, [weather?.warnings, simulatedWarnings]);
+
+  const cityKey = selectedCity ? `${selectedCity.latitude},${selectedCity.longitude}` : null;
+  const warningDiff = useWarningChangeDetector(effectiveWarnings, `${cityKey}:${baselineNonce}`);
+  const [pulseTrigger, setPulseTrigger] = useState(0);
+  const [selectedWarningCode, setSelectedWarningCode] = useState<string | null>(null);
+  const lastConsumedDiff = useRef<typeof warningDiff | null>(null);
+
+  useEffect(() => {
+    if (warningDiff === lastConsumedDiff.current) return;
+    lastConsumedDiff.current = warningDiff;
+
+    if (warningDiff.added.length === 0 && warningDiff.removed.length === 0) return;
+
+    for (const w of warningDiff.added) {
+      const displayName = t(`warnings.${w.code}`, w.name);
+      toast(formatString(t('alerts.toast.issued'), displayName), {
+        duration: 5000,
+        icon: <img src={getWarningIcon(w.code)} alt="" className="h-6 w-6" />,
+        action: {
+          label: t('alerts.toast.view'),
+          onClick: () => setSelectedWarningCode(w.code),
+        },
+      });
+    }
+    for (const w of warningDiff.removed) {
+      const displayName = t(`warnings.${w.code}`, w.name);
+      toast(formatString(t('alerts.toast.cancelled'), displayName), { duration: 5000 });
+    }
+    if (warningDiff.added.length > 0) {
+      setPulseTrigger(n => n + 1);
+    }
+  }, [warningDiff, t]);
+
+  // Dev-only: expose the warning simulator to the console for QA.
+  // Try __devWarnings.add('TC8') / .remove('TC8') / .reset() / .list().
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    window.__devWarnings = {
+      add: devAddWarning,
+      remove: devRemoveWarning,
+      clear: devClearWarnings,
+      reset: devResetBaseline,
+      list: devListWarnings,
+    };
+    console.info('[dev] __devWarnings ready: __devWarnings.add("TC8") / .remove("TC8") / .reset() / .list()');
+    return () => {
+      delete window.__devWarnings;
+    };
+  }, []);
 
   // Freshness indicator: only show when using cached/stale data
   const cacheLabel = isOffline && !isLoading && weather
@@ -118,8 +195,14 @@ const Index = () => {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {weather?.warnings && weather.warnings.length > 0 && (
-              <WeatherAlerts warnings={weather.warnings} />
+            {effectiveWarnings.length > 0 && (
+              <WeatherAlerts
+                warnings={effectiveWarnings}
+                pulseTrigger={pulseTrigger}
+                pulseCodes={new Set(warningDiff.added.map(w => w.code))}
+                selectedWarningCode={selectedWarningCode}
+                onConsumed={handleConsumedSelectedWarning}
+              />
             )}
             <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} onRefresh={handleForceRefresh} />
             {deferredPrompt && !isInstalled && (
