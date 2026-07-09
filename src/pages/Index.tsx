@@ -1,157 +1,52 @@
-import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { CurrentWeather } from "@/components/CurrentWeather";
-import { DailyForecast } from "@/components/DailyForecast";
-import { WeatherAlerts } from "@/components/WeatherAlerts";
-import { SettingsMenu } from "@/components/SettingsMenu";
-import { RainfallMap } from "@/components/RainfallMap";
-import { fetchWeather } from "@/lib/weather-manager";
-import { GeoLocation, getDefaultCity, getRecentCities, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
-import { isInHongKong, translateStationName, translateDistrictName } from "@/lib/hko-weather";
-import { PLACEHOLDER_SENTINEL } from "@/lib/constants";
-import { useLanguage, formatString } from "@/contexts/LanguageContext";
-import { useTheme } from "@/contexts/ThemeContext";
-import { usePwaInstall } from "@/hooks/usePwaInstall";
-import { CloudRain, MapPin, Download, AlertTriangle } from "lucide-react";
+import { useMemo, useCallback, lazy, Suspense, useEffect } from 'react';
+import { CurrentWeather } from '@/components/CurrentWeather';
+import { DailyForecast } from '@/components/DailyForecast';
+import { WeatherAlerts } from '@/components/WeatherAlerts';
+import { SettingsMenu } from '@/components/SettingsMenu';
+import { RainfallMap } from '@/components/RainfallMap';
+import { StatusBadge } from '@/components/StatusBadge';
+import { FetchingStatus } from '@/components/FetchingStatus';
+import { WeatherBanners } from '@/components/WeatherBanners';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useSelectedCity } from '@/hooks/useSelectedCity';
+import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
+import { isInHongKong, translateStationName, translateDistrictName } from '@/lib/hko-weather';
+import { PLACEHOLDER_SENTINEL } from '@/lib/constants';
+import { useLanguage, formatString } from '@/contexts/LanguageContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { usePwaInstall } from '@/hooks/usePwaInstall';
+import { CloudRain, MapPin, Download } from 'lucide-react';
 
 // Lazy load heavy components
-const HourlyForecast = lazy(() => import("@/components/HourlyForecast").then(module => ({ default: module.HourlyForecast })));
+const HourlyForecast = lazy(() => import('@/components/HourlyForecast').then(module => ({ default: module.HourlyForecast })));
 
 // Placeholder used when weather.current is null during transitions
 // All display values set to PLACEHOLDER_SENTINEL so CurrentWeather shows `-` instead of 0
-const PLACEHOLDER_CURRENT = { temperature: PLACEHOLDER_SENTINEL, apparentTemperature: PLACEHOLDER_SENTINEL, humidity: PLACEHOLDER_SENTINEL, uvIndex: PLACEHOLDER_SENTINEL, windSpeed: PLACEHOLDER_SENTINEL, windDirection: 0, precipitation: 0, precipitationProbability: 0, isDay: false, weatherCode: 3 };
+const PLACEHOLDER_CURRENT = {
+  temperature: PLACEHOLDER_SENTINEL,
+  apparentTemperature: PLACEHOLDER_SENTINEL,
+  humidity: PLACEHOLDER_SENTINEL,
+  uvIndex: PLACEHOLDER_SENTINEL,
+  windSpeed: PLACEHOLDER_SENTINEL,
+  windDirection: 0,
+  precipitation: 0,
+  precipitationProbability: 0,
+  isDay: false,
+  weatherCode: 3,
+};
 
 const Index = () => {
-  const [selectedCity, setSelectedCity] = useState<GeoLocation | null>(null);
-  const [isLocating, setIsLocating] = useState(false);
-  const [recentCities, setRecentCities] = useState<GeoLocation[]>([]);
   const { language, t } = useLanguage();
-  const [loadProgress, setLoadProgress] = useState<{
-    openMeteo: 'idle' | 'fetching' | 'success' | 'error';
-    hko: 'idle' | 'fetching' | 'success' | 'error';
-  }>({ openMeteo: 'idle', hko: 'idle' });
-
-  const renderStatusBadge = (status: 'idle' | 'fetching' | 'success' | 'error') => {
-    switch (status) {
-      case 'fetching':
-        return (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
-            Fetching...
-          </span>
-        );
-      case 'success':
-        return (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-            Success
-          </span>
-        );
-      case 'error':
-        return (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
-            Error
-          </span>
-        );
-      default:
-        return (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
-            Waiting...
-          </span>
-        );
-    }
-  };
   const { setSunTimes } = useTheme();
-  const [hasFailure, setHasFailure] = useState(false);
-
-  const handleCitySelect = useCallback((city: GeoLocation) => {
-    setSelectedCity(city);
-    setDefaultCity(city);
-    setRecentCities(getRecentCities());
-  }, []);
-
-  // Dual-fetch location initialization (Option C):
-  // 1. Show saved default city weather immediately
-  // 2. Fetch geolocation in background, swap if different
-  useEffect(() => {
-    const initializeLocation = async () => {
-      const defaultCity = getDefaultCity();
-      if (defaultCity) {
-        setSelectedCity(defaultCity);
-        setRecentCities(getRecentCities());
-        // Still try to get geo location in background
-      }
-
-      if (!defaultCity) {
-        setIsLocating(true);
-      }
-
-      try {
-        const coords = await getUserLocation();
-        const geoLocation = await reverseGeocode(coords.latitude, coords.longitude);
-        if (geoLocation) {
-            // Only swap if significantly different from saved default
-            // Use approximate comparison (~1km tolerance) to avoid unnecessary
-            // query key changes from float-precision coordinate differences
-            const currentCity = selectedCity ?? defaultCity;
-            if (
-              !currentCity ||
-              Math.abs(currentCity.latitude - geoLocation.latitude) > 0.01 ||
-              Math.abs(currentCity.longitude - geoLocation.longitude) > 0.01
-            ) {
-              setSelectedCity(geoLocation);
-              setDefaultCity(geoLocation);
-              setRecentCities(getRecentCities());
-            }
-          }
-      } catch (error) {
-        console.log('Could not get location:', error);
-      } finally {
-        setIsLocating(false);
-      }
-    };
-
-    initializeLocation();
-  }, []);
-
-  // Determine if selected city is in Hong Kong coverage area
-  const isHKCovered = selectedCity ? isInHongKong(selectedCity.latitude, selectedCity.longitude) : false;
-
-  // Fetch unified weather data via WeatherManager
-  // - keepPreviousData: smooth transition when city swaps (geo vs default)
-  // - staleTime 5 min + refetchInterval 5 min: consistent caching
-  // - No custom cache layer — React Query handles all TTL/dedup
-  const { data: weather, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["weather-unified", language, selectedCity?.latitude, selectedCity?.longitude],
-    queryFn: async () => {
-      setLoadProgress({
-        openMeteo: 'fetching',
-        hko: isInHongKong(selectedCity!.latitude, selectedCity!.longitude) ? 'fetching' : 'idle'
-      });
-      return fetchWeather(
-        selectedCity!.latitude,
-        selectedCity!.longitude,
-        language === 'tc' ? 'tc' : 'en',
-        (service, status) => {
-          setLoadProgress(prev => ({ ...prev, [service]: status }));
-        }
-      );
-    },
-    enabled: !!selectedCity,
-    refetchInterval: hasFailure ? 60 * 1000 : 5 * 60 * 1000,
-    staleTime: hasFailure ? 60 * 1000 : 5 * 60 * 1000,
-    placeholderData: 'keepPreviousData',
-  });
-
-  useEffect(() => {
-    if (weather) {
-      setHasFailure(!!(weather.hkoFailed || weather.isFallback));
-    } else {
-      setHasFailure(false);
-    }
-  }, [weather]);
+  const isOffline = useOnlineStatus();
+  const { selectedCity, recentCities, isLocating, handleCitySelect } = useSelectedCity();
+  const { data: weather, isLoading, error, refetch, isFetching, loadProgress } = useWeatherWithProgress(
+    selectedCity?.latitude,
+    selectedCity?.longitude,
+    language === 'tc' ? 'tc' : 'en',
+  );
 
   const handleForceRefresh = useCallback(async () => {
-    // Force a fresh network fetch via React Query invalidate
     await refetch();
   }, [refetch]);
 
@@ -174,20 +69,8 @@ const Index = () => {
   // PWA install
   const { deferredPrompt, isInstalled, install } = usePwaInstall();
 
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
+  // Determine if selected city is in Hong Kong coverage area
+  const isHKCovered = selectedCity ? isInHongKong(selectedCity.latitude, selectedCity.longitude) : false;
 
   // Freshness indicator: only show when using cached/stale data
   const cacheLabel = isOffline && !isLoading && weather
@@ -275,56 +158,7 @@ const Index = () => {
               </p>
             </div>
           ) : isLoading ? (
-            <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
-              {/* Fetching Status Screen */}
-              <div className="glass-card p-8 border border-primary/10 w-full max-w-lg flex flex-col items-center gap-6">
-                {/* Animated cloud icon */}
-                <div className="relative">
-                  <CloudRain className="h-16 w-16 text-primary animate-pulse" />
-                  <span className="absolute -bottom-1 -right-1 flex h-4 w-4">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-4 w-4 bg-primary"></span>
-                  </span>
-                </div>
-
-                {/* Title */}
-                <div className="text-center">
-                  <h2 className="text-2xl font-semibold text-foreground mb-1">
-                    {t('loading.fetchingData')}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {t('loading.allowLocation')}
-                  </p>
-                </div>
-
-                {/* Source Status Rows */}
-                <div className="w-full space-y-3">
-                  {/* Open-Meteo Status */}
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-black/5 dark:bg-white/5 border border-border/20">
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground">{t('source.openMeteo')}</span>
-                        <span className="text-xs text-muted-foreground">{t('source.openMeteoDesc')}</span>
-                      </div>
-                    </div>
-                    {renderStatusBadge(loadProgress.openMeteo)}
-                  </div>
-
-                  {/* HKO Status (Only if within HK coverage) */}
-                  {isHKCovered && (
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-black/5 dark:bg-white/5 border border-border/20">
-                      <div className="flex items-center gap-3">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium text-foreground">{t('source.hko')}</span>
-                          <span className="text-xs text-muted-foreground">{t('source.hkoDesc')}</span>
-                        </div>
-                      </div>
-                      {renderStatusBadge(loadProgress.hko)}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <FetchingStatus loadProgress={loadProgress} isHKCovered={isHKCovered} />
           ) : !weather && error ? (
             <div className="text-center py-20 glass-card">
               <p className="text-lg text-destructive mb-2">{t('loading.failed')}</p>
@@ -332,35 +166,7 @@ const Index = () => {
             </div>
           ) : weather ? (
             <div className="space-y-6 lg:space-y-8 animate-fade-in">
-              {/* Fallback Banner */}
-              {weather.isFallback && (
-                <div className="glass-card border-amber-500/20 bg-amber-500/5 p-4 rounded-xl flex items-start gap-3 text-amber-600 dark:text-amber-400 animate-fade-in">
-                  <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-semibold text-sm">
-                      {weather.fallbackSource === 'HKO'
-                        ? t('fallback.hkoTitle')
-                        : t('fallback.cacheTitle')}
-                    </h4>
-                    <p className="text-xs opacity-90 mt-1">
-                      {weather.fallbackSource === 'HKO'
-                        ? t('fallback.hkoDesc')
-                        : t('fallback.cacheDesc')}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* HKO Data Failed Banner (Open-Meteo ok but HKO failed) */}
-              {weather.hkoFailed && !weather.isFallback && isHKCovered && (
-                <div className="glass-card border-amber-500/20 bg-amber-500/5 p-4 rounded-xl flex items-start gap-3 text-amber-600 dark:text-amber-400 animate-fade-in">
-                  <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-semibold text-sm">{t('fallback.hkoFailedTitle')}</h4>
-                    <p className="text-xs opacity-90 mt-1">{t('fallback.hkoFailedDesc')}</p>
-                  </div>
-                </div>
-              )}
+              <WeatherBanners weather={weather} isHKCovered={isHKCovered} />
 
               {/* Top Row: Hero (Full Width) */}
               <div className="space-y-6">
@@ -382,8 +188,7 @@ const Index = () => {
                 <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
               </div>
 
-              {/* Bottom Row: Optional Map — available for Pearl River Delta region (HK + Guangdong).
-                  Always rendered so the lazy-load state survives location updates. */}
+              {/* Bottom Row: Optional Map */}
               <RainfallMap userLocation={selectedCity ? { latitude: selectedCity.latitude, longitude: selectedCity.longitude } : undefined} />
             </div>
           ) : null}

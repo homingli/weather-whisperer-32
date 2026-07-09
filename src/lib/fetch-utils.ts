@@ -2,8 +2,10 @@
 /**
  * Custom fetch with timeout
  */
+import { TIMING } from './constants';
+
 export async function fetchWithTimeout(url: string, options: RequestInit & { timeout?: number } = {}) {
-  const { timeout = 8000, ...fetchOptions } = options;
+  const { timeout = TIMING.FETCH_DEFAULT_TIMEOUT_MS, ...fetchOptions } = options;
   
   const controller = new AbortController();
   const id = setTimeout(() => {
