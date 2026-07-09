@@ -1,5 +1,93 @@
 # Architecture
 
+## Data Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              USER LOCATION                                   │
+└───────────────────────────────┬─────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    weather-manager.ts (orchestrator)                         │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  isInHongKong(lat, lon)                                             │   │
+│   │  ├─ false → Open-Meteo only                                         │   │
+│   │  └─ true  → Promise.all([Open-Meteo, HKO]) → merge                 │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+└───────────────────────────────┬─────────────────────────────────────────────┘
+                                │
+                ┌───────────────┴───────────────┐
+                ▼                               ▼
+┌───────────────────────────┐   ┌───────────────────────────────────────────┐
+│     Open-Meteo API        │   │         HKO API                           │
+│  (api.open-meteo.com)    │   │    (data.weather.gov.hk)                  │
+│                           │   │                                           │
+│  • Current weather       │   │  • 9-day forecast (daily)                 │
+│  • Hourly forecast       │   │  • Current conditions                     │
+│  • Sunrise/sunset        │   │  • Warning signals (warnsum)              │
+│  • WMO weather codes     │   │  • Warning details (warninfo)             │
+└───────────────────────────┘   └───────────────────────────────────────────┘
+                │                               │
+                └───────────────┬───────────────┘
+                                │ merge
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         React Query (in-memory)                              │
+│                                                                             │
+│   Query Key: ['weather-unified', language, lat, lon]                        │
+│                                                                             │
+│   ┌──────────────────┐  ┌──────────────────────────────────────────────┐   │
+│   │  Cache (RAM)    │  │  Retry: exponential backoff (1s→2s→4s→30s)   │   │
+│   │  staleTime: 5min │  │  retry: 3 attempts per failure               │   │
+│   │  (1min if HKO↓)  │  │                                              │   │
+│   └──────────────────┘  └──────────────────────────────────────────────┘   │
+└───────────────────────────────┬─────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       Service Worker (cross-session)                         │
+│                                                                             │
+│   NetworkFirst: api.open-meteo.com, data.weather.gov.hk, nominatim.osm      │
+│   Cache: 50 entries, 1-day TTL                                            │
+│                                                                             │
+│   ┌──────────────────┐  ┌──────────────────────────────────────────────┐   │
+│   │ Online: network  │  │  Offline: replay cached response              │   │
+│   │ wins (fresh)     │  │  (survives tab close, not SW update)        │   │
+│   └──────────────────┘  └──────────────────────────────────────────────┘   │
+└───────────────────────────────┬─────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           UI Components                                      │
+│                                                                             │
+│   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│   │CurrentWeather│  │HourlyForecast│  │DailyForecast │  │WeatherAlerts │  │
+│   └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘  │
+│                                                                             │
+│   ┌──────────────┐  ┌──────────────┐                                      │
+│   │  RainfallMap │  │  SettingsMenu│                                      │
+│   │  (separate   │  │  (language,  │                                      │
+│   │   query)     │  │   theme,     │                                      │
+│   └──────────────┘  │   city)      │                                      │
+│                     └──────────────┘                                      │
+└───────────────────────────────┬─────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        localStorage (user prefs only)                         │
+│                                                                             │
+│   weather-language  ·  theme-mode  ·  weather-default-city  ·  weather-recent-cities
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key caching layers (innermost → outermost):**
+1. **React Query** — 5min TTL, per-tab in-memory. Falls to 1min when HKO fails.
+2. **Service Worker** — NetworkFirst fallback, survives tab close.
+3. **Browser cache** — HTTP-level `Cache-Control` (if any).
+4. **localStorage** — user preferences only; no weather payload stored.
+
 ## Overview
 Weather Whisperer is a modern, responsive weather dashboard built with React and TypeScript. It leverages a dual-source architecture for data fetching, dynamically switching between the Hong Kong Observatory (HKO) API for granular local data (when in Hong Kong or the Pearl River Delta) and the Open-Meteo API for global coverage.
 
