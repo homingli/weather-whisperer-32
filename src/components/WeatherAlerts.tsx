@@ -39,7 +39,7 @@ export const WeatherAlerts = memo(function WeatherAlerts({
 }: WeatherAlertsProps) {
   const [selectedWarning, setSelectedWarning] = useState<HKOWarning | null>(null);
   const [pulsing, setPulsing] = useState(false);
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const locale = language === 'tc' ? zhTW : undefined;
 
   // Filter out cancelled warnings and sort by issue time (most recent first)
@@ -90,8 +90,8 @@ export const WeatherAlerts = memo(function WeatherAlerts({
                 'h-9 w-9 flex items-center justify-center rounded-md transition-colors hover:bg-red-500/10',
                 shouldPulse && 'animate-warning-pulse',
               )}
-              title={warning.name}
-              aria-label={warning.name}
+              title={t(`warnings.${warning.code}`, warning.name)}
+              aria-label={t(`warnings.${warning.code}`, warning.name)}
             >
               <img
                 src={getWarningIcon(warning.code)}
@@ -106,17 +106,17 @@ export const WeatherAlerts = memo(function WeatherAlerts({
       <Dialog open={!!selectedWarning} onOpenChange={(open) => { if (!open) setSelectedWarning(null); }}>
         {selectedWarning && (
           <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-            <DialogTitle className="sr-only">{selectedWarning.name}</DialogTitle>
+            <DialogTitle className="sr-only">{t(`warnings.${selectedWarning.code}`, selectedWarning.name)}</DialogTitle>
             <div className={`pl-4 -ml-6 border-l-4 ${getBorderClass(selectedWarning.code)}`}>
               <div className="flex items-start gap-3">
                 <img
                   src={getWarningIcon(selectedWarning.code)}
-                  alt={selectedWarning.name}
+                  alt={t(`warnings.${selectedWarning.code}`, selectedWarning.name)}
                   className="object-contain w-8 h-8 shrink-0 mt-0.5"
                 />
                 <div className="min-w-0">
                   <div className="font-semibold text-foreground">
-                    {selectedWarning.name}
+                    {t(`warnings.${selectedWarning.code}`, selectedWarning.name)}
                     {selectedWarning.type && (
                       <span className="ml-1.5 text-xs font-normal text-muted-foreground">
                         ({selectedWarning.type})

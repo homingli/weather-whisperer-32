@@ -18,7 +18,6 @@ import {
   devClearWarnings,
   devResetBaseline,
   devListWarnings,
-  devLocalizeAll,
 } from '@/lib/devWarningSimulator';
 import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName, getWarningIcon } from '@/lib/hko-weather';
 import { PLACEHOLDER_SENTINEL } from '@/lib/constants';
@@ -113,7 +112,8 @@ const Index = () => {
     if (warningDiff.added.length === 0 && warningDiff.removed.length === 0) return;
 
     for (const w of warningDiff.added) {
-      toast(formatString(t('alerts.toast.issued'), w.name), {
+      const displayName = t(`warnings.${w.code}`, w.name);
+      toast(formatString(t('alerts.toast.issued'), displayName), {
         duration: 5000,
         icon: <img src={getWarningIcon(w.code)} alt="" className="h-6 w-6" />,
         action: {
@@ -123,7 +123,8 @@ const Index = () => {
       });
     }
     for (const w of warningDiff.removed) {
-      toast(formatString(t('alerts.toast.cancelled'), w.name), { duration: 5000 });
+      const displayName = t(`warnings.${w.code}`, w.name);
+      toast(formatString(t('alerts.toast.cancelled'), displayName), { duration: 5000 });
     }
     if (warningDiff.added.length > 0) {
       setPulseTrigger(n => n + 1);
@@ -140,18 +141,12 @@ const Index = () => {
       clear: devClearWarnings,
       reset: devResetBaseline,
       list: devListWarnings,
-      localize: devLocalizeAll,
     };
     console.info('[dev] __devWarnings ready: __devWarnings.add("TC8") / .remove("TC8") / .reset() / .list()');
     return () => {
       delete window.__devWarnings;
     };
   }, []);
-
-  // Re-translate dev-simulated warning names when the user switches language.
-  useEffect(() => {
-    devLocalizeAll(language);
-  }, [language]);
 
   // Freshness indicator: only show when using cached/stale data
   const cacheLabel = isOffline && !isLoading && weather

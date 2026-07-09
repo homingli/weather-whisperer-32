@@ -6,7 +6,7 @@ export type Language = 'en' | 'tc';
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: string) => string;
+  t: (key: string, fallback?: string) => string;
 }
 
 const translations: Record<Language, Record<string, string>> = {
@@ -20,6 +20,31 @@ const translations: Record<Language, Record<string, string>> = {
     'alerts.toast.issued': '{0} now in effect',
     'alerts.toast.cancelled': '{0} cancelled',
     'alerts.toast.view': 'View',
+
+    // Warning names (used for both real HKO warnings and dev-simulated ones;
+    // look up via t(`warnings.${code}`, w.name) so unknown codes fall back
+    // to the API-provided name).
+    'warnings.TC1': 'Standby Signal No. 1',
+    'warnings.TC3': 'Strong Wind Signal No. 3',
+    'warnings.TC8': 'No. 8 Gale or Storm Signal',
+    'warnings.TC8NE': 'No. 8 Northeast Gale or Storm Signal',
+    'warnings.TC8SE': 'No. 8 Southeast Gale or Storm Signal',
+    'warnings.TC8SW': 'No. 8 Southwest Gale or Storm Signal',
+    'warnings.TC8NW': 'No. 8 Northwest Gale or Storm Signal',
+    'warnings.TC9': 'No. 9 Increasing Gale or Storm Signal',
+    'warnings.TC10': 'No. 10 Hurricane Signal',
+    'warnings.WRAIN': 'Amber Rainstorm Warning',
+    'warnings.WRAINR': 'Red Rainstorm Warning',
+    'warnings.WRAINB': 'Black Rainstorm Warning',
+    'warnings.HKA': 'Very Hot Weather Warning',
+    'warnings.COLD': 'Cold Weather Warning',
+    'warnings.TS': 'Thunderstorm Warning',
+    'warnings.FL': 'Frost Warning',
+    'warnings.MW': 'Strong Monsoon Signal',
+    'warnings.LM': 'Landslip Warning',
+    'warnings.FOG': 'Fog Warning',
+    'warnings.WFIRE': 'Fire Danger Warning',
+    'warnings.WFNTSA': 'New Territories Northern Waters Flooding',
 
     // Umbrella section
     'umbrella.question': 'DO I NEED AN UMBRELLA TODAY?',
@@ -122,6 +147,31 @@ const translations: Record<Language, Record<string, string>> = {
     'alerts.toast.issued': '{0} 現正生效',
     'alerts.toast.cancelled': '{0} 已經取消',
     'alerts.toast.view': '查看',
+
+    // Warning names (used for both real HKO warnings and dev-simulated ones;
+    // look up via t(`warnings.${code}`, w.name) so unknown codes fall back
+    // to the API-provided name).
+    'warnings.TC1': '一號戒備信號',
+    'warnings.TC3': '三號強風信號',
+    'warnings.TC8': '八號烈風或暴風信號',
+    'warnings.TC8NE': '八號東北烈風或暴風信號',
+    'warnings.TC8SE': '八號東南烈風或暴風信號',
+    'warnings.TC8SW': '八號西南烈風或暴風信號',
+    'warnings.TC8NW': '八號西北烈風或暴風信號',
+    'warnings.TC9': '九號烈風或暴風增強信號',
+    'warnings.TC10': '十號颶風信號',
+    'warnings.WRAIN': '黃色暴雨警告信號',
+    'warnings.WRAINR': '紅色暴雨警告信號',
+    'warnings.WRAINB': '黑色暴雨警告信號',
+    'warnings.HKA': '酷熱天氣警告',
+    'warnings.COLD': '寒冷天氣警告',
+    'warnings.TS': '雷暴警告',
+    'warnings.FL': '霜凍警告',
+    'warnings.MW': '強烈季候風信號',
+    'warnings.LM': '山泥傾瀉警告',
+    'warnings.FOG': '霧警告',
+    'warnings.WFIRE': '火災危險警告',
+    'warnings.WFNTSA': '新界北部水浸特別報告',
 
     // Umbrella section
     'umbrella.question': '今日需要帶雨傘嗎？',
@@ -231,8 +281,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
   }, []);
 
-  const t = useCallback((key: string): string => {
-    return translations[language][key] || key;
+  const t = useCallback((key: string, fallback?: string): string => {
+    return translations[language][key] || fallback || key;
   }, [language]);
 
   const value = useMemo(() => ({ language, setLanguage, t }), [language, setLanguage, t]);
