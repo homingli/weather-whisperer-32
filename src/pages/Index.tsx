@@ -18,6 +18,7 @@ import {
   devClearWarnings,
   devResetBaseline,
   devListWarnings,
+  devLocalizeAll,
 } from '@/lib/devWarningSimulator';
 import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName, getWarningIcon } from '@/lib/hko-weather';
 import { PLACEHOLDER_SENTINEL } from '@/lib/constants';
@@ -139,12 +140,18 @@ const Index = () => {
       clear: devClearWarnings,
       reset: devResetBaseline,
       list: devListWarnings,
+      localize: devLocalizeAll,
     };
     console.info('[dev] __devWarnings ready: __devWarnings.add("TC8") / .remove("TC8") / .reset() / .list()');
     return () => {
       delete window.__devWarnings;
     };
   }, []);
+
+  // Re-translate dev-simulated warning names when the user switches language.
+  useEffect(() => {
+    devLocalizeAll(language);
+  }, [language]);
 
   // Freshness indicator: only show when using cached/stale data
   const cacheLabel = isOffline && !isLoading && weather
