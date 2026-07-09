@@ -19,29 +19,40 @@ Weather Whisperer is a modern, responsive weather dashboard built with React and
 
 ## Project Structure
 - `src/components/`: Reusable React components
-  - `ui/`: shadcn-ui primitives actually in use — `alert`, `button`, `card`, `collapsible`, `dialog`, `dropdown-menu`, `input`, `label`, `separator`, `sheet`, `skeleton`, `sonner`, `toast`, `toaster`, `toggle`, `tooltip`
+  - `ui/`: shadcn-ui primitives actually in use — `button`, `card`, `dialog`, `dropdown-menu`, `input`, `label`, `separator`, `sheet`, `skeleton`, `sonner`
   - `CurrentWeather.tsx`: Hero section displaying real-time conditions
-  - `HourlyForecast.tsx`: Interactive 6-hour line chart (temperature & precipitation)
+  - `HourlyForecast.tsx`: Interactive 6-hour line chart (temperature & precipitation); day/night `ReferenceArea` bands and sun-event `ReferenceLine` markers when `daily` prop is provided
   - `DailyForecast.tsx`: 7-day forecast with min/max bounds
-  - `RainfallMap.tsx`: Interactive Leaflet map visualizing HKO's gridded rainfall nowcast for HK + Pearl River Delta (Guangdong, China). Time-slider controls are rendered **above** the map so users see the active timestep before viewing the visualization. Data-driven viewport fit.
-  - `CitySearch.tsx`: Autocomplete geocoding search (uses Open-Meteo Geocoding API)
+  - `RainfallMap.tsx`: Interactive Leaflet map visualizing HKO's gridded rainfall nowcast for HK + Pearl River Delta (Guangdong, China). Time-slider controls are rendered **above** the map so users see the active timestep before viewing the visualization. Data-driven viewport fit. Renders `GeoJSON` layers per color bucket via `polygonStyle()` (RGBA fill + stroke).
   - `SettingsMenu.tsx`: Global settings controls (Language, Theme, Location, manual refresh)
   - `WeatherAlerts.tsx`: HKO warning icons in the top bar; clicking opens modal with full alert details
-  - `WeatherSkeleton.tsx`: Skeleton placeholders during initial loading
-  - `LanguageToggle.tsx`, `ThemeToggle.tsx`, `NavLink.tsx`: Small UI helpers
 - `src/contexts/`: Global application state
   - `LanguageContext.tsx`: Manages i18n between English and Traditional Chinese (HK)
   - `ThemeContext.tsx`: Manages active theme (Light, Dark, and Sun-synced Auto)
 - `src/hooks/`: React hooks
   - `usePwaInstall.ts`: Tracks `beforeinstallprompt` and provides an `install()` helper
+  - `useOnlineStatus.ts`: Returns `online`/`offline` boolean
+  - `useSelectedCity.ts`: City init, geo-swap, persistence wrapper
+  - `useWeatherWithProgress.ts`: `useQuery` wrapper with `loadProgress` per-source status, faster retry on failure
 - `src/lib/`: Core business logic and integrations
-  - `weather.ts`: Open-Meteo API client, reverse geocoding, and local persistence helpers (default city + recent cities)
-  - `hko-weather.ts`: Hong Kong Observatory API client with local warning parsing; exports `PRD_BOUNDS` used by `RainfallMap`
+  - `weather.ts` (barrel): re-exports from sub-modules
+  - `weather/open-meteo.ts`: Open-Meteo API client + parameter assembly
+  - `weather/geocoding.ts`: City search, reverse geocode, user location
+  - `weather/storage.ts`: Default/recent city persistence helpers
+  - `weather/codes.ts`: WMO weather-code to description/icon mapping
+  - `weather/types.ts`: `GeoLocation`, `WeatherData`, `CurrentWeather`, `HourlyForecast`, `DailyForecast` interfaces
+  - `hko-weather.ts` (barrel): re-exports from sub-modules
+  - `hko-bounds.ts`: `HK_BOUNDS`, `PRD_BOUNDS`, `isInHongKong`, `isInRainfallRegion`
+  - `hko-stations.ts`: HKO stations + districts lookups (`findNearestStation`, `findNearestDistrict`, `get*Coordinates`)
+  - `hko-translations.ts`: Station/district name translations (en ↔ tc)
+  - `hko-psr.ts`: PSR ladder constant + `normalizePsr`, `psrToPercentage`, `psrNeedsUmbrella`
+  - `hko-fetch.ts`: `hkoFetch<T>` base fetcher (8s timeout), plus data builders
+  - `hko-icons.ts`: HKO icon → WMO code mapping, warning colors/icons
   - `weather-manager.ts`: Unified orchestrator — single entry point that merges Open-Meteo + HKO with parallel fetching, fault tolerance, and progress callbacks
-  - `cache.ts`: Tiny helper for **manual refresh** only (force-clears any legacy weather keys from localStorage); TTL caching is **not** this layer's job
-  - `constants.ts`: Placeholder sentinel (`PLACEHOLDER_SENTINEL = -999`) used during transitions
-  - `fetch-utils.ts`: Shared fetch helpers
-  - `utils.ts`: Generic `cn()` and similar helpers
+  - `constants.ts`: `STORAGE_KEYS` and `TIMING` maps (centralized)
+  - `fetch-utils.ts`: Shared `fetchWithTimeout`
+  - `utils.ts`: Generic `cn()` and formatting helpers
+  - `log.ts`: Conditional `console.*` logger (strips in production)
 - `src/pages/`: Application routing layers
   - `Index.tsx`: Main dashboard layout with grid/flex responsiveness
   - `NotFound.tsx`: 404 handler
@@ -64,15 +75,17 @@ The orchestrator at `src/lib/weather-manager.ts` is the single point of entry fo
 - Per-source status (`idle | fetching | success | error`) is reported through `loadProgress` and rendered as live badges during the first fetch.
 
 ## Testing Strategy
-The project uses **Vitest** with jsdom. Coverage is split across layers:
+The project uses **Vitest** with jsdom. Coverage is split across layers (**85 tests**, 8 files):
 - **Unit tests**:
   - `src/lib/weather.test.ts` — Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
-  - `src/lib/hko-weather.test.ts` — HKO date parsing, PSR-to-percentage mapping, WMO weather-code translations, warning signal codes (Tropical Cyclones, Rainstorms, etc.) with safety messages.
+  - `src/lib/hko-weather.test.ts` — 47 tests covering PSR normalization/percentage/umbrella, PSR translation, station/district lookup, bounds checks, HKO icon mapping, and warning display helpers. Two bugs found here: `'Med High'` missing from `RAW_TO_LEVEL` and `LEVEL_TO_VALUE` in `hko-psr.ts`.
+  - `src/lib/weather-manager.test.ts` — 13 tests covering all `fetchWeather` orchestration branches: HK/non-HK routing, parallel fetch + merge, HKO fallback, both-fail, progress callbacks, `lang` propagation. One bug found here: `fetchHKOWeatherData` referenced but not imported in `weather-manager.ts`.
 - **Component tests**:
-  - `src/components/CurrentWeather.test.tsx`, `HourlyForecast.test.tsx`, `RainfallMap.test.tsx` — render-level coverage.
+  - `src/components/CurrentWeather.test.tsx` — render with fixture data, umbrella indicator, sun event display.
+  - `src/components/HourlyForecast.test.tsx` — 6 tests: empty forecast, chartData shape validation (via mock capture), day/night `ReferenceArea` bands, sun-event `ReferenceLine` label capture, timezone propagation. Recharts is mocked because jsdom lacks ResizeObserver.
+  - `src/components/RainfallMap.test.tsx` — 3 tests: CSV fetch + bucket color assertions (RGBA stroke/fill), timeline-step transition (`fireEvent.click`), fetch error handling. `vi.stubGlobal('fetch')` with `vi.unstubAllGlobals()` in `beforeEach`.
 - **Integration test**:
-  - `src/test/Integration.test.tsx` — composes `CurrentWeather` + `HourlyForecast` with providers and shared fixture data to validate cross-component contracts.
-- Recharts is mocked in `HourlyForecast.test.tsx` because jsdom does not implement the ResizeObserver/sizing surface Recharts depends on.
+  - `src/test/Integration.test.tsx` — composes `CurrentWeather` + `HourlyForecast` with providers and fake timers; validates locale-agnostic time formatting (bounded `/09:00:00\s*PM/` pattern).
 
 ## Resilient Offline Capabilities (PWA)
 Progressive Web App support relies on a single layer — **service worker caching** — combined with React Query for API timeouts:

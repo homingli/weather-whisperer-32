@@ -9,7 +9,7 @@ import { WeatherBanners } from '@/components/WeatherBanners';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
-import { isInHongKong, translateStationName, translateDistrictName } from '@/lib/hko-weather';
+import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName } from '@/lib/hko-weather';
 import { PLACEHOLDER_SENTINEL } from '@/lib/constants';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -187,8 +187,10 @@ const Index = () => {
                 <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
               </div>
 
-              {/* Bottom Row: Optional Map */}
-              <RainfallMap userLocation={selectedCity ? { latitude: selectedCity.latitude, longitude: selectedCity.longitude } : undefined} />
+              {/* Bottom Row: Optional Map — only available for the Pearl River Delta region (HK + Guangdong) */}
+              {selectedCity && isInRainfallRegion(selectedCity.latitude, selectedCity.longitude) && (
+                <RainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
+              )}
             </div>
           ) : null}
         </main>
