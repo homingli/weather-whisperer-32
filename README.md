@@ -37,46 +37,57 @@ A modern, responsive weather application built with React and TypeScript. Featur
 - **Charts**: Recharts 2
 - **Date Handling**: date-fns 3
 - **PWA**: vite-plugin-pwa with workbox `NetworkFirst`
-- **Testing**: Vitest 2 with Testing Library + jsdom
+- **Testing**: Vitest 2 with Testing Library + jsdom (85 tests, 8 files)
 
 ## Project Structure
 
 ```
 src/
 ├── components/         # Reusable UI components
-│   ├── ui/            # shadcn-ui primitives actually in use
-│   ├── CurrentWeather.tsx
-│   ├── HourlyForecast.tsx
-│   ├── DailyForecast.tsx
-│   ├── RainfallMap.tsx          # Forecast-step slider above the map
-│   ├── SettingsMenu.tsx
-│   ├── WeatherAlerts.tsx        # HKO warning icons + modal
-│   ├── CitySearch.tsx           # Autocomplete geocoding
-│   ├── WeatherSkeleton.tsx
-│   ├── LanguageToggle.tsx
-│   ├── ThemeToggle.tsx
-│   └── NavLink.tsx
+│   ├── ui/            # shadcn-ui primitives in use: button, card, dialog,
+│   │                 # dropdown-menu, input, label, separator, sheet, skeleton,
+│   │                 # sonner
+│   ├── CurrentWeather.tsx     # Hero section with conditions, temp range, umbrella
+│   ├── HourlyForecast.tsx     # 6-hour line chart with day/night bands + sun markers
+│   ├── DailyForecast.tsx      # 7-day forecast with min/max bounds
+│   ├── RainfallMap.tsx        # Leaflet map + HKO gridded nowcast, GeoJSON layers
+│   ├── SettingsMenu.tsx      # Language, theme, location, manual refresh
+│   └── WeatherAlerts.tsx     # HKO warning icons + modal
 ├── contexts/          # React Context providers
 │   ├── LanguageContext.tsx
 │   └── ThemeContext.tsx
 ├── hooks/             # Shared React hooks
-│   └── usePwaInstall.ts
-├── lib/               # API clients, gateway, storage, helpers
-│   ├── weather.ts              # Open-Meteo + reverse geocode + city persistence
-│   ├── hko-weather.ts          # HKO API client + warnings + PRD_BOUNDS
-│   ├── weather-manager.ts      # Unified gateway (parallel fetch, merge, fallback)
-│   ├── cache.ts                # Manual-refresh helper only
-│   ├── constants.ts            # Placeholder sentinel for transitions
-│   ├── fetch-utils.ts
-│   └── utils.ts                # cn(), misc
+│   ├── usePwaInstall.ts
+│   ├── useOnlineStatus.ts    # online/offline boolean
+│   ├── useSelectedCity.ts    # city init, geo-swap, persistence
+│   └── useWeatherWithProgress.ts  # useQuery wrapper with per-source loadProgress
+├── lib/               # API clients, gateway, constants, helpers
+│   ├── weather/               # Open-Meteo sub-modules
+│   │   ├── open-meteo.ts     # API client + WMO code mapping
+│   │   ├── geocoding.ts      # City search, reverse geocode, user location
+│   │   ├── storage.ts        # Default/recent city persistence
+│   │   ├── codes.ts          # WMO weather-code → description/icon
+│   │   └── types.ts          # GeoLocation, WeatherData, etc.
+│   ├── hko-weather/          # HKO sub-modules
+│   │   ├── hko-bounds.ts      # HK_BOUNDS, PRD_BOUNDS, isInHongKong
+│   │   ├── hko-stations.ts   # Station/district lookups + coordinates
+│   │   ├── hko-translations.ts # Station/district name translation (en↔tc)
+│   │   ├── hko-psr.ts         # PSR ladder + normalize/psrToPercentage/umbrella
+│   │   ├── hko-fetch.ts       # hkoFetch<T> base fetcher + data builders
+│   │   ├── hko-icons.ts       # HKO icon → WMO code, warning colors/icons
+│   │   └── hko-weather.ts     # Barrel re-export
+│   ├── weather-manager.ts     # Unified gateway (parallel fetch, merge, fallback)
+│   ├── constants.ts           # STORAGE_KEYS and TIMING maps
+│   ├── fetch-utils.ts         # fetchWithTimeout
+│   └── utils.ts               # cn(), formatting helpers
 ├── pages/             # Route components
-│   ├── Index.tsx               # Main dashboard
+│   ├── Index.tsx               # Main dashboard (211 LOC; hooks extracted)
 │   └── NotFound.tsx            # 404
 ├── test/              # Vitest setup + integration suite
 │   ├── setup.ts
 │   └── Integration.test.tsx
-├── components/*.test.tsx        # Component-level unit tests
-├── lib/*.test.ts                # API/parsing unit tests
+├── components/*.test.tsx        # Component unit tests (4 files, 15 tests)
+├── lib/*.test.ts                # API/parsing unit tests (3 files, 70 tests)
 ├── App.tsx             # Providers, router, error boundary
 └── main.tsx            # Application entry point
 ```

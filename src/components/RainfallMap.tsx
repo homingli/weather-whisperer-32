@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useMemo, memo } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapContainer, TileLayer, GeoJSON, Marker, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import type { FeatureCollection } from 'geojson';
 import { CloudRain, AlertCircle, RefreshCw, Play, Pause, Layers } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
-import { PRD_BOUNDS, isInRainfallRegion } from '@/lib/hko-weather';
+import { PRD_BOUNDS } from '@/lib/hko-weather';
 import { TIMING } from '@/lib/constants';
 
 const EMPTY_STEPS: StepData[] = [];
@@ -288,37 +288,6 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
 
   const activeStep = timeSteps[activeStepIndex];
   const activeCellsByColor = activeStep?.cellsByColor || null;
-
-  // Region gate — the HKO gridded nowcast only covers the Pearl River Delta.
-  // Show a static note (not the lazy-load button) when the user is outside
-  // this coverage area so the map and button stay interactive for in-region users.
-  const inRegion = useMemo(
-    () => (userLocation ? isInRainfallRegion(userLocation.latitude, userLocation.longitude) : true),
-    [userLocation]
-  );
-  if (userLocation && !inRegion) {
-    return (
-      <div className="glass-card overflow-hidden">
-        <div className="px-6 py-4 border-b border-border/50 flex flex-wrap justify-between items-center gap-4">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <CloudRain className="w-5 h-5 text-primary" />
-              <h2 className="text-xl font-semibold">{t('nowcast.title')}</h2>
-            </div>
-            <span className="text-xs text-muted-foreground">
-              {t('nowcast.subtitle')}
-            </span>
-          </div>
-        </div>
-        <div className="h-[400px] w-full flex flex-col items-center justify-center bg-muted/20 text-center px-6">
-          <CloudRain className="w-10 h-10 text-muted-foreground mb-3 opacity-60" />
-          <p className="text-sm text-muted-foreground max-w-sm">
-            {t('nowcast.outOfRegion')}
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="glass-card overflow-hidden">
