@@ -1,4 +1,4 @@
-import { useMemo, useCallback, lazy, Suspense, useEffect } from 'react';
+import { useMemo, useCallback, lazy, Suspense, useEffect, useState, useRef } from 'react';
 import { CurrentWeather } from '@/components/CurrentWeather';
 import { DailyForecast } from '@/components/DailyForecast';
 import { WeatherAlerts } from '@/components/WeatherAlerts';
@@ -9,11 +9,13 @@ import { WeatherBanners } from '@/components/WeatherBanners';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
-import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName } from '@/lib/hko-weather';
+import { useWarningChangeDetector } from '@/hooks/useWarningChangeDetector';
+import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName, getWarningIcon } from '@/lib/hko-weather';
 import { PLACEHOLDER_SENTINEL } from '@/lib/constants';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
+import { toast } from 'sonner';
 import { CloudRain, MapPin, Download } from 'lucide-react';
 
 // Lazy load heavy components
@@ -71,6 +73,38 @@ const Index = () => {
   // Determine if selected city is in Hong Kong coverage area
   const isHKCovered = selectedCity ? isInHongKong(selectedCity.latitude, selectedCity.longitude) : false;
 
+  // Warning change detection: emit toast + pulse on newly added warnings,
+  // toast only on cancellations (badge disappears on its own).
+  const cityKey = selectedCity ? `${selectedCity.latitude},${selectedCity.longitude}` : null;
+  const warningDiff = useWarningChangeDetector(weather?.warnings, cityKey);
+  const [pulseTrigger, setPulseTrigger] = useState(0);
+  const [selectedWarningCode, setSelectedWarningCode] = useState<string | null>(null);
+  const lastConsumedDiff = useRef<typeof warningDiff | null>(null);
+
+  useEffect(() => {
+    if (warningDiff === lastConsumedDiff.current) return;
+    lastConsumedDiff.current = warningDiff;
+
+    if (warningDiff.added.length === 0 && warningDiff.removed.length === 0) return;
+
+    for (const w of warningDiff.added) {
+      toast(formatString(t('alerts.toast.issued'), w.name), {
+        duration: 5000,
+        icon: <img src={getWarningIcon(w.code)} alt="" className="h-6 w-6" />,
+        action: {
+          label: t('alerts.toast.view'),
+          onClick: () => setSelectedWarningCode(w.code),
+        },
+      });
+    }
+    for (const w of warningDiff.removed) {
+      toast(formatString(t('alerts.toast.cancelled'), w.name), { duration: 5000 });
+    }
+    if (warningDiff.added.length > 0) {
+      setPulseTrigger(n => n + 1);
+    }
+  }, [warningDiff, t]);
+
   // Freshness indicator: only show when using cached/stale data
   const cacheLabel = isOffline && !isLoading && weather
     ? t('data.usingCached')
@@ -119,7 +153,13 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-2">
             {weather?.warnings && weather.warnings.length > 0 && (
-              <WeatherAlerts warnings={weather.warnings} />
+              <WeatherAlerts
+                warnings={weather.warnings}
+                pulseTrigger={pulseTrigger}
+                pulseCodes={new Set(warningDiff.added.map(w => w.code))}
+                selectedWarningCode={selectedWarningCode}
+                onConsumed={() => setSelectedWarningCode(null)}
+              />
             )}
             <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} onRefresh={handleForceRefresh} />
             {deferredPrompt && !isInstalled && (
