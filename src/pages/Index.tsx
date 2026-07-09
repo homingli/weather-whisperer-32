@@ -10,6 +10,15 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
 import { useWarningChangeDetector } from '@/hooks/useWarningChangeDetector';
+import {
+  useDevSimulatedWarnings,
+  useDevBaselineNonce,
+  devAddWarning,
+  devRemoveWarning,
+  devClearWarnings,
+  devResetBaseline,
+  devListWarnings,
+} from '@/lib/devWarningSimulator';
 import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName, getWarningIcon } from '@/lib/hko-weather';
 import { PLACEHOLDER_SENTINEL } from '@/lib/constants';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
@@ -79,8 +88,19 @@ const Index = () => {
 
   // Warning change detection: emit toast + pulse on newly added warnings,
   // toast only on cancellations (badge disappears on its own).
+  // In dev, merge fake warnings from the console simulator with real data so
+  // the full add/remove/cancel flow can be tested end-to-end without a live
+  // HKO event.
+  const simulatedWarnings = useDevSimulatedWarnings();
+  const baselineNonce = useDevBaselineNonce();
+  const effectiveWarnings = useMemo(() => {
+    const real = weather?.warnings ?? [];
+    if (simulatedWarnings.length === 0) return real;
+    return [...real, ...simulatedWarnings];
+  }, [weather?.warnings, simulatedWarnings]);
+
   const cityKey = selectedCity ? `${selectedCity.latitude},${selectedCity.longitude}` : null;
-  const warningDiff = useWarningChangeDetector(weather?.warnings, cityKey);
+  const warningDiff = useWarningChangeDetector(effectiveWarnings, `${cityKey}:${baselineNonce}`);
   const [pulseTrigger, setPulseTrigger] = useState(0);
   const [selectedWarningCode, setSelectedWarningCode] = useState<string | null>(null);
   const lastConsumedDiff = useRef<typeof warningDiff | null>(null);
@@ -108,6 +128,23 @@ const Index = () => {
       setPulseTrigger(n => n + 1);
     }
   }, [warningDiff, t]);
+
+  // Dev-only: expose the warning simulator to the console for QA.
+  // Try __devWarnings.add('TC8') / .remove('TC8') / .reset() / .list().
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    window.__devWarnings = {
+      add: devAddWarning,
+      remove: devRemoveWarning,
+      clear: devClearWarnings,
+      reset: devResetBaseline,
+      list: devListWarnings,
+    };
+    console.info('[dev] __devWarnings ready: __devWarnings.add("TC8") / .remove("TC8") / .reset() / .list()');
+    return () => {
+      delete window.__devWarnings;
+    };
+  }, []);
 
   // Freshness indicator: only show when using cached/stale data
   const cacheLabel = isOffline && !isLoading && weather
@@ -156,9 +193,9 @@ const Index = () => {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {weather?.warnings && weather.warnings.length > 0 && (
+            {effectiveWarnings.length > 0 && (
               <WeatherAlerts
-                warnings={weather.warnings}
+                warnings={effectiveWarnings}
                 pulseTrigger={pulseTrigger}
                 pulseCodes={new Set(warningDiff.added.map(w => w.code))}
                 selectedWarningCode={selectedWarningCode}
