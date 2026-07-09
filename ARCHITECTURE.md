@@ -79,7 +79,7 @@ The project uses **Vitest** with jsdom. Coverage is split across layers (**85 te
 - **Unit tests**:
   - `src/lib/weather.test.ts` — Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
   - `src/lib/hko-weather.test.ts` — 47 tests covering PSR normalization/percentage/umbrella, PSR translation, station/district lookup, bounds checks, HKO icon mapping, and warning display helpers.
-  - `src/lib/weather-manager.test.ts` — 13 tests covering all `fetchWeather` orchestration branches: HK/non-HK routing, parallel fetch + merge, HKO fallback, both-fail, progress callbacks, `lang` propagation. One bug found here: `fetchHKOWeatherData` referenced but not imported in `weather-manager.ts`.
+  - `src/lib/weather-manager.test.ts` — 13 tests covering all `fetchWeather` orchestration branches: HK/non-HK routing, parallel fetch + merge, HKO fallback, both-fail, progress callbacks, `lang` propagation.
 - **Component tests**:
   - `src/components/CurrentWeather.test.tsx` — render with fixture data, umbrella indicator, sun event display.
   - `src/components/HourlyForecast.test.tsx` — 6 tests: empty forecast, chartData shape validation (via mock capture), day/night `ReferenceArea` bands, sun-event `ReferenceLine` label capture, timezone propagation. Recharts is mocked because jsdom lacks ResizeObserver.
