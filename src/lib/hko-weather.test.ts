@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getHKODailyAndWarnings } from './hko-weather';
+import { getHKODailyAndWarnings } from './hko-fetch';
 import { fetchWithTimeout } from './fetch-utils';
 
 vi.mock('./fetch-utils', () => ({
