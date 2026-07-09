@@ -51,6 +51,10 @@ const Index = () => {
     await refetch();
   }, [refetch]);
 
+  const handleConsumedSelectedWarning = useCallback(() => {
+    setSelectedWarningCode(null);
+  }, []);
+
   // Open-Meteo daily data is always used for sunrise/sunset (HKO doesn't provide it)
   const sunTimes = useMemo(() => weather?.daily, [weather?.daily]);
 
@@ -158,7 +162,7 @@ const Index = () => {
                 pulseTrigger={pulseTrigger}
                 pulseCodes={new Set(warningDiff.added.map(w => w.code))}
                 selectedWarningCode={selectedWarningCode}
-                onConsumed={() => setSelectedWarningCode(null)}
+                onConsumed={handleConsumedSelectedWarning}
               />
             )}
             <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} onRefresh={handleForceRefresh} />
