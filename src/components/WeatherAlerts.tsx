@@ -80,11 +80,11 @@ export const WeatherAlerts = memo(function WeatherAlerts({
   return (
     <>
       <div className="flex items-center gap-1">
-        {activeWarnings.map((warning, index) => {
+        {activeWarnings.map((warning) => {
           const shouldPulse = pulsing && pulseCodes?.has(warning.code);
           return (
             <button
-              key={warning.code + index}
+              key={warning.code}
               onClick={() => setSelectedWarning(warning)}
               className={cn(
                 'h-9 w-9 flex items-center justify-center rounded-md transition-colors hover:bg-red-500/10',
