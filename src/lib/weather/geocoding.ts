@@ -2,6 +2,7 @@
 
 import { fetchWithTimeout } from '../fetch-utils';
 import { logError, logWarn } from '../log';
+import { TIMING } from '../constants';
 import { GeoLocation } from './types';
 
 /** Search for cities by name via Open-Meteo geocoding API */
@@ -48,7 +49,7 @@ export async function reverseGeocode(latitude: number, longitude: number): Promi
       `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(latitude.toString())}&lon=${encodeURIComponent(longitude.toString())}&format=json`,
       {
         headers: { 'User-Agent': 'weather-whisperer/1.0' },
-        timeout: 4000
+        timeout: TIMING.REVERSE_GEOCODE_TIMEOUT_MS
       }
     );
 
@@ -100,7 +101,7 @@ export function getUserLocation(): Promise<{ latitude: number; longitude: number
       (error) => {
         reject(error);
       },
-      { timeout: 5000, enableHighAccuracy: false }
+      { timeout: TIMING.GEOLOCATION_TIMEOUT_MS, enableHighAccuracy: false }
     );
   });
 }

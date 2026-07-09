@@ -2,6 +2,7 @@
 
 import { fetchWithTimeout } from '../fetch-utils';
 import { logTiming, logFailure } from '../log';
+import { TIMING } from '../constants';
 import { WeatherData } from './types';
 
 /** Fetch current + forecast data from Open-Meteo */
@@ -20,7 +21,7 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
   const start = Date.now();
   let data;
   try {
-    const response = await fetchWithTimeout(`https://api.open-meteo.com/v1/forecast?${params}`, { timeout: 6000 });
+    const response = await fetchWithTimeout(`https://api.open-meteo.com/v1/forecast?${params}`, { timeout: TIMING.OPEN_METEO_TIMEOUT_MS });
     if (!response.ok) throw new Error(`Failed to fetch weather: ${response.status}`);
     data = await response.json();
     logTiming('Open-Meteo fetch', Date.now() - start);

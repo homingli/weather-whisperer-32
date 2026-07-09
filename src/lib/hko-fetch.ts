@@ -7,6 +7,7 @@ import { normalizePsr, psrToPercentage } from './hko-psr';
 import { hkoIconToWeatherCode } from './hko-icons';
 import { fetchWithTimeout } from './fetch-utils';
 import { logTiming, logFailure } from './log';
+import { TIMING } from './constants';
 
 const HKO_API_BASE = 'https://data.weather.gov.hk/weatherAPI/opendata/weather.php';
 
@@ -14,7 +15,7 @@ const HKO_API_BASE = 'https://data.weather.gov.hk/weatherAPI/opendata/weather.ph
 async function hkoFetch<T>(dataType: string, lang: 'en' | 'tc'): Promise<T> {
   const start = Date.now();
   try {
-    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=${dataType}&lang=${lang}`, { timeout: 8000 });
+    const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=${dataType}&lang=${lang}`, { timeout: TIMING.HKO_TIMEOUT_MS });
     if (!response.ok) throw new Error(`Failed to fetch HKO ${dataType}: ${response.status}`);
     const data = await response.json();
     logTiming(`HKO ${dataType} fetch`, Date.now() - start);

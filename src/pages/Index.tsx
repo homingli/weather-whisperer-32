@@ -8,7 +8,7 @@ import { RainfallMap } from "@/components/RainfallMap";
 import { fetchWeather } from "@/lib/weather-manager";
 import { GeoLocation, getDefaultCity, getRecentCities, getUserLocation, reverseGeocode, setDefaultCity, WeatherData } from "@/lib/weather";
 import { isInHongKong, translateStationName, translateDistrictName } from "@/lib/hko-weather";
-import { PLACEHOLDER_SENTINEL } from "@/lib/constants";
+import { PLACEHOLDER_SENTINEL, TIMING } from "@/lib/constants";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
@@ -137,8 +137,8 @@ const Index = () => {
       );
     },
     enabled: !!selectedCity,
-    refetchInterval: hasFailure ? 60 * 1000 : 5 * 60 * 1000,
-    staleTime: hasFailure ? 60 * 1000 : 5 * 60 * 1000,
+    refetchInterval: hasFailure ? TIMING.REFETCH_ON_FAILURE_MS : TIMING.REFETCH_INTERVAL_MS,
+    staleTime: hasFailure ? TIMING.REFETCH_ON_FAILURE_MS : TIMING.STALE_TIME_MS,
     placeholderData: 'keepPreviousData',
   });
 

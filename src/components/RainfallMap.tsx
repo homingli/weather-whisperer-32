@@ -6,6 +6,7 @@ import type { FeatureCollection } from 'geojson';
 import { CloudRain, AlertCircle, RefreshCw, Play, Pause, Layers } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { PRD_BOUNDS, isInRainfallRegion } from '@/lib/hko-weather';
+import { TIMING } from '@/lib/constants';
 
 const EMPTY_STEPS: StepData[] = [];
 
@@ -233,8 +234,8 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hkoGriddedRainfallNowcast'],
     queryFn: fetchRainfallNowcast,
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: TIMING.STALE_TIME_MS,
+    refetchInterval: TIMING.REFETCH_INTERVAL_MS,
     enabled: isLoaded,
   });
 
@@ -252,7 +253,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
     if (isPlaying && timeSteps.length > 0) {
       interval = setInterval(() => {
         setActiveStepIndex((prevIndex) => (prevIndex + 1) % timeSteps.length);
-      }, 1500);
+      }, TIMING.RAINFALL_AUTOPLAY_MS);
     }
     return () => { if (interval) clearInterval(interval); };
   }, [isPlaying, timeSteps]);

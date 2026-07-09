@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import { STORAGE_KEYS } from '@/lib/constants';
 
 export type Language = 'en' | 'tc';
 
@@ -216,14 +217,14 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem('weather-language') as Language) || 'en';
+      return (localStorage.getItem(STORAGE_KEYS.LANGUAGE) as Language) || 'en';
     }
     return 'en';
   });
 
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
-    localStorage.setItem('weather-language', lang);
+    localStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
   }, []);
 
   const t = useCallback((key: string): string => {

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { STORAGE_KEYS, TIMING } from '@/lib/constants';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 type ResolvedTheme = 'light' | 'dark';
@@ -14,7 +15,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>(() => {
-    const saved = localStorage.getItem('theme-mode');
+    const saved = localStorage.getItem(STORAGE_KEYS.THEME_MODE);
     return (saved as ThemeMode) || 'auto';
   });
   
@@ -27,7 +28,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setMode = useCallback((newMode: ThemeMode) => {
     setModeState(newMode);
-    localStorage.setItem('theme-mode', newMode);
+    localStorage.setItem(STORAGE_KEYS.THEME_MODE, newMode);
   }, []);
 
   const setSunTimes = useCallback((sunrise: Date | null, sunset: Date | null) => {
@@ -99,7 +100,7 @@ useEffect(() => {
   useEffect(() => {
     updateResolvedTheme();
     if (mode !== 'auto') return;
-    const interval = setInterval(updateResolvedTheme, 5 * 60 * 1000);
+    const interval = setInterval(updateResolvedTheme, TIMING.THEME_AUTO_TICK_MS);
     return () => clearInterval(interval);
   }, [updateResolvedTheme, mode]);
 
