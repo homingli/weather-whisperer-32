@@ -150,7 +150,7 @@ describe('fetchWeather orchestration', () => {
       mockGetOpenMeteo.mockRejectedValue(new Error('OM boom'));
       mockGetHKODaily.mockResolvedValue(makeHkoDaily());
       mockGetHKOCurrent.mockResolvedValue(makeHkoCurrent());
-      mockBuildHKO.mockImplementation(async (current, dailyAndWarnings, lat, lon, lang) => {
+      mockBuildHKO.mockImplementation(async (_current, dailyAndWarnings, _lat, _lon, _lang) => {
         return {
           current: { ...makeOpenMeteoData().current, temperature: 99 },
           hourly: [],
