@@ -17,7 +17,10 @@ const translations: Record<Language, Record<string, string>> = {
     // Weather alerts
     'alerts.title': 'Weather Alerts',
     'alerts.issued': 'Issued',
-    
+    'alerts.toast.issued': '{0} now in effect',
+    'alerts.toast.cancelled': '{0} cancelled',
+    'alerts.toast.view': 'View',
+
     // Umbrella section
     'umbrella.question': 'DO I NEED AN UMBRELLA TODAY?',
     'umbrella.yes': 'YES',
@@ -116,7 +119,10 @@ const translations: Record<Language, Record<string, string>> = {
     // Weather alerts
     'alerts.title': '天氣警告',
     'alerts.issued': '發出時間',
-    
+    'alerts.toast.issued': '{0} 現正生效',
+    'alerts.toast.cancelled': '{0} 已經取消',
+    'alerts.toast.view': '查看',
+
     // Umbrella section
     'umbrella.question': '今日需要帶雨傘嗎？',
     'umbrella.yes': '需要',
