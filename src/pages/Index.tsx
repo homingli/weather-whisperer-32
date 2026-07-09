@@ -4,7 +4,6 @@ import { DailyForecast } from '@/components/DailyForecast';
 import { WeatherAlerts } from '@/components/WeatherAlerts';
 import { SettingsMenu } from '@/components/SettingsMenu';
 import { RainfallMap } from '@/components/RainfallMap';
-import { StatusBadge } from '@/components/StatusBadge';
 import { FetchingStatus } from '@/components/FetchingStatus';
 import { WeatherBanners } from '@/components/WeatherBanners';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';

@@ -14,7 +14,7 @@ interface CurrentWeatherProps {
   timezone?: string;
 }
 
-export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, locationName, timezone }: CurrentWeatherProps) => {
+export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone }: CurrentWeatherProps) => {
   const { language, t } = useLanguage();
 
   // Sentinel check — values from PLACEHOLDER_CURRENT use PLACEHOLDER_SENTINEL to signal "no data yet"
