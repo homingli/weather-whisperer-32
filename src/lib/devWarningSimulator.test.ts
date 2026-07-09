@@ -8,7 +8,6 @@ import {
   devClearWarnings,
   devResetBaseline,
   devListWarnings,
-  devLocalizeAll,
 } from './devWarningSimulator';
 
 describe('devWarningSimulator', () => {
@@ -57,36 +56,19 @@ describe('devWarningSimulator', () => {
       expect(list[0].name).toBe('Second');
     });
 
-    it('devAddWarning uses default name from codeToName lookup', () => {
+    it('devAddWarning uses the code as a placeholder name (consumer resolves i18n)', () => {
       devAddWarning('TC8');
-      expect(devListWarnings()[0].name).toContain('No. 8');
+      expect(devListWarnings()[0].name).toBe('TC8');
     });
 
-    it('devAddWarning uses TC name when lang=tc is passed', () => {
-      devAddWarning('TC8', undefined, 'tc');
-      expect(devListWarnings()[0].name).toBe('八號烈風或暴風信號');
+    it('devAddWarning accepts an explicit name override', () => {
+      devAddWarning('XYZ', 'My Custom Name');
+      expect(devListWarnings()[0].name).toBe('My Custom Name');
     });
 
-    it('devAddWarning falls back to the code itself when unknown', () => {
+    it('devAddWarning falls back to the code when no name is given', () => {
       devAddWarning('UNKNOWN_CODE');
       expect(devListWarnings()[0].name).toBe('UNKNOWN_CODE');
-    });
-
-    it('devLocalizeAll re-translates every simulated warning to the given language', () => {
-      devAddWarning('TC8', undefined, 'en');
-      devAddWarning('WRAINB', undefined, 'en');
-      expect(devListWarnings().map((w) => w.name)).toContain('No. 8 Gale or Storm Signal');
-      expect(devListWarnings().map((w) => w.name)).toContain('Black Rainstorm Warning');
-
-      devLocalizeAll('tc');
-      const names = devListWarnings().map((w) => w.name);
-      expect(names).toContain('八號烈風或暴風信號');
-      expect(names).toContain('黑色暴雨警告信號');
-    });
-
-    it('devLocalizeAll is a no-op when no warnings are simulated', () => {
-      expect(() => devLocalizeAll('tc')).not.toThrow();
-      expect(devListWarnings()).toEqual([]);
     });
 
     it('devRemoveWarning removes a single warning by code', () => {

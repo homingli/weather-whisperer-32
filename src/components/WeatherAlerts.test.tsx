@@ -103,15 +103,15 @@ describe('WeatherAlerts', () => {
 
   it('opens modal when selectedWarningCode matches a warning and fires onConsumed', () => {
     const onConsumed = vi.fn();
+    // Use a code that's not in the i18n map so the API-provided name is used as-is
     renderWithLanguage(
       <WeatherAlerts
-        warnings={[warning({ code: 'TC8' })]}
-        selectedWarningCode="TC8"
+        warnings={[warning({ code: 'CUSTOM_XYZ', name: 'Custom Test Warning' })]}
+        selectedWarningCode="CUSTOM_XYZ"
         onConsumed={onConsumed}
       />,
     );
-    // Modal title is sr-only; the visible heading inside the modal is a span
-    expect(screen.getAllByText('Typhoon Signal No. 8').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Custom Test Warning').length).toBeGreaterThan(0);
     expect(onConsumed).toHaveBeenCalledTimes(1);
   });
 
