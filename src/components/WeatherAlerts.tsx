@@ -1,4 +1,5 @@
-import { HKOWarning, getWarningIcon, getWarningColor } from '@/lib/hko-weather';
+import type { HKOWarning } from '@/lib/hko-types';
+import { getWarningIcon, getWarningColor } from '@/lib/hko-weather';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 import { useState, memo, useMemo } from 'react';

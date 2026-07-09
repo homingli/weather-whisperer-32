@@ -24,12 +24,9 @@ export {
 // PSR
 export { normalizePsr, psrToPercentage, psrNeedsUmbrella } from './hko-psr';
 
-// Types
-export {
-  HKOCurrentWeatherResponse, HKOForecastResponse,
-  HKOWarning, HKOWarningDetails, HKOWarningSummaryResponse,
-  HKOWarningInfoDetail, HKOWarningInfoResponse,
-} from './hko-types';
+// Types are NOT re-exported from this barrel — hko-types.ts is interfaces-only
+// and gets compiled to `export { }` at runtime by esbuild/SWC, which breaks any
+// runtime re-export named-import. Import types directly from '@/lib/hko-types'.
 
 // Fetch & build
 export {
