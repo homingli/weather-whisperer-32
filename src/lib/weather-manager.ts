@@ -1,5 +1,5 @@
 import { getWeather as getOpenMeteoWeather, WeatherData } from './weather';
-import { isInHongKong, getHKODailyAndWarnings, getHKOCurrentWeather, buildHKOWeatherData } from './hko-weather';
+import { isInHongKong, getHKODailyAndWarnings, getHKOCurrentWeather, buildHKOWeatherData, fetchHKOWeatherData } from './hko-weather';
 import { logWarn, logError } from './log';
 
 export async function fetchWeather(

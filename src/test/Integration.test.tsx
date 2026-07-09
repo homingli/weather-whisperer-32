@@ -59,8 +59,8 @@ describe('Location and Time Integration', () => {
       </LanguageProvider>
     );
 
-    // Current time in Tokyo should be 12:00 + 9h = 21:00 (which is 09:00:00 PM)
-    expect(screen.getByText(/0?9:00:00 PM/i)).toBeInTheDocument();
+    // UTC noon + Tokyo UTC+9 = 21:00 local = 9 PM.
+    expect(screen.getByText(/09:00:00\s*PM/i)).toBeInTheDocument();
     
     // Hourly Title should be present
     expect(screen.getByText(/HOURLY FORECAST/i)).toBeInTheDocument();

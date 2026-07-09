@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { RainfallMap } from './RainfallMap';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -10,11 +10,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }: any) => <div data-testid="map-container">{children}</div>,
   TileLayer: () => <div data-testid="tile-layer" />,
-  GeoJSON: ({ style, key }: any) => (
+  GeoJSON: ({ style, data }: any) => (
     <div
       data-testid="geojson"
       data-fill-color={style?.fillColor}
-      data-key={key}
+      data-stroke-color={style?.color}
+      data-feature-count={data?.features?.length}
     />
   ),
   ZoomControl: () => <div data-testid="zoom-control" />,
@@ -31,7 +32,7 @@ const mockCsvData = `Updated Date and Time (in Hong Kong Time),Ending Date and T
 
 describe('RainfallMap Component', () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   const renderWithLanguage = (ui: React.ReactElement) => {
@@ -57,7 +58,7 @@ describe('RainfallMap Component', () => {
       ok: true,
       text: async () => mockCsvData,
     });
-    global.fetch = mockFetch;
+    vi.stubGlobal('fetch', mockFetch);
 
     renderWithLanguage(<RainfallMap />);
 
@@ -76,21 +77,79 @@ describe('RainfallMap Component', () => {
     expect(screen.getByTestId('map-container')).toBeInTheDocument();
 
     // The 4 non-zero rainfall cells fall into 3 color buckets:
-    //   - #4facfe (Moderate-light): 1.5 + 0.8 mm
-    //   - #00f2fe (Moderate):        3.5 mm
-    //   - #f6d365 (Heavy):          12.5 mm
+    //   - #4facfe (0.5–2 mm band): 1.5 + 0.8 mm  → 2 features
+    //   - #00f2fe (2–5 mm band):   3.5 mm          → 1 feature
+    //   - #f6d365 (10–20 mm band): 12.5 mm         → 1 feature
+    // polygonStyle() applies FILL_ALPHA (0.4) to the fill so the renderer can
+    // anti-alias the seams; the stroke uses full alpha so we assert against
+    // the stroke (full alpha) and assert fill alpha separately.
     const layers = screen.getAllByTestId('geojson');
     expect(layers).toHaveLength(3);
 
     const fillColors = layers.map(el => el.getAttribute('data-fill-color'));
-    expect(fillColors).toContain('#4facfe');
-    expect(fillColors).toContain('#00f2fe');
-    expect(fillColors).toContain('#f6d365');
+    const strokeColors = layers.map(el => el.getAttribute('data-stroke-color'));
+    expect(strokeColors).toContain('rgba(79, 172, 254, 1)');   // #4facfe
+    expect(strokeColors).toContain('rgba(0, 242, 254, 1)');    // #00f2fe
+    expect(strokeColors).toContain('rgba(246, 211, 101, 1)'); // #f6d365
+    expect(fillColors).toContain('rgba(79, 172, 254, 0.4)');
+    expect(fillColors).toContain('rgba(0, 242, 254, 0.4)');
+    expect(fillColors).toContain('rgba(246, 211, 101, 0.4)');
+
+    // All features should be present (2 + 1 + 1 = 4 cells).
+    const featureCounts = layers.map(el => Number(el.getAttribute('data-feature-count')));
+    expect(featureCounts.reduce((sum, n) => sum + n, 0)).toBe(4);
+  });
+
+  it('transitions timeline step and swaps the rendered color buckets', async () => {
+    // Multi-step CSV so we can verify the active step drives the layer set.
+    // Step 1: 1 cell at 1.5mm  (one #4facfe bucket)
+    // Step 2: 1 cell at 1.5mm  (one #4facfe bucket)
+    // Step 3: 1 cell at 12.5mm (one #f6d365 bucket)
+    const multiStepCsv = `Updated Date and Time (in Hong Kong Time),Ending Date and Time (in Hong Kong Time),Latitude (degree),Longitude (degree),Half-hourly Nowcast Accumulated Rainfall (mm)
+202605171600,202605171630,22.3119,114.1728,1.5
+202605171600,202605171700,22.3119,114.1728,1.5
+202605171700,202605171730,22.2478,114.1736,12.5
+`;
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => multiStepCsv,
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    renderWithLanguage(<RainfallMap />);
+    screen.getByRole('button', { name: /Load Map/i }).click();
+
+    // Step 1 (16:30) — only the 1.5 mm cell.
+    await waitFor(() => {
+      expect(screen.getAllByText('16:30').length).toBeGreaterThan(0);
+    });
+    let layers = screen.getAllByTestId('geojson');
+    expect(layers).toHaveLength(1);
+    expect(layers[0].getAttribute('data-stroke-color')).toBe('rgba(79, 172, 254, 1)');
+
+    // Step 3 (17:30) — only the 12.5 mm cell, different bucket.
+    const stepButtons = screen.getAllByRole('button', { name: '17:30' });
+    fireEvent.click(stepButtons[0]);
+
+    await waitFor(() => {
+      layers = screen.getAllByTestId('geojson');
+      expect(layers).toHaveLength(1);
+      expect(layers[0].getAttribute('data-stroke-color')).toBe('rgba(246, 211, 101, 1)');
+    });
+
+    // Step 2 (17:00) — 1.5 mm cell, back to the lighter bucket.
+    const stepButton17 = screen.getAllByRole('button', { name: '17:00' });
+    fireEvent.click(stepButton17[0]);
+    await waitFor(() => {
+      layers = screen.getAllByTestId('geojson');
+      expect(layers).toHaveLength(1);
+      expect(layers[0].getAttribute('data-stroke-color')).toBe('rgba(79, 172, 254, 1)');
+    });
   });
 
   it('handles fetch errors gracefully', async () => {
     const mockFetch = vi.fn().mockRejectedValue(new Error('Network Error'));
-    global.fetch = mockFetch;
+    vi.stubGlobal('fetch', mockFetch);
 
     renderWithLanguage(<RainfallMap />);
 
