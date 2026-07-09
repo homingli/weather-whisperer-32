@@ -33,10 +33,6 @@ export async function searchCities(query: string): Promise<GeoLocation[]> {
   }
 }
 
-// logError is used in searchCities — import it lazily to keep this file focused.
-// Imported here to avoid a forward declaration in the catch block above.
-import { logError } from '../log';
-
 /** Reverse geocode coordinates to a city name via Nominatim */
 export async function reverseGeocode(latitude: number, longitude: number): Promise<GeoLocation | null> {
   if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
@@ -105,7 +101,3 @@ export function getUserLocation(): Promise<{ latitude: number; longitude: number
     );
   });
 }
-
-// logError is used in searchCities — import it lazily to keep this file focused.
-// Imported here to avoid a forward declaration in the catch block above.
-import { logError } from '../log';
