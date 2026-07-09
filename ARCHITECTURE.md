@@ -78,7 +78,7 @@ The orchestrator at `src/lib/weather-manager.ts` is the single point of entry fo
 The project uses **Vitest** with jsdom. Coverage is split across layers (**85 tests**, 8 files):
 - **Unit tests**:
   - `src/lib/weather.test.ts` — Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
-  - `src/lib/hko-weather.test.ts` — 47 tests covering PSR normalization/percentage/umbrella, PSR translation, station/district lookup, bounds checks, HKO icon mapping, and warning display helpers. Two bugs found here: `'Med High'` missing from `RAW_TO_LEVEL` and `LEVEL_TO_VALUE` in `hko-psr.ts`.
+  - `src/lib/hko-weather.test.ts` — 47 tests covering PSR normalization/percentage/umbrella, PSR translation, station/district lookup, bounds checks, HKO icon mapping, and warning display helpers.
   - `src/lib/weather-manager.test.ts` — 13 tests covering all `fetchWeather` orchestration branches: HK/non-HK routing, parallel fetch + merge, HKO fallback, both-fail, progress callbacks, `lang` propagation. One bug found here: `fetchHKOWeatherData` referenced but not imported in `weather-manager.ts`.
 - **Component tests**:
   - `src/components/CurrentWeather.test.tsx` — render with fixture data, umbrella indicator, sun event display.
