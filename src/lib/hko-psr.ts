@@ -30,6 +30,7 @@ const RAW_TO_LEVEL: Record<string, PsrLevel> = {
   Medium: 'Med',
   Med: 'Med',
   'Medium High': 'Med High',
+  'Med High': 'Med High',
   High: 'High',
   // Traditional Chinese
   低: 'Low',
@@ -44,6 +45,7 @@ const LEVEL_TO_VALUE: Record<string, number> = {
   Low: PSR_LEVELS.Low,
   'Med Low': PSR_LEVELS['Med Low'],
   Med: PSR_LEVELS.Med,
+  'Med High': PSR_LEVELS['Med High'],
   'Medium': PSR_LEVELS.Med,
   'Medium Low': PSR_LEVELS['Med Low'],
   'Medium High': PSR_LEVELS['Med High'],
