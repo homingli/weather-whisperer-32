@@ -15,7 +15,7 @@ Weather Whisperer is a modern, responsive weather dashboard built with React and
 - **Routing**: React Router 7
 - **Date/Time Management**: `date-fns` 3
 - **Icons**: Lucide React
-- **PWA**: `vite-plugin-pwa` with custom `NetworkFirst` routing for external APIs.
+- **PWA**: `vite-plugin-pwa` with `NetworkFirst` service worker routing for external APIs.
 
 ## Project Structure
 - `src/components/`: Reusable React components
@@ -70,9 +70,100 @@ The orchestrator at `src/lib/weather-manager.ts` is the single point of entry fo
 - **Resilient Merging**: HKO daily entries are merged onto Open-Meteo's frame; Open-Meteo's sunrise/sunset takes precedence over HKO placeholders.
 - **Fault Tolerance**: If HKO fails, Open-Meteo is returned with `hkoFailed: true` (banner shown in UI). If Open-Meteo fails and HKO succeeds, the gateway falls back to HKO-only data. If both fail, an error propagates to React Query.
 
-### Progressive Fetch (Refetch Cadence)
-- `staleTime` and `refetchInterval` are coupled: 5 minutes under normal conditions, dropped to 1 minute while `weather.hkoFailed || weather.isFallback` is true.
-- Per-source status (`idle | fetching | success | error`) is reported through `loadProgress` and rendered as live badges during the first fetch.
+### Caching & Retry Strategy
+
+#### React Query (In-Memory, Per-Tab)
+Two `useQuery` consumers in `src/hooks/useWeatherWithProgress.ts` and `src/components/RainfallMap.tsx`. No global options on `QueryClient`; relies on defaults.
+
+**Query 1 — `weather-unified`**
+```ts
+useQuery({
+  queryKey: ['weather-unified', language, latitude, longitude],
+  queryFn: () => fetchWeather(lat, lon, lang, onProgress),
+  enabled: latitude !== undefined && longitude !== undefined,
+  refetchInterval: hasFailure ? TIMING.REFETCH_ON_FAILURE_MS : TIMING.REFETCH_INTERVAL_MS,
+  staleTime: hasFailure ? TIMING.REFETCH_ON_FAILURE_MS : TIMING.STALE_TIME_MS,
+  placeholderData: 'keepPreviousData',
+});
+```
+
+**Query key shape:** `[language, lat, lon]` — language + WGS-84 coordinate tuple. Geolocation jitter is mitigated upstream — `selectedCity` only swaps if `|Δlat| > 0.01 || |Δlon| > 0.01` (~1.1 km).
+
+**TTL / staleness matrix:**
+
+| Condition | `staleTime` | `refetchInterval` |
+|---|---|---|
+| Healthy (no flags) | 5 min | 5 min |
+| `weather.hkoFailed \|\| weather.isFallback` | 1 min | 1 min |
+
+`hasFailure` is stored in React state (derived from last successful response), so cadence relaxes back to 5 min on success.
+
+**Query 2 — `hkoGriddedRainfallNowcast`**
+```ts
+useQuery({
+  queryKey: ['hkoGriddedRainfallNowcast'],
+  queryFn: fetchRainfallNowcast,
+  staleTime: 5 * 60_000,
+  refetchInterval: 5 * 60_000,
+  enabled: isLoaded,
+});
+```
+Single global key, shared across all users. Failure-mode shortening not implemented.
+
+#### Retry Mechanism
+No custom retry config. Both queries rely on React Query v5 defaults:
+- `retry: 3` → up to **4 total attempts** (1 initial + 3 retries) per error
+- `retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)` → **exponential backoff: 1s → 2s → 4s**, capped at 30s
+
+Retries are **coarse-grained** — re-runs the entire `queryFn`, including all parallel fetches and fallback logic. No per-leg retry, no circuit breaker, no `retryOnError` predicate.
+
+All non-2xx responses throw and are retried equally. Manual `refetch()` does not reset `failureCount` or `retryDelay`.
+
+#### Service Worker (Persistent, Cross-Session)
+Configured in `vite.config.ts` via `vite-plugin-pwa` with Workbox `NetworkFirst` handler:
+
+```ts
+urlPattern: /^https:\/\/(api\.open-meteo\.com|geocoding-api\.open-meteo\.com|data\.weather\.gov\.hk|nominatim\.openstreetmap\.org)\/.*/i,
+handler: 'NetworkFirst',
+options: {
+  cacheName: 'api-cache',
+  expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 }, // 1 day
+  cacheableResponse: { statuses: [0, 200] }
+}
+```
+
+- **On network:** Fresh data wins (stale-while-revalidate)
+- **On offline:** Last successful response is replayed from CacheStorage
+- Does not survive service worker updates (user must reopen tab)
+
+#### Fallback Chain (Per `fetchWeather` Invocation)
+| Outcome | Result |
+|---|---|
+| Non-HK + OM ok | return OM |
+| Non-HK + OM fail | throw |
+| HK + both ok | merged: `{...om, daily: merged, warnings, nearestStation, nearestDistrict}` |
+| HK + OM ok, HKO error | `{...om, hkoFailed: true}` — banner, shorter TTL |
+| HK + OM fail, HKO ok | second stage: `getHKOCurrentWeather` + `buildHKOWeatherData` |
+| HK + both fail | final HKO-only retry via `fetchHKOWeatherData`; if that also throws → error propagates to React Query |
+
+#### Network Timeouts
+All timeouts defined in `src/lib/constants.ts` (`TIMING` object):
+- Open-Meteo: **6s**
+- HKO: **8s**
+- Nominatim reverse geocode: **4s**
+- Default: **8s**
+
+Timeouts throw → trigger React Query retry. No `Cache-Control` headers set or honored.
+
+#### `localStorage` Persistence
+| Key | Purpose |
+|---|---|
+| `weather-default-city` | Last-selected city for cold-start seed |
+| `weather-recent-cities` | Recent cities (max 3, MRU) for settings menu |
+| `weather-language` | User language preference (`'en' \| 'tc'`) |
+| `theme-mode` | User theme preference (`'light' \| 'dark' \| 'system'`) |
+
+No weather payload is ever written to `localStorage`.
 
 ## Testing Strategy
 The project uses **Vitest** with jsdom. Coverage is split across layers (**85 tests**, 8 files):
@@ -86,12 +177,6 @@ The project uses **Vitest** with jsdom. Coverage is split across layers (**85 te
   - `src/components/RainfallMap.test.tsx` — 3 tests: CSV fetch + bucket color assertions (RGBA stroke/fill), timeline-step transition (`fireEvent.click`), fetch error handling. `vi.stubGlobal('fetch')` with `vi.unstubAllGlobals()` in `beforeEach`.
 - **Integration test**:
   - `src/test/Integration.test.tsx` — composes `CurrentWeather` + `HourlyForecast` with providers and fake timers; validates locale-agnostic time formatting (bounded `/09:00:00\s*PM/` pattern).
-
-## Resilient Offline Capabilities (PWA)
-Progressive Web App support relies on a single layer — **service worker caching** — combined with React Query for API timeouts:
-1. **Service Worker**: `vite.config.ts` registers a `NetworkFirst` workbox handler for external API routes (Open-Meteo, HKO, Nominatim) with a 1-day cache ceiling. When the network is reachable, fresh data wins; on offline, the last successful response is replayed.
-2. **TTL / Refetch**: React Query's `refetchInterval` shortens to 1 minute when `hkoFailed` is detected, so the app self-heals once HKO recovers.
-3. **City Persistence**: `localStorage` stores only the `weather-default-city` and `weather-recent-cities` keys. There is no app-level API payload fallback — manual refresh is exposed via the settings menu, which calls `cache.clearWeather()` before invalidating React Query.
 
 ## State Management & Styling
 - **React Context API** handles user preferences with localStorage persistence (Theme + Language).
