@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 
 interface WeatherAlertsProps {
-  warnings: HKOWarning[];
+  warnings: unknown[];
 }
 
 function getBorderClass(code: string): string {
@@ -29,7 +29,7 @@ export const WeatherAlerts = memo(function WeatherAlerts({ warnings }: WeatherAl
   // Filter out cancelled warnings and sort by issue time (most recent first)
   const activeWarnings = useMemo(() => {
     return (warnings || [])
-      .filter(w => {
+      .filter((w): w is HKOWarning => {
         if (w.actionCode === 'Cancel') return false;
         // Hide warnings whose detail text explicitly says cancelled
         if (w.details?.contents?.some(c => /cancelled|取消/i.test(c))) return false;

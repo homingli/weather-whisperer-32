@@ -1,6 +1,6 @@
 /** HKO data fetching and building functions */
 
-import { CurrentWeather, DailyForecast, HourlyForecast, WeatherData } from './weather';
+import { CurrentWeather, DailyForecast, WeatherData } from './weather';
 import { HKOCurrentWeatherResponse, HKOForecastResponse, HKOWarning, HKOWarningInfoResponse, HKOWarningSummaryResponse } from './hko-types';
 import { findNearestStation, findNearestDistrict } from './hko-stations';
 import { normalizePsr, psrToPercentage } from './hko-psr';
@@ -40,9 +40,8 @@ function parseHkoDate(dateStr: string): Date {
     throw new Error(`Invalid date numbers in HKO date: ${dateStr}`);
   }
 
-  const utcRef = Date.UTC(year, month, dayOfMonth, 12, 0, 0, 0);
-  const hkOffset = 8 * 60 * 60 * 1000;
-  const date = new Date(utcRef - 12 * 60 * 60 * 1000 - hkOffset);
+  // Create date directly in HK timezone by using explicit offset
+  const date = new Date(`${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}T00:00:00+08:00`);
 
   if (isNaN(date.getTime())) {
     throw new Error(`Failed to create valid date from HKO date: ${dateStr}`);
@@ -106,7 +105,7 @@ export async function getHKODailyAndWarnings(
   });
 
   const warningInfoDetails = warningInfoData.details || [];
-  const warnings: HKOWarning[] = Object.entries(warningsData).map(([key, warning]) => {
+  const warnings: HKOWarning[] = Object.entries(warningsData).map(([_key, warning]) => {
     const matchingDetail = warningInfoDetails.find(d =>
       d.warningStatementCode === warning.code ||
       d.subtype === warning.code ||
@@ -179,22 +178,9 @@ export async function buildHKOWeatherData(
     isDay,
   };
 
-  const hourly: HourlyForecast[] = [];
-  const startHour = new Date();
-  startHour.setMinutes(0, 0, 0);
-  for (let i = 0; i < 8; i++) {
-    const hourTime = new Date(startHour.getTime() + i * 60 * 60 * 1000);
-    hourly.push({
-      time: hourTime, temperature, weatherCode,
-      windSpeed: 0, windDirection: 0,
-      precipitationProbability: current.precipitationProbability,
-      precipitation: 0,
-      isDay: hourTime.getHours() >= 6 && hourTime.getHours() < 19,
-    });
-  }
-
+  // HKO does not publish hourly data; return empty array
   return {
-    current, hourly,
+    current, hourly: [],
     daily: dailyAndWarnings.daily,
     warnings: dailyAndWarnings.warnings,
     timezone: 'Asia/Hong_Kong',
