@@ -279,9 +279,12 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hkoGriddedRainfallNowcast'],
     queryFn: async () => {
+      console.log('[nowcast] queryFn start');
       setDownloadProgress(0);
       return await fetchRainfallNowcast((received, total) => {
-        setDownloadProgress(Math.round((received / total) * 100));
+        const pct = Math.round((received / total) * 100);
+        console.log('[nowcast] progress', received, '/', total, '=', pct + '%');
+        setDownloadProgress(pct);
       });
     },
     staleTime: TIMING.STALE_TIME_MS,
@@ -454,7 +457,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
 
         {/* First load: spinner briefly → progress bar during streaming */}
         {isLoading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-sm">
+          <div className="absolute inset-0 z-[1001] flex items-center justify-center bg-background/50 backdrop-blur-sm">
             {downloadProgress !== null ? (
               <div className="w-80 flex flex-col gap-1.5">
                 <div className="flex justify-between text-sm">
