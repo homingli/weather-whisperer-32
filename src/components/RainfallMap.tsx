@@ -131,7 +131,7 @@ const ColorGeoLayer = memo(({ color, data, stepIndex }: {
   prev.stepIndex === next.stepIndex && prev.color === next.color && prev.data === next.data
 );
 
-const parseRainfallCSV = (csvText: string, lastModified: number = Date.now()): NowcastResult => {
+const parseRainfallCSV = (csvText: string): NowcastResult => {
   const lines = csvText.split('\n');
   let updateTime = '';
   let updateTimeFound = false;
@@ -208,7 +208,6 @@ const parseRainfallCSV = (csvText: string, lastModified: number = Date.now()): N
   return {
     timeSteps,
     updateTime,
-    lastModified,
     globalBounds: {
       minLat: globalMinLat - latPad,
       maxLat: globalMaxLat + latPad,
@@ -255,12 +254,12 @@ const fetchRainfallNowcast = async (onProgress?: ProgressCallback): Promise<Nowc
       position += chunk.length;
     }
 
-    return parseRainfallCSV(new TextDecoder().decode(allChunks), lastModified);
+    return { ...parseRainfallCSV(new TextDecoder().decode(allChunks)), lastModified };
   }
 
   // Fallback: no Content-Length or ReadableStream (unlikely — HKO always sends it)
   const csvText = await response.text();
-  return parseRainfallCSV(csvText, lastModified);
+  return { ...parseRainfallCSV(csvText), lastModified };
 };
 
 export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) => {
@@ -288,9 +287,11 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
     refetchInterval: (query) => {
       const lm = query.state.data?.lastModified;
       if (!lm) return TIMING.NOWCAST_REFETCH_INTERVAL_MS;
-      // Align next refetch to HKO's 30-min generation cadence
-      const timeUntilNext = lm + TIMING.NOWCAST_REFETCH_INTERVAL_MS - Date.now();
-      return Math.max(timeUntilNext, 60_000); // floor at 1 min to avoid tight loops
+      // HKO generates every 30 min; add 5-min grace period so the first
+      // post-grace poll is at 35 min, then floors to 5 min.
+      const GRACE_MS = 5 * 60 * 1000;
+      const timeUntilNext = lm + TIMING.NOWCAST_REFETCH_INTERVAL_MS - Date.now() + GRACE_MS;
+      return Math.max(timeUntilNext, GRACE_MS);
     },
     retry: 0,
     enabled: isLoaded,
