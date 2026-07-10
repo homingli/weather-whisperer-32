@@ -3,7 +3,6 @@ import { CurrentWeather } from '@/components/CurrentWeather';
 import { DailyForecast } from '@/components/DailyForecast';
 import { WeatherAlerts } from '@/components/WeatherAlerts';
 import { SettingsMenu } from '@/components/SettingsMenu';
-import { RainfallMap } from '@/components/RainfallMap';
 import { FetchingStatus } from '@/components/FetchingStatus';
 import { WeatherBanners } from '@/components/WeatherBanners';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -29,6 +28,7 @@ import { CloudRain, MapPin, Download } from 'lucide-react';
 
 // Lazy load heavy components
 const HourlyForecast = lazy(() => import('@/components/HourlyForecast').then(module => ({ default: module.HourlyForecast })));
+const RainfallMap = lazy(() => import('@/components/RainfallMap').then(module => ({ default: module.RainfallMap })));
 
 // Placeholder used when weather.current is null during transitions
 // All display values set to PLACEHOLDER_SENTINEL so CurrentWeather shows `-` instead of 0
@@ -272,7 +272,9 @@ const Index = () => {
 
               {/* Bottom Row: Optional Map — only available for the Pearl River Delta region (HK + Guangdong) */}
               {selectedCity && isInRainfallRegion(selectedCity.latitude, selectedCity.longitude) && (
-                <RainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
+                <Suspense fallback={<div className="h-[400px] animate-pulse bg-muted/20 rounded-xl" />}>
+                  <RainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
+                </Suspense>
               )}
             </div>
           ) : null}
