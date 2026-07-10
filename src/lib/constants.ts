@@ -44,4 +44,6 @@ export const TIMING = {
   RAINFALL_AUTOPLAY_MS: 1500,
   /** Gridded rainfall nowcast CSV fetch timeout (10s — 2.7MB file on slow mobile) */
   NOWCAST_TIMEOUT_MS: 10000,
+  /** Gridded rainfall nowcast background refetch interval (matches HKO 30-min generation cadence) */
+  NOWCAST_REFETCH_INTERVAL_MS: 30 * 60 * 1000,
 } as const;

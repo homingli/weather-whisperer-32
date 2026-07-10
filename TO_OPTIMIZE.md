@@ -26,8 +26,8 @@
 
 - [x] 1. Add fetch timeout (10s) to nowcast CSV fetch
 - [x] 2. Disable retry for `hkoGriddedRainfallNowcast` query
-- [ ] 3. Show download progress (deferred — requires streaming + state)
-- [ ] 4. Chunk splitting (deferred)
-- [ ] 5. QueryClient global defaults (deferred)
+- [x] 3. Show download progress — streaming fetch with Content-Length, progress bar during first load, thin bar during background refetch. refetchInterval set to 30min to match HKO cadence.
+- [x] 4. Chunk splitting — lazy-loaded RainfallMap splits Leaflet (165KB) from main bundle (827KB vs 993KB)
+- [x] 5. QueryClient global defaults — `retry: 1`, `staleTime: TIMING.STALE_TIME_MS` on `App.tsx` QueryClient
 - [ ] 6. Web Worker parsing (deferred)
-- [ ] 7. Simplify isLoaded/enabled (deferred)
+- [x] 7. Simplify isLoaded/enabled — removed redundant `isLoaded &&` from spinner condition (`isLoading` already implies query is active)
