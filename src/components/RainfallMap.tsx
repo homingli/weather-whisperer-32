@@ -397,7 +397,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
           </div>
         )}
 
-        {isLoading && isLoaded && (
+        {isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-sm">
             <RefreshCw className="w-8 h-8 animate-spin text-primary" />
           </div>
