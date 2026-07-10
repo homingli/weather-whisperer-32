@@ -5,8 +5,16 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import { TIMING } from "@/lib/constants";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: TIMING.STALE_TIME_MS,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

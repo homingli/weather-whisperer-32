@@ -7,6 +7,7 @@ import { CloudRain, AlertCircle, RefreshCw, Play, Pause, Layers } from 'lucide-r
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { PRD_BOUNDS } from '@/lib/hko-weather';
 import { TIMING } from '@/lib/constants';
+import { fetchWithTimeout } from '@/lib/fetch-utils';
 
 const EMPTY_STEPS: StepData[] = [];
 
@@ -26,6 +27,7 @@ const locationIcon = new L.Icon({
 interface NowcastResult {
   timeSteps: StepData[];
   updateTime: string;
+  lastModified: number;
   globalBounds: {
     minLat: number;
     maxLat: number;
@@ -215,11 +217,49 @@ const parseRainfallCSV = (csvText: string): NowcastResult => {
   };
 };
 
-const fetchRainfallNowcast = async (): Promise<NowcastResult> => {
-  const response = await fetch('/hko-data/F3/Gridded_rainfall_nowcast.csv');
+type ProgressCallback = (received: number, total: number) => void;
+
+const fetchRainfallNowcast = async (onProgress?: ProgressCallback): Promise<NowcastResult> => {
+  const response = await fetchWithTimeout('/hko-data/F3/Gridded_rainfall_nowcast.csv', {
+    timeout: TIMING.NOWCAST_TIMEOUT_MS,
+  });
   if (!response.ok) throw new Error('Failed to fetch gridded rainfall nowcast');
+
+  // Parse last-modified header for adaptive refetch scheduling
+  const lmHeader = response.headers.get('last-modified');
+  const lastModified = lmHeader ? new Date(lmHeader).getTime() : Date.now();
+
+  const contentLength = response.headers.get('content-length');
+  const total = contentLength ? parseInt(contentLength, 10) : 0;
+
+  // Stream with progress tracking when Content-Length and ReadableStream are available
+  if (total > 0 && response.body) {
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      onProgress?.(received, total);
+    }
+
+    // Concatenate all chunks into one typed array
+    const allChunks = new Uint8Array(received);
+    let position = 0;
+    for (const chunk of chunks) {
+      allChunks.set(chunk, position);
+      position += chunk.length;
+    }
+
+    return { ...parseRainfallCSV(new TextDecoder().decode(allChunks)), lastModified };
+  }
+
+  // Fallback: no Content-Length or ReadableStream (unlikely — HKO always sends it)
   const csvText = await response.text();
-  return parseRainfallCSV(csvText);
+  return { ...parseRainfallCSV(csvText), lastModified };
 };
 
 export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) => {
@@ -228,14 +268,32 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   const prevUserLoc = useRef<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [basemap, setBasemap] = useState<Basemap>('positron');
 
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hkoGriddedRainfallNowcast'],
-    queryFn: fetchRainfallNowcast,
+    queryFn: async () => {
+      try {
+        return await fetchRainfallNowcast((received, total) => {
+          setDownloadProgress(Math.round((received / total) * 100));
+        });
+      } finally {
+        setDownloadProgress(null);
+      }
+    },
     staleTime: TIMING.STALE_TIME_MS,
-    refetchInterval: TIMING.REFETCH_INTERVAL_MS,
+    refetchInterval: (query) => {
+      const lm = query.state.data?.lastModified;
+      if (!lm) return TIMING.NOWCAST_REFETCH_INTERVAL_MS;
+      // HKO generates every 30 min; add 5-min grace period so the first
+      // post-grace poll is at 35 min, then floors to 5 min.
+      const GRACE_MS = 5 * 60 * 1000;
+      const timeUntilNext = lm + TIMING.NOWCAST_REFETCH_INTERVAL_MS - Date.now() + GRACE_MS;
+      return Math.max(timeUntilNext, GRACE_MS);
+    },
+    retry: 0,
     enabled: isLoaded,
   });
 
@@ -393,9 +451,35 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
           </div>
         )}
 
-        {isLoading && isLoaded && (
+        {/* First load: spinner briefly → progress bar during streaming */}
+        {isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-sm">
-            <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+            {downloadProgress !== null ? (
+              <div className="w-64 flex flex-col gap-1.5">
+                <div className="flex justify-between text-sm">
+                  <span>{t('nowcast.downloading')}</span>
+                  <span className="tabular-nums">{downloadProgress}%</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${downloadProgress}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+            )}
+          </div>
+        )}
+
+        {/* Background refetch: thin bar at top of map */}
+        {!isLoading && isFetching && downloadProgress !== null && (
+          <div className="absolute top-0 left-0 right-0 z-10 h-1 bg-muted/60">
+            <div
+              className="h-full bg-primary transition-all duration-300 ease-out"
+              style={{ width: `${downloadProgress}%` }}
+            />
           </div>
         )}
 

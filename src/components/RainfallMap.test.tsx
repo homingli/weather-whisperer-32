@@ -56,6 +56,7 @@ describe('RainfallMap Component', () => {
     // Mock the global fetch call
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
+      headers: { get: () => null },
       text: async () => mockCsvData,
     });
     vi.stubGlobal('fetch', mockFetch);
@@ -112,6 +113,7 @@ describe('RainfallMap Component', () => {
 `;
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
+      headers: { get: () => null },
       text: async () => multiStepCsv,
     });
     vi.stubGlobal('fetch', mockFetch);
