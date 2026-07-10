@@ -7,6 +7,7 @@ import { CloudRain, AlertCircle, RefreshCw, Play, Pause, Layers } from 'lucide-r
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { PRD_BOUNDS } from '@/lib/hko-weather';
 import { TIMING } from '@/lib/constants';
+import { fetchWithTimeout } from '@/lib/fetch-utils';
 
 const EMPTY_STEPS: StepData[] = [];
 
@@ -216,7 +217,9 @@ const parseRainfallCSV = (csvText: string): NowcastResult => {
 };
 
 const fetchRainfallNowcast = async (): Promise<NowcastResult> => {
-  const response = await fetch('/hko-data/F3/Gridded_rainfall_nowcast.csv');
+  const response = await fetchWithTimeout('/hko-data/F3/Gridded_rainfall_nowcast.csv', {
+    timeout: TIMING.NOWCAST_TIMEOUT_MS,
+  });
   if (!response.ok) throw new Error('Failed to fetch gridded rainfall nowcast');
   const csvText = await response.text();
   return parseRainfallCSV(csvText);
@@ -236,6 +239,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
     queryFn: fetchRainfallNowcast,
     staleTime: TIMING.STALE_TIME_MS,
     refetchInterval: TIMING.REFETCH_INTERVAL_MS,
+    retry: 0,
     enabled: isLoaded,
   });
 

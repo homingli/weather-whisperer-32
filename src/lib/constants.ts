@@ -42,4 +42,6 @@ export const TIMING = {
   THEME_AUTO_TICK_MS: 5 * 60 * 1000,
   /** Rainfall timeline autoplay step interval */
   RAINFALL_AUTOPLAY_MS: 1500,
+  /** Gridded rainfall nowcast CSV fetch timeout (10s — 2.7MB file on slow mobile) */
+  NOWCAST_TIMEOUT_MS: 10000,
 } as const;
