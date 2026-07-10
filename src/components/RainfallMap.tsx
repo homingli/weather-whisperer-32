@@ -246,6 +246,10 @@ const fetchRainfallNowcast = async (onProgress?: ProgressCallback): Promise<Nowc
       onProgress?.(received, total);
     }
 
+    // Yield to React so it can render the final progress state
+    // before synchronous parsing blocks the main thread.
+    await new Promise(resolve => setTimeout(resolve, 0));
+
     // Concatenate all chunks into one typed array
     const allChunks = new Uint8Array(received);
     let position = 0;
@@ -435,7 +439,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
           <div className="absolute inset-0 z-[1000] flex flex-col items-center justify-center bg-background/85 pointer-events-none">
             <CloudRain className="w-12 h-12 text-primary mb-4 opacity-80" />
             <h3 className="text-xl font-semibold mb-2">{t('nowcast.view')}</h3>
-            <p className="text-muted-foreground mb-6 text-center max-w-sm">
+            <p className="text-muted-foreground mb-6 text-center max-w-lg">
               {t('nowcast.desc')}
             </p>
             <button
@@ -452,7 +456,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         {isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-sm">
             {downloadProgress !== null ? (
-              <div className="w-64 flex flex-col gap-1.5">
+              <div className="w-80 flex flex-col gap-1.5">
                 <div className="flex justify-between text-sm">
                   <span>{t('nowcast.downloading')}</span>
                   <span className="tabular-nums">{downloadProgress}%</span>
