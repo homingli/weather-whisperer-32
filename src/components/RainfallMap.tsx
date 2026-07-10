@@ -275,13 +275,10 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hkoGriddedRainfallNowcast'],
     queryFn: async () => {
-      try {
-        return await fetchRainfallNowcast((received, total) => {
-          setDownloadProgress(Math.round((received / total) * 100));
-        });
-      } finally {
-        setDownloadProgress(null);
-      }
+      setDownloadProgress(0);
+      return await fetchRainfallNowcast((received, total) => {
+        setDownloadProgress(Math.round((received / total) * 100));
+      });
     },
     staleTime: TIMING.STALE_TIME_MS,
     refetchInterval: (query) => {
