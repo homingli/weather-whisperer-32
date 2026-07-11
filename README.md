@@ -6,6 +6,9 @@ A modern, responsive weather application built with React and TypeScript. Featur
 
 - **Dual Weather Sources**: Automatically switches between Hong Kong Observatory (HKO) and Open-Meteo based on location; Open-Meteo is primary, HKO enhances HK areas
 - **Resilient Gateway**: Parallel fetching with per-source status badges; HKO failure degrades gracefully to Open-Meteo without blocking the UI
+- **Fetching Status Screen**: Animated loading overlay with per-source status badges (Open-Meteo / HKO) during initial data fetch; `FetchingStatus` + `StatusBadge` components
+- **Local Clock**: High-frequency (1s) time display extracted into a memoized component for referential stability of the parent card
+- **Warning Change Detector**: Detects when HKO warnings are newly issued or cancelled between polls, with baseline reset on city switches
 - **Consolidated Settings**: Manage location search, current location detection, theme, language, and manual data refresh from a single menu
 - **Multi-Language Support**: English and Traditional Chinese interface
 - **Location Services**: Auto-detect user location or search for any city worldwide with recent cities history (last 3)
@@ -37,7 +40,7 @@ A modern, responsive weather application built with React and TypeScript. Featur
 - **Charts**: Recharts 2
 - **Date Handling**: date-fns 3
 - **PWA**: vite-plugin-pwa with workbox `NetworkFirst`
-- **Testing**: Vitest 2 with Testing Library + jsdom (85 tests, 8 files)
+- **Testing**: Vitest 2 with Testing Library + jsdom (133 tests, 12 files)
 
 ## Project Structure
 
@@ -51,8 +54,12 @@ src/
 │   ├── HourlyForecast.tsx     # 6-hour line chart with day/night bands + sun markers
 │   ├── DailyForecast.tsx      # 7-day forecast with min/max bounds
 │   ├── RainfallMap.tsx        # Leaflet map + HKO gridded nowcast, GeoJSON layers
-│   ├── SettingsMenu.tsx      # Language, theme, location, manual refresh
-│   └── WeatherAlerts.tsx     # HKO warning icons + modal
+│   ├── FetchingStatus.tsx     # Per-source loading screen (Open-Meteo + HKO status badges)
+│   ├── LocalClock.tsx         # Per-second local time display (extracted for perf)
+│   ├── StatusBadge.tsx        # Pill-shaped status indicator (fetching/success/error/waiting)
+│   ├── WeatherBanners.tsx     # Warning banners for fallback mode and HKO failures
+│   ├── SettingsMenu.tsx       # Language, theme, location, manual refresh
+│   └── WeatherAlerts.tsx      # HKO warning icons + modal
 ├── contexts/          # React Context providers
 │   ├── LanguageContext.tsx
 │   └── ThemeContext.tsx
@@ -60,7 +67,8 @@ src/
 │   ├── usePwaInstall.ts
 │   ├── useOnlineStatus.ts    # online/offline boolean
 │   ├── useSelectedCity.ts    # city init, geo-swap, persistence
-│   └── useWeatherWithProgress.ts  # useQuery wrapper with per-source loadProgress
+│   ├── useWeatherWithProgress.ts  # useQuery wrapper with per-source loadProgress
+│   └── useWarningChangeDetector.ts  # Detects HKO warning set changes between polls
 ├── lib/               # API clients, gateway, constants, helpers
 │   ├── weather/               # Open-Meteo sub-modules
 │   │   ├── open-meteo.ts     # API client + WMO code mapping
@@ -68,26 +76,29 @@ src/
 │   │   ├── storage.ts        # Default/recent city persistence
 │   │   ├── codes.ts          # WMO weather-code → description/icon
 │   │   └── types.ts          # GeoLocation, WeatherData, etc.
-│   ├── hko-weather/          # HKO sub-modules
-│   │   ├── hko-bounds.ts      # HK_BOUNDS, PRD_BOUNDS, isInHongKong
-│   │   ├── hko-stations.ts   # Station/district lookups + coordinates
-│   │   ├── hko-translations.ts # Station/district name translation (en↔tc)
-│   │   ├── hko-psr.ts         # PSR ladder + normalize/psrToPercentage/umbrella
-│   │   ├── hko-fetch.ts       # hkoFetch<T> base fetcher + data builders
-│   │   ├── hko-icons.ts       # HKO icon → WMO code, warning colors/icons
-│   │   └── hko-weather.ts     # Barrel re-export
+│   ├── hko-types.ts           # HKO API response interfaces
+│   ├── hko-bounds.ts          # HK_BOUNDS, PRD_BOUNDS, isInHongKong
+│   ├── hko-stations.ts        # Station/district lookups + coordinates
+│   ├── hko-translations.ts    # Station/district name translation (en↔tc)
+│   ├── hko-psr.ts             # PSR ladder + normalize/psrToPercentage/umbrella
+│   ├── hko-fetch.ts           # hkoFetch<T> base fetcher + data builders
+│   ├── hko-icons.ts           # HKO icon → WMO code, warning colors/icons
+│   ├── hko-weather.ts         # Barrel re-export
+│   ├── devWarningSimulator.ts # Dev-only simulated warnings store (useSyncExternalStore)
 │   ├── weather-manager.ts     # Unified gateway (parallel fetch, merge, fallback)
 │   ├── constants.ts           # STORAGE_KEYS and TIMING maps
 │   ├── fetch-utils.ts         # fetchWithTimeout
 │   └── utils.ts               # cn(), formatting helpers
 ├── pages/             # Route components
-│   ├── Index.tsx               # Main dashboard (211 LOC; hooks extracted)
+│   ├── Index.tsx               # Main dashboard (297 LOC)
 │   └── NotFound.tsx            # 404
 ├── test/              # Vitest setup + integration suite
 │   ├── setup.ts
 │   └── Integration.test.tsx
-├── components/*.test.tsx        # Component unit tests (4 files, 15 tests)
-├── lib/*.test.ts                # API/parsing unit tests (3 files, 70 tests)
+├── components/*.test.tsx        # Component unit tests (5 files, 24 tests)
+├── lib/*.test.ts                # API/parsing unit tests (4 files, 84 tests)
+├── contexts/*.test.tsx          # Context tests (2 files, 17 tests)
+├── hooks/*.test.ts              # Hook tests (1 file, 17 tests)
 ├── App.tsx             # Providers, router, error boundary
 └── main.tsx            # Application entry point
 ```
@@ -204,9 +215,10 @@ Real-time weather warnings rendered as compact icons in the top bar; clicking op
 The application persists only minimal city metadata to `localStorage`:
 - `weather-default-city` — the last selected GeoLocation
 - `weather-recent-cities` — up to 3 recent cities (capped)
-- `cache_migrated_v2` — one-shot migration flag
+- `weather-language` — user language preference (`'en' | 'tc'`)
+- `theme-mode` — user theme preference (`'light' | 'dark' | 'system'`)
 
-The `cache` module (`src/lib/cache.ts`) is reserved for manual refresh (force-clearing stale weather keys). TTL caching is handled entirely by React Query's `staleTime` / `refetchInterval`.
+TTL caching is handled entirely by React Query's `staleTime` / `refetchInterval`.
 
 All icon assets (Leaflet markers, 20 HKO warning GIFs) are locally hosted under `public/icons/` — no external CDN dependencies.
 
