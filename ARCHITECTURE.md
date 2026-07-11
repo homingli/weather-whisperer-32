@@ -130,6 +130,7 @@ Weather Whisperer is a modern, responsive weather dashboard built with React and
   - `weather/codes.ts`: WMO weather-code to description/icon mapping
   - `weather/types.ts`: `GeoLocation`, `WeatherData`, `CurrentWeather`, `HourlyForecast`, `DailyForecast` interfaces
   - `hko-weather.ts` (barrel): re-exports from sub-modules
+  - `hko-types.ts`: HKO API response interfaces (`HKOCurrentWeatherResponse`, `HKOForecastResponse`, `HKOWarning`, `HKOWarningSummaryResponse`)
   - `hko-bounds.ts`: `HK_BOUNDS`, `PRD_BOUNDS`, `isInHongKong`, `isInRainfallRegion`
   - `hko-stations.ts`: HKO stations + districts lookups (`findNearestStation`, `findNearestDistrict`, `get*Coordinates`)
   - `hko-translations.ts`: Station/district name translations (en ↔ tc)
@@ -141,12 +142,18 @@ Weather Whisperer is a modern, responsive weather dashboard built with React and
   - `fetch-utils.ts`: Shared `fetchWithTimeout`
   - `utils.ts`: Generic `cn()` and formatting helpers
   - `log.ts`: Conditional `console.*` logger (strips in production)
+  - `devWarningSimulator.ts`: Dev-only simulated warnings store (useSyncExternalStore) — `devAddWarning`, `devRemoveWarning`, `devClearWarnings`, `devResetBaseline`; production returns empty arrays and zero nonce
 - `src/pages/`: Application routing layers
   - `Index.tsx`: Main dashboard layout with grid/flex responsiveness
   - `NotFound.tsx`: 404 handler
 - `src/test/`: Vitest setup
   - `setup.ts`: Global test setup (jest-dom matchers, mocks)
   - `Integration.test.tsx`: Cross-component integration coverage for `CurrentWeather` + `HourlyForecast`
+- `src/contexts/` (tests):
+  - `LanguageContext.test.tsx` — language toggle, localStorage persistence, translation lookup.
+  - `ThemeContext.test.tsx` — light/dark/auto modes, sun-synced auto, localStorage persistence.
+- `src/hooks/` (tests):
+  - `useWarningChangeDetector.test.ts` — diff logic for added/removed warnings, baseline reset on key change, empty state handling.
 - Entry points: `src/main.tsx` (root render) and `src/App.tsx` (providers, router, error boundary)
 
 ## Key Logic Concepts
@@ -254,15 +261,17 @@ Timeouts throw → trigger React Query retry. No `Cache-Control` headers set or 
 No weather payload is ever written to `localStorage`.
 
 ## Testing Strategy
-The project uses **Vitest** with jsdom. Coverage is split across layers (**85 tests**, 8 files):
+The project uses **Vitest** with jsdom. Coverage is split across layers (**133 tests**, 12 files):
 - **Unit tests**:
   - `src/lib/weather.test.ts` — Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
   - `src/lib/hko-weather.test.ts` — 47 tests covering PSR normalization/percentage/umbrella, PSR translation, station/district lookup, bounds checks, HKO icon mapping, and warning display helpers.
   - `src/lib/weather-manager.test.ts` — 13 tests covering all `fetchWeather` orchestration branches: HK/non-HK routing, parallel fetch + merge, HKO fallback, both-fail, progress callbacks, `lang` propagation.
+  - `src/lib/devWarningSimulator.test.ts` — 12 tests covering simulated warnings CRUD, baseline nonce bumping, and dev-only environment isolation.
 - **Component tests**:
   - `src/components/CurrentWeather.test.tsx` — render with fixture data, umbrella indicator, sun event display.
   - `src/components/HourlyForecast.test.tsx` — 6 tests: empty forecast, chartData shape validation (via mock capture), day/night `ReferenceArea` bands, sun-event `ReferenceLine` label capture, timezone propagation. Recharts is mocked because jsdom lacks ResizeObserver.
   - `src/components/RainfallMap.test.tsx` — 3 tests: CSV fetch + bucket color assertions (RGBA stroke/fill), timeline-step transition (`fireEvent.click`), fetch error handling. `vi.stubGlobal('fetch')` with `vi.unstubAllGlobals()` in `beforeEach`.
+  - `src/components/WeatherAlerts.test.tsx` — 10 tests: HKO warning rendering, modal open/close, warning detail display, cancelled warning filtering, TC/rainstorm signal icons.
 - **Integration test**:
   - `src/test/Integration.test.tsx` — composes `CurrentWeather` + `HourlyForecast` with providers and fake timers; validates locale-agnostic time formatting (bounded `/09:00:00\s*PM/` pattern).
 
