@@ -12,9 +12,11 @@ interface CurrentWeatherProps {
   dailyForecast?: DailyForecast;
   locationName?: string;
   timezone?: string;
+  /** Force single-column mobile layout regardless of viewport width */
+  compact?: boolean;
 }
 
-export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone }: CurrentWeatherProps) => {
+export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone, compact = false }: CurrentWeatherProps) => {
   const { language, t } = useLanguage();
 
   // Sentinel check — values from PLACEHOLDER_CURRENT use PLACEHOLDER_SENTINEL to signal "no data yet"
@@ -68,14 +70,23 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
 
   return (
     <div className="glass-card p-8 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-      <div className="flex flex-col md:grid md:grid-cols-[45%_55%] gap-8 items-center md:items-stretch">
+      <div className={compact
+        ? 'flex flex-col gap-8 items-center'
+        : 'flex flex-col md:grid md:grid-cols-[45%_55%] gap-8 items-center md:items-stretch'
+      }>
         
         {/* Left Column: Main Info (Date, Time, Hero Temperature) */}
-        <div className="flex flex-col items-center justify-center text-center md:text-left md:items-start space-y-8 md:border-r md:border-border/50 md:pr-12">
+        <div className={compact
+          ? 'flex flex-col items-center justify-center text-center space-y-8'
+          : 'flex flex-col items-center justify-center text-center md:text-left md:items-start space-y-8 md:border-r md:border-border/50 md:pr-12'
+        }>
           {/* Date and time — LocalClock owns the per-second tick */}
           <LocalClock timezone={timezone} />
 
-          <div className="flex flex-col items-center md:items-start gap-4">
+          <div className={compact
+            ? 'flex flex-col items-center gap-4'
+            : 'flex flex-col items-center md:items-start gap-4'
+          }>
             <div className="flex items-center gap-6">
               {/* Weather icon */}
               <div className="text-5xl sm:text-9xl leading-none select-none" role="img" aria-label={getWeatherDescription(weather.weatherCode)}>
@@ -93,7 +104,10 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
         </div>
 
         {/* Right Column: Detailed Indicators */}
-        <div className="w-full flex flex-col justify-center space-y-8 md:pl-4 md:pr-8">
+        <div className={compact
+          ? 'w-full flex flex-col justify-center space-y-8'
+          : 'w-full flex flex-col justify-center space-y-8 md:pl-4 md:pr-8'
+        }>
           {/* High/Low and Sun Event Row */}
           <div className="grid grid-cols-2 gap-4">
             {/* High/Low */}
@@ -108,9 +122,11 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
                   <span className="text-2xl font-light tabular-nums">{dailyForecast ? fmt(dailyForecast.temperatureMin, '°') : '-'}</span>
                 </div>
               </div>
-              <p className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-wider vertical-text ml-auto">
-                {t('daily.today')}
-              </p>
+              {!compact && (
+                <p className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-wider vertical-text ml-auto">
+                  {t('daily.today')}
+                </p>
+              )}
             </div>
 
             {/* Sun Event */}
@@ -125,14 +141,19 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
               <p className="text-xl font-medium tabular-nums leading-tight">
                 {sunEvent?.time || '--:--'}
               </p>
-              <p className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-wider vertical-text ml-auto">
-                {sunEvent?.type === 'sunset' ? t('daily.sunset') : t('daily.sunrise')}
-              </p>
+              {!compact && (
+                <p className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-wider vertical-text ml-auto">
+                  {sunEvent?.type === 'sunset' ? t('daily.sunset') : t('daily.sunrise')}
+                </p>
+              )}
             </div>
           </div>
 
           {/* Environmental Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className={compact
+            ? 'grid grid-cols-2 gap-4'
+            : 'grid grid-cols-2 md:grid-cols-4 gap-4'
+          }>
             {/* Umbrella */}
             <div className="p-4 rounded-2xl bg-blue-400/5 flex flex-col items-center gap-2 transition-colors">
               {needsUmbrella ? (
