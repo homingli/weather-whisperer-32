@@ -3,6 +3,10 @@
 @import "@fontsource/outfit/500.css";
 @import "@fontsource/outfit/700.css";
 
+/* Swiper carousel for mobile card deck */
+@import "swiper/css";
+@import "swiper/css/pagination";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -104,6 +108,10 @@
 }
 
 @layer base {
+  html, body, #root {
+    height: 100% !important;
+  }
+
   * {
     @apply border-border;
   }
@@ -142,4 +150,44 @@
     writing-mode: vertical-rl;
     text-orientation: mixed;
   }
+}
+
+/* ── Swiper mobile card deck ── */
+.swiper-mobile-deck {
+  @apply w-full overflow-hidden;
+  height: 100% !important;
+}
+
+/* Stretch glass-card children to fill slide height */
+.swiper-mobile-deck .glass-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* RainfallMap: let the map area stretch to fill remaining card height */
+/* The inline h-[400px] serves as desktop fallback; flex: 1 1 0% overrides it in the swiper flex column per flexbox spec */
+.swiper-mobile-deck .rainfall-map-area {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+.swiper-mobile-deck .rainfall-map-area .leaflet-container {
+  height: 100% !important;
+}
+
+.swiper-mobile-deck .swiper-pagination {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0;
+  right: 0;
+}
+
+.swiper-mobile-deck .swiper-pagination-bullet {
+  @apply bg-muted-foreground/40;
+}
+
+.swiper-mobile-deck .swiper-pagination-bullet-active {
+  @apply bg-primary;
 }

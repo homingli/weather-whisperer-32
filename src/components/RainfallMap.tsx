@@ -434,7 +434,8 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         </div>
       )}
 
-      <div className="relative h-[400px] w-full bg-muted/20">
+      {/* h-[400px] = desktop fallback; swiper CSS overrides via .rainfall-map-area: flex: 1 1 0% */}
+      <div className="rainfall-map-area relative h-[400px] w-full bg-muted/20">
         {!isLoaded && (
           <div className="absolute inset-0 z-[1000] flex flex-col items-center justify-center bg-background/85 pointer-events-none">
             <CloudRain className="w-12 h-12 text-primary mb-4 opacity-80" />
