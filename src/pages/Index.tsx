@@ -133,6 +133,18 @@ const Index = () => {
     }
   }, [warningDiff, t]);
 
+  // Mobile detection for conditional rendering (avoids double-mounting both layouts)
+  const [isMobile, setIsMobile] = useState(
+    () => window.matchMedia('(max-width: 1023px)').matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
   // Dev-only: expose the warning simulator to the console for QA.
   // Try __devWarnings.add('TC8') / .remove('TC8') / .reset() / .list().
   useEffect(() => {
@@ -252,8 +264,9 @@ const Index = () => {
             <>
               <WeatherBanners weather={weather} isHKCovered={isHKCovered} />
 
-              {/* ── Mobile: horizontal swipe card deck (< lg) ── */}
-              <div className="lg:hidden flex flex-col flex-1 min-h-0 mt-3 animate-fade-in">
+              {/* ── Mobile: horizontal swipe card deck ── */}
+              {isMobile && (
+              <div className="flex flex-col flex-1 min-h-0 mt-3 animate-fade-in">
                 <Swiper
                   modules={[Pagination]}
                   pagination={{ clickable: true }}
@@ -303,9 +316,11 @@ const Index = () => {
                   <ChevronRight className="h-3 w-3" />
                 </div>
               </div>
+              )}
 
               {/* ── Desktop: original grid layout (lg+) ── */}
-              <div className="hidden lg:block space-y-6 lg:space-y-8 animate-fade-in">
+              {!isMobile && (
+              <div className="space-y-6 lg:space-y-8 animate-fade-in">
                 {/* Top Row: Hero (Full Width) */}
                 <div className="space-y-6">
                   <CurrentWeather
@@ -333,6 +348,7 @@ const Index = () => {
                   </Suspense>
                 )}
               </div>
+              )}
             </>
           ) : null}
         </main>
