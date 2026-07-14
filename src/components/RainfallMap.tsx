@@ -350,7 +350,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
 
   return (
     <div className="glass-card overflow-hidden">
-      <div className="px-6 py-4 border-b border-border/50 flex flex-wrap justify-between items-center gap-4">
+      <div className="px-6 py-4 border-b border-border/50 flex flex-wrap justify-between items-center gap-4 shrink-0">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <CloudRain className="w-5 h-5 text-primary" />
@@ -385,7 +385,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
       </div>
 
       {isLoaded && !isLoading && timeSteps.length > 0 && (
-        <div className="px-6 py-5 bg-background/50 border-b border-border/50 flex flex-col md:flex-row items-center gap-6">
+        <div className="px-6 py-5 bg-background/50 border-b border-border/50 flex flex-col md:flex-row items-center gap-6 shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsPlaying(!isPlaying)}
@@ -434,7 +434,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         </div>
       )}
 
-      <div className="relative h-[400px] w-full bg-muted/20">
+      <div className="rainfall-map-area relative h-[400px] w-full bg-muted/20">
         {!isLoaded && (
           <div className="absolute inset-0 z-[1000] flex flex-col items-center justify-center bg-background/85 pointer-events-none">
             <CloudRain className="w-12 h-12 text-primary mb-4 opacity-80" />

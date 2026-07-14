@@ -1,4 +1,6 @@
 import { useMemo, useCallback, lazy, Suspense, useEffect, useState, useRef } from 'react';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Pagination } from 'swiper/modules';
 import { CurrentWeather } from '@/components/CurrentWeather';
 import { DailyForecast } from '@/components/DailyForecast';
 import { WeatherAlerts } from '@/components/WeatherAlerts';
@@ -24,7 +26,7 @@ import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
 import { toast } from 'sonner';
-import { CloudRain, MapPin, Download } from 'lucide-react';
+import { CloudRain, MapPin, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Lazy load heavy components
 const HourlyForecast = lazy(() => import('@/components/HourlyForecast').then(module => ({ default: module.HourlyForecast })));
@@ -154,10 +156,10 @@ const Index = () => {
     : null;
 
   return (
-    <div className="min-h-screen gradient-sky">
-      <div className="w-full max-w-2xl lg:max-w-5xl xl:max-w-7xl mx-auto px-4 pt-[10px] pb-8 transition-all duration-300">
+    <div className="h-dvh lg:h-auto min-h-screen gradient-sky flex flex-col">
+      <div className="w-full max-w-2xl lg:max-w-5xl xl:max-w-7xl mx-auto px-4 pt-[10px] pb-4 flex flex-col flex-1 min-h-0 transition-all duration-300">
         {/* Top bar: location + settings */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4 shrink-0">
           <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
             {selectedCity && (
               <>
@@ -219,10 +221,10 @@ const Index = () => {
         </div>
 
         {/* Screen reader only header */}
-        <h1 className="sr-only">Weather Forecast</h1>
+        <h1 className="sr-only shrink-0">Weather Forecast</h1>
 
         {/* Main content */}
-        <main className="w-full">
+        <main className="w-full flex-1 flex flex-col min-h-0">
           {isLocating ? (
             <div className="text-center py-20 animate-fade-in">
               <CloudRain className="h-20 w-20 mx-auto mb-4 text-primary" />
@@ -247,41 +249,96 @@ const Index = () => {
               <p className="text-base text-muted-foreground">{t('loading.tryAgain')}</p>
             </div>
           ) : weather ? (
-            <div className="space-y-6 lg:space-y-8 animate-fade-in">
+            <>
               <WeatherBanners weather={weather} isHKCovered={isHKCovered} />
 
-              {/* Top Row: Hero (Full Width) */}
-              <div className="space-y-6">
-                <CurrentWeather
-                  weather={weather.current ?? PLACEHOLDER_CURRENT}
-                  hourlyForecast={weather.hourly || []}
-                  dailyForecast={weather?.daily?.[0]}
-                  locationName={selectedCity?.name}
-                  timezone={weather.timezone}
-                />
+              {/* ── Mobile: horizontal swipe card deck (< lg) ── */}
+              <div className="lg:hidden flex flex-col flex-1 min-h-0 mt-3 animate-fade-in">
+                <Swiper
+                  modules={[Pagination]}
+                  pagination={{ clickable: true }}
+                  spaceBetween={16}
+                  slidesPerView={1}
+                  className="swiper-mobile-deck"
+                >
+                  {/* Slide 1: Current weather */}
+                  <SwiperSlide>
+                    <CurrentWeather
+                      weather={weather.current ?? PLACEHOLDER_CURRENT}
+                      hourlyForecast={weather.hourly || []}
+                      dailyForecast={weather?.daily?.[0]}
+                      locationName={selectedCity?.name}
+                      timezone={weather.timezone}
+                    />
+                  </SwiperSlide>
+
+                  {/* Slide 2: Hourly (top) + 7-day (bottom) split 50/50 */}
+                  <SwiperSlide>
+                    <div className="flex flex-col gap-3 h-full">
+                      <div className="flex-1 min-h-0">
+                        <Suspense fallback={<div className="h-full animate-pulse bg-muted/20 rounded-xl glass-card" />}>
+                          <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} />
+                        </Suspense>
+                      </div>
+                      <div className="flex-1 min-h-0">
+                        <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
+                      </div>
+                    </div>
+                  </SwiperSlide>
+
+                  {/* Slide 3: Rainfall map (PRD only) */}
+                  {selectedCity && isInRainfallRegion(selectedCity.latitude, selectedCity.longitude) && (
+                    <SwiperSlide>
+                      <Suspense fallback={<div className="h-full animate-pulse bg-muted/20 rounded-xl glass-card" />}>
+                        <RainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
+                      </Suspense>
+                    </SwiperSlide>
+                  )}
+                </Swiper>
+
+                {/* Swipe hint */}
+                <div className="flex items-center justify-center gap-3 py-2 text-xs text-muted-foreground/50 shrink-0">
+                  <ChevronLeft className="h-3 w-3" />
+                  <span>Swipe to explore</span>
+                  <ChevronRight className="h-3 w-3" />
+                </div>
               </div>
 
-              {/* Secondary Row: Split Forecasts */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
-                <Suspense fallback={<div className="h-[300px] animate-pulse bg-muted/20 rounded-xl" />}>
-                  <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} />
-                </Suspense>
+              {/* ── Desktop: original grid layout (lg+) ── */}
+              <div className="hidden lg:block space-y-6 lg:space-y-8 animate-fade-in">
+                {/* Top Row: Hero (Full Width) */}
+                <div className="space-y-6">
+                  <CurrentWeather
+                    weather={weather.current ?? PLACEHOLDER_CURRENT}
+                    hourlyForecast={weather.hourly || []}
+                    dailyForecast={weather?.daily?.[0]}
+                    locationName={selectedCity?.name}
+                    timezone={weather.timezone}
+                  />
+                </div>
 
-                <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
+                {/* Secondary Row: Split Forecasts */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
+                  <Suspense fallback={<div className="h-[300px] animate-pulse bg-muted/20 rounded-xl" />}>
+                    <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} />
+                  </Suspense>
+
+                  <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
+                </div>
+
+                {/* Bottom Row: Optional Map — only available for the Pearl River Delta region (HK + Guangdong) */}
+                {selectedCity && isInRainfallRegion(selectedCity.latitude, selectedCity.longitude) && (
+                  <Suspense fallback={<div className="h-[400px] animate-pulse bg-muted/20 rounded-xl" />}>
+                    <RainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
+                  </Suspense>
+                )}
               </div>
-
-              {/* Bottom Row: Optional Map — only available for the Pearl River Delta region (HK + Guangdong) */}
-              {selectedCity && isInRainfallRegion(selectedCity.latitude, selectedCity.longitude) && (
-                <Suspense fallback={<div className="h-[400px] animate-pulse bg-muted/20 rounded-xl" />}>
-                  <RainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
-                </Suspense>
-              )}
-            </div>
+            </>
           ) : null}
         </main>
 
         {/* Footer */}
-        <footer className="text-center mt-12 text-sm text-muted-foreground">
+        <footer className="text-center py-3 shrink-0 text-sm text-muted-foreground">
           <p>
             {isHKCovered
               ? formatString(t('source.poweredByBoth'), t('source.openMeteo'), t('source.hko'))
