@@ -135,11 +135,11 @@ const Index = () => {
 
   // Mobile detection for conditional rendering (avoids double-mounting both layouts)
   const [isMobile, setIsMobile] = useState(
-    () => window.matchMedia('(max-width: 1023px)').matches
+    () => window.matchMedia('(max-width: 1080px)').matches
   );
 
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 1023px)');
+    const mq = window.matchMedia('(max-width: 1080px)');
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
@@ -168,8 +168,10 @@ const Index = () => {
     : null;
 
   return (
-    <div className="h-dvh lg:h-auto min-h-screen gradient-sky flex flex-col">
-      <div className="w-full max-w-2xl lg:max-w-5xl xl:max-w-7xl mx-auto px-4 pt-[10px] pb-4 flex flex-col flex-1 min-h-0 transition-all duration-300">
+    <div className={`min-h-screen gradient-sky flex flex-col${isMobile ? ' h-dvh' : ''}`}>
+      <div className={`w-full mx-auto px-4 pt-[10px] pb-4 flex flex-col flex-1 min-h-0 transition-all duration-300${
+        isMobile ? '' : ' max-w-2xl lg:max-w-5xl xl:max-w-7xl'
+      }`}>
         {/* Top bar: location + settings */}
         <div className="flex items-center justify-between mb-4 shrink-0">
           <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
