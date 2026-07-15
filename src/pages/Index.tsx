@@ -275,6 +275,8 @@ const Index = () => {
                     spaceBetween={16}
                     slidesPerView={1}
                     className="swiper-mobile-deck"
+                    threshold={10}
+                    noSwipingClass="no-swipe"
                   >
                     {/* Slide 1: Current weather */}
                     <SwiperSlide>
