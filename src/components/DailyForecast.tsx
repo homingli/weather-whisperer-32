@@ -129,7 +129,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
           return (
             <div key={row.index} className="flex flex-col items-center gap-1 min-w-0 px-0.5">
               <span
-                className="text-xl leading-none"
+                className="text-4xl leading-none"
                 role="img"
                 aria-label={getWeatherDescription(day.weatherCode)}
               >
