@@ -503,6 +503,8 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         <MapContainer
           center={[22.40, 114.10]}
           zoom={9}
+          minZoom={8}
+          maxZoom={16}
           scrollWheelZoom
           doubleClickZoom
           className="w-full h-full"
