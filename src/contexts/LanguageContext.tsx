@@ -101,7 +101,15 @@ const translations: Record<Language, Record<string, string>> = {
     'data.refreshing': 'Refreshing weather data...',
     'data.refreshed': 'Weather data refreshed',
     'data.refreshFailed': 'Failed to refresh data',
-    
+    'data.usingCached': 'Showing cached data',
+    'data.partialData': 'Showing partial data only with {0}',
+    'data.partialDataNoSource': 'Showing partial data only',
+    'data.partialDataDesc': 'One or more data sources could not be reached. Forecasts and warnings may be incomplete.',
+    'data.offline': 'Currently offline',
+    'data.offlineWithTs': 'Currently offline: showing cached data from {0}',
+    'data.offlineDesc': 'Weather services are unreachable. The display may not reflect current conditions.',
+    'data.refetchLive': 'Refetch live data',
+
     // Weather source
     'source.openMeteo': 'Open-Meteo',
     'source.openMeteoDesc': 'Global weather data',
@@ -229,7 +237,15 @@ const translations: Record<Language, Record<string, string>> = {
     'data.refreshing': '正在刷新天氣資料...',
     'data.refreshed': '天氣資料已刷新',
     'data.refreshFailed': '刷新資料失敗',
-    
+    'data.usingCached': '正在顯示快取資料',
+    'data.partialData': '目前僅顯示 {0} 的部分資料',
+    'data.partialDataNoSource': '目前僅顯示部分資料',
+    'data.partialDataDesc': '部分資料來源未能連線，預報及天氣警告可能不完整。',
+    'data.offline': '目前離線',
+    'data.offlineWithTs': '目前離線：正在顯示 {0} 的快取資料',
+    'data.offlineDesc': '無法連線至天氣服務，顯示的內容可能未能反映最新狀況。',
+    'data.refetchLive': '重新擷取即時資料',
+
     // Weather source
     'source.openMeteo': 'Open-Meteo',
     'source.openMeteoDesc': '全球天氣資料',

@@ -1,14 +1,36 @@
 import { getWeather as getOpenMeteoWeather, WeatherData } from './weather';
 import { isInHongKong, getHKODailyAndWarnings, getHKOCurrentWeather, buildHKOWeatherData, fetchHKOWeatherData } from './hko-weather';
+import { SourceState, SourceId } from './weather/types';
 import { logWarn, logError } from './log';
+import { TIMING } from './constants';
+import { makeCityId, writeLastKnownWeather } from './weather/storage';
 
+/**
+ * Unified weather gateway. Parallel fetches, fallback chain, per-source
+ * freshness tracking. On any successful fetch, persists the result as the
+ * cold-start seed for the next mount (see `writeLastKnownWeather`).
+ *
+ * `fallbackSource` semantics:
+ *   - undefined  : both sources live
+ *   - 'HKO'      : OM unavailable, HKO-only fallback path produced the data
+ *   - 'partial'  : one source live, the other failed
+ *   - 'cache'    : not set here — owned by the hook when query errored but
+ *                  initialData from localStorage is rendered
+ */
 export async function fetchWeather(
   lat: number,
   lon: number,
   lang: 'en' | 'tc' = 'en',
   onProgress?: (service: 'openMeteo' | 'hko', status: 'fetching' | 'success' | 'error') => void
 ): Promise<WeatherData> {
+  const cityId = makeCityId(lat, lon);
   const isHK = isInHongKong(lat, lon);
+  const now = Date.now();
+
+  // Source-specific TTLs. OM's most-volatile slice is current/hourly (5min).
+  // HKO's most-volatile slice is warnings (1min).
+  const omTtl = TIMING.STALE_TIME_MS;
+  const hkoTtl = TIMING.HKO_WARNINGS_TTL_MS;
 
   // Start both fetches in parallel — Open-Meteo primary, HKO secondary
   onProgress?.('openMeteo', 'fetching');
@@ -44,24 +66,63 @@ export async function fetchWeather(
         })(),
   ]);
 
+  const omOk = !!omResult.data;
+  const hkoOk = !!hkoResult.data;
   const omData = omResult.data;
   const hkoErr = hkoResult.error;
 
+  const omSource: SourceState = {
+    ok: omOk,
+    cachedAt: omOk ? now : 0,
+    ttlMs: omTtl,
+    isExpired: !omOk, // cachedAt=0 always > TTL
+  };
+  const hkoSource: SourceState = {
+    ok: hkoOk,
+    cachedAt: hkoOk ? now : 0,
+    ttlMs: hkoTtl,
+    isExpired: !hkoOk,
+  };
+
+  /** Build the sources field for a non-HK or partial result. */
+  function attachOmOnly(data: WeatherData): WeatherData {
+    return { ...data, sources: { om: omSource } };
+  }
+
+  /** Persist the snapshot and return the data unchanged. */
+  function persist(data: WeatherData): WeatherData {
+    writeLastKnownWeather(cityId, lang, data);
+    return data;
+  }
+
   // Non-HK path: Open-Meteo only
   if (!isHK) {
-    if (omData) return omData;
+    if (omData) return persist(attachOmOnly(omData));
     throw new Error('Open-Meteo API failed');
   }
 
   // HK path
-  if (!omData && !hkoResult.data) {
+  if (!omOk && !hkoOk) {
     // Both failed — try HKO-only fallback
     logWarn('Open-Meteo failed. Attempting HKO fallback.');
     onProgress?.('hko', 'fetching');
     try {
       const hkoFallbackData = await fetchHKOWeatherData(lat, lon, lang);
       onProgress?.('hko', 'success');
-      return hkoFallbackData;
+      // HKO-only fallback succeeded; OM still failed.
+      const hkoNow: SourceState = {
+        ok: true,
+        cachedAt: Date.now(),
+        ttlMs: hkoTtl,
+        isExpired: false,
+      };
+      const result: WeatherData = {
+        ...hkoFallbackData,
+        sources: { om: omSource, hko: hkoNow },
+        isFallback: true,
+        fallbackSource: 'HKO',
+      };
+      return persist(result);
     } catch (err) {
       onProgress?.('hko', 'error');
       logError('HKO fallback failed too', err);
@@ -69,14 +130,28 @@ export async function fetchWeather(
     }
   }
 
-  if (!omData && hkoResult.data) {
+  if (!omOk && hkoOk) {
     // Open-Meteo failed, HKO daily succeeded — fetch only HKO current weather,
-    // merge with already-parsed daily data (avoids re-fetching daily/warnings)
+    // merge with already-parsed daily data (avoids re-fetching daily/warnings).
+    // This is the legacy "HKO carries the show" path → fallbackSource: 'HKO'.
     onProgress?.('hko', 'fetching');
     try {
       const hkoCurrent = await getHKOCurrentWeather(lang);
       onProgress?.('hko', 'success');
-      return buildHKOWeatherData(hkoCurrent, hkoResult.data, lat, lon, lang);
+      const merged = await buildHKOWeatherData(hkoCurrent, hkoResult.data!, lat, lon, lang);
+      const hkoNow: SourceState = {
+        ok: true,
+        cachedAt: Date.now(),
+        ttlMs: hkoTtl,
+        isExpired: false,
+      };
+      const result: WeatherData = {
+        ...merged,
+        sources: { om: omSource, hko: hkoNow },
+        isFallback: true,
+        fallbackSource: 'HKO',
+      };
+      return persist(result);
     } catch (err) {
       onProgress?.('hko', 'error');
       logError('HKO fallback failed too', err);
@@ -85,21 +160,42 @@ export async function fetchWeather(
   }
 
   if (hkoErr) {
-    // OM succeeded, HKO failed — return OM with hkoFailed flag
-    return { ...omData, hkoFailed: true };
+    // OM succeeded, HKO failed — return OM with hkoFailed flag. One source
+    // live (OM), one failed (HKO) → fallbackSource: 'partial'.
+    const result: WeatherData = {
+      ...omData!,
+      sources: { om: omSource, hko: hkoSource },
+      isFallback: true,
+      fallbackSource: 'partial',
+      isExpiredCache: hkoSource.isExpired,
+      hkoFailed: true,
+    };
+    return persist(result);
   }
 
-  // Both succeeded — combine
+  // Both succeeded — combine. Open-Meteo wins for current/hourly; HKO wins for
+  // daily (with OM sunrise/sunset preserved) and supplies warnings/station/district.
   const hkoData = hkoResult.data!;
-  return {
-    ...omData,
+  const hkoNow: SourceState = {
+    ok: true,
+    cachedAt: Date.now(),
+    ttlMs: hkoTtl,
+    isExpired: false,
+  };
+  const merged: WeatherData = {
+    ...omData!,
     daily: (hkoData.daily ?? []).filter(Boolean).map((day: any, i: number) => ({
       ...day,
-      sunrise: omData.daily[i]?.sunrise || day.sunrise,
-      sunset: omData.daily[i]?.sunset || day.sunset,
+      sunrise: omData!.daily[i]?.sunrise || day.sunrise,
+      sunset: omData!.daily[i]?.sunset || day.sunset,
     })),
     warnings: hkoData.warnings,
     nearestStation: hkoData.nearestStation,
     nearestDistrict: hkoData.nearestDistrict,
+    sources: { om: omSource, hko: hkoNow },
   };
+  return persist(merged);
 }
+
+// Re-export for downstream consumers that need the type
+export type { SourceState, SourceId };

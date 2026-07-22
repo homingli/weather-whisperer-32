@@ -9,6 +9,16 @@
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
+│         localStorage last-known snapshot (synchronous cold-start seed)       │
+│                                                                             │
+│   Key: 'weather-last-known-v1' (schema-versioned)                          │
+│   Envelope: { v, cityId, lang, fetchedAt, data }                           │
+│   Cleared on city switch; overwritten on every successful fetch.           │
+└───────────────────────────────┬─────────────────────────────────────────────┘
+                                │ initialData (forced stale, refs the in-memory
+                                │ queryKey but reads localStorage synchronously
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
 │                    weather-manager.ts (orchestrator)                         │
 │                                                                             │
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
@@ -16,6 +26,10 @@
 │   │  ├─ false → Open-Meteo only                                         │   │
 │   │  └─ true  → Promise.all([Open-Meteo, HKO]) → merge                 │   │
 │   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│   Populates WeatherData.sources: { om, hko } per-source { ok, cachedAt,    │
+│   ttlMs, isExpired }. Sets fallbackSource ('HKO' | 'partial' | undefined). │
+│   Writes to localStorage on any successful fetch.                          │
 └───────────────────────────────┬─────────────────────────────────────────────┘
                                 │
                 ┌───────────────┴───────────────┐
@@ -28,6 +42,9 @@
 │  • Hourly forecast       │   │  • Current conditions                     │
 │  • Sunrise/sunset        │   │  • Warning signals (warnsum)              │
 │  • WMO weather codes     │   │  • Warning details (warninfo)             │
+│                           │   │                                           │
+│                           │   │  /hko-data/* in dev (Vite proxy) /       │
+│                           │   │  prod (Vercel rewrite) → local origin    │
 └───────────────────────────┘   └───────────────────────────────────────────┘
                 │                               │
                 └───────────────┬───────────────┘
@@ -38,19 +55,27 @@
 │                                                                             │
 │   Query Key: ['weather-unified', language, lat, lon]                        │
 │                                                                             │
-│   ┌──────────────────┐  ┌──────────────────────────────────────────────┐   │
-│   │  Cache (RAM)    │  │  Retry: exponential backoff (1s→2s→4s→30s)   │   │
-│   │  staleTime: 5min │  │  retry: 3 attempts per failure               │   │
-│   │  (1min if HKO↓)  │  │                                              │   │
-│   └──────────────────┘  └──────────────────────────────────────────────┘   │
+│   ┌──────────────────────────────┐  ┌────────────────────────────────────┐ │
+│   │  Per-source TTL via sources  │  │  Retry: 1 (2 total attempts)       │ │
+│   │  OM: 5min (current/hourly)   │  │  exponential backoff: 1s → 2s     │ │
+│   │  HKO: 1min (warnings)        │  │                                    │ │
+│   │  collapses to 1min on failure│  │                                    │ │
+│   └──────────────────────────────┘  └────────────────────────────────────┘ │
+│                                                                             │
+│   Hook augmentation: when query.error && query.data, sets                  │
+│   fallbackSource: 'cache' (data was the cold-start seed).                  │
 └───────────────────────────────┬─────────────────────────────────────────────┘
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                       Service Worker (cross-session)                         │
 │                                                                             │
-│   NetworkFirst: api.open-meteo.com, data.weather.gov.hk, nominatim.osm      │
-│   Cache: 50 entries, 1-day TTL                                            │
+│   NetworkFirst strategy, two cache buckets:                                │
+│   • 'api-cache' — external hosts: api.open-meteo.com, geocoding-api.open-  │
+│     meteo.com, data.weather.gov.hk, nominatim.openstreetmap.org           │
+│   • 'hko-proxy-cache' — local origin /hko-data/* (dev Vite proxy +         │
+│     prod Vercel rewrite), keeping dev and prod offline behavior aligned   │
+│   Cache: 50 entries, 1-day TTL per bucket                                  │
 │                                                                             │
 │   ┌──────────────────┐  ┌──────────────────────────────────────────────┐   │
 │   │ Online: network  │  │  Offline: replay cached response              │   │
@@ -66,27 +91,30 @@
 │   │CurrentWeather│  │HourlyForecast│  │DailyForecast │  │WeatherAlerts │  │
 │   └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘  │
 │                                                                             │
-│   ┌──────────────┐  ┌──────────────┐                                      │
-│   │  RainfallMap │  │  SettingsMenu│                                      │
-│   │  (separate   │  │  (language,  │                                      │
-│   │   query)     │  │   theme,     │                                      │
-│   └──────────────┘  │   city)      │                                      │
-│                     └──────────────┘                                      │
+│   ┌──────────────┐  ┌──────────────┐  ┌───────────────────────────────┐    │
+│   │  RainfallMap │  │  SettingsMenu│  │       WeatherBanners          │    │
+│   │  (separate   │  │  (language,  │  │  'HKO' (legacy, amber)        │    │
+│   │   query)     │  │   theme,     │  │  'partial' (amber, source name) │  │
+│   └──────────────┘  │   city)      │  │  'cache'   (red, timestamp,    │    │
+│                     └──────────────┘  │   refetch button)             │    │
+│                                      └───────────────────────────────┘    │
 └───────────────────────────────┬─────────────────────────────────────────────┘
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        localStorage (user prefs only)                         │
+│                        localStorage (prefs + cold-start seed)                │
 │                                                                             │
-│   weather-language  ·  theme-mode  ·  weather-default-city  ·  weather-recent-cities
+│   weather-language  ·  theme-mode  ·  weather-default-city  ·              │
+│   weather-recent-cities  ·  weather-last-known-v1 (envelope)              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Key caching layers (innermost → outermost):**
-1. **React Query** — 5min TTL, per-tab in-memory. Falls to 1min when HKO fails.
-2. **Service Worker** — NetworkFirst fallback, survives tab close.
-3. **Browser cache** — HTTP-level `Cache-Control` (if any).
-4. **localStorage** — user preferences only; no weather payload stored.
+**Key caching layers (innermost → outermost, read top-down on cold load):**
+1. **localStorage last-known snapshot** — schema-versioned envelope at `weather-last-known-v1`. Read synchronously at mount, used as React Query `initialData` with `initialDataUpdatedAt: 0` so the background fetch fires immediately. Cleared on city switch; overwritten on every successful fetch.
+2. **React Query** — per-tab in-memory. Single source of truth at runtime. `staleTime` and `refetchInterval` collapse to 1 min when any source has failed. Hook augments cached-but-failed data with `fallbackSource: 'cache'`.
+3. **Service Worker** — Workbox `NetworkFirst` for 5 host patterns across two cache buckets, 50 entries / 24h each. Survives tab close; not SW update.
+4. **Browser cache** — HTTP-level `Cache-Control` (if any).
+5. **localStorage user prefs** — language, theme, default city, recent cities.
 
 ## Overview
 Weather Whisperer is a modern, responsive weather dashboard built with React and TypeScript. It leverages a dual-source architecture for data fetching, dynamically switching between the Hong Kong Observatory (HKO) API for granular local data (when in Hong Kong or the Pearl River Delta) and the Open-Meteo API for global coverage.
@@ -167,8 +195,27 @@ The orchestrator at `src/lib/weather-manager.ts` is the single point of entry fo
 
 ### Caching & Retry Strategy
 
+#### Three-Tier Cache (Read Top-Down on Cold Load)
+
+1. **localStorage last-known snapshot** (`weather-last-known-v1`).
+   Schema-versioned envelope: `{ v, cityId, lang, fetchedAt, data }`. Read
+   synchronously at mount; used as React Query `initialData` with
+   `initialDataUpdatedAt: 0` so the background fetch fires immediately.
+   Cleared on city switch; overwritten on every successful fetch.
+
+2. **React Query** (in-memory, per-tab). Single source of truth at runtime.
+   Per-source `sources: { om, hko }` field on every return drives the UI's
+   banner tone (none / amber / red).
+
+3. **Workbox Service Worker** (Cache Storage API, cross-session). Two
+   `NetworkFirst` buckets, both 50 entries / 24h.
+
+The hook augments cached-but-failed data with `fallbackSource: 'cache'`
+when `query.error && query.data`, so the red offline banner can render
+without the orchestrator having to handle that path itself.
+
 #### React Query (In-Memory, Per-Tab)
-Two `useQuery` consumers in `src/hooks/useWeatherWithProgress.ts` and `src/components/RainfallMap.tsx`. No global options on `QueryClient`; relies on defaults.
+Two `useQuery` consumers in `src/hooks/useWeatherWithProgress.ts` and `src/components/RainfallMap.tsx`. Global `QueryClient` default `retry: 1` set in `src/App.tsx`.
 
 **Query 1 — `weather-unified`**
 ```ts
@@ -179,19 +226,26 @@ useQuery({
   refetchInterval: hasFailure ? TIMING.REFETCH_ON_FAILURE_MS : TIMING.REFETCH_INTERVAL_MS,
   staleTime: hasFailure ? TIMING.REFETCH_ON_FAILURE_MS : TIMING.STALE_TIME_MS,
   placeholderData: 'keepPreviousData',
+  initialData: readLastKnownWeather(cityId)?.data,
+  initialDataUpdatedAt: 0,
 });
 ```
 
 **Query key shape:** `[language, lat, lon]` — language + WGS-84 coordinate tuple. Geolocation jitter is mitigated upstream — `selectedCity` only swaps if `|Δlat| > 0.01 || |Δlon| > 0.01` (~1.1 km).
 
-**TTL / staleness matrix:**
+**Per-source TTL matrix** (TTLs are constants on `TIMING` in `src/lib/constants.ts`):
 
-| Condition | `staleTime` | `refetchInterval` |
-|---|---|---|
-| Healthy (no flags) | 5 min | 5 min |
-| `weather.hkoFailed \|\| weather.isFallback` | 1 min | 1 min |
+| Source | Field group | TTL | Rationale |
+|---|---|---|---|
+| OM | current / hourly | `STALE_TIME_MS` (5 min) | OM updates ~hourly; current is the volatile slice |
+| OM | daily | `OM_FORECAST_TTL_MS` (30 min) | Daily forecast changes a few times per day |
+| HKO | warnings / storm signal | `HKO_WARNINGS_TTL_MS` (1 min) | Push-driven, sub-minute user expectation |
+| HKO | 9-day forecast | `HKO_FORECAST_TTL_MS` (30 min) | Matches HKO update cadence |
+| Geocoding / Nominatim | reverse + search | `GEOCODING_TTL_MS` (7 d) | Place names are stable |
+| Nowcast (RainfallMap) | gridded | `NOWCAST_REFETCH_INTERVAL_MS` (30 min) | HKO ~6 min generation cadence; 30 min is comfortable |
 
-`hasFailure` is stored in React state (derived from last successful response), so cadence relaxes back to 5 min on success.
+`hasFailure` is derived from `weather.sources` (`om.ok && hko.ok`) and
+relaxes back to healthy cadence on next success.
 
 **Query 2 — `hkoGriddedRainfallNowcast`**
 ```ts
@@ -205,47 +259,79 @@ useQuery({
 ```
 Single global key, shared across all users. Failure-mode shortening not implemented.
 
+#### Per-Source State
+
+`WeatherData.sources` carries per-source freshness:
+
+```ts
+export type SourceState = {
+  ok: boolean;          // did the most recent fetch attempt for this source succeed?
+  cachedAt: number;     // epoch ms of last successful fetch for this source
+  ttlMs: number;        // source-specific TTL
+  isExpired: boolean;   // Date.now() - cachedAt > ttlMs
+};
+```
+
+`ok: true` always implies `isExpired: false` (the orchestrator overwrites on success). On failure, `cachedAt` is 0 unless the hook backfills from the localStorage snapshot — that enhancement is intentionally not implemented in the orchestrator to keep its surface small.
+
+**Known corner case (accepted).** The red offline banner in `WeatherBanners.tsx` shows a timestamp via `mostRecentCachedAt(weather)`, which returns the max of `om.cachedAt` and `hko.cachedAt` (filtering 0s). When the rendered payload comes from a `localStorage` snapshot whose previous fetch was itself a partial (e.g. OM ok / HKO failed at snapshot time), `snapshot.sources.hko.cachedAt = 0` and the banner falls back to OM's timestamp — the time of the last successful OM fetch, not the time the partial payload was assembled. This is mildly misleading ("cached from <OM fetch time>" when only OM was ever cached) but harmless: the red banner only renders when both APIs are down, and the working-source timestamp is at least an honest upper bound on staleness. Fixing this would require either the orchestrator backfilling from the snapshot (5-line change in `weather-manager.ts`) or storing a separate `snapshotAssembledAt` timestamp on the envelope.
+
+`fallbackSource` values:
+- `undefined` — both sources live
+- `'HKO'` — OM unavailable, HKO-only fallback path produced the data (legacy banner)
+- `'partial'` — one source live, the other failed (amber banner names the working one)
+- `'cache'` — set by the hook, not the orchestrator, when `query.error && query.data`
+
 #### Retry Mechanism
-No custom retry config. Both queries rely on React Query v5 defaults:
-- `retry: 3` → up to **4 total attempts** (1 initial + 3 retries) per error
-- `retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)` → **exponential backoff: 1s → 2s → 4s**, capped at 30s
+- Global default `retry: 1` in `src/App.tsx` → **2 total attempts** (1 initial + 1 retry) per error
+- `retryDelay`: React Query v5 default `(attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)` → exponential backoff: 1s → 2s → 4s, capped at 30s
+- RainfallMap explicitly sets `retry: 0` (nowcast has its own cadence; retrying immediately is wasteful)
 
 Retries are **coarse-grained** — re-runs the entire `queryFn`, including all parallel fetches and fallback logic. No per-leg retry, no circuit breaker, no `retryOnError` predicate.
 
-All non-2xx responses throw and are retried equally. Manual `refetch()` does not reset `failureCount` or `retryDelay`.
+All non-2xx responses throw and are retried equally. Manual `refetch()` does not reset `failureCount` or `retryDelay`. On full failure the React Query retry kicks in; the localStorage snapshot keeps the UI populated so the user sees the red offline banner instead of an error message.
 
 #### Service Worker (Persistent, Cross-Session)
-Configured in `vite.config.ts` via `vite-plugin-pwa` with Workbox `NetworkFirst` handler:
+Configured in `vite.config.ts` via `vite-plugin-pwa` with Workbox `NetworkFirst`:
 
 ```ts
-urlPattern: /^https:\/\/(api\.open-meteo\.com|geocoding-api\.open-meteo\.com|data\.weather\.gov\.hk|nominatim\.openstreetmap\.org)\/.*/i,
-handler: 'NetworkFirst',
-options: {
-  cacheName: 'api-cache',
-  expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 }, // 1 day
-  cacheableResponse: { statuses: [0, 200] }
-}
+runtimeCaching: [
+  {
+    urlPattern: /^https:\/\/(api\.open-meteo\.com|geocoding-api\.open-meteo\.com|data\.weather\.gov\.hk|nominatim\.openstreetmap\.org)\/.*/i,
+    handler: 'NetworkFirst',
+    options: { cacheName: 'api-cache', expiration: { maxEntries: 50, maxAgeSeconds: 86400 }, cacheableResponse: { statuses: [0, 200] } }
+  },
+  {
+    urlPattern: /\/hko-data\/.*/i,
+    handler: 'NetworkFirst',
+    options: { cacheName: 'hko-proxy-cache', expiration: { maxEntries: 50, maxAgeSeconds: 86400 }, cacheableResponse: { statuses: [0, 200] } }
+  },
+]
 ```
+
+The `/hko-data/*` bucket is critical for dev/prod parity: in dev the request is rewritten by the Vite proxy, and in prod by a Vercel rewrite — the browser-visible URL is the local origin in both cases, not `data.weather.gov.hk`. Without this second bucket, HKO proxy responses wouldn't be cached offline.
 
 - **On network:** Fresh data wins (stale-while-revalidate)
 - **On offline:** Last successful response is replayed from CacheStorage
 - Does not survive service worker updates (user must reopen tab)
 
 #### Fallback Chain (Per `fetchWeather` Invocation)
-| Outcome | Result |
-|---|---|
-| Non-HK + OM ok | return OM |
-| Non-HK + OM fail | throw |
-| HK + both ok | merged: `{...om, daily: merged, warnings, nearestStation, nearestDistrict}` |
-| HK + OM ok, HKO error | `{...om, hkoFailed: true}` — banner, shorter TTL |
-| HK + OM fail, HKO ok | second stage: `getHKOCurrentWeather` + `buildHKOWeatherData` |
-| HK + both fail | final HKO-only retry via `fetchHKOWeatherData`; if that also throws → error propagates to React Query |
+| Outcome | Result | `fallbackSource` |
+|---|---|---|
+| Non-HK + OM ok | return OM (with `sources.om`) | — |
+| Non-HK + OM fail | throw | — |
+| HK + both ok | merged: `{...om, daily: merged, warnings, nearestStation, nearestDistrict}` (with `sources: { om, hko }`) | — |
+| HK + OM ok, HKO error | `{...om, sources, hkoFailed: true}` — amber banner, faster TTL | `'partial'` |
+| HK + OM fail, HKO ok (daily + current) | merged via `buildHKOWeatherData`; legacy HKO banner | `'HKO'` |
+| HK + both fail → HKO-only fallback via `fetchHKOWeatherData` succeeds | HKO-only result with `sources.om.ok: false`, `sources.hko.ok: true` | `'HKO'` |
+| HK + both fail → fallback also fails | error propagates to React Query (which uses the localStorage snapshot if available) | — |
 
 #### Network Timeouts
 All timeouts defined in `src/lib/constants.ts` (`TIMING` object):
 - Open-Meteo: **6s**
 - HKO: **8s**
 - Nominatim reverse geocode: **4s**
+- Nowcast CSV: **10s**
 - Default: **8s**
 
 Timeouts throw → trigger React Query retry. No `Cache-Control` headers set or honored.
@@ -256,9 +342,10 @@ Timeouts throw → trigger React Query retry. No `Cache-Control` headers set or 
 | `weather-default-city` | Last-selected city for cold-start seed |
 | `weather-recent-cities` | Recent cities (max 3, MRU) for settings menu |
 | `weather-language` | User language preference (`'en' \| 'tc'`) |
-| `theme-mode` | User theme preference (`'light' \| 'dark' \| 'system'`) |
+| `theme-mode` | User theme preference (`'light' \| 'dark' \| 'auto'`) |
+| `weather-last-known-v1` | Schema-versioned envelope of the last successful weather fetch — cold-start seed for instant first paint |
 
-No weather payload is ever written to `localStorage`.
+`weather-last-known-v1` is the new persistence layer. It is read synchronously on mount, cleared on city switch, and overwritten on every successful `fetchWeather` call. The envelope's `cityId` (rounded to 2 decimal places of lat/lon) prevents cross-city paint. Schema version mismatch or parse error causes a silent drop rather than a crash.
 
 ## Testing Strategy
 The project uses **Vitest** with jsdom. Coverage is split across layers (**133 tests**, 12 files):
