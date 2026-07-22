@@ -7,7 +7,6 @@ import { WeatherAlerts } from '@/components/WeatherAlerts';
 import { SettingsMenu } from '@/components/SettingsMenu';
 import { FetchingStatus } from '@/components/FetchingStatus';
 import { WeatherBanners } from '@/components/WeatherBanners';
-import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
 import { useWarningChangeDetector } from '@/hooks/useWarningChangeDetector';
@@ -50,7 +49,6 @@ const PLACEHOLDER_CURRENT = {
 const Index = () => {
   const { language, t } = useLanguage();
   const { setSunTimes } = useTheme();
-  const isOffline = useOnlineStatus();
   const { selectedCity, recentCities, isLocating, handleCitySelect } = useSelectedCity();
   const { data: weather, isLoading, error, refetch, isFetching, loadProgress } = useWeatherWithProgress(
     selectedCity?.latitude,
@@ -162,10 +160,9 @@ const Index = () => {
     };
   }, []);
 
-  // Freshness indicator: only show when using cached/stale data
-  const cacheLabel = isOffline && !isLoading && weather
-    ? t('data.usingCached')
-    : null;
+  // Freshness banner moved into <WeatherBanners>; the hook augments the
+  // cached data with `fallbackSource: 'cache'` when the background fetch
+  // fails, so we no longer need a separate top-bar label here.
 
   return (
     <div className={`min-h-screen gradient-sky flex flex-col${isMobile ? ' h-dvh' : ''}`}>
@@ -197,11 +194,6 @@ const Index = () => {
                   )}
                 </div>
               </>
-            )}
-            {cacheLabel && (
-              <div className="ml-2 text-sm text-muted-foreground" aria-label="data-freshness">
-                {cacheLabel}
-              </div>
             )}
             {isFetching && weather && !isLoading && (
               <div className="ml-2 flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="refreshing-data">
@@ -264,7 +256,12 @@ const Index = () => {
             </div>
           ) : weather ? (
             <>
-              <WeatherBanners weather={weather} isHKCovered={isHKCovered} />
+              <WeatherBanners
+                weather={weather}
+                isHKCovered={isHKCovered}
+                onRefetch={handleForceRefresh}
+                isRefetching={isFetching}
+              />
 
               {/* ── Mobile: horizontal swipe card deck ── */}
               {isMobile && (
