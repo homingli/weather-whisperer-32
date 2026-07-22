@@ -67,6 +67,24 @@ export default defineConfig(({ mode }) => ({
               }
             },
           },
+          // HKO data is proxied via the local origin in dev (Vite proxy) and
+          // via Vercel rewrites in prod, so the browser-visible URL is the
+          // local origin. A separate cache entry keeps dev/prod offline
+          // behavior aligned.
+          {
+            urlPattern: /\/hko-data\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'hko-proxy-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24, // 1 day
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            },
+          },
         ],
       },
     }),

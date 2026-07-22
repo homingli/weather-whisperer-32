@@ -118,7 +118,14 @@ describe('fetchWeather orchestration', () => {
 
       const result = await fetchWeather(NON_HK_LAT, NON_HK_LON);
 
-      expect(result).toBe(omData);
+      // Orchestrator now attaches `sources` to every return, so the result
+      // is a new object. Verify the OM data is preserved and the sources
+      // field is populated correctly.
+      expect(result.current).toBe(omData.current);
+      expect(result.hourly).toBe(omData.hourly);
+      expect(result.daily).toBe(omData.daily);
+      expect(result.sources?.om?.ok).toBe(true);
+      expect(result.sources?.hko).toBeUndefined();
       expect(mockGetHKODaily).not.toHaveBeenCalled();
       expect(mockGetHKOCurrent).not.toHaveBeenCalled();
     });
@@ -297,7 +304,13 @@ describe('fetchWeather orchestration', () => {
       const result = await fetchWeather(HK_LAT, HK_LON);
 
       expect(mockFetchHKO).toHaveBeenCalledWith(HK_LAT, HK_LON, 'en');
-      expect(result).toBe(hkoFallback);
+      // The orchestrator wraps the fallback with `sources` metadata, so the
+      // returned object is a fresh spread — verify the fields are preserved.
+      expect(result.current).toBe(hkoFallback.current);
+      expect(result.isFallback).toBe(true);
+      expect(result.fallbackSource).toBe('HKO');
+      expect(result.sources?.om?.ok).toBe(false);
+      expect(result.sources?.hko?.ok).toBe(true);
     });
 
     it('throws when OM fails for a non-HK coordinate (no HKO fallback)', async () => {

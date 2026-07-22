@@ -16,7 +16,12 @@ export const STORAGE_KEYS = {
   THEME_MODE: 'theme-mode',
   DEFAULT_CITY: 'weather-default-city',
   RECENT_CITIES: 'weather-recent-cities',
+  /** Last-known weather snapshot for cold-start first paint. Schema-versioned. */
+  LAST_KNOWN: 'weather-last-known-v1',
 } as const;
+
+/** Bump when the LastKnownEnvelope shape changes; readers drop on mismatch. */
+export const LAST_KNOWN_SCHEMA_VERSION = 1 as const;
 
 // ---------------------------------------------------------------------------
 // Timing constants (milliseconds)
@@ -46,4 +51,6 @@ export const TIMING = {
   NOWCAST_TIMEOUT_MS: 10000,
   /** Gridded rainfall nowcast background refetch interval (matches HKO 30-min generation cadence) */
   NOWCAST_REFETCH_INTERVAL_MS: 30 * 60 * 1000,
+  /** HKO warnings / storm signal TTL — push-driven, sub-minute user expectation. Used as the SourceState.ttlMs for HKO since warnings are the most volatile HKO slice in a unified fetch. */
+  HKO_WARNINGS_TTL_MS: 60 * 1000,
 } as const;

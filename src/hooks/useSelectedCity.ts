@@ -7,6 +7,7 @@ import {
   reverseGeocode,
   setDefaultCity,
 } from '@/lib/weather';
+import { clearLastKnownWeather } from '@/lib/weather/storage';
 
 /**
  * Manages the user's selected city.
@@ -25,7 +26,10 @@ export function useSelectedCity() {
   const [recentCities, setRecentCities] = useState<GeoLocation[]>([]);
 
   // Wrapped setter — any caller path (internal init or external) persists.
+  // Clears the cold-start weather snapshot so the new city never briefly
+  // paints stale data from the previous one.
   const persistAndSetCity = useCallback((city: GeoLocation) => {
+    clearLastKnownWeather();
     setSelectedCity(city);
     setDefaultCity(city);
     setRecentCities(getRecentCities());
