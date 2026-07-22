@@ -2,6 +2,7 @@
 
 import { GeoLocation, WeatherData } from './types';
 import { LAST_KNOWN_SCHEMA_VERSION, STORAGE_KEYS } from '../constants';
+import { logWarn } from '../log';
 
 const MAX_RECENT_CITIES = 3;
 
@@ -38,12 +39,22 @@ export function readLastKnownWeather(currentCityId: string): LastKnownEnvelope |
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as LastKnownEnvelope;
-    if (!parsed || parsed.v !== LAST_KNOWN_SCHEMA_VERSION) return null;
+    if (!parsed || parsed.v !== LAST_KNOWN_SCHEMA_VERSION) {
+      logWarn(`[storage] dropped last-known snapshot: version mismatch (got ${parsed?.v ?? 'missing'})`);
+      return null;
+    }
     if (parsed.cityId !== currentCityId) return null;
-    if (typeof parsed.fetchedAt !== 'number') return null;
-    if (!parsed.data || typeof parsed.data !== 'object') return null;
+    if (typeof parsed.fetchedAt !== 'number') {
+      logWarn('[storage] dropped last-known snapshot: fetchedAt missing or wrong type');
+      return null;
+    }
+    if (!parsed.data || typeof parsed.data !== 'object') {
+      logWarn('[storage] dropped last-known snapshot: data field missing or wrong type');
+      return null;
+    }
     return parsed;
-  } catch {
+  } catch (err) {
+    logWarn('[storage] dropped last-known snapshot: JSON parse error', err);
     return null;
   }
 }
