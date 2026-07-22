@@ -24,8 +24,9 @@ A modern, responsive weather application built with React and TypeScript. Featur
 - **Data-Driven Map Zoom**: Rainfall map auto-fits viewport to actual data extent; default fallback is `PRD_BOUNDS` from `hko-weather.ts`
 - **Per-Source Loading Indicators**: Live status badges for Open-Meteo and HKO fetch states (fetching / success / error)
 - **Responsive Design**: Optimized for mobile, tablet, and desktop devices
-- **Adaptive Cache Cadence**: React Query refetches every 5 minutes under normal conditions, drops to 1 minute during HKO failures so the app self-heals once HKO recovers
-- **PWA**: Service worker uses a NetworkFirst policy so the last successful API response is replayed when offline
+- **Adaptive Cache Cadence**: React Query refetches every 5 minutes under normal conditions, drops to 1 minute when any source has failed so the app self-heals once the source recovers
+- **Three-Tier Offline Support**: A `localStorage` last-known snapshot seeds instant first paint; React Query handles in-memory freshness; the Workbox service worker replays the last successful API response when fully offline. Amber banners indicate partial data (one source missing); red banners indicate cached data only, with a refetch button.
+- **PWA**: Service worker uses a NetworkFirst policy with two cache buckets (`api-cache` for direct API hosts, `hko-proxy-cache` for the dev Vite proxy / prod Vercel rewrite) so dev and prod offline behavior match
 
 ## Technology Stack
 
@@ -189,7 +190,7 @@ The consolidated hamburger menu provides access to:
 - **Current Location**: One-tap detection of the user's current position
 - **Theme Toggle**: Switch between Light, Dark, and Auto (sun-synced) modes
 - **Language Toggle**: Switch between English and Traditional Chinese
-- **Manual Data Refresh**: Force-clear local caches and fetch fresh weather data on-demand
+- **Manual Data Refresh**: Fetch fresh data from source on-demand; falls back to the last cached snapshot if the source is unreachable
 
 ### Weather Alerts
 Real-time weather warnings rendered as compact icons in the top bar; clicking opens a modal with the full safety text. Coverage:
@@ -212,13 +213,18 @@ Real-time weather warnings rendered as compact icons in the top bar; clicking op
 
 ## Local Storage
 
-The application persists only minimal city metadata to `localStorage`:
+The application persists the following to `localStorage`:
 - `weather-default-city` — the last selected GeoLocation
-- `weather-recent-cities` — up to 3 recent cities (capped)
+- `weather-recent-cities` — up to 3 recent cities (capped, MRU)
 - `weather-language` — user language preference (`'en' | 'tc'`)
-- `theme-mode` — user theme preference (`'light' | 'dark' | 'system'`)
+- `theme-mode` — user theme preference (`'light' | 'dark' | 'auto'`)
+- `weather-last-known-v1` — schema-versioned envelope of the last successful weather fetch. Read synchronously at mount as the cold-start seed for instant first paint; cleared on city switch; overwritten on every successful fetch.
 
-TTL caching is handled entirely by React Query's `staleTime` / `refetchInterval`.
+Cache strategy is a three-tier design:
+
+1. **`localStorage` last-known snapshot** — synchronous read at mount, schema-versioned, cleared on city switch
+2. **React Query** — per-tab in-memory, single source of truth at runtime. Per-source TTLs (OM 5min current, OM 30min daily, HKO 1min warnings, geocoding 7d) collapse to 1 min when any source has failed
+3. **Workbox Service Worker** — cross-session `NetworkFirst` cache, 50 entries / 24h per bucket, replayed when fully offline
 
 All icon assets (Leaflet markers, 20 HKO warning GIFs) are locally hosted under `public/icons/` — no external CDN dependencies.
 
@@ -231,8 +237,8 @@ All icon assets (Leaflet markers, 20 HKO warning GIFs) are locally hosted under 
 
 ## Performance
 
-- Automatic data refetch every 5 minutes (falls back to 1 minute during HKO failures)
-- Single-cache strategy: React Query handles TTL/dedup; PWA service worker handles offline replay
+- Automatic data refetch every 5 minutes (falls back to 1 minute when any source has failed)
+- Three-tier cache: `localStorage` last-known snapshot for cold-start paint, React Query for in-memory freshness with per-source TTLs, Workbox for cross-session offline replay
 - Optimized animations with Tailwind CSS
 - Lazy-loaded heavy modules (`HourlyForecast`, `RainfallMap` via `React.lazy` + `Suspense`)
 - Production-optimized build with Vite

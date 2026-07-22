@@ -97,12 +97,37 @@ export interface WeatherData {
   nearestStation?: string;
   /** Nearest district name */
   nearestDistrict?: string;
-  /** Whether this data is from HKO fallback */
+  /** Whether this data is from any fallback path (live or cached) */
   isFallback?: boolean;
-  /** Fallback source ('HKO' | 'cache') */
-  fallbackSource?: 'HKO' | 'cache';
-  /** Whether cached data has expired */
+  /**
+   * Fallback source. Only meaningful when `isFallback` is true.
+   * - 'HKO'     — legacy: OM unavailable, HKO carries the show (HK path)
+   * - 'cache'   — both sources unavailable; payload comes from localStorage
+   * - 'partial' — one source live, the other missing or expired
+   */
+  fallbackSource?: 'HKO' | 'cache' | 'partial';
+  /** True iff every available source has passed its TTL */
   isExpiredCache?: boolean;
-  /** Whether HKO fetch failed */
+  /** Whether HKO fetch failed (kept for backward compatibility) */
   hkoFailed?: boolean;
+  /**
+   * Per-source freshness state. Present on every return from `fetchWeather`
+   * so the UI can render the right banner tone (none / amber / red).
+   */
+  sources?: Partial<Record<SourceId, SourceState>>;
 }
+
+/** Identifier for a weather data source */
+export type SourceId = 'om' | 'hko';
+
+/** Per-source freshness snapshot embedded in `WeatherData.sources` */
+export type SourceState = {
+  /** Did the most recent fetch attempt for this source succeed? */
+  ok: boolean;
+  /** Epoch ms of the last successful fetch for this source */
+  cachedAt: number;
+  /** Source-specific TTL in ms */
+  ttlMs: number;
+  /** True if `Date.now() - cachedAt > ttlMs`. Always false when `ok` is true. */
+  isExpired: boolean;
+};
