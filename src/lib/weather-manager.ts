@@ -134,11 +134,12 @@ export async function fetchWeather(
     // Open-Meteo failed, HKO daily succeeded — fetch only HKO current weather,
     // merge with already-parsed daily data (avoids re-fetching daily/warnings).
     // This is the legacy "HKO carries the show" path → fallbackSource: 'HKO'.
+    const hkoDailyData = hkoResult.data!;
     onProgress?.('hko', 'fetching');
     try {
       const hkoCurrent = await getHKOCurrentWeather(lang);
       onProgress?.('hko', 'success');
-      const merged = await buildHKOWeatherData(hkoCurrent, hkoResult.data!, lat, lon, lang);
+      const merged = await buildHKOWeatherData(hkoCurrent, hkoDailyData, lat, lon, lang);
       const hkoNow: SourceState = {
         ok: true,
         cachedAt: Date.now(),
@@ -162,6 +163,9 @@ export async function fetchWeather(
   if (hkoErr) {
     // OM succeeded, HKO failed — return OM with hkoFailed flag. One source
     // live (OM), one failed (HKO) → fallbackSource: 'partial'.
+    // isExpiredCache here reflects only the cached (HKO) source's expiry
+    // — OM is live and contributes no TTL-bounded data, so checking only
+    // the cached side is the correct semantic.
     const result: WeatherData = {
       ...omData!,
       sources: { om: omSource, hko: hkoSource },

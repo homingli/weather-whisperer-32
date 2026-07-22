@@ -233,16 +233,15 @@ useQuery({
 
 **Query key shape:** `[language, lat, lon]` — language + WGS-84 coordinate tuple. Geolocation jitter is mitigated upstream — `selectedCity` only swaps if `|Δlat| > 0.01 || |Δlon| > 0.01` (~1.1 km).
 
-**Per-source TTL matrix** (TTLs are constants on `TIMING` in `src/lib/constants.ts`):
+**Per-source TTL matrix.** Only the most-volatile slice for each source is enforced today, because `fetchWeather` returns a unified `WeatherData` blob per source — per-field TTLs would require splitting the orchestrator into per-source-call paths, which is out of scope. Constants on `TIMING` in `src/lib/constants.ts`:
 
-| Source | Field group | TTL | Rationale |
-|---|---|---|---|
-| OM | current / hourly | `STALE_TIME_MS` (5 min) | OM updates ~hourly; current is the volatile slice |
-| OM | daily | `OM_FORECAST_TTL_MS` (30 min) | Daily forecast changes a few times per day |
-| HKO | warnings / storm signal | `HKO_WARNINGS_TTL_MS` (1 min) | Push-driven, sub-minute user expectation |
-| HKO | 9-day forecast | `HKO_FORECAST_TTL_MS` (30 min) | Matches HKO update cadence |
-| Geocoding / Nominatim | reverse + search | `GEOCODING_TTL_MS` (7 d) | Place names are stable |
-| Nowcast (RainfallMap) | gridded | `NOWCAST_REFETCH_INTERVAL_MS` (30 min) | HKO ~6 min generation cadence; 30 min is comfortable |
+| Source | Effective TTL | Rationale |
+|---|---|---|
+| OM | `STALE_TIME_MS` (5 min) | OM current/hourly is the volatile slice (OM updates ~hourly) |
+| HKO | `HKO_WARNINGS_TTL_MS` (1 min) | Warnings are the volatile slice (push-driven, sub-minute expectation) |
+| Nowcast (RainfallMap) | `NOWCAST_REFETCH_INTERVAL_MS` (30 min) | HKO ~6 min generation cadence; 30 min is comfortable |
+
+Geocoding and Nominatim reverse geocode are direct fetches today (not React Query queries), so they have no app-level TTL — the Workbox `api-cache` bucket covers offline replay for them.
 
 `hasFailure` is derived from `weather.sources` (`om.ok && hko.ok`) and
 relaxes back to healthy cadence on next success.

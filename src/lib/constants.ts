@@ -51,20 +51,6 @@ export const TIMING = {
   NOWCAST_TIMEOUT_MS: 10000,
   /** Gridded rainfall nowcast background refetch interval (matches HKO 30-min generation cadence) */
   NOWCAST_REFETCH_INTERVAL_MS: 30 * 60 * 1000,
-  /** Open-Meteo daily forecast staleTime — daily fields change a few times per day at most */
-  OM_FORECAST_TTL_MS: 30 * 60 * 1000,
-  /** Open-Meteo daily forecast refetchInterval */
-  OM_FORECAST_REFETCH_MS: 30 * 60 * 1000,
-  /** HKO warnings / storm signal staleTime — push-driven, sub-minute user expectation */
+  /** HKO warnings / storm signal TTL — push-driven, sub-minute user expectation. Used as the SourceState.ttlMs for HKO since warnings are the most volatile HKO slice in a unified fetch. */
   HKO_WARNINGS_TTL_MS: 60 * 1000,
-  /** HKO warnings / storm signal refetchInterval */
-  HKO_WARNINGS_REFETCH_MS: 60 * 1000,
-  /** HKO 9-day forecast staleTime (matches HKO update cadence) */
-  HKO_FORECAST_TTL_MS: 30 * 60 * 1000,
-  /** HKO 9-day forecast refetchInterval */
-  HKO_FORECAST_REFETCH_MS: 30 * 60 * 1000,
-  /** Geocoding + reverse-geocode staleTime — place names are stable */
-  GEOCODING_TTL_MS: 7 * 24 * 60 * 60 * 1000,
-  /** Geocoding + reverse-geocode refetchInterval */
-  GEOCODING_REFETCH_MS: 7 * 24 * 60 * 60 * 1000,
 } as const;
