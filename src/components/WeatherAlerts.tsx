@@ -79,7 +79,7 @@ export const WeatherAlerts = memo(function WeatherAlerts({
 
   return (
     <>
-      <div className="flex items-center gap-1">
+      <div className="flex items-stretch gap-1 self-stretch h-full">
         {activeWarnings.map((warning) => {
           const shouldPulse = pulsing && pulseCodes?.has(warning.code);
           return (
@@ -87,7 +87,7 @@ export const WeatherAlerts = memo(function WeatherAlerts({
               key={warning.code}
               onClick={() => setSelectedWarning(warning)}
               className={cn(
-                'h-9 w-9 flex items-center justify-center rounded-md transition-colors hover:bg-red-500/10',
+                'min-h-[3rem] w-12 flex items-center justify-center rounded-md transition-colors hover:bg-red-500/10',
                 shouldPulse && 'animate-warning-pulse',
               )}
               title={t(`warnings.${warning.code}`, warning.name)}
@@ -96,7 +96,7 @@ export const WeatherAlerts = memo(function WeatherAlerts({
               <img
                 src={getWarningIcon(warning.code)}
                 alt={warning.name}
-                className="object-contain w-7 h-7 drop-shadow-sm"
+                className="object-contain w-8 h-8 drop-shadow-sm"
               />
             </button>
           );

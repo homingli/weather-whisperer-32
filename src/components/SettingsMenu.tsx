@@ -109,8 +109,8 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground">
-            <Menu className="h-5 w-5" />
+          <Button variant="ghost" size="icon" className="h-full min-h-[3rem] w-12 text-muted-foreground hover:text-foreground">
+            <Menu className="h-6 w-6" />
             <span className="sr-only">Settings</span>
           </Button>
         </DropdownMenuTrigger>
