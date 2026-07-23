@@ -59,7 +59,10 @@ const RAINFALL_BANDS: RainBand[] = [
 ];
 
 function rainfallBandIndexFor(mm: number): number {
-  if (!isFinite(mm) || mm < 0) return 0;
+  if (!isFinite(mm) || mm < 0) return -1;
+  // No segment lights up until precipitation reaches the first band (0.5 mm).
+  // 0.0 mm (or trace amounts below 0.5) leaves every band dull.
+  if (mm < RAINFALL_BANDS[0].max) return -1;
   for (let i = 0; i < RAINFALL_BANDS.length; i++) if (mm <= RAINFALL_BANDS[i].max) return i;
   return RAINFALL_BANDS.length - 1;
 }
@@ -543,7 +546,9 @@ function PrecipBar({
   const maxTick = 30;
   const mmClamped = Math.max(0, Math.min(mm, maxTick));
   const posPct = (mmClamped / maxTick) * 100;
-  const activeBand = RAINFALL_BANDS[bandIndex];
+  // bandIndex === -1 means "no band lit" (precipitation below the first
+  // band's threshold). All segments render at the dim opacity in that case.
+  const activeBand = bandIndex >= 0 ? RAINFALL_BANDS[bandIndex] : undefined;
 
   return (
     <div className="flex flex-col gap-3">
@@ -554,7 +559,7 @@ function PrecipBar({
         </span>
         <span
           className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none"
-          style={{ color: empty ? "currentColor" : activeBand.color }}
+          style={{ color: empty || !activeBand ? "currentColor" : activeBand.color }}
         >
           {empty ? '—' : `${mm.toFixed(1)}`}
           <span className="text-xs ml-1 text-muted-foreground/70" style={{ fontFamily: "'Outfit', sans-serif" }}>
@@ -569,7 +574,7 @@ function PrecipBar({
               key={b.label}
               style={{
                 backgroundColor: b.color,
-                opacity: empty ? 0.18 : i === bandIndex ? 1 : 0.18,
+                opacity: empty || bandIndex < 0 ? 0.18 : i === bandIndex ? 1 : 0.18,
                 transition: "opacity 300ms ease-out",
               }}
               className="h-full"
