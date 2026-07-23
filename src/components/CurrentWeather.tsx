@@ -4,7 +4,7 @@ import { useGSAP } from "@gsap/react";
 import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIcon, getWeatherDescription } from "@/lib/weather";
 import { SENTINEL_THRESHOLD } from "@/lib/constants";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun } from "lucide-react";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { formatInTimezone, appLocale } from "@/lib/utils";
 import { LocalClock } from "./LocalClock";
 
@@ -165,6 +165,9 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           <p className="cw-fade text-center font-display italic text-xl text-muted-foreground">
             {getWeatherDescription(weather.weatherCode)}
           </p>
+          <p className="cw-fade text-center kicker text-muted-foreground/60">
+            {t('weather.feelsLike')} {fmt(weather.apparentTemperature, '°')}
+          </p>
         </div>
       ) : (
         <header className="grid gap-10 md:grid-cols-[1fr_auto] md:items-end">
@@ -187,6 +190,9 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
             <span className="kicker text-muted-foreground">Conditions</span>
             <p className="font-display text-2xl md:text-3xl italic font-light leading-tight">
               {getWeatherDescription(weather.weatherCode)}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {t('weather.feelsLike')} {fmt(weather.apparentTemperature, '°')}
             </p>
           </div>
         </header>
@@ -223,6 +229,12 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
 
       {/* Bottom section — creative visualizations */}
       <div className={`grid gap-x-10 gap-y-8 cw-fade ${compact ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
+        <PrecipBar
+          mm={weather.precipitation ?? 0}
+          bandIndex={precipBandIndex}
+          empty={isEmpty}
+        />
+        <UvChip uv={weather.uvIndex} band={uvBand} label={t('weather.uvIndex')} empty={isEmpty} />
         <HumidityBar pct={humidityPct} label={t('weather.humidity')} empty={isEmpty} />
         <WindCompass
           deg={windDeg}
@@ -230,12 +242,6 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           label={t('weather.wind')}
           empty={isEmpty}
           label_kmh={t('unit.kmh', 'km/h')}
-        />
-        <UvChip uv={weather.uvIndex} band={uvBand} label={t('weather.uvIndex')} empty={isEmpty} />
-        <PrecipBar
-          mm={weather.precipitation ?? 0}
-          bandIndex={precipBandIndex}
-          empty={isEmpty}
         />
       </div>
     </div>
@@ -290,12 +296,9 @@ function RangeBar({
           {empty ? '—' : `${Math.round(current)}°`}
         </span>
       </div>
-      <div className="relative h-2 bg-foreground/10">
-        <div
-          className="absolute top-0 bottom-0 bg-foreground/30"
-          style={{ left: 0, width: `${currentPct}%` }}
-          aria-hidden
-        />
+      <div className="relative h-2 bg-foreground/10" style={{
+        background: "linear-gradient(90deg, #3b82f6 0%, #06b6d4 35%, #eab308 65%, #ef4444 100%)",
+      }}>
         <div
           className="absolute -top-1.5 -translate-x-1/2 h-5 w-5 rotate-45 border border-foreground bg-background"
           style={{ left: `${currentPct}%` }}
@@ -314,6 +317,7 @@ function RangeBar({
 function SunriseSunsetCountdown({
   type, time, icon: Icon, empty,
 }: { type: 'sunrise' | 'sunset'; time: string; icon: React.ComponentType<{ className?: string }>; empty: boolean }) {
+  const { t } = useLanguage();
   const [, setNow] = useState(() => Date.now());
 
   // Re-tick every minute so the countdown stays current.
@@ -337,21 +341,24 @@ function SunriseSunsetCountdown({
     const hrs = Math.floor(totalMin / 60);
     const mins = totalMin % 60;
     const isNow = totalMin <= 1;
-    const text = isNow ? "now" : hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+    let text: string;
+    if (isNow) text = t('sun.now');
+    else if (hrs > 0 && mins > 0) text = formatString(t('sun.inHoursMinutes'), String(hrs), String(mins));
+    else if (hrs > 0) text = formatString(t('sun.inHours'), String(hrs));
+    else text = formatString(t('sun.inMinutes'), String(mins));
     return { text, isNow };
-  }, [time, empty]);
+  }, [time, empty, t]);
 
-  const labelKey = type === 'sunrise' ? 'daily.sunrise' : 'daily.sunset';
-  const countdownText = empty ? "—" : `in ${countdown.text}`;
+  const label = t(type === 'sunrise' ? 'daily.sunrise' : 'daily.sunset');
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2 kicker text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
-        <span>{labelKey === 'daily.sunrise' ? 'Sunrise' : 'Sunset'}</span>
+        <span>{label}</span>
       </div>
       <div className={`font-display text-2xl md:text-3xl font-light tabular-nums leading-tight ${countdown.isNow ? 'text-amber-400' : ''}`}>
-        {countdownText}
+        {empty ? '—' : countdown.text}
       </div>
       <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
         {empty ? '—' : time}
