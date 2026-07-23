@@ -55,6 +55,7 @@ export const LocalClock = memo(({ timezone }: LocalClockProps) => {
       <span className="text-sm uppercase tracking-[0.18em] text-muted-foreground tabular-nums">
         {dateText}
       </span>
+      <span aria-hidden className="text-sm text-muted-foreground/60">|</span>
       <span className="text-sm uppercase tracking-[0.18em] text-foreground tabular-nums">
         {timeText}
       </span>

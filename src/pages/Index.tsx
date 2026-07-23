@@ -170,34 +170,34 @@ const Index = () => {
       <div className={`w-full mx-auto px-4 pt-[10px] pb-4 flex flex-col flex-1 min-h-0 transition-all duration-300${
         isMobile ? '' : ' max-w-2xl lg:max-w-5xl xl:max-w-7xl'
       }`}>
-        {/* Top bar: row 1 = [date time] ... [alerts menu]; row 2 = [location] */}
-        <div className="flex flex-col gap-2 mb-4 shrink-0">
-          <div className="flex items-center justify-between gap-2">
+        {/* Top bar: row 1 = [date time]; row 2 = [location]; right column spans both */}
+        <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 mb-4 shrink-0">
+          <div className="flex items-center">
             {weather?.timezone && (
               <LocalClock timezone={weather.timezone} />
             )}
-            <div className="flex items-center gap-2">
-              {effectiveWarnings.length > 0 && (
-                <WeatherAlerts
-                  warnings={effectiveWarnings}
-                  pulseTrigger={pulseTrigger}
-                  pulseCodes={new Set(warningDiff.added.map(w => w.code))}
-                  selectedWarningCode={selectedWarningCode}
-                  onConsumed={handleConsumedSelectedWarning}
-                />
-              )}
-              <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} onRefresh={handleForceRefresh} />
-              {deferredPrompt && !isInstalled && (
-                <button
-                  onClick={install}
-                  className="h-9 px-3 flex items-center gap-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                  title="Install app"
-                >
-                  <Download className="h-4 w-4" />
-                  <span className="hidden sm:inline">Install</span>
-                </button>
-              )}
-            </div>
+          </div>
+          <div className="row-span-2 flex items-center justify-end gap-2">
+            {effectiveWarnings.length > 0 && (
+              <WeatherAlerts
+                warnings={effectiveWarnings}
+                pulseTrigger={pulseTrigger}
+                pulseCodes={new Set(warningDiff.added.map(w => w.code))}
+                selectedWarningCode={selectedWarningCode}
+                onConsumed={handleConsumedSelectedWarning}
+              />
+            )}
+            <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} onRefresh={handleForceRefresh} />
+            {deferredPrompt && !isInstalled && (
+              <button
+                onClick={install}
+                className="h-full min-h-[3rem] px-3 flex items-center gap-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                title="Install app"
+              >
+                <Download className="h-5 w-5" />
+                <span className="hidden sm:inline">Install</span>
+              </button>
+            )}
           </div>
           {selectedCity && (
             <div className="flex items-center gap-2 text-muted-foreground flex-wrap min-w-0">
