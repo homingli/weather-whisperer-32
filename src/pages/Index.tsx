@@ -315,10 +315,9 @@ const Index = () => {
                     )}
                   </Swiper>
 
-                  {/* Swipe hint */}
-                  <div className="flex items-center justify-center gap-3 py-2 text-xs text-muted-foreground/50 shrink-0">
+                  {/* Swipe hint — arrows flank the swiper dots to form one pagination indicator */}
+                  <div className="flex items-center justify-center gap-3 py-2 text-muted-foreground/50 shrink-0">
                     <ChevronLeft className="h-3 w-3" />
-                    <span>Swipe to explore</span>
                     <ChevronRight className="h-3 w-3" />
                   </div>
                 </div>

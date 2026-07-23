@@ -427,10 +427,11 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
           RainfallMap.tsx, which has explicit height (h-[min(70vh,800px)]
           min-h-[400px]). no-swipe yields touch events to Leaflet. */}
       <div className="rainfall-map-area no-swipe relative flex-1 min-h-0 w-full bg-muted/20">
-        {/* Bottom-left control cluster: updated time + basemap switcher + refresh.
-            Legend stays bottom-right, so the two clusters don't collide.
+        {/* Top-right control cluster: updated time + basemap switcher + refresh.
+            Bottom-left is reserved for the swiper pagination dots on mobile, so
+            these buttons live at the top-right where nothing else competes.
             z-[600] = above the leaflet pane (400), below dialog content. */}
-        <div className="absolute bottom-2 left-2 z-[600] flex items-center gap-2 text-xs text-muted-foreground bg-background/90 backdrop-blur-sm p-1.5 rounded-md border border-border/50 shadow-sm">
+        <div className="absolute top-2 right-2 z-[600] flex items-center gap-2 text-xs text-muted-foreground bg-background/90 backdrop-blur-sm p-1.5 rounded-md border border-border/50 shadow-sm">
           {updateTime && (
             <span className="px-1 tabular-nums">{formatString(t('nowcast.updated'), updateTime)}</span>
           )}
