@@ -6,7 +6,6 @@ import { SENTINEL_THRESHOLD } from "@/lib/constants";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { formatInTimezone, appLocale } from "@/lib/utils";
-import { LocalClock } from "./LocalClock";
 
 /** Convert a wind bearing (0-360°, 0 = N) to a compass abbreviation. */
 function windCompass(deg: number): string {
@@ -132,12 +131,8 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
       ref={root}
       className={`editorial-card overflow-hidden ${compact ? 'p-6' : 'p-8 md:p-12 lg:p-14'}`}
     >
-      {/* Top kicker row */}
       <div className={`flex items-baseline justify-between gap-4 cw-fade ${compact ? '' : 'mb-6'}`}>
-        <span className="kicker text-muted-foreground">Daily Edition</span>
-        <div className="text-right">
-          <LocalClock timezone={timezone} />
-        </div>
+        <span className="kicker text-muted-foreground">{t('header.dailyEdition')}</span>
       </div>
 
       <div className="cw-rule h-px editorial-rule mb-8" />

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { CurrentWeather } from '@/components/CurrentWeather';
 import { HourlyForecast } from '@/components/HourlyForecast';
+import { LocalClock } from '@/components/LocalClock';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { CurrentWeather as CurrentWeatherType, HourlyForecast as HourlyForecastType } from '@/lib/weather';
 
@@ -46,14 +47,15 @@ describe('Location and Time Integration', () => {
     render(
       <LanguageProvider>
         <div data-testid="dashboard">
-          <CurrentWeather 
-            weather={mockWeather} 
-            hourlyForecast={mockHourly} 
-            timezone={timezone} 
+          <LocalClock timezone={timezone} />
+          <CurrentWeather
+            weather={mockWeather}
+            hourlyForecast={mockHourly}
+            timezone={timezone}
           />
-          <HourlyForecast 
-            forecast={mockHourly} 
-            timezone={timezone} 
+          <HourlyForecast
+            forecast={mockHourly}
+            timezone={timezone}
           />
         </div>
       </LanguageProvider>

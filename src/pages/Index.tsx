@@ -7,6 +7,7 @@ import { WeatherAlerts } from '@/components/WeatherAlerts';
 import { SettingsMenu } from '@/components/SettingsMenu';
 import { FetchingStatus } from '@/components/FetchingStatus';
 import { WeatherBanners } from '@/components/WeatherBanners';
+import { LocalClock } from '@/components/LocalClock';
 import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
 import { useWarningChangeDetector } from '@/hooks/useWarningChangeDetector';
@@ -169,7 +170,12 @@ const Index = () => {
       <div className={`w-full mx-auto px-4 pt-[10px] pb-4 flex flex-col flex-1 min-h-0 transition-all duration-300${
         isMobile ? '' : ' max-w-2xl lg:max-w-5xl xl:max-w-7xl'
       }`}>
-        {/* Top bar: location + settings */}
+        {/* Top bar: date/time, location, settings */}
+        {weather?.timezone && (
+          <div className="mb-3 shrink-0">
+            <LocalClock timezone={weather.timezone} />
+          </div>
+        )}
         <div className="flex items-center justify-between mb-4 shrink-0">
           <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
             {selectedCity && (
