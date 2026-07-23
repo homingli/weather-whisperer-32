@@ -208,7 +208,6 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
                 return <Icon className="h-16 w-16 md:h-20 md:w-20" strokeWidth={1.25} />;
               })()}
             </span>
-            <span className="kicker text-muted-foreground">Conditions</span>
             <p className="font-display text-2xl md:text-3xl italic font-light leading-tight">
               {t(weatherDescriptionKey(weather.weatherCode))}
             </p>
