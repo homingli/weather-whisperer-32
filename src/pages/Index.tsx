@@ -170,64 +170,64 @@ const Index = () => {
       <div className={`w-full mx-auto px-4 pt-[10px] pb-4 flex flex-col flex-1 min-h-0 transition-all duration-300${
         isMobile ? '' : ' max-w-2xl lg:max-w-5xl xl:max-w-7xl'
       }`}>
-        {/* Top bar: date, time, location … alerts, menu */}
-        <div className="flex items-center justify-between gap-4 mb-4 shrink-0 flex-wrap">
-          <div className="flex items-center gap-4 flex-wrap min-w-0">
+        {/* Top bar: row 1 = [date time] ... [alerts menu]; row 2 = [location] */}
+        <div className="flex flex-col gap-2 mb-4 shrink-0">
+          <div className="flex items-center justify-between gap-2">
             {weather?.timezone && (
               <LocalClock timezone={weather.timezone} />
             )}
-            {selectedCity && (
-              <div className="flex items-center gap-2 text-muted-foreground flex-wrap min-w-0">
-                <MapPin className="h-5 w-5 shrink-0" />
-                <div className="flex items-center flex-wrap gap-2">
-                  {isHKCovered ? (
-                    weather?.nearestStation && (
-                      <span className="text-base font-medium text-foreground">
-                        {translateStationName(weather.nearestStation, language === 'tc' ? 'tc' : 'en')}
-                      </span>
-                    )
-                  ) : (
+            <div className="flex items-center gap-2">
+              {effectiveWarnings.length > 0 && (
+                <WeatherAlerts
+                  warnings={effectiveWarnings}
+                  pulseTrigger={pulseTrigger}
+                  pulseCodes={new Set(warningDiff.added.map(w => w.code))}
+                  selectedWarningCode={selectedWarningCode}
+                  onConsumed={handleConsumedSelectedWarning}
+                />
+              )}
+              <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} onRefresh={handleForceRefresh} />
+              {deferredPrompt && !isInstalled && (
+                <button
+                  onClick={install}
+                  className="h-9 px-3 flex items-center gap-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                  title="Install app"
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">Install</span>
+                </button>
+              )}
+            </div>
+          </div>
+          {selectedCity && (
+            <div className="flex items-center gap-2 text-muted-foreground flex-wrap min-w-0">
+              <MapPin className="h-5 w-5 shrink-0" />
+              <div className="flex items-center flex-wrap gap-2">
+                {isHKCovered ? (
+                  weather?.nearestStation && (
                     <span className="text-base font-medium text-foreground">
-                      {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
+                      {translateStationName(weather.nearestStation, language === 'tc' ? 'tc' : 'en')}
                     </span>
-                  )}
-                  {weather?.nearestDistrict && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                      {translateDistrictName(weather.nearestDistrict, language === 'tc' ? 'tc' : 'en')}
-                    </span>
-                  )}
-                </div>
-                {isFetching && weather && !isLoading && (
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="refreshing-data">
-                    <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                    <span>Refreshing...</span>
-                  </div>
+                  )
+                ) : (
+                  <span className="text-base font-medium text-foreground">
+                    {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
+                  </span>
+                )}
+                {weather?.nearestDistrict && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                    {translateDistrictName(weather.nearestDistrict, language === 'tc' ? 'tc' : 'en')}
+                  </span>
                 )}
               </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {effectiveWarnings.length > 0 && (
-              <WeatherAlerts
-                warnings={effectiveWarnings}
-                pulseTrigger={pulseTrigger}
-                pulseCodes={new Set(warningDiff.added.map(w => w.code))}
-                selectedWarningCode={selectedWarningCode}
-                onConsumed={handleConsumedSelectedWarning}
-              />
-            )}
-            <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} onRefresh={handleForceRefresh} />
-            {deferredPrompt && !isInstalled && (
-              <button
-                onClick={install}
-                className="h-9 px-3 flex items-center gap-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                title="Install app"
-              >
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Install</span>
-              </button>
-            )}
-          </div>
+              {isFetching && weather && !isLoading && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="refreshing-data">
+                  <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  <span>Refreshing...</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Screen reader only header */}
