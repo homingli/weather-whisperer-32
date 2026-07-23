@@ -371,7 +371,7 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
   const activeCellsByColor = activeStep?.cellsByColor || null;
 
   return (
-    <>
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="px-6 py-4 border-b border-border/50 flex flex-wrap justify-between items-center gap-4">
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           {updateTime && <span>{formatString(t('nowcast.updated'), updateTime)}</span>}
@@ -443,9 +443,11 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
         </div>
       )}
 
-      {/* h-[400px] = desktop fallback; swiper CSS overrides via .rainfall-map-area: flex: 1 1 0% */}
-      {/* no-swipe class tells Swiper to yield touch events to Leaflet for map pan/zoom */}
-      <div className="rainfall-map-area no-swipe relative h-[400px] w-full bg-muted/20">
+      {/* flex-1 = fills the remaining height after header + step controls; min-h floor
+          ensures the map has a sensible size on desktop where the parent has no
+          flex context. Mobile CSS rule (.swiper-mobile-deck .rainfall-map-area)
+          still wins via specificity. no-swipe yields touch events to Leaflet. */}
+      <div className="rainfall-map-area no-swipe relative flex-1 min-h-[400px] w-full bg-muted/20">
         {/* First load: spinner briefly → progress bar during streaming */}
         {isLoading && (
           <div className="absolute inset-0 z-[1001] flex items-center justify-center bg-background/50 backdrop-blur-sm">
@@ -544,6 +546,6 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }
