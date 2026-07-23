@@ -72,7 +72,6 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Hero / editorial labels
     'header.dailyEdition': 'Daily Edition',
-    'header.conditions': 'Conditions',
 
     // Weather condition descriptions (WMO codes)
     'weather.desc.clearSky': 'Clear sky',
@@ -249,7 +248,6 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Hero / editorial labels
     'header.dailyEdition': '每日天氣',
-    'header.conditions': '天氣狀況',
 
     // Weather condition descriptions (WMO codes)
     'weather.desc.clearSky': '晴朗',
