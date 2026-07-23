@@ -373,7 +373,7 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
   return (
     <div className="absolute inset-0 flex flex-col">
       {!isLoading && timeSteps.length > 0 && (
-        <div className="px-6 py-5 bg-background/50 border-b border-border/50 flex flex-col md:flex-row items-center gap-6">
+        <div className="px-6 py-5 bg-background/50 border-b border-border/50 flex flex-row items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsPlaying(!isPlaying)}
@@ -427,10 +427,10 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
           RainfallMap.tsx, which has explicit height (h-[min(70vh,800px)]
           min-h-[400px]). no-swipe yields touch events to Leaflet. */}
       <div className="rainfall-map-area no-swipe relative flex-1 min-h-0 w-full bg-muted/20">
-        {/* Top-right control cluster: updated time + basemap switcher + refresh.
-            Sits above the map at z-[600] (above leaflet pane at 400, below
-            dialog content). Compact so it doesn't cover much of the map. */}
-        <div className="absolute top-2 right-2 z-[600] flex items-center gap-2 text-xs text-muted-foreground bg-background/90 backdrop-blur-sm p-1.5 rounded-md border border-border/50 shadow-sm">
+        {/* Bottom-left control cluster: updated time + basemap switcher + refresh.
+            Legend stays bottom-right, so the two clusters don't collide.
+            z-[600] = above the leaflet pane (400), below dialog content. */}
+        <div className="absolute bottom-2 left-2 z-[600] flex items-center gap-2 text-xs text-muted-foreground bg-background/90 backdrop-blur-sm p-1.5 rounded-md border border-border/50 shadow-sm">
           {updateTime && (
             <span className="px-1 tabular-nums">{formatString(t('nowcast.updated'), updateTime)}</span>
           )}
