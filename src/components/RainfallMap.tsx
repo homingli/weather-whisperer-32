@@ -15,7 +15,7 @@ interface UserLocation {
 const LoadingShell = () => {
   const { t } = useLanguage();
   return (
-    <div className="rainfall-map-area relative h-[400px] w-full bg-muted/20 flex items-center justify-center">
+    <div className="rainfall-map-area relative h-full min-h-[400px] w-full bg-muted/20 flex items-center justify-center">
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
         <RefreshCw className="w-5 h-5 animate-spin text-primary" />
         <span>{t('nowcast.downloading')}</span>
@@ -42,7 +42,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         </div>
       </div>
 
-      <div className="rainfall-map-area no-swipe relative h-[400px] w-full bg-muted/20">
+      <div className="rainfall-map-area no-swipe relative h-[min(70vh,800px)] min-h-[400px] w-full bg-muted/20">
         {!isLoaded ? (
           <div className="absolute inset-0 z-[1000] flex flex-col items-center justify-center bg-background/85 pointer-events-none">
             <CloudRain className="w-12 h-12 text-primary mb-4 opacity-80" />
