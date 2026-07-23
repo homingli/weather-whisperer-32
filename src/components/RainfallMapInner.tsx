@@ -504,6 +504,7 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
           scrollWheelZoom={false}
           doubleClickZoom={false}
           dragging={false}
+          zoomControl={false}
           className="w-full h-full"
           ref={mapRef}
           aria-label={t('nowcast.mapLabel')}
