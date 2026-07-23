@@ -170,41 +170,39 @@ const Index = () => {
       <div className={`w-full mx-auto px-4 pt-[10px] pb-4 flex flex-col flex-1 min-h-0 transition-all duration-300${
         isMobile ? '' : ' max-w-2xl lg:max-w-5xl xl:max-w-7xl'
       }`}>
-        {/* Top bar: date/time, location, settings */}
-        {weather?.timezone && (
-          <div className="mb-3 shrink-0">
-            <LocalClock timezone={weather.timezone} />
-          </div>
-        )}
-        <div className="flex items-center justify-between mb-4 shrink-0">
-          <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
+        {/* Top bar: date, time, location … alerts, menu */}
+        <div className="flex items-center justify-between gap-4 mb-4 shrink-0 flex-wrap">
+          <div className="flex items-center gap-4 flex-wrap min-w-0">
+            {weather?.timezone && (
+              <LocalClock timezone={weather.timezone} />
+            )}
             {selectedCity && (
-              <>
-                <MapPin className="h-6 w-6 shrink-0" />
+              <div className="flex items-center gap-2 text-muted-foreground flex-wrap min-w-0">
+                <MapPin className="h-5 w-5 shrink-0" />
                 <div className="flex items-center flex-wrap gap-2">
                   {isHKCovered ? (
                     weather?.nearestStation && (
-                      <span className="text-xl font-medium text-foreground">
+                      <span className="text-base font-medium text-foreground">
                         {translateStationName(weather.nearestStation, language === 'tc' ? 'tc' : 'en')}
                       </span>
                     )
                   ) : (
-                    <span className="text-xl font-medium text-foreground">
+                    <span className="text-base font-medium text-foreground">
                       {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
                     </span>
                   )}
                   {weather?.nearestDistrict && (
-                    <span className="text-sm px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
                       {translateDistrictName(weather.nearestDistrict, language === 'tc' ? 'tc' : 'en')}
                     </span>
                   )}
                 </div>
-              </>
-            )}
-            {isFetching && weather && !isLoading && (
-              <div className="ml-2 flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="refreshing-data">
-                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                <span>Refreshing...</span>
+                {isFetching && weather && !isLoading && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="refreshing-data">
+                    <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                    <span>Refreshing...</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
