@@ -1,5 +1,6 @@
 import { getWeather as getOpenMeteoWeather, WeatherData } from './weather';
 import { isInHongKong, getHKODailyAndWarnings, getHKOCurrentWeather, buildHKOWeatherData, fetchHKOWeatherData } from './hko-weather';
+import type { HKOCurrentWeatherResponse } from './hko-types';
 import { SourceState, SourceId } from './weather/types';
 import { logWarn, logError } from './log';
 import { TIMING } from './constants';
@@ -36,7 +37,7 @@ export async function fetchWeather(
   onProgress?.('openMeteo', 'fetching');
   if (isHK) onProgress?.('hko', 'fetching');
 
-  const [omResult, hkoResult] = await Promise.all([
+  const [omResult, hkoResult, hkoCurrentResult] = await Promise.all([
     (async () => {
       try {
         const data = await getOpenMeteoWeather(lat, lon);
@@ -64,6 +65,20 @@ export async function fetchWeather(
           onProgress?.('hko', 'error'); // Not applicable
           return { data: null, error: null as Error | null };
         })(),
+    isHK
+      ? (async () => {
+          try {
+            const data = await getHKOCurrentWeather(lang);
+            return { data, error: null as Error | null };
+          } catch (err) {
+            // Non-fatal: the merged path falls back to OM current if HKO
+            // current is unavailable. Only the legacy HKO-only fallback
+            // path requires this fetch (handled separately below).
+            logWarn('HKO current weather fetch failed', err);
+            return { data: null as HKOCurrentWeatherResponse | null, error: err as Error };
+          }
+        })()
+      : (async () => ({ data: null as HKOCurrentWeatherResponse | null, error: null as Error | null }))(),
   ]);
 
   const omOk = !!omResult.data;
@@ -177,8 +192,11 @@ export async function fetchWeather(
     return persist(result);
   }
 
-  // Both succeeded — combine. Open-Meteo wins for current/hourly; HKO wins for
-  // daily (with OM sunrise/sunset preserved) and supplies warnings/station/district.
+  // Both succeeded — combine. HKO wins for daily (with OM sunrise/sunset
+  // preserved) and supplies warnings/station/district; HKO also wins for the
+  // current temperature when its current-weather fetch succeeds (the today
+  // temperature bar / marker uses this value). OM keeps current/hourly for
+  // everything else.
   const hkoData = hkoResult.data!;
   const hkoNow: SourceState = {
     ok: true,
@@ -186,8 +204,20 @@ export async function fetchWeather(
     ttlMs: hkoTtl,
     isExpired: false,
   };
+
+  // Extract the HKO current temperature from the matching station (or the
+  // first reading as a fallback) when the HKO current fetch succeeded.
+  const hkoCurrentData = hkoCurrentResult.data;
+  const hkoTempReading =
+    hkoCurrentData?.temperature.data.find((t) => t.place === hkoData.nearestStation) ||
+    hkoCurrentData?.temperature.data[0];
+  const hkoCurrentTemperature = hkoTempReading?.value;
+
   const merged: WeatherData = {
     ...omData!,
+    current: hkoCurrentTemperature != null
+      ? { ...omData!.current, temperature: hkoCurrentTemperature }
+      : omData!.current,
     daily: (hkoData.daily ?? []).filter(Boolean).map((day: any, i: number) => ({
       ...day,
       sunrise: omData!.daily[i]?.sunrise || day.sunrise,
