@@ -1,5 +1,10 @@
 /** WMO weather code → human description and emoji icon */
 
+import {
+  Sun, Moon, CloudSun, CloudMoon, Cloud, CloudFog, CloudDrizzle, CloudRain,
+  CloudSnow, Snowflake, CloudLightning, type LucideIcon,
+} from 'lucide-react';
+
 const DESCRIPTION_KEYS: Record<number, string> = {
   0: 'weather.desc.clearSky',
   1: 'weather.desc.mainlyClear',
@@ -84,4 +89,47 @@ export function getWeatherIcon(code: number, isDay: boolean): string {
   if (code <= 86) return '🌨️';
   if (code >= 95) return '⛈️';
   return '🌡️';
+}
+
+/**
+ * Flat (monochrome, currentColor) lucide icon for a WMO weather code.
+ * Reads cleanly on both the dark editorial background and the
+ * paper-cream light variant — emoji gradients washed out on cream.
+ */
+const ICON_MAP: Record<number, { day: LucideIcon; night: LucideIcon }> = {
+  0:  { day: Sun,            night: Moon },
+  1:  { day: CloudSun,       night: CloudMoon },
+  2:  { day: CloudSun,       night: CloudMoon },
+  3:  { day: Cloud,          night: Cloud },
+  45: { day: CloudFog,       night: CloudFog },
+  48: { day: CloudFog,       night: CloudFog },
+  51: { day: CloudDrizzle,   night: CloudDrizzle },
+  53: { day: CloudDrizzle,   night: CloudDrizzle },
+  55: { day: CloudDrizzle,   night: CloudDrizzle },
+  56: { day: CloudDrizzle,   night: CloudDrizzle },
+  57: { day: CloudDrizzle,   night: CloudDrizzle },
+  61: { day: CloudRain,      night: CloudRain },
+  63: { day: CloudRain,      night: CloudRain },
+  65: { day: CloudRain,      night: CloudRain },
+  66: { day: CloudRain,      night: CloudRain },
+  67: { day: CloudRain,      night: CloudRain },
+  71: { day: CloudSnow,      night: CloudSnow },
+  73: { day: CloudSnow,      night: CloudSnow },
+  75: { day: CloudSnow,      night: CloudSnow },
+  77: { day: Snowflake,      night: Snowflake },
+  80: { day: CloudRain,      night: CloudRain },
+  81: { day: CloudRain,      night: CloudRain },
+  82: { day: CloudRain,      night: CloudRain },
+  85: { day: CloudSnow,      night: CloudSnow },
+  86: { day: CloudSnow,      night: CloudSnow },
+  95: { day: CloudLightning, night: CloudLightning },
+  96: { day: CloudLightning, night: CloudLightning },
+  99: { day: CloudLightning, night: CloudLightning },
+};
+
+/** Flat lucide icon component for a WMO weather code (day/night aware). */
+export function getWeatherIconNode(code: number, isDay: boolean): LucideIcon {
+  const entry = ICON_MAP[code];
+  if (entry) return isDay ? entry.day : entry.night;
+  return Cloud;
 }

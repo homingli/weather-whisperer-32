@@ -1,9 +1,9 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIcon, weatherDescriptionKey } from "@/lib/weather";
+import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIconNode, weatherDescriptionKey } from "@/lib/weather";
 import { SENTINEL_THRESHOLD } from "@/lib/constants";
-import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun } from "lucide-react";
+import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { formatInTimezone, appLocale } from "@/lib/utils";
 import { LocalClock } from "./LocalClock";
@@ -162,13 +162,18 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
       {compact ? (
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-center gap-6">
-            <span
-              className="text-[88px] sm:text-[110px] leading-none select-none drop-shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
-              role="img"
-              aria-label={t(weatherDescriptionKey(weather.weatherCode))}
-            >
-              {getWeatherIcon(weather.weatherCode, weather.isDay)}
-            </span>
+            {(() => {
+              const Icon = getWeatherIconNode(weather.weatherCode, weather.isDay);
+              return (
+                <span
+                  className="inline-flex items-center justify-center text-[88px] sm:text-[110px] leading-none select-none text-foreground"
+                  role="img"
+                  aria-label={t(weatherDescriptionKey(weather.weatherCode))}
+                >
+                  <Icon className="h-[88px] w-[88px] sm:h-[110px] sm:w-[110px]" strokeWidth={1.25} />
+                </span>
+              );
+            })()}
             <div className="overflow-hidden">
               <h1
                 className="cw-rise block font-display text-[28vw] leading-[0.85] font-light tracking-[-0.04em]"
@@ -194,11 +199,14 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           </div>
           <div className="cw-fade flex flex-col gap-3 max-w-xs">
             <span
-              className="text-6xl md:text-7xl leading-none select-none"
+              className="inline-flex items-center justify-center text-foreground leading-none select-none"
               role="img"
               aria-label={t(weatherDescriptionKey(weather.weatherCode))}
             >
-              {getWeatherIcon(weather.weatherCode, weather.isDay)}
+              {(() => {
+                const Icon = getWeatherIconNode(weather.weatherCode, weather.isDay);
+                return <Icon className="h-16 w-16 md:h-20 md:w-20" strokeWidth={1.25} />;
+              })()}
             </span>
             <span className="kicker text-muted-foreground">Conditions</span>
             <p className="font-display text-2xl md:text-3xl italic font-light leading-tight">
@@ -413,21 +421,20 @@ function SunriseSunsetCountdown({
   );
 }
 
-/* ── Humidity: horizontal "bucket" bar with fill percent ───────────── */
+/* ── Humidity: thin gradient bar matching the other sections ──────── */
 function HumidityBar({ pct, label, empty }: { pct: number; label: string; empty: boolean }) {
-  const ticks = [0, 25, 50, 75, 100];
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <span className="kicker text-muted-foreground inline-flex items-center gap-2">
-          <Droplets className="h-3.5 w-3.5" />
+          <Droplet className="h-3.5 w-3.5" />
           {label}
         </span>
         <span className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none">
           {empty ? '—' : `${Math.round(pct)}%`}
         </span>
       </div>
-      <div className="relative h-6 border border-foreground/15 bg-foreground/[0.04] overflow-hidden">
+      <div className="relative h-2 overflow-hidden border border-foreground/15">
         <div
           className="absolute inset-y-0 left-0 transition-[width] duration-700 ease-out"
           style={{
@@ -436,24 +443,9 @@ function HumidityBar({ pct, label, empty }: { pct: number; label: string; empty:
           }}
           aria-hidden
         />
-        {ticks.map((t) => (
-          <div
-            key={t}
-            className="absolute inset-y-0 w-px bg-foreground/15"
-            style={{ left: `${t}%` }}
-            aria-hidden
-          />
-        ))}
-        {!empty && (
-          <div
-            className="absolute inset-y-[2px] left-0 border-r-2 border-foreground/40 mix-blend-overlay"
-            style={{ width: `${pct}%` }}
-            aria-hidden
-          />
-        )}
       </div>
       <div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground/50 tabular-nums">
-        <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+        <span>0%</span><span>100%</span>
       </div>
     </div>
   );
@@ -465,7 +457,10 @@ function WindCompass({
 }: { deg: number; speed: number; label: string; empty: boolean; label_kmh: string }) {
   return (
     <div className="flex items-center justify-between gap-3 flex-wrap">
-      <span className="kicker text-muted-foreground">{label}</span>
+      <span className="kicker text-muted-foreground inline-flex items-center gap-2">
+        <Wind className="h-3.5 w-3.5" />
+        {label}
+      </span>
       <div className="flex items-center gap-3">
         <span className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none">
           {empty ? '—' : `${Math.round(speed)}`}
@@ -542,6 +537,7 @@ function UvChip({
 function PrecipBar({
   mm, bandIndex, empty,
 }: { mm: number; bandIndex: number; empty: boolean }) {
+  const { t } = useLanguage();
   // Position the marker along the bar (linear scale up to 30 mm).
   const maxTick = 30;
   const mmClamped = Math.max(0, Math.min(mm, maxTick));
@@ -553,7 +549,7 @@ function PrecipBar({
       <div className="flex items-center justify-between gap-2">
         <span className="kicker text-muted-foreground inline-flex items-center gap-2">
           <Droplets className="h-3.5 w-3.5" />
-          Precip
+          {t('daily.precip')}
         </span>
         <span
           className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none"
@@ -565,7 +561,7 @@ function PrecipBar({
           </span>
         </span>
       </div>
-      <div className="relative h-3 overflow-hidden border border-foreground/15">
+      <div className="relative h-2 overflow-hidden border border-foreground/15">
         <div className="absolute inset-0 grid grid-cols-7">
           {RAINFALL_BANDS.map((b, i) => (
             <div
