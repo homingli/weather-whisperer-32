@@ -8,7 +8,7 @@ import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { formatInTimezone, appLocale } from "@/lib/utils";
 import { LocalClock } from "./LocalClock";
 
-/** Convert a meteorological wind direction (0-360°, 0 = N) to a compass abbreviation. */
+/** Convert a wind bearing (0-360°, 0 = N) to a compass abbreviation. */
 function windCompass(deg: number): string {
   if (deg == null || isNaN(deg)) return "—";
   const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -450,10 +450,17 @@ function HumidityBar({ pct, label, empty }: { pct: number; label: string; empty:
   );
 }
 
-/* ── Wind: single-row kicker | arrow + degrees + speed ────────────── */
+/* ── Wind: single-row kicker | arrow + degrees + speed ──────────────
+ * Convention: the arrow points where the wind is blowing TOWARD, not
+ * where it's coming from. The API gives the meteorological "from"
+ * angle (0° = wind from north); we flip 180° to get the "toward"
+ * bearing. Compass label uses the same toward-bearing so the arrow,
+ * label, and degree number all agree on direction.
+ */
 function WindCompass({
   deg, speed, label, empty, label_kmh,
 }: { deg: number; speed: number; label: string; empty: boolean; label_kmh: string }) {
+  const towardDeg = ((deg ?? 0) + 180) % 360;
   return (
     <div className="flex items-center justify-between gap-3 flex-wrap">
       <span className="kicker text-muted-foreground inline-flex items-center gap-2">
@@ -469,8 +476,8 @@ function WindCompass({
         </span>
         <div
           className="transition-transform duration-500"
-          style={{ transform: `rotate(${deg}deg)` }}
-          aria-label="wind direction"
+          style={{ transform: `rotate(${towardDeg}deg)` }}
+          aria-label="wind direction (toward)"
         >
           <svg width="22" height="22" viewBox="0 0 48 48" role="img">
             <line x1="24" y1="40" x2="24" y2="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
@@ -478,9 +485,9 @@ function WindCompass({
           </svg>
         </div>
         <span className="font-display text-xl md:text-2xl tabular-nums leading-none">
-          {empty ? '—' : `${Math.round(deg)}°`}
+          {empty ? '—' : `${Math.round(towardDeg)}°`}
           <span className="ml-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 not-italic" style={{ fontFamily: "'Outfit', sans-serif" }}>
-            {empty ? '' : windCompass(deg)}
+            {empty ? '' : windCompass(towardDeg)}
           </span>
         </span>
       </div>
