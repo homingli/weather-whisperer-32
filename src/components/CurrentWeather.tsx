@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIcon, getWeatherDescription } from "@/lib/weather";
+import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIcon, weatherDescriptionKey } from "@/lib/weather";
 import { SENTINEL_THRESHOLD } from "@/lib/constants";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
@@ -165,7 +165,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
             <span
               className="text-[88px] sm:text-[110px] leading-none select-none drop-shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
               role="img"
-              aria-label={getWeatherDescription(weather.weatherCode)}
+              aria-label={t(weatherDescriptionKey(weather.weatherCode))}
             >
               {getWeatherIcon(weather.weatherCode, weather.isDay)}
             </span>
@@ -179,7 +179,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
             </div>
           </div>
           <p className="cw-fade text-center font-display italic text-xl text-muted-foreground">
-            {getWeatherDescription(weather.weatherCode)}
+            {t(weatherDescriptionKey(weather.weatherCode))}
           </p>
         </div>
       ) : (
@@ -196,13 +196,13 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
             <span
               className="text-6xl md:text-7xl leading-none select-none"
               role="img"
-              aria-label={getWeatherDescription(weather.weatherCode)}
+              aria-label={t(weatherDescriptionKey(weather.weatherCode))}
             >
               {getWeatherIcon(weather.weatherCode, weather.isDay)}
             </span>
             <span className="kicker text-muted-foreground">Conditions</span>
             <p className="font-display text-2xl md:text-3xl italic font-light leading-tight">
-              {getWeatherDescription(weather.weatherCode)}
+              {t(weatherDescriptionKey(weather.weatherCode))}
             </p>
           </div>
         </header>
@@ -315,9 +315,66 @@ function RangeBar({
 }
 
 /* ── Sunrise / sunset countdown: "in 4h 32m" with HH:MM subtext ─────── */
+
+/**
+ * Compute hours/minutes remaining until `timeStr` (HH:MM, optional AM/PM)
+ * in the location's `timezone`. Falls back to browser local time when no
+ * timezone is supplied.
+ *
+ * The Intl.DateTimeFormat path lets us compare clock times in a timezone
+ * other than the user's browser, which is necessary when the displayed
+ * sunrise is for a remote city.
+ */
+function diffToSunTime(
+  timeStr: string,
+  timezone: string | undefined,
+): { hours: number; minutes: number; isNow: boolean } {
+  const m = /^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i.exec(timeStr);
+  if (!m) return { hours: 0, minutes: 0, isNow: false };
+
+  let targetH = Number(m[1]);
+  const targetM = Number(m[2]);
+  const ampm = m[3]?.toUpperCase();
+  if (ampm === 'PM' && targetH < 12) targetH += 12;
+  if (ampm === 'AM' && targetH === 12) targetH = 0;
+
+  let nowH: number;
+  let nowM: number;
+  if (timezone) {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+    });
+    const parts = fmt.formatToParts(new Date());
+    nowH = Number(parts.find((p) => p.type === 'hour')?.value) % 24;
+    nowM = Number(parts.find((p) => p.type === 'minute')?.value);
+  } else {
+    const now = new Date();
+    nowH = now.getHours();
+    nowM = now.getMinutes();
+  }
+
+  let diffMin = targetH * 60 + targetM - (nowH * 60 + nowM);
+  if (diffMin <= 0) diffMin += 24 * 60;
+
+  return {
+    hours: Math.floor(diffMin / 60),
+    minutes: diffMin % 60,
+    isNow: diffMin <= 1,
+  };
+}
+
 function SunriseSunsetCountdown({
-  type, time, icon: Icon, empty,
-}: { type: 'sunrise' | 'sunset'; time: string; icon: React.ComponentType<{ className?: string }>; empty: boolean }) {
+  type, time, icon: Icon, empty, timezone,
+}: {
+  type: 'sunrise' | 'sunset';
+  time: string;
+  icon: React.ComponentType<{ className?: string }>;
+  empty: boolean;
+  timezone?: string;
+}) {
   const { t } = useLanguage();
   const [, setNow] = useState(() => Date.now());
 
@@ -329,26 +386,14 @@ function SunriseSunsetCountdown({
 
   const countdown = useMemo(() => {
     if (empty) return { text: "—", isNow: false };
-    const m = /^(\d{1,2}):(\d{2})$/.exec(time);
-    if (!m) return { text: "—", isNow: false };
-    const targetH = Number(m[1]);
-    const targetM = Number(m[2]);
-    const now = new Date();
-    const target = new Date(now);
-    target.setHours(targetH, targetM, 0, 0);
-    if (target.getTime() <= now.getTime()) target.setDate(target.getDate() + 1);
-    const diffMs = target.getTime() - now.getTime();
-    const totalMin = Math.floor(diffMs / 60_000);
-    const hrs = Math.floor(totalMin / 60);
-    const mins = totalMin % 60;
-    const isNow = totalMin <= 1;
+    const { hours: hrs, minutes: mins, isNow } = diffToSunTime(time, timezone);
     let text: string;
     if (isNow) text = t('sun.now');
     else if (hrs > 0 && mins > 0) text = formatString(t('sun.inHoursMinutes'), String(hrs), String(mins));
     else if (hrs > 0) text = formatString(t('sun.inHours'), String(hrs));
     else text = formatString(t('sun.inMinutes'), String(mins));
     return { text, isNow };
-  }, [time, empty, t]);
+  }, [time, empty, timezone, t]);
 
   const label = t(type === 'sunrise' ? 'daily.sunrise' : 'daily.sunset');
 

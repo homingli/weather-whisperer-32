@@ -1,5 +1,41 @@
 /** WMO weather code → human description and emoji icon */
 
+const DESCRIPTION_KEYS: Record<number, string> = {
+  0: 'weather.desc.clearSky',
+  1: 'weather.desc.mainlyClear',
+  2: 'weather.desc.partlyCloudy',
+  3: 'weather.desc.overcast',
+  45: 'weather.desc.foggy',
+  48: 'weather.desc.depositingRimeFog',
+  51: 'weather.desc.lightDrizzle',
+  53: 'weather.desc.moderateDrizzle',
+  55: 'weather.desc.denseDrizzle',
+  56: 'weather.desc.freezingDrizzle',
+  57: 'weather.desc.denseFreezingDrizzle',
+  61: 'weather.desc.slightRain',
+  63: 'weather.desc.moderateRain',
+  65: 'weather.desc.heavyRain',
+  66: 'weather.desc.freezingRain',
+  67: 'weather.desc.heavyFreezingRain',
+  71: 'weather.desc.slightSnow',
+  73: 'weather.desc.moderateSnow',
+  75: 'weather.desc.heavySnow',
+  77: 'weather.desc.snowGrains',
+  80: 'weather.desc.slightRainShowers',
+  81: 'weather.desc.moderateRainShowers',
+  82: 'weather.desc.violentRainShowers',
+  85: 'weather.desc.slightSnowShowers',
+  86: 'weather.desc.heavySnowShowers',
+  95: 'weather.desc.thunderstorm',
+  96: 'weather.desc.thunderstormWithHail',
+  99: 'weather.desc.thunderstormWithHeavyHail',
+};
+
+/** Translation key for a WMO weather code (e.g. "weather.desc.clearSky") */
+export function weatherDescriptionKey(code: number): string {
+  return DESCRIPTION_KEYS[code] || 'weather.desc.unknown';
+}
+
 /** Human-readable description for a WMO weather code */
 export function getWeatherDescription(code: number): string {
   const descriptions: Record<number, string> = {

@@ -15,4 +15,4 @@ export { searchCities, reverseGeocode, getUserLocation } from './weather/geocodi
 export { getDefaultCity, setDefaultCity, getRecentCities } from './weather/storage';
 
 // WMO code description + emoji
-export { getWeatherDescription, getWeatherIcon } from './weather/codes';
+export { getWeatherDescription, getWeatherIcon, weatherDescriptionKey } from './weather/codes';
