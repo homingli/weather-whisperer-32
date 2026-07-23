@@ -372,27 +372,6 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
 
   return (
     <div className="absolute inset-0 flex flex-col">
-      <div className="px-6 py-4 border-b border-border/50 flex flex-wrap justify-between items-center gap-4">
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          {updateTime && <span>{formatString(t('nowcast.updated'), updateTime)}</span>}
-          <button
-            onClick={() => setBasemap(nextBasemap(basemap))}
-            className="p-1.5 hover:bg-muted/50 rounded-md transition-colors"
-            aria-label={`Switch basemap (current: ${BASEMAPS[basemap].label})`}
-          >
-            <Layers className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => refetch()}
-            className="p-1.5 hover:bg-muted/50 rounded-md transition-colors"
-            disabled={isFetching}
-            title="Refresh gridded nowcast"
-          >
-            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-primary' : ''}`} />
-          </button>
-        </div>
-      </div>
-
       {!isLoading && timeSteps.length > 0 && (
         <div className="px-6 py-5 bg-background/50 border-b border-border/50 flex flex-col md:flex-row items-center gap-6">
           <div className="flex items-center gap-3">
@@ -443,11 +422,34 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
         </div>
       )}
 
-      {/* flex-1 = fills the remaining height after header + step controls; the
-          parent uses absolute inset-0 to anchor to the outer rain-map-area in
+      {/* flex-1 = fills the remaining height after step controls; the parent
+          uses absolute inset-0 to anchor to the outer rain-map-area in
           RainfallMap.tsx, which has explicit height (h-[min(70vh,800px)]
           min-h-[400px]). no-swipe yields touch events to Leaflet. */}
       <div className="rainfall-map-area no-swipe relative flex-1 min-h-0 w-full bg-muted/20">
+        {/* Top-right control cluster: updated time + basemap switcher + refresh.
+            Sits above the map at z-[600] (above leaflet pane at 400, below
+            dialog content). Compact so it doesn't cover much of the map. */}
+        <div className="absolute top-2 right-2 z-[600] flex items-center gap-2 text-xs text-muted-foreground bg-background/90 backdrop-blur-sm p-1.5 rounded-md border border-border/50 shadow-sm">
+          {updateTime && (
+            <span className="px-1 tabular-nums">{formatString(t('nowcast.updated'), updateTime)}</span>
+          )}
+          <button
+            onClick={() => setBasemap(nextBasemap(basemap))}
+            className="p-1 hover:bg-muted/50 rounded transition-colors"
+            aria-label={`Switch basemap (current: ${BASEMAPS[basemap].label})`}
+          >
+            <Layers className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => refetch()}
+            className="p-1 hover:bg-muted/50 rounded transition-colors disabled:opacity-50"
+            disabled={isFetching}
+            title="Refresh gridded nowcast"
+          >
+            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-primary' : ''}`} />
+          </button>
+        </div>
         {/* First load: spinner briefly → progress bar during streaming */}
         {isLoading && (
           <div className="absolute inset-0 z-[1001] flex items-center justify-center bg-background/50 backdrop-blur-sm">
@@ -507,7 +509,7 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
           aria-label={t('nowcast.mapLabel')}
           role="application"
         >
-          <ZoomControl position="topright" />
+          <ZoomControl position="topleft" />
           <TileLayer
             key={basemap}
             attribution={BASEMAPS[basemap].attribution}
