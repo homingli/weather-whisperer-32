@@ -4,7 +4,9 @@ import { Droplets } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { translatePsr } from "@/lib/hko-weather";
 import { getDateTimeFormatter, formatInTimezone, appLocale } from "@/lib/utils";
-import { useMemo, useCallback, memo } from "react";
+import { useMemo, useCallback, memo, useRef } from "react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 import {
   Bar,
   BarChart,
@@ -15,6 +17,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(useGSAP);
+}
 
 interface DailyForecastProps {
   forecast: DailyForecastType[];
@@ -48,6 +54,7 @@ function tomorrowYmdInTimezone(timeZone: string): string {
 export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) => {
   const { language, t } = useLanguage();
   const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const root = useRef<HTMLDivElement>(null);
 
   const formatDayLine1 = useCallback(
     (inputDate: Date | string): string => {
@@ -100,7 +107,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
       const showPercentage = !showPSR && day.precipitationProbabilityMax > 0;
       return {
         index,
-        temperatureRange: [low, high], // Use floating bar array
+        temperatureRange: [low, high],
         temperatureMin: low,
         temperatureMax: high,
         weatherCode: day.weatherCode,
@@ -119,17 +126,40 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
     return { chartData: rows, yDomainMin: yMin, yDomainMax: yMax };
   }, [forecast, formatDayLine1, formatDayLine2]);
 
+  // GSAP entrance: rows rise + numerals fade in
+  useGSAP(() => {
+    const mm = gsap.matchMedia();
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      gsap.from(root.current?.querySelectorAll(".df-rule") ?? [], {
+        scaleX: 0, transformOrigin: "left center", duration: 0.9, ease: "power3.inOut", stagger: 0.1, delay: 0.25,
+      });
+      gsap.from(root.current?.querySelector(".df-chart") ?? null, {
+        autoAlpha: 0, y: 16, duration: 0.7, ease: "power2.out", delay: 0.45,
+      });
+    });
+    return () => mm.revert();
+  }, { scope: root });
+
   return (
-    <div className="glass-card p-4 flex flex-col h-[350px] animate-fade-in" style={{ animationDelay: "0.3s" }}>
-      <h3 className="text-base font-medium text-muted-foreground mb-4 px-2">{t("daily.title")}</h3>
-      
+    <div ref={root} className="editorial-card p-6 md:p-8 flex flex-col h-[420px]">
+      <div className="flex items-baseline justify-between gap-4">
+        <h3 className="kicker text-muted-foreground font-display text-base">
+          {t("daily.title")}
+        </h3>
+        <span className="kicker text-muted-foreground/60">
+          A look ahead
+        </span>
+      </div>
+
+      <div className="df-rule h-px editorial-rule mt-3 mb-4" />
+
       <div className="grid grid-cols-7 mb-4 text-center">
         {chartData.map((row) => {
           const day = forecast[row.index];
           return (
             <div key={row.index} className="flex flex-col items-center gap-1 min-w-0 px-0.5">
               <span
-                className="text-4xl leading-none"
+                className="text-3xl md:text-4xl leading-none"
                 role="img"
                 aria-label={getWeatherDescription(day.weatherCode)}
               >
@@ -146,7 +176,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
         })}
       </div>
 
-      <div className="flex-1 min-h-0 w-full min-w-0">
+      <div className="df-chart flex-1 min-h-0 w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
@@ -218,7 +248,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                 if (!row) return null;
                 return (
                   <div
-                    className="rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-md"
+                    className="rounded-none border border-border bg-card px-3 py-2 text-sm shadow-md font-display"
                     style={{
                       backgroundColor: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
@@ -247,21 +277,21 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
             />
             <Bar
               dataKey="temperatureRange"
-              radius={[6, 6, 6, 6]}
+              radius={[2, 2, 2, 2]}
               isAnimationActive={false}
             >
               <LabelList
                 dataKey="temperatureMax"
                 position="top"
                 offset={8}
-                style={{ fontSize: '13px', fill: 'hsl(var(--foreground))', fontWeight: 600 }}
+                style={{ fontSize: '13px', fill: 'hsl(var(--foreground))', fontWeight: 500, fontFamily: "'Playfair Display', serif" }}
                 formatter={(val: number) => `${val}°`}
               />
               <LabelList
                 dataKey="temperatureMin"
                 position="bottom"
                 offset={8}
-                style={{ fontSize: '12px', fill: 'hsl(var(--muted-foreground))', fontWeight: 500 }}
+                style={{ fontSize: '12px', fill: 'hsl(var(--muted-foreground))', fontWeight: 400, fontFamily: "'Playfair Display', serif" }}
                 formatter={(val: number) => `${val}°`}
               />
               {chartData.map((row) => (
@@ -274,3 +304,5 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
     </div>
   );
 });
+
+DailyForecast.displayName = 'DailyForecast';

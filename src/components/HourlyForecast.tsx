@@ -2,7 +2,13 @@ import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastTyp
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from "recharts";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatInTimezone, appLocale } from "@/lib/utils";
-import { useMemo, useCallback, memo } from "react";
+import { useMemo, useCallback, memo, useRef } from "react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
+
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(useGSAP);
+}
 
 interface HourlyForecastProps {
   forecast: HourlyForecastType[];
@@ -12,6 +18,7 @@ interface HourlyForecastProps {
 
 export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecastProps) => {
   const { language, t } = useLanguage();
+  const root = useRef<HTMLDivElement>(null);
 
   const hoursData = forecast.slice(0, 8);
   const locale = appLocale(language);
@@ -107,7 +114,6 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
       }
     }
 
-    // Add the last period
     areas.push({
       x1: dataPoints[currentPeriodStart].time,
       x2: dataPoints[dataPoints.length - 1].time,
@@ -133,13 +139,34 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
     });
   }, [timezone, locale]);
 
-  return (
-    <div className="glass-card p-4 flex flex-col h-[350px] animate-fade-in" style={{ animationDelay: "0.2s" }}>
-      <h3 className="text-base font-medium text-muted-foreground mb-4 px-2">
-        {t('hourly.title')}
-      </h3>
+  // GSAP entrance: hairline rule reveal + chart fade in
+  useGSAP(() => {
+    const mm = gsap.matchMedia();
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      gsap.from(root.current?.querySelectorAll(".hf-rule") ?? [], {
+        scaleX: 0, transformOrigin: "left center", duration: 0.9, ease: "power3.inOut", stagger: 0.1, delay: 0.2,
+      });
+      gsap.from(root.current?.querySelector(".hf-chart") ?? null, {
+        autoAlpha: 0, y: 16, duration: 0.7, ease: "power2.out", delay: 0.4,
+      });
+    });
+    return () => mm.revert();
+  }, { scope: root });
 
-      <div className="flex-1 w-full min-h-0">
+  return (
+    <div ref={root} className="editorial-card p-6 md:p-8 flex flex-col h-[420px]">
+      <div className="flex items-baseline justify-between gap-4">
+        <h3 className="kicker text-muted-foreground font-display text-base">
+          {t('hourly.title')}
+        </h3>
+        <span className="kicker text-muted-foreground/60">
+          The next {hoursData.length} hours
+        </span>
+      </div>
+
+      <div className="hf-rule h-px editorial-rule mt-3 mb-4" />
+
+      <div className="hf-chart flex-1 w-full min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 10 }}>
             {/* Day/night background areas */}
@@ -148,7 +175,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
                 key={index}
                 x1={area.x1}
                 x2={area.x2}
-                fill={area.isDay ? "hsl(48 96% 53% / 0.7)" : "hsl(222 47% 30% / 0.7)"}
+                fill={area.isDay ? "hsl(48 96% 53% / 0.55)" : "hsl(222 47% 30% / 0.55)"}
                 fillOpacity={1}
               />
             ))}
@@ -204,7 +231,8 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
               contentStyle={{
                 backgroundColor: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
+                borderRadius: '0',
+                fontFamily: "'Playfair Display', serif",
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
               labelFormatter={(value: number) => formatTooltipLabel(value)}
@@ -212,7 +240,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
                 if (active && payload && payload.length) {
                   const data = payload[0].payload;
                   return (
-                    <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-md" style={{ backgroundColor: 'hsl(var(--card))' }}>
+                    <div className="rounded-none border border-border bg-card px-3 py-2 text-sm shadow-md" style={{ backgroundColor: 'hsl(var(--card))' }}>
                       <p className="font-medium text-foreground mb-1">{formatTooltipLabel(label)}</p>
                       <div className="space-y-1">
                         <p className="text-weather-sunny flex justify-between gap-4">
@@ -263,3 +291,5 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
     </div>
   );
 });
+
+HourlyForecast.displayName = 'HourlyForecast';
