@@ -69,6 +69,12 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.precip': 'Precipitation',
     'daily.sunrise': 'Sunrise',
     'daily.sunset': 'Sunset',
+
+    // Sunrise / sunset countdown
+    'sun.now': 'now',
+    'sun.inHoursMinutes': 'in {0}h {1}m',
+    'sun.inHours': 'in {0}h',
+    'sun.inMinutes': 'in {0}m',
     
     // City search
     'search.placeholder': 'Search for a city...',
@@ -205,6 +211,12 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.precip': '降水',
     'daily.sunrise': '日出',
     'daily.sunset': '日落',
+
+    // Sunrise / sunset countdown
+    'sun.now': '現在',
+    'sun.inHoursMinutes': '{0}小時{1}分後',
+    'sun.inHours': '{0}小時後',
+    'sun.inMinutes': '{0}分後',
     
     // City search
     'search.placeholder': '搜尋城市...',
