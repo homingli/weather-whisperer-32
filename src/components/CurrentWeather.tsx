@@ -1,9 +1,9 @@
-import { memo, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIcon, getWeatherDescription } from "@/lib/weather";
 import { SENTINEL_THRESHOLD } from "@/lib/constants";
-import { Umbrella, UmbrellaOff, Sunrise, Sunset, ArrowUp, ArrowDown, Droplets, Sun } from "lucide-react";
+import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatInTimezone, appLocale } from "@/lib/utils";
 import { LocalClock } from "./LocalClock";
@@ -59,10 +59,10 @@ const RAINFALL_BANDS: RainBand[] = [
   { max: Infinity,  color: "#9d0b0b", label: "> 30 mm" },
 ];
 
-function rainfallBandFor(mm: number): RainBand {
-  if (!isFinite(mm) || mm < 0) return RAINFALL_BANDS[0];
-  for (const b of RAINFALL_BANDS) if (mm <= b.max) return b;
-  return RAINFALL_BANDS[RAINFALL_BANDS.length - 1];
+function rainfallBandIndexFor(mm: number): number {
+  if (!isFinite(mm) || mm < 0) return 0;
+  for (let i = 0; i < RAINFALL_BANDS.length; i++) if (mm <= RAINFALL_BANDS[i].max) return i;
+  return RAINFALL_BANDS.length - 1;
 }
 
 export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone, compact = false }: CurrentWeatherProps) => {
@@ -103,7 +103,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
     if (!dailyForecast || !dailyForecast.sunrise || !dailyForecast.sunset) return null;
     if (weather.isDay) {
       return {
-        type: 'sunset',
+        type: 'sunset' as const,
         time: formatInTimezone(new Date(dailyForecast.sunset), locale, {
           timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12,
         }),
@@ -111,7 +111,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
       };
     }
     return {
-      type: 'sunrise',
+      type: 'sunrise' as const,
       time: formatInTimezone(new Date(dailyForecast.sunrise), locale, {
         timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12,
       }),
@@ -120,7 +120,10 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
   }, [dailyForecast, weather.isDay, locale, timezone, hour12]);
 
   const uvBand = useMemo(() => uvBandFor(weather.uvIndex), [weather.uvIndex]);
-  const rainBand = useMemo(() => rainfallBandFor(weather.precipitation ?? 0), [weather.precipitation]);
+  const precipBandIndex = useMemo(
+    () => rainfallBandIndexFor(weather.precipitation ?? 0),
+    [weather.precipitation],
+  );
   const humidityPct = isEmpty ? 0 : Math.max(0, Math.min(100, weather.humidity));
   const windDeg = isEmpty ? 0 : weather.windDirection;
 
@@ -160,7 +163,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
             </div>
           </div>
           <p className="cw-fade text-center font-display italic text-xl text-muted-foreground">
-            {getWeatherDescription(weather.weatherCode)} · {t('weather.feelsLike')} {fmt(weather.apparentTemperature, '°')}
+            {getWeatherDescription(weather.weatherCode)}
           </p>
         </div>
       ) : (
@@ -185,38 +188,35 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
             <p className="font-display text-2xl md:text-3xl italic font-light leading-tight">
               {getWeatherDescription(weather.weatherCode)}
             </p>
-            <p className="text-sm text-muted-foreground">
-              {t('weather.feelsLike')} — {fmt(weather.apparentTemperature, '°')}
-            </p>
           </div>
         </header>
       )}
 
       <div className="cw-rule h-px editorial-rule my-8" />
 
-      {/* Mid section — umbrella | high (top row); sunrise/sunset | low (bottom row) */}
-      <div className={`grid gap-x-10 gap-y-6 cw-fade ${compact ? 'grid-cols-2' : 'md:grid-cols-4'}`}>
+      {/* Mid section — umbrella + sunrise/sunset (top), temperature range bar (full width) */}
+      <div className={`grid gap-x-10 gap-y-6 cw-fade ${compact ? 'grid-cols-2' : 'md:grid-cols-3'}`}>
         <FactBlock
           icon={needsUmbrella ? Umbrella : UmbrellaOff}
           label={t('umbrella.label')}
           value={needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
           valueTone={needsUmbrella ? 'text-cyan-400' : 'text-muted-foreground/70'}
         />
-        <FactBlock
-          icon={ArrowUp}
-          label={t('daily.high')}
-          value={fmt(dailyForecast?.temperatureMax, '°')}
-        />
-        <FactBlock
+        <SunriseSunsetCountdown
+          type={sunEvent?.type ?? 'sunset'}
+          time={sunEvent?.time ?? '—:—'}
           icon={sunEvent?.icon ?? Sunset}
-          label={sunEvent?.type === 'sunrise' ? t('daily.sunrise') : t('daily.sunset')}
-          value={sunEvent?.time ?? '—:—'}
+          empty={!sunEvent}
         />
-        <FactBlock
-          icon={ArrowDown}
-          label={t('daily.low')}
-          value={fmt(dailyForecast?.temperatureMin, '°')}
-        />
+        <div className={compact ? 'col-span-2' : 'col-span-1'}>
+          <RangeBar
+            low={dailyForecast?.temperatureMin}
+            high={dailyForecast?.temperatureMax}
+            current={weather.apparentTemperature}
+            label={t('daily.today')}
+            empty={isEmpty}
+          />
+        </div>
       </div>
 
       <div className="cw-rule h-px editorial-rule my-8" />
@@ -224,9 +224,19 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
       {/* Bottom section — creative visualizations */}
       <div className={`grid gap-x-10 gap-y-8 cw-fade ${compact ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
         <HumidityBar pct={humidityPct} label={t('weather.humidity')} empty={isEmpty} />
-        <WindCompass deg={windDeg} speed={weather.windSpeed} label={t('weather.wind')} empty={isEmpty} label_kmh={t('unit.kmh', 'km/h')} />
+        <WindCompass
+          deg={windDeg}
+          speed={weather.windSpeed}
+          label={t('weather.wind')}
+          empty={isEmpty}
+          label_kmh={t('unit.kmh', 'km/h')}
+        />
         <UvChip uv={weather.uvIndex} band={uvBand} label={t('weather.uvIndex')} empty={isEmpty} />
-        <PrecipBar mm={weather.precipitation ?? 0} band={rainBand} empty={isEmpty} />
+        <PrecipBar
+          mm={weather.precipitation ?? 0}
+          bandIndex={precipBandIndex}
+          empty={isEmpty}
+        />
       </div>
     </div>
   );
@@ -263,6 +273,93 @@ function FactBlock({ icon: Icon, label, value, rotation, iconClass, valueTone }:
   );
 }
 
+/* ── Temperature range bar: low ── current ── high ──────────────────── */
+function RangeBar({
+  low, high, current, label, empty,
+}: { low?: number; high?: number; current: number; label: string; empty: boolean }) {
+  const lo = low ?? current;
+  const hi = high ?? current;
+  const range = Math.max(hi - lo, 0.1);
+  const clamped = Math.max(lo, Math.min(hi, current));
+  const currentPct = ((clamped - lo) / range) * 100;
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="kicker text-muted-foreground">{label}</span>
+        <span className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none">
+          {empty ? '—' : `${Math.round(current)}°`}
+        </span>
+      </div>
+      <div className="relative h-2 bg-foreground/10">
+        <div
+          className="absolute top-0 bottom-0 bg-foreground/30"
+          style={{ left: 0, width: `${currentPct}%` }}
+          aria-hidden
+        />
+        <div
+          className="absolute -top-1.5 -translate-x-1/2 h-5 w-5 rotate-45 border border-foreground bg-background"
+          style={{ left: `${currentPct}%` }}
+          aria-hidden
+        />
+      </div>
+      <div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
+        <span>{empty ? '—' : `${Math.round(lo)}°`}</span>
+        <span>{empty ? '—' : `${Math.round(hi)}°`}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Sunrise / sunset countdown: "in 4h 32m" with HH:MM subtext ─────── */
+function SunriseSunsetCountdown({
+  type, time, icon: Icon, empty,
+}: { type: 'sunrise' | 'sunset'; time: string; icon: React.ComponentType<{ className?: string }>; empty: boolean }) {
+  const [, setNow] = useState(() => Date.now());
+
+  // Re-tick every minute so the countdown stays current.
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const countdown = useMemo(() => {
+    if (empty) return { text: "—", isNow: false };
+    const m = /^(\d{1,2}):(\d{2})$/.exec(time);
+    if (!m) return { text: "—", isNow: false };
+    const targetH = Number(m[1]);
+    const targetM = Number(m[2]);
+    const now = new Date();
+    const target = new Date(now);
+    target.setHours(targetH, targetM, 0, 0);
+    if (target.getTime() <= now.getTime()) target.setDate(target.getDate() + 1);
+    const diffMs = target.getTime() - now.getTime();
+    const totalMin = Math.floor(diffMs / 60_000);
+    const hrs = Math.floor(totalMin / 60);
+    const mins = totalMin % 60;
+    const isNow = totalMin <= 1;
+    const text = isNow ? "now" : hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+    return { text, isNow };
+  }, [time, empty]);
+
+  const labelKey = type === 'sunrise' ? 'daily.sunrise' : 'daily.sunset';
+  const countdownText = empty ? "—" : `in ${countdown.text}`;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2 kicker text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        <span>{labelKey === 'daily.sunrise' ? 'Sunrise' : 'Sunset'}</span>
+      </div>
+      <div className={`font-display text-2xl md:text-3xl font-light tabular-nums leading-tight ${countdown.isNow ? 'text-amber-400' : ''}`}>
+        {countdownText}
+      </div>
+      <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
+        {empty ? '—' : time}
+      </div>
+    </div>
+  );
+}
+
 /* ── Humidity: horizontal "bucket" bar with fill percent ───────────── */
 function HumidityBar({ pct, label, empty }: { pct: number; label: string; empty: boolean }) {
   const ticks = [0, 25, 50, 75, 100];
@@ -278,7 +375,6 @@ function HumidityBar({ pct, label, empty }: { pct: number; label: string; empty:
         </span>
       </div>
       <div className="relative h-6 border border-foreground/15 bg-foreground/[0.04] overflow-hidden">
-        {/* fill */}
         <div
           className="absolute inset-y-0 left-0 transition-[width] duration-700 ease-out"
           style={{
@@ -287,7 +383,6 @@ function HumidityBar({ pct, label, empty }: { pct: number; label: string; empty:
           }}
           aria-hidden
         />
-        {/* tick marks */}
         {ticks.map((t) => (
           <div
             key={t}
@@ -296,7 +391,6 @@ function HumidityBar({ pct, label, empty }: { pct: number; label: string; empty:
             aria-hidden
           />
         ))}
-        {/* water surface shimmer */}
         {!empty && (
           <div
             className="absolute inset-y-[2px] left-0 border-r-2 border-foreground/40 mix-blend-overlay"
@@ -312,16 +406,10 @@ function HumidityBar({ pct, label, empty }: { pct: number; label: string; empty:
   );
 }
 
-/* ── Wind: SVG compass needle + speed + direction ──────────────────── */
+/* ── Wind: arrow + degree + direction (no compass ring) ───────────── */
 function WindCompass({
   deg, speed, label, empty, label_kmh,
 }: { deg: number; speed: number; label: string; empty: boolean; label_kmh: string }) {
-  const size = 64;
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = size / 2 - 4;
-  // wind direction arrow points toward where wind is coming FROM;
-  // meteorological convention: 0° = north, 90° = east. SVG 0° = up, so deg maps directly.
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
@@ -333,34 +421,22 @@ function WindCompass({
           </span>
         </span>
       </div>
-      <div className="flex items-center gap-4">
-        <svg
-          width={size}
-          height={size}
-          viewBox={`0 0 ${size} ${size}`}
-          className="shrink-0"
-          role="img"
+      <div className="flex items-center gap-5">
+        <div
+          className="shrink-0 transition-transform duration-500"
+          style={{ transform: `rotate(${deg}deg)` }}
           aria-label="wind direction"
         >
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="currentColor" strokeOpacity="0.18" strokeWidth="1" />
-          {/* cardinal letters */}
-          <text x={cx} y="9" textAnchor="middle" fontSize="8" fontFamily="'Outfit', sans-serif" fill="currentColor" fillOpacity="0.45">N</text>
-          <text x={size - 6} y={cy + 3} textAnchor="end" fontSize="8" fontFamily="'Outfit', sans-serif" fill="currentColor" fillOpacity="0.45">E</text>
-          <text x={cx} y={size - 4} textAnchor="middle" fontSize="8" fontFamily="'Outfit', sans-serif" fill="currentColor" fillOpacity="0.45">S</text>
-          <text x="6" y={cy + 3} textAnchor="start" fontSize="8" fontFamily="'Outfit', sans-serif" fill="currentColor" fillOpacity="0.45">W</text>
-          {/* needle — points toward source of wind */}
-          <g transform={`rotate(${deg} ${cx} ${cy})`}>
-            <line x1={cx} y1={cy + 6} x2={cx} y2={cy - r + 4} stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            <polygon
-              points={`${cx},${cy - r + 1} ${cx - 5},${cy - r + 10} ${cx + 5},${cy - r + 10}`}
-              fill="currentColor"
-            />
-          </g>
-          <circle cx={cx} cy={cy} r="2.5" fill="currentColor" fillOpacity="0.6" />
-        </svg>
+          <svg width="48" height="48" viewBox="0 0 48 48" role="img">
+            <line x1="24" y1="40" x2="24" y2="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <polygon points="24,4 18,14 30,14" fill="currentColor" />
+          </svg>
+        </div>
         <div className="flex flex-col leading-tight">
-          <span className="font-display text-xl tabular-nums">{empty ? '—' : `${Math.round(deg)}°`}</span>
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70">
+          <span className="font-display text-2xl tabular-nums leading-none">
+            {empty ? '—' : `${Math.round(deg)}°`}
+          </span>
+          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mt-1">
             {empty ? '—' : windCompass(deg)}
           </span>
         </div>
@@ -392,10 +468,8 @@ function UvChip({
         </span>
       </div>
       <div className="flex items-center gap-3">
-        {/* 5-segment scale, current band highlighted */}
         <div className="flex h-2 flex-1 overflow-hidden border border-foreground/15">
           {UV_BANDS.slice(0, 5).map((b) => {
-            // The bands overlap at boundaries; pick the narrowest "active" by checking the prior band max.
             const priorMax = UV_BANDS.indexOf(b) > 0 ? UV_BANDS[UV_BANDS.indexOf(b) - 1].max : 0;
             const segActive = !empty && uv != null && uv > priorMax && uv <= b.max;
             return (
@@ -424,12 +498,13 @@ function UvChip({
 
 /* ── Precipitation: rainfall nowcast color bar with mm marker ──────── */
 function PrecipBar({
-  mm, band, empty,
-}: { mm: number; band: RainBand; empty: boolean }) {
-  // Position the marker along the bar based on log scale (0.5 → 30+ mm).
+  mm, bandIndex, empty,
+}: { mm: number; bandIndex: number; empty: boolean }) {
+  // Position the marker along the bar (linear scale up to 30 mm).
   const maxTick = 30;
   const mmClamped = Math.max(0, Math.min(mm, maxTick));
   const posPct = (mmClamped / maxTick) * 100;
+  const activeBand = RAINFALL_BANDS[bandIndex];
 
   return (
     <div className="flex flex-col gap-3">
@@ -440,7 +515,7 @@ function PrecipBar({
         </span>
         <span
           className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none"
-          style={{ color: empty ? "currentColor" : band.color }}
+          style={{ color: empty ? "currentColor" : activeBand.color }}
         >
           {empty ? '—' : `${mm.toFixed(1)}`}
           <span className="text-xs ml-1 text-muted-foreground/70" style={{ fontFamily: "'Outfit', sans-serif" }}>
@@ -450,16 +525,19 @@ function PrecipBar({
       </div>
       <div className="relative h-3 overflow-hidden border border-foreground/15">
         <div className="absolute inset-0 grid grid-cols-7">
-          {RAINFALL_BANDS.map((b) => (
+          {RAINFALL_BANDS.map((b, i) => (
             <div
               key={b.label}
-              style={{ backgroundColor: b.color }}
+              style={{
+                backgroundColor: b.color,
+                opacity: empty ? 0.18 : i === bandIndex ? 1 : 0.18,
+                transition: "opacity 300ms ease-out",
+              }}
               className="h-full"
               aria-hidden
             />
           ))}
         </div>
-        {/* marker for current value */}
         {!empty && (
           <div
             className="absolute -top-1 h-5 w-0.5 bg-foreground"
