@@ -243,7 +243,7 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.tomorrow': '明日',
     'daily.low': '最低',
     'daily.high': '最高',
-    'daily.precip': '降水',
+    'daily.precip': '降雨量',
     'daily.sunrise': '日出',
     'daily.sunset': '日落',
 

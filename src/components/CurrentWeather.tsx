@@ -147,7 +147,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
         <RangeBar
           low={dailyForecast?.temperatureMin}
           high={dailyForecast?.temperatureMax}
-          current={weather.apparentTemperature}
+          current={weather.temperature}
           label={t('daily.today')}
           empty={isEmpty}
         />
@@ -505,41 +505,34 @@ function UvChip({
           <Sun className="h-3.5 w-3.5" />
           {label}
         </span>
-        <span
-          className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none px-2.5 py-0.5"
-          style={{
-            backgroundColor: empty ? "transparent" : band.bg,
-            color: empty ? "currentColor" : band.text,
-            border: empty ? "1px solid currentColor" : `1px solid ${band.border}`,
-          }}
-        >
-          {empty ? '—' : uv == null ? '—' : uv.toFixed(1)}
+        <span className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none">
+          {empty || uv == null ? '—' : uv.toFixed(1)}
+          {!empty && uv != null && (
+            <span
+              className="text-xs ml-2 uppercase tracking-[0.18em] not-italic font-normal"
+              style={{ fontFamily: "'Outfit', sans-serif", color: band.bg }}
+            >
+              {band.label}
+            </span>
+          )}
         </span>
       </div>
-      <div className="flex items-center gap-3">
-        <div className="flex h-2 flex-1 overflow-hidden border border-foreground/15">
-          {UV_BANDS.slice(0, 5).map((b) => {
-            const priorMax = UV_BANDS.indexOf(b) > 0 ? UV_BANDS[UV_BANDS.indexOf(b) - 1].max : 0;
-            const segActive = !empty && uv != null && uv > priorMax && uv <= b.max;
-            return (
-              <div
-                key={b.label}
-                className="flex-1 transition-opacity duration-300"
-                style={{
-                  backgroundColor: b.bg,
-                  opacity: segActive ? 1 : 0.18,
-                }}
-                aria-hidden
-              />
-            );
-          })}
-        </div>
-        <span
-          className="font-display text-sm uppercase tracking-[0.18em]"
-          style={{ color: empty ? "currentColor" : band.bg }}
-        >
-          {empty ? '—' : band.label}
-        </span>
+      <div className="flex h-2 overflow-hidden border border-foreground/15">
+        {UV_BANDS.slice(0, 5).map((b, i) => {
+          const priorMax = i > 0 ? UV_BANDS[i - 1].max : 0;
+          const segActive = !empty && uv != null && uv > priorMax && uv <= b.max;
+          return (
+            <div
+              key={b.label}
+              className="flex-1 transition-opacity duration-300"
+              style={{
+                backgroundColor: b.bg,
+                opacity: segActive ? 1 : 0.18,
+              }}
+              aria-hidden
+            />
+          );
+        })}
       </div>
     </div>
   );
