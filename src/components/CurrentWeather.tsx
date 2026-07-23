@@ -142,6 +142,22 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
 
       <div className="cw-rule h-px editorial-rule mb-8" />
 
+      {/* Today's temperature range sits above the hero so the day's low/high context is set before the headline number. */}
+      <div className="mb-8 cw-fade">
+        <RangeBar
+          low={dailyForecast?.temperatureMin}
+          high={dailyForecast?.temperatureMax}
+          current={weather.apparentTemperature}
+          label={t('daily.today')}
+          empty={isEmpty}
+        />
+      </div>
+
+      {/* Feels-like kicker above the hero so the big number is read as apparent temperature. */}
+      <p className={`cw-fade kicker text-muted-foreground mb-2 ${compact ? 'text-center' : 'md:text-left'}`}>
+        {t('weather.feelsLike')}
+      </p>
+
       {/* Hero — desktop 2-col (temp | icon+conditions), mobile side-by-side icon+temp */}
       {compact ? (
         <div className="flex flex-col gap-6">
@@ -164,9 +180,6 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           </div>
           <p className="cw-fade text-center font-display italic text-xl text-muted-foreground">
             {getWeatherDescription(weather.weatherCode)}
-          </p>
-          <p className="cw-fade text-center kicker text-muted-foreground/60">
-            {t('weather.feelsLike')} {fmt(weather.apparentTemperature, '°')}
           </p>
         </div>
       ) : (
@@ -191,17 +204,14 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
             <p className="font-display text-2xl md:text-3xl italic font-light leading-tight">
               {getWeatherDescription(weather.weatherCode)}
             </p>
-            <p className="text-sm text-muted-foreground">
-              {t('weather.feelsLike')} {fmt(weather.apparentTemperature, '°')}
-            </p>
           </div>
         </header>
       )}
 
       <div className="cw-rule h-px editorial-rule my-8" />
 
-      {/* Mid section — umbrella + sunrise/sunset (top), temperature range bar (full width) */}
-      <div className={`grid gap-x-10 gap-y-6 cw-fade ${compact ? 'grid-cols-2' : 'md:grid-cols-3'}`}>
+      {/* Mid section — umbrella + sunrise/sunset */}
+      <div className={`grid gap-x-10 gap-y-6 cw-fade ${compact ? 'grid-cols-2' : 'md:grid-cols-2'}`}>
         <FactBlock
           icon={needsUmbrella ? Umbrella : UmbrellaOff}
           label={t('umbrella.label')}
@@ -214,15 +224,6 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           icon={sunEvent?.icon ?? Sunset}
           empty={!sunEvent}
         />
-        <div className={compact ? 'col-span-2' : 'col-span-1'}>
-          <RangeBar
-            low={dailyForecast?.temperatureMin}
-            high={dailyForecast?.temperatureMax}
-            current={weather.apparentTemperature}
-            label={t('daily.today')}
-            empty={isEmpty}
-          />
-        </div>
       </div>
 
       <div className="cw-rule h-px editorial-rule my-8" />
@@ -413,40 +414,36 @@ function HumidityBar({ pct, label, empty }: { pct: number; label: string; empty:
   );
 }
 
-/* ── Wind: arrow + degree + direction (no compass ring) ───────────── */
+/* ── Wind: single-row kicker | arrow + degrees + speed ────────────── */
 function WindCompass({
   deg, speed, label, empty, label_kmh,
 }: { deg: number; speed: number; label: string; empty: boolean; label_kmh: string }) {
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="kicker text-muted-foreground">{label}</span>
+    <div className="flex items-center justify-between gap-3 flex-wrap">
+      <span className="kicker text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-3">
         <span className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none">
           {empty ? '—' : `${Math.round(speed)}`}
           <span className="text-xs ml-1 text-muted-foreground/70 not-italic" style={{ fontFamily: "'Outfit', sans-serif" }}>
             {label_kmh}
           </span>
         </span>
-      </div>
-      <div className="flex items-center gap-5">
         <div
-          className="shrink-0 transition-transform duration-500"
+          className="transition-transform duration-500"
           style={{ transform: `rotate(${deg}deg)` }}
           aria-label="wind direction"
         >
-          <svg width="48" height="48" viewBox="0 0 48 48" role="img">
-            <line x1="24" y1="40" x2="24" y2="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            <polygon points="24,4 18,14 30,14" fill="currentColor" />
+          <svg width="22" height="22" viewBox="0 0 48 48" role="img">
+            <line x1="24" y1="40" x2="24" y2="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            <polygon points="24,2 16,16 32,16" fill="currentColor" />
           </svg>
         </div>
-        <div className="flex flex-col leading-tight">
-          <span className="font-display text-2xl tabular-nums leading-none">
-            {empty ? '—' : `${Math.round(deg)}°`}
+        <span className="font-display text-xl md:text-2xl tabular-nums leading-none">
+          {empty ? '—' : `${Math.round(deg)}°`}
+          <span className="ml-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 not-italic" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            {empty ? '' : windCompass(deg)}
           </span>
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mt-1">
-            {empty ? '—' : windCompass(deg)}
-          </span>
-        </div>
+        </span>
       </div>
     </div>
   );
