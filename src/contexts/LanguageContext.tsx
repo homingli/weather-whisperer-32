@@ -70,6 +70,9 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.sunrise': 'Sunrise',
     'daily.sunset': 'Sunset',
 
+    // Range bar label (the temperature range above the hero)
+    'label.temperature': 'TEMPERATURE',
+
     // Hero / editorial labels
     'header.dailyEdition': 'Daily Edition',
 
@@ -245,6 +248,9 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.precip': '降雨量',
     'daily.sunrise': '日出',
     'daily.sunset': '日落',
+
+    // Range bar label (the temperature range above the hero)
+    'label.temperature': '氣溫',
 
     // Hero / editorial labels
     'header.dailyEdition': '每日天氣',

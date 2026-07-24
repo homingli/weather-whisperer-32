@@ -1,4 +1,4 @@
-import { DailyForecast as DailyForecastType, getWeatherIcon, getWeatherDescription } from "@/lib/weather";
+import { DailyForecast as DailyForecastType, getWeatherIconNode, weatherDescriptionKey } from "@/lib/weather";
 import { addDays } from "date-fns";
 import { Droplets } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -139,10 +139,10 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
   return (
     <div ref={root} className="editorial-card p-6 md:p-8 flex flex-col h-[420px]">
       <div className="flex items-baseline justify-between gap-4">
-        <h3 className="kicker text-muted-foreground font-display text-base">
+        <h3 className="kicker text-muted-foreground font-display text-lg">
           {t("daily.title")}
         </h3>
-        <span className="kicker text-muted-foreground/60">
+        <span className="kicker text-muted-foreground/60 text-sm">
           A look ahead
         </span>
       </div>
@@ -152,18 +152,19 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
       <div className="grid grid-cols-7 mb-4 text-center">
         {chartData.map((row) => {
           const day = forecast[row.index];
+          const Icon = getWeatherIconNode(day.weatherCode, true);
           return (
             <div key={row.index} className="flex flex-col items-center gap-1 min-w-0 px-0.5">
               <span
-                className="text-3xl md:text-4xl leading-none"
+                className="inline-flex items-center justify-center text-foreground leading-none"
                 role="img"
-                aria-label={getWeatherDescription(day.weatherCode)}
+                aria-label={t(weatherDescriptionKey(day.weatherCode))}
               >
-                {getWeatherIcon(day.weatherCode, true)}
+                <Icon className="h-8 w-8 md:h-9 md:w-9" strokeWidth={1.25} />
               </span>
               {row.precipLabel && (
-                <div className="flex items-center justify-center gap-0.5 text-[10px] leading-tight text-weather-rain">
-                  <Droplets className="h-3 w-3 shrink-0" aria-hidden />
+                <div className="flex items-center justify-center gap-0.5 text-xs leading-tight text-weather-rain">
+                  <Droplets className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   <span className="truncate max-w-full">{row.precipLabel}</span>
                 </div>
               )}
@@ -216,20 +217,20 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                     <text
                       textAnchor="middle"
                       fill="hsl(var(--muted-foreground))"
-                      fontSize={11}
+                      fontSize={13}
                       className="font-medium"
                     >
-                      <tspan x={0} dy={-22}>
+                      <tspan x={0} dy={-24}>
                         {row.line1}
                       </tspan>
-                      <tspan x={0} dy={13} className="text-muted-foreground font-medium">
+                      <tspan x={0} dy={15} className="text-muted-foreground/70 font-medium" fontSize={11}>
                         {row.line2}
                       </tspan>
                     </text>
                   </g>
                 );
               }}
-              height={40}
+              height={44}
               interval={0}
             />
             <YAxis
@@ -244,7 +245,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                 if (!row) return null;
                 return (
                   <div
-                    className="rounded-none border border-border bg-card px-3 py-2 text-sm shadow-md font-display"
+                    className="rounded-none border border-border bg-card px-3 py-2 text-base shadow-md font-display"
                     style={{
                       backgroundColor: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
@@ -257,11 +258,11 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                       {t("daily.low")}: {row.temperatureMin}° · {t("daily.high")}: {row.temperatureMax}°
                     </p>
                     {row.precipLabel && (
-                      <p className="text-weather-rain mt-1 text-xs">
+                      <p className="text-weather-rain mt-1 text-sm">
                         {t("daily.precip")}: {row.precipLabel}
                       </p>
                     )}
-                    <div className="text-sky-400 mt-1 text-xs flex items-center justify-between">
+                    <div className="text-sky-400 mt-1 text-sm flex items-center justify-between">
                       <span>{t('weather.wind')}: {Math.round(row.windSpeedMax)} {t('unit.kmh')}</span>
                       <div style={{ transform: `rotate(${row.windDirectionDominant}deg)` }} className="inline-block transition-transform duration-500 ml-2">
                         <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[6px] border-b-sky-400" />
@@ -280,14 +281,14 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                 dataKey="temperatureMax"
                 position="top"
                 offset={8}
-                style={{ fontSize: '13px', fill: 'hsl(var(--foreground))', fontWeight: 500, fontFamily: "'Playfair Display', serif" }}
+                style={{ fontSize: '15px', fill: 'hsl(var(--foreground))', fontWeight: 500, fontFamily: "'Playfair Display', serif" }}
                 formatter={(val: number) => `${val}°`}
               />
               <LabelList
                 dataKey="temperatureMin"
                 position="bottom"
                 offset={8}
-                style={{ fontSize: '12px', fill: 'hsl(var(--muted-foreground))', fontWeight: 400, fontFamily: "'Playfair Display', serif" }}
+                style={{ fontSize: '14px', fill: 'hsl(var(--muted-foreground))', fontWeight: 400, fontFamily: "'Playfair Display', serif" }}
                 formatter={(val: number) => `${val}°`}
               />
               {chartData.map((row) => (
