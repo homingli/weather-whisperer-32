@@ -7,7 +7,6 @@ import { AlertCircle, RefreshCw, Play, Pause, Layers } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { PRD_BOUNDS } from '@/lib/hko-weather';
 import { TIMING } from '@/lib/constants';
-import { fetchWithTimeout } from '@/lib/fetch-utils';
 
 const EMPTY_STEPS: StepData[] = [];
 
@@ -217,53 +216,71 @@ const parseRainfallCSV = (csvText: string): NowcastResult => {
   };
 };
 
-type ProgressCallback = (received: number, total: number) => void;
+// total is null when Content-Length is missing (mobile carriers, HTTP/2/3,
+// or Vercel's edge sometimes strip the header). The UI then switches from a
+// determinate bar to an indeterminate animation so the user sees progress
+// instead of a stuck 0% bar for the entire 2.7 MB download.
+type ProgressCallback = (received: number, total: number | null) => void;
 
 const fetchRainfallNowcast = async (onProgress?: ProgressCallback): Promise<NowcastResult> => {
-  const response = await fetchWithTimeout('/hko-data/F3/Gridded_rainfall_nowcast.csv', {
-    timeout: TIMING.NOWCAST_TIMEOUT_MS,
-  });
-  if (!response.ok) throw new Error('Failed to fetch gridded rainfall nowcast');
+  // Manage the timeout here (not via fetchWithTimeout) so the abort stays
+  // armed through the body-read loop — headers can arrive in <1s on a warm
+  // connection while the body stream still takes 20+ s on slow mobile.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort(new DOMException(
+      `Rainfall nowcast fetch timed out after ${TIMING.NOWCAST_TIMEOUT_MS}ms`,
+      'TimeoutError'
+    ));
+  }, TIMING.NOWCAST_TIMEOUT_MS);
 
-  // Parse last-modified header for adaptive refetch scheduling
-  const lmHeader = response.headers.get('last-modified');
-  const lastModified = lmHeader ? new Date(lmHeader).getTime() : Date.now();
+  try {
+    const response = await fetch('/hko-data/F3/Gridded_rainfall_nowcast.csv', {
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error('Failed to fetch gridded rainfall nowcast');
 
-  const contentLength = response.headers.get('content-length');
-  const total = contentLength ? parseInt(contentLength, 10) : 0;
+    // Parse last-modified header for adaptive refetch scheduling
+    const lmHeader = response.headers.get('last-modified');
+    const lastModified = lmHeader ? new Date(lmHeader).getTime() : Date.now();
 
-  // Stream with progress tracking when Content-Length and ReadableStream are available
-  if (total > 0 && response.body) {
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let received = 0;
+    const contentLength = response.headers.get('content-length');
+    const total = contentLength ? parseInt(contentLength, 10) : null;
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      received += value.length;
-      onProgress?.(received, total);
+    if (response.body) {
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        onProgress?.(received, total);
+      }
+
+      // Yield to React so it can render the final progress state
+      // before synchronous parsing blocks the main thread.
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // Concatenate all chunks into one typed array
+      const allChunks = new Uint8Array(received);
+      let position = 0;
+      for (const chunk of chunks) {
+        allChunks.set(chunk, position);
+        position += chunk.length;
+      }
+
+      return { ...parseRainfallCSV(new TextDecoder().decode(allChunks)), lastModified };
     }
 
-    // Yield to React so it can render the final progress state
-    // before synchronous parsing blocks the main thread.
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    // Concatenate all chunks into one typed array
-    const allChunks = new Uint8Array(received);
-    let position = 0;
-    for (const chunk of chunks) {
-      allChunks.set(chunk, position);
-      position += chunk.length;
-    }
-
-    return { ...parseRainfallCSV(new TextDecoder().decode(allChunks)), lastModified };
+    // Fallback: no ReadableStream (very old browsers only — HKO always sends one)
+    const csvText = await response.text();
+    return { ...parseRainfallCSV(csvText), lastModified };
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  // Fallback: no Content-Length or ReadableStream (unlikely — HKO always sends it)
-  const csvText = await response.text();
-  return { ...parseRainfallCSV(csvText), lastModified };
 };
 
 export default function RainfallMapInner({ userLocation }: { userLocation?: UserLocation }) {
@@ -272,15 +289,30 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
   const prevUserLoc = useRef<string | null>(null);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  // Used only when Content-Length is missing: an animated bar with no fill
+  // percentage. Kept separate from downloadProgress so we can render either
+  // mode without a sentinel like -1.
+  const [bytesReceived, setBytesReceived] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [basemap, setBasemap] = useState<Basemap>('positron');
 
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hkoGriddedRainfallNowcast'],
     queryFn: async () => {
-      setDownloadProgress(0);
+      // Don't pre-seed progress: keep showing the spinner until the first
+      // chunk actually arrives. Pre-seeding to 0 races with React 18's
+      // auto-batching and produces a stuck-at-0% bar in the indeterminate
+      // path (no Content-Length → no onProgress ever fires).
+      setDownloadProgress(null);
+      setBytesReceived(null);
       return await fetchRainfallNowcast((received, total) => {
-        setDownloadProgress(Math.round((received / total) * 100));
+        if (total !== null && total > 0) {
+          setDownloadProgress(Math.round((received / total) * 100));
+          setBytesReceived(null);
+        } else {
+          setDownloadProgress(null);
+          setBytesReceived(received);
+        }
       });
     },
     staleTime: TIMING.STALE_TIME_MS,
@@ -451,10 +483,11 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
             <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-primary' : ''}`} />
           </button>
         </div>
-        {/* First load: spinner briefly → progress bar during streaming */}
+        {/* First load: spinner → determinate bar OR indeterminate animation */}
         {isLoading && (
           <div className="absolute inset-0 z-[1001] flex items-center justify-center bg-background/50 backdrop-blur-sm">
             {downloadProgress !== null ? (
+              // Determinate: Content-Length was sent; we can show a real %.
               <div className="w-80 flex flex-col gap-1.5">
                 <div className="flex justify-between text-sm">
                   <span>{t('nowcast.downloading')}</span>
@@ -467,19 +500,37 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
                   />
                 </div>
               </div>
+            ) : bytesReceived !== null ? (
+              // Indeterminate: Content-Length was missing (mobile/HTTP-2 edge).
+              // Show a sliding stripe and the byte count so the user sees
+              // the download is actually progressing.
+              <div className="w-80 flex flex-col gap-1.5">
+                <div className="flex justify-between text-sm">
+                  <span>{t('nowcast.downloading')}</span>
+                  <span className="tabular-nums">{(bytesReceived / 1024).toFixed(0)} KB</span>
+                </div>
+                <div className="relative h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="progress-indeterminate rounded-full" />
+                </div>
+              </div>
             ) : (
+              // Before the first chunk arrives.
               <RefreshCw className="w-8 h-8 animate-spin text-primary" />
             )}
           </div>
         )}
 
         {/* Background refetch: thin bar at top of map */}
-        {!isLoading && isFetching && downloadProgress !== null && (
-          <div className="absolute top-0 left-0 right-0 z-10 h-1 bg-muted/60">
-            <div
-              className="h-full bg-primary transition-all duration-300 ease-out"
-              style={{ width: `${downloadProgress}%` }}
-            />
+        {!isLoading && isFetching && (downloadProgress !== null || bytesReceived !== null) && (
+          <div className="absolute top-0 left-0 right-0 z-10 h-1 bg-muted/60 overflow-hidden">
+            {downloadProgress !== null ? (
+              <div
+                className="h-full bg-primary transition-all duration-300 ease-out"
+                style={{ width: `${downloadProgress}%` }}
+              />
+            ) : (
+              <div className="progress-indeterminate h-full" />
+            )}
           </div>
         )}
 
