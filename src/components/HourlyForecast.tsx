@@ -6,10 +6,6 @@ import { useMemo, useCallback, memo, useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(useGSAP);
-}
-
 interface HourlyForecastProps {
   forecast: HourlyForecastType[];
   daily?: DailyForecastType[];
