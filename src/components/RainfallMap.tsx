@@ -42,7 +42,9 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         </div>
       </div>
 
-      <div className="rainfall-map-area no-swipe relative h-[min(70vh,800px)] min-h-[400px] w-full bg-muted/20">
+      <div
+        className={`rainfall-map-area relative h-[min(70vh,800px)] min-h-[400px] w-full bg-muted/20${isLoaded ? ' no-swipe' : ''}`}
+      >
         {!isLoaded ? (
           <div className="absolute inset-0 z-[1000] flex flex-col items-center justify-center bg-background/85 pointer-events-none">
             <CloudRain className="w-12 h-12 text-primary mb-4 opacity-80" />
