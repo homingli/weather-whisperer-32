@@ -109,29 +109,29 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-full min-h-[3rem] w-12 text-muted-foreground hover:text-foreground">
-            <Menu className="h-6 w-6" />
+          <Button variant="ghost" size="icon" className="h-full min-h-[3.5rem] w-14 text-muted-foreground hover:text-foreground">
+            <Menu className="h-7 w-7" />
             <span className="sr-only">Settings</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-[200px]">
+        <DropdownMenuContent align="end" className="min-w-[260px] text-lg p-2">
           {/* Location section */}
-          <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+          <DropdownMenuLabel className="text-sm text-muted-foreground font-normal px-2 py-2.5">
             {language === 'tc' ? '位置' : 'Location'}
           </DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => setSearchOpen(true)} className="gap-2">
-            <Search className="h-4 w-4" />
+          <DropdownMenuItem onClick={() => setSearchOpen(true)} className="gap-2.5 py-3">
+            <Search className="h-5 w-5" />
             {t('search.city')}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleRefreshLocation} disabled={isLocating} className="gap-2">
-            <LocateFixed className={`h-4 w-4 ${isLocating ? 'animate-spin' : ''}`} />
+          <DropdownMenuItem onClick={handleRefreshLocation} disabled={isLocating} className="gap-2.5 py-3">
+            <LocateFixed className={`h-5 w-5 ${isLocating ? 'animate-spin' : ''}`} />
             {t('search.useLocation')}
           </DropdownMenuItem>
           {filteredRecent.length > 0 && (
             <>
               {filteredRecent.map((city) => (
-                <DropdownMenuItem key={`${city.latitude}-${city.longitude}`} onClick={() => handleSelectCity(city)} className="gap-2">
-                  <MapPin className="h-4 w-4" />
+                <DropdownMenuItem key={`${city.latitude}-${city.longitude}`} onClick={() => handleSelectCity(city)} className="gap-2.5 py-3">
+                  <MapPin className="h-5 w-5" />
                   {city.name}
                 </DropdownMenuItem>
               ))}
@@ -141,44 +141,44 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
           <DropdownMenuSeparator />
 
           {/* Refresh section */}
-          <DropdownMenuItem onClick={handleRefreshData} disabled={isRefreshing} className="gap-2">
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <DropdownMenuItem onClick={handleRefreshData} disabled={isRefreshing} className="gap-2.5 py-3">
+            <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
             {t('data.refresh')}
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
 
           {/* Theme section */}
-          <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+          <DropdownMenuLabel className="text-sm text-muted-foreground font-normal px-2 py-2.5">
             {language === 'tc' ? '主題' : 'Theme'}
           </DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => setMode('light')} className="gap-2">
-            <Sun className="h-4 w-4" />
+          <DropdownMenuItem onClick={() => setMode('light')} className="gap-2.5 py-3">
+            <Sun className="h-5 w-5" />
             {themeLabels.light}
-            {mode === 'light' && <Check className="h-4 w-4 ml-auto text-primary" />}
+            {mode === 'light' && <Check className="h-5 w-5 ml-auto text-primary" />}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setMode('dark')} className="gap-2">
-            <Moon className="h-4 w-4" />
+          <DropdownMenuItem onClick={() => setMode('dark')} className="gap-2.5 py-3">
+            <Moon className="h-5 w-5" />
             {themeLabels.dark}
-            {mode === 'dark' && <Check className="h-4 w-4 ml-auto text-primary" />}
+            {mode === 'dark' && <Check className="h-5 w-5 ml-auto text-primary" />}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setMode('auto')} className="gap-2">
-            <SunMoon className="h-4 w-4" />
+          <DropdownMenuItem onClick={() => setMode('auto')} className="gap-2.5 py-3">
+            <SunMoon className="h-5 w-5" />
             {themeLabels.auto}
-            {mode === 'auto' && <Check className="h-4 w-4 ml-auto text-primary" />}
+            {mode === 'auto' && <Check className="h-5 w-5 ml-auto text-primary" />}
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
 
           {/* Language section */}
-          <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+          <DropdownMenuLabel className="text-sm text-muted-foreground font-normal px-2 py-2.5">
             {language === 'tc' ? '語言' : 'Language'}
           </DropdownMenuLabel>
           {languages.map((l) => (
-            <DropdownMenuItem key={l.value} onClick={() => setLanguage(l.value)} className="gap-2">
-              <Globe className="h-4 w-4" />
+            <DropdownMenuItem key={l.value} onClick={() => setLanguage(l.value)} className="gap-2.5 py-3">
+              <Globe className="h-5 w-5" />
               {l.label}
-              {language === l.value && <Check className="h-4 w-4 ml-auto text-primary" />}
+              {language === l.value && <Check className="h-5 w-5 ml-auto text-primary" />}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
