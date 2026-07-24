@@ -18,10 +18,6 @@ import {
   YAxis,
 } from "recharts";
 
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(useGSAP);
-}
-
 interface DailyForecastProps {
   forecast: DailyForecastType[];
   timezone?: string;

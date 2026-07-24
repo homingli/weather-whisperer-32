@@ -11,11 +11,10 @@ import { formatInTimezone, appLocale } from "@/lib/utils";
 function windCompass(deg: number): string {
   if (deg == null || isNaN(deg)) return "—";
   const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-  return dirs[Math.round(((deg % 360) / 45)) % 8];
-}
-
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(useGSAP);
+  // Normalize to [0, 360) so 360° maps back to N (index 0), then bucket by 45°
+  // and clamp the max index to 7 so 359° lands on NW instead of wrapping to N.
+  const normalized = ((deg % 360) + 360) % 360;
+  return dirs[Math.min(Math.round(normalized / 45), 7)];
 }
 
 interface CurrentWeatherProps {
@@ -228,6 +227,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           time={sunEvent?.time ?? '—:—'}
           icon={sunEvent?.icon ?? Sunset}
           empty={!sunEvent}
+          timezone={timezone}
         />
       </div>
 
