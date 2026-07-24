@@ -2,6 +2,11 @@
 @import "@fontsource/outfit/400.css";
 @import "@fontsource/outfit/500.css";
 @import "@fontsource/outfit/700.css";
+@import "@fontsource/playfair-display/400.css";
+@import "@fontsource/playfair-display/500.css";
+@import "@fontsource/playfair-display/600.css";
+@import "@fontsource/playfair-display/700.css";
+@import "@fontsource/playfair-display/400-italic.css";
 
 /* Swiper carousel for mobile card deck */
 @import "swiper/css";
@@ -11,99 +16,112 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Weather App Design System */
+/* Weather App Design System — Editorial */
 
 @layer base {
   :root {
-    /* Light mode - warm white/cream tones */
-    --background: 45 30% 96%;
-    --foreground: 222 47% 11%;
+    /* Light mode — paper cream */
+    --background: 38 38% 92%;
+    --foreground: 30 14% 12%;
 
-    --card: 45 25% 92%;
-    --card-foreground: 222 47% 11%;
+    --card: 36 32% 89%;
+    --card-foreground: 30 14% 12%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover: 36 50% 96%;
+    --popover-foreground: 30 14% 12%;
 
-    --primary: 199 89% 40%;
-    --primary-foreground: 45 30% 98%;
+    --primary: 30 14% 12%;
+    --primary-foreground: 36 50% 96%;
 
-    --secondary: 0 0% 100%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 36 32% 91%;
+    --secondary-foreground: 30 14% 12%;
 
-    --muted: 45 15% 90%;
-    --muted-foreground: 222 30% 40%;
+    --muted: 36 24% 84%;
+    --muted-foreground: 30 8% 36%;
 
-    --accent: 30 60% 55%;
-    --accent-foreground: 45 30% 98%;
+    --accent: 14 38% 38%;
+    --accent-foreground: 36 50% 96%;
 
-    --destructive: 0 84% 50%;
-    --destructive-foreground: 45 30% 98%;
+    --destructive: 0 60% 38%;
+    --destructive-foreground: 36 50% 96%;
 
-    --border: 45 15% 82%;
-    --input: 45 15% 85%;
-    --ring: 199 89% 48%;
+    --border: 30 14% 22% / 0.18;
+    --input: 30 14% 22% / 0.20;
+    --ring: 30 14% 12%;
 
-    --radius: 1rem;
+    --radius: 0.125rem;
 
-    /* Weather-specific tokens - light mode */
-    --glass: 45 25% 95% / 0.7;
-    --glass-border: 45 15% 75% / 0.4;
-    --gradient-sky-start: 200 60% 90%;
-    --gradient-sky-mid: 210 50% 85%;
-    --gradient-sky-end: 45 30% 92%;
-    
+    /* Weather-specific tokens — light mode (editorial paper) */
+    --glass: 36 50% 96% / 0.7;
+    --glass-border: 30 14% 22% / 0.18;
+    --gradient-sky-start: 38 38% 92%;
+    --gradient-sky-mid: 36 30% 88%;
+    --gradient-sky-end: 30 24% 84%;
+
     --weather-sunny: 35 90% 55%;
     --weather-cloudy: 220 20% 50%;
     --weather-rain: 200 80% 50%;
     --weather-snow: 200 30% 85%;
 
-    --sidebar-background: 45 25% 94%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 199 89% 40%;
-    --sidebar-primary-foreground: 45 30% 98%;
-    --sidebar-accent: 45 20% 88%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 45 15% 82%;
-    --sidebar-ring: 199 89% 48%;
+    --sidebar-background: 36 32% 91%;
+    --sidebar-foreground: 30 14% 12%;
+    --sidebar-primary: 30 14% 12%;
+    --sidebar-primary-foreground: 36 50% 96%;
+    --sidebar-accent: 36 24% 84%;
+    --sidebar-accent-foreground: 30 14% 12%;
+    --sidebar-border: 30 14% 22% / 0.18;
+    --sidebar-ring: 30 14% 12%;
+
+    /* Editorial typographic scale */
+    --font-display: "Playfair Display", "Times New Roman", Georgia, serif;
+    --font-body: "Outfit", system-ui, -apple-system, sans-serif;
   }
 
   .dark {
-    --background: 222 47% 8%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 12%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 12%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 199 89% 48%;
-    --primary-foreground: 222 47% 8%;
-    --secondary: 222 47% 18%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 222 47% 15%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 280 65% 60%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 222 47% 20%;
-    --input: 222 47% 20%;
-    --ring: 199 89% 48%;
+    /* Dark mode — newsprint black */
+    --background: 24 10% 8%;
+    --foreground: 36 32% 88%;
 
-    /* Weather-specific tokens - dark mode */
-    --glass: 222 47% 15% / 0.6;
-    --glass-border: 222 47% 30% / 0.3;
-    --gradient-sky-start: 222 47% 8%;
-    --gradient-sky-mid: 230 50% 15%;
-    --gradient-sky-end: 260 45% 20%;
+    --card: 24 10% 11%;
+    --card-foreground: 36 32% 88%;
 
-    --sidebar-background: 222 47% 10%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 199 89% 48%;
-    --sidebar-primary-foreground: 222 47% 8%;
-    --sidebar-accent: 222 47% 18%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222 47% 20%;
-    --sidebar-ring: 199 89% 48%;
+    --popover: 24 10% 11%;
+    --popover-foreground: 36 32% 88%;
+
+    --primary: 36 32% 88%;
+    --primary-foreground: 24 10% 8%;
+
+    --secondary: 24 10% 14%;
+    --secondary-foreground: 36 32% 88%;
+
+    --muted: 24 8% 16%;
+    --muted-foreground: 36 12% 60%;
+
+    --accent: 14 50% 60%;
+    --accent-foreground: 24 10% 8%;
+
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 24 10% 8%;
+
+    --border: 36 32% 88% / 0.18;
+    --input: 36 32% 88% / 0.20;
+    --ring: 36 32% 88%;
+
+    /* Weather-specific tokens — dark mode (editorial) */
+    --glass: 24 10% 14% / 0.6;
+    --glass-border: 36 32% 88% / 0.15;
+    --gradient-sky-start: 24 10% 8%;
+    --gradient-sky-mid: 24 10% 12%;
+    --gradient-sky-end: 24 10% 16%;
+
+    --sidebar-background: 24 10% 11%;
+    --sidebar-foreground: 36 32% 88%;
+    --sidebar-primary: 36 32% 88%;
+    --sidebar-primary-foreground: 24 10% 8%;
+    --sidebar-accent: 24 10% 16%;
+    --sidebar-accent-foreground: 36 32% 88%;
+    --sidebar-border: 36 32% 88% / 0.18;
+    --sidebar-ring: 36 32% 88%;
   }
 }
 
@@ -118,13 +136,25 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-body);
+  }
+
+  /* Editorial display type — kicker labels and big numbers */
+  .font-display {
+    font-family: var(--font-display);
+    font-feature-settings: "lnum" 1, "kern" 1;
+    letter-spacing: -0.01em;
   }
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-secondary/90 border border-border/30 rounded-2xl;
+  .editorial-card {
+    @apply bg-card border border-border rounded-none;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.02), 0 30px 60px -30px rgba(0,0,0,0.10);
+  }
+
+  .editorial-rule {
+    background-color: hsl(var(--foreground) / 0.18);
   }
 
   .gradient-sky {
@@ -135,6 +165,14 @@
       hsl(var(--gradient-sky-end)) 100%
     );
   }
+
+  .glass-card {
+    @apply editorial-card;
+  }
+
+  .glass-card-sub {
+    @apply bg-background/40 border border-border rounded-none;
+  }
 }
 
 @layer utilities {
@@ -142,13 +180,18 @@
     text-wrap: balance;
   }
 
-  .glass-card-sub {
-    @apply bg-background/40 border border-border/20 rounded-xl backdrop-blur-sm;
-  }
-
   .vertical-text {
     writing-mode: vertical-rl;
     text-orientation: mixed;
+  }
+
+  /* Editorial kicker label — uppercase, tracked, sans body */
+  .kicker {
+    font-family: var(--font-body);
+    text-transform: uppercase;
+    letter-spacing: 0.32em;
+    font-weight: 500;
+    font-size: 12px;
   }
 }
 
@@ -158,7 +201,8 @@
   height: 100% !important;
 }
 
-/* Stretch glass-card children to fill slide height */
+/* Stretch editorial-card children to fill slide height */
+.swiper-mobile-deck .editorial-card,
 .swiper-mobile-deck .glass-card {
   height: 100%;
   display: flex;
@@ -167,7 +211,6 @@
 }
 
 /* RainfallMap: let the map area stretch to fill remaining card height */
-/* The inline h-[400px] serves as desktop fallback; flex: 1 1 0% overrides it in the swiper flex column per flexbox spec */
 .swiper-mobile-deck .rainfall-map-area {
   flex: 1 1 0%;
   min-height: 0;
@@ -185,9 +228,9 @@
 }
 
 .swiper-mobile-deck .swiper-pagination-bullet {
-  @apply bg-muted-foreground/40;
+  background-color: hsl(var(--foreground) / 0.35);
 }
 
 .swiper-mobile-deck .swiper-pagination-bullet-active {
-  @apply bg-primary;
+  background-color: hsl(var(--foreground));
 }

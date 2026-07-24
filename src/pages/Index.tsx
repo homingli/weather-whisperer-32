@@ -7,6 +7,7 @@ import { WeatherAlerts } from '@/components/WeatherAlerts';
 import { SettingsMenu } from '@/components/SettingsMenu';
 import { FetchingStatus } from '@/components/FetchingStatus';
 import { WeatherBanners } from '@/components/WeatherBanners';
+import { LocalClock } from '@/components/LocalClock';
 import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
 import { useWarningChangeDetector } from '@/hooks/useWarningChangeDetector';
@@ -169,40 +170,14 @@ const Index = () => {
       <div className={`w-full mx-auto px-4 pt-[10px] pb-4 flex flex-col flex-1 min-h-0 transition-all duration-300${
         isMobile ? '' : ' max-w-2xl lg:max-w-5xl xl:max-w-7xl'
       }`}>
-        {/* Top bar: location + settings */}
-        <div className="flex items-center justify-between mb-4 shrink-0">
-          <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
-            {selectedCity && (
-              <>
-                <MapPin className="h-6 w-6 shrink-0" />
-                <div className="flex items-center flex-wrap gap-2">
-                  {isHKCovered ? (
-                    weather?.nearestStation && (
-                      <span className="text-xl font-medium text-foreground">
-                        {translateStationName(weather.nearestStation, language === 'tc' ? 'tc' : 'en')}
-                      </span>
-                    )
-                  ) : (
-                    <span className="text-xl font-medium text-foreground">
-                      {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
-                    </span>
-                  )}
-                  {weather?.nearestDistrict && (
-                    <span className="text-sm px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                      {translateDistrictName(weather.nearestDistrict, language === 'tc' ? 'tc' : 'en')}
-                    </span>
-                  )}
-                </div>
-              </>
-            )}
-            {isFetching && weather && !isLoading && (
-              <div className="ml-2 flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="refreshing-data">
-                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                <span>Refreshing...</span>
-              </div>
+        {/* Top bar: row 1 = [date time]; row 2 = [location]; right column spans both */}
+        <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 mb-4 shrink-0">
+          <div className="flex items-center">
+            {weather?.timezone && (
+              <LocalClock timezone={weather.timezone} />
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="row-span-2 flex items-center justify-end gap-2">
             {effectiveWarnings.length > 0 && (
               <WeatherAlerts
                 warnings={effectiveWarnings}
@@ -216,14 +191,43 @@ const Index = () => {
             {deferredPrompt && !isInstalled && (
               <button
                 onClick={install}
-                className="h-9 px-3 flex items-center gap-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                className="h-full min-h-[3rem] px-3 flex items-center gap-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                 title="Install app"
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-5 w-5" />
                 <span className="hidden sm:inline">Install</span>
               </button>
             )}
           </div>
+          {selectedCity && (
+            <div className="flex items-center gap-2 text-muted-foreground flex-wrap min-w-0">
+              <MapPin className="h-5 w-5 shrink-0" />
+              <div className="flex items-center flex-wrap gap-2">
+                {isHKCovered ? (
+                  weather?.nearestStation && (
+                    <span className="text-base font-medium text-foreground">
+                      {translateStationName(weather.nearestStation, language === 'tc' ? 'tc' : 'en')}
+                    </span>
+                  )
+                ) : (
+                  <span className="text-base font-medium text-foreground">
+                    {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
+                  </span>
+                )}
+                {weather?.nearestDistrict && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                    {translateDistrictName(weather.nearestDistrict, language === 'tc' ? 'tc' : 'en')}
+                  </span>
+                )}
+              </div>
+              {isFetching && weather && !isLoading && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="refreshing-data">
+                  <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  <span>Refreshing...</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Screen reader only header */}
@@ -311,10 +315,9 @@ const Index = () => {
                     )}
                   </Swiper>
 
-                  {/* Swipe hint */}
-                  <div className="flex items-center justify-center gap-3 py-2 text-xs text-muted-foreground/50 shrink-0">
+                  {/* Swipe hint — arrows flank the swiper dots to form one pagination indicator */}
+                  <div className="flex items-center justify-center gap-3 py-2 text-muted-foreground/50 shrink-0">
                     <ChevronLeft className="h-3 w-3" />
-                    <span>Swipe to explore</span>
                     <ChevronRight className="h-3 w-3" />
                   </div>
                 </div>

@@ -51,13 +51,14 @@ export const LocalClock = memo(({ timezone }: LocalClockProps) => {
     : currentTime.toLocaleTimeString();
 
   return (
-    <div>
-      <p className="text-base text-muted-foreground uppercase tracking-[0.2em] mb-2">
+    <div className="flex items-baseline gap-2 whitespace-nowrap">
+      <span className="text-sm uppercase tracking-[0.18em] text-muted-foreground tabular-nums">
         {dateText}
-      </p>
-      <p className="text-5xl font-extralight text-foreground tracking-tighter tabular-nums leading-none">
+      </span>
+      <span aria-hidden className="text-sm text-muted-foreground/60">|</span>
+      <span className="text-sm uppercase tracking-[0.18em] text-foreground tabular-nums">
         {timeText}
-      </p>
+      </span>
     </div>
   );
 });
