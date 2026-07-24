@@ -205,17 +205,22 @@ describe('fetchWeather orchestration', () => {
       );
     });
 
-    it('merges HKO daily into OM data and reports hkoFailed: false on the happy path', async () => {
+    it('merges HKO daily + current into OM data and reports hkoFailed: false on the happy path', async () => {
       mockIsInHK.mockReturnValue(true);
-      const omData = makeOpenMeteoData();
+      const omData = makeOpenMeteoData({
+        current: { ...makeOpenMeteoData().current, temperature: 24 },
+      });
       mockGetOpenMeteo.mockResolvedValue(omData);
       const hkoDaily = makeHkoDaily();
       mockGetHKODaily.mockResolvedValue(hkoDaily);
+      mockGetHKOCurrent.mockResolvedValue(makeHkoCurrent()); // temp = 25
 
       const result = await fetchWeather(HK_LAT, HK_LON);
 
-      // OM current/hourly survive the spread; HKO wins for daily/warnings/station.
-      expect(result.current.temperature).toBe(omData.current.temperature);
+      // HKO current wins for the today temperature bar/marker (25, not OM's 24);
+      // OM current keeps everything else and survives the spread.
+      expect(result.current.temperature).toBe(25); // HKO reading
+      expect(result.current.humidity).toBe(omData.current.humidity);
       expect(result.hourly).toEqual(omData.hourly);
       expect(result.daily).toHaveLength(1);
       expect(result.daily[0].temperatureMax).toBe(26); // HKO value
@@ -223,6 +228,24 @@ describe('fetchWeather orchestration', () => {
       expect(result.warnings).toEqual(hkoDaily.warnings);
       expect(result.nearestStation).toBe(hkoDaily.nearestStation);
       expect(result.nearestDistrict).toBe(hkoDaily.nearestDistrict);
+      expect((result as { hkoFailed?: boolean }).hkoFailed).toBeUndefined();
+    });
+
+    it('falls back to OM current temperature when HKO current fetch fails in the merged path', async () => {
+      mockIsInHK.mockReturnValue(true);
+      const omData = makeOpenMeteoData({
+        current: { ...makeOpenMeteoData().current, temperature: 24 },
+      });
+      mockGetOpenMeteo.mockResolvedValue(omData);
+      mockGetHKODaily.mockResolvedValue(makeHkoDaily());
+      mockGetHKOCurrent.mockRejectedValue(new Error('HKO current boom'));
+
+      const result = await fetchWeather(HK_LAT, HK_LON);
+
+      // OM temperature preserved (HKO daily still wins for daily/warnings).
+      expect(result.current.temperature).toBe(24);
+      expect(result.daily[0].temperatureMax).toBe(26);
+      expect(result.warnings).toBeDefined();
       expect((result as { hkoFailed?: boolean }).hkoFailed).toBeUndefined();
     });
 
