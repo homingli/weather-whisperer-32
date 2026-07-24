@@ -47,8 +47,9 @@ export const TIMING = {
   THEME_AUTO_TICK_MS: 5 * 60 * 1000,
   /** Rainfall timeline autoplay step interval */
   RAINFALL_AUTOPLAY_MS: 1500,
-  /** Gridded rainfall nowcast CSV fetch timeout (10s — 2.7MB file on slow mobile) */
-  NOWCAST_TIMEOUT_MS: 10000,
+  /** Gridded rainfall nowcast CSV fetch timeout (30s — 2.7 MB file; covers
+   *  the body stream on slow mobile, not just headers). */
+  NOWCAST_TIMEOUT_MS: 30000,
   /** Gridded rainfall nowcast background refetch interval (matches HKO 30-min generation cadence) */
   NOWCAST_REFETCH_INTERVAL_MS: 30 * 60 * 1000,
   /** HKO warnings / storm signal TTL — push-driven, sub-minute user expectation. Used as the SourceState.ttlMs for HKO since warnings are the most volatile HKO slice in a unified fetch. */
