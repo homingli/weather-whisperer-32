@@ -234,3 +234,21 @@
 .swiper-mobile-deck .swiper-pagination-bullet-active {
   background-color: hsl(var(--foreground));
 }
+
+/* ── Indeterminate progress bar ── */
+/* Used by RainfallMap when the CSV response lacks a Content-Length header
+   (mobile carriers / HTTP/2-3 / Vercel edge often strip it). The bar slides
+   across instead of filling to a known percent, signalling "downloading"
+   without lying about a percentage. */
+@keyframes progress-indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.progress-indeterminate {
+  position: absolute;
+  inset: 0;
+  width: 33.333%;
+  background-color: hsl(var(--primary) / 0.7);
+  animation: progress-indeterminate 1.4s ease-in-out infinite;
+}
