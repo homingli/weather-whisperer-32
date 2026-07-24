@@ -31,3 +31,6 @@ GEMINI.*
 
 # Large test data files
 data.csv
+
+# Pi session caches (local agent state, not source)
+.pi*
