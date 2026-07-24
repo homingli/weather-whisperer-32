@@ -3,7 +3,7 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIconNode, weatherDescriptionKey } from "@/lib/weather";
 import { SENTINEL_THRESHOLD } from "@/lib/constants";
-import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet } from "lucide-react";
+import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, Thermometer } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { formatInTimezone, appLocale } from "@/lib/utils";
 
@@ -145,7 +145,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           low={dailyForecast?.temperatureMin}
           high={dailyForecast?.temperatureMax}
           current={weather.temperature}
-          label={t('daily.today')}
+          label={t('label.temperature')}
           empty={isEmpty}
         />
       </div>
@@ -297,7 +297,10 @@ function RangeBar({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="kicker text-muted-foreground">{label}</span>
+        <span className="kicker text-muted-foreground inline-flex items-center gap-2">
+          <Thermometer className="h-3.5 w-3.5" />
+          {label}
+        </span>
         <span className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none">
           {empty ? '—' : `${Math.round(current)}°`}
         </span>
