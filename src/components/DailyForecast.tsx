@@ -173,7 +173,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
         })}
       </div>
 
-      <div className="df-chart flex-1 min-h-0 w-full min-w-0">
+      <div className="df-chart flex-1 min-h-0 w-full min-w-0" aria-label={t('daily.chartLabel')} role="img">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
@@ -298,6 +298,32 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
           </BarChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Screen-reader-only data table — accessible alternative to the chart.
+          Mirrors the chartData rows. */}
+      <table className="sr-only">
+        <caption>{t('daily.chartLabel')}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{language === 'tc' ? '日期' : 'Date'}</th>
+            <th scope="col">{t('daily.low')}</th>
+            <th scope="col">{t('daily.high')}</th>
+            <th scope="col">{t('daily.precip')}</th>
+            <th scope="col">{t('weather.wind')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {chartData.map((row, i) => (
+            <tr key={`sr-day-${i}`}>
+              <th scope="row">{`${row.line1} ${row.line2}`}</th>
+              <td>{`${row.temperatureMin}°`}</td>
+              <td>{`${row.temperatureMax}°`}</td>
+              <td>{row.precipLabel ?? '—'}</td>
+              <td>{`${Math.round(row.windSpeedMax)} ${t('unit.kmh')}`}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 });

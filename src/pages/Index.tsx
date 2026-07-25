@@ -191,6 +191,7 @@ const Index = () => {
             {deferredPrompt && !isInstalled && (
               <button
                 onClick={install}
+                aria-label={language === 'tc' ? '安裝應用程式' : 'Install app'}
                 className="h-full min-h-[3rem] px-3 flex items-center gap-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                 title="Install app"
               >
@@ -221,8 +222,8 @@ const Index = () => {
                 )}
               </div>
               {isFetching && weather && !isLoading && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="refreshing-data">
-                  <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground" role="status" aria-live="polite">
+                  <span className="h-2 w-2 rounded-full bg-primary animate-pulse" aria-hidden="true" />
                   <span>Refreshing...</span>
                 </div>
               )}
@@ -230,11 +231,20 @@ const Index = () => {
           )}
         </div>
 
+        {/* Skip link — first focusable element so keyboard users can jump past the
+            header buttons to the main forecast. Becomes visible only on focus. */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          {language === 'tc' ? '跳到主要內容' : 'Skip to main content'}
+        </a>
+
         {/* Screen reader only header */}
         <h1 className="sr-only shrink-0">Weather Forecast</h1>
 
         {/* Main content */}
-        <main className="w-full flex-1 flex flex-col min-h-0">
+        <main id="main-content" className="w-full flex-1 flex flex-col min-h-0">
           {isLocating ? (
             <div className="text-center py-20 animate-fade-in">
               <CloudRain className="h-20 w-20 mx-auto mb-4 text-primary" />
@@ -359,7 +369,7 @@ const Index = () => {
         </main>
 
         {/* Footer */}
-        <footer className="text-center py-3 shrink-0 text-sm text-muted-foreground">
+        <footer className="text-center py-3 shrink-0 text-sm text-muted-foreground" aria-label={language === 'tc' ? '關於此頁' : 'About this page'}>
           <p>
             {isHKCovered
               ? formatString(t('source.poweredByBoth'), t('source.openMeteo'), t('source.hko'))
