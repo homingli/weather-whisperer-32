@@ -18,10 +18,17 @@ export const STORAGE_KEYS = {
   RECENT_CITIES: 'weather-recent-cities',
   /** Last-known weather snapshot for cold-start first paint. Schema-versioned. */
   LAST_KNOWN: 'weather-last-known-v1',
+  /** Gridded rainfall nowcast CSV snapshot. Read at mount to skip the
+   *  "Load Map" prompt when fresh (≤ NOWCAST_CACHE_TTL_MS). Schema-versioned. */
+  NOWCAST_CACHE: 'weather-nowcast-cache-v1',
 } as const;
 
 /** Bump when the LastKnownEnvelope shape changes; readers drop on mismatch. */
 export const LAST_KNOWN_SCHEMA_VERSION = 1 as const;
+
+/** Bump when the NowcastCacheEnvelope shape changes; readers drop on mismatch.
+ *  v2 = LZString-compressed csvText (was raw CSV in v1). */
+export const NOWCAST_CACHE_SCHEMA_VERSION = 2 as const;
 
 // ---------------------------------------------------------------------------
 // Timing constants (milliseconds)
@@ -52,6 +59,11 @@ export const TIMING = {
   NOWCAST_TIMEOUT_MS: 30000,
   /** Gridded rainfall nowcast background refetch interval (matches HKO 30-min generation cadence) */
   NOWCAST_REFETCH_INTERVAL_MS: 30 * 60 * 1000,
+  /** Gridded rainfall nowcast localStorage cache TTL. Within this window,
+   *  the CSV is served from cache (skip "Load Map" prompt + skip network).
+   *  Aligned with HKO's 30-min generation cadence so the next refetch always
+   *  sees a fresh file (worst case: cache expires 5 min before next file). */
+  NOWCAST_CACHE_TTL_MS: 15 * 60 * 1000,
   /** HKO warnings / storm signal TTL — push-driven, sub-minute user expectation. Used as the SourceState.ttlMs for HKO since warnings are the most volatile HKO slice in a unified fetch. */
   HKO_WARNINGS_TTL_MS: 60 * 1000,
 } as const;
