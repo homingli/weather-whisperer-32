@@ -43,7 +43,7 @@ export function WeatherBanners({ weather, isHKCovered, onRefetch, isRefetching }
   if (weather.fallbackSource === 'HKO' && weather.isFallback) {
     return (
       <div
-        className="glass-card border-amber-500/20 bg-amber-500/5 p-4 rounded-xl flex items-start gap-3 text-amber-600 dark:text-amber-400 animate-fade-in"
+        className="glass-card border-severity-warning/20 bg-severity-warning/5 p-4 rounded-xl flex items-start gap-3 text-severity-warning animate-fade-in"
         data-testid="banner-hko"
       >
         <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
@@ -66,8 +66,9 @@ export function WeatherBanners({ weather, isHKCovered, onRefetch, isRefetching }
         : '';
     return (
       <div
-        className="glass-card border-amber-500/20 bg-amber-500/5 p-4 rounded-xl flex items-start gap-3 text-amber-600 dark:text-amber-400 animate-fade-in"
+        className="glass-card border-severity-warning/20 bg-severity-warning/5 p-4 rounded-xl flex items-start gap-3 text-severity-warning animate-fade-in"
         data-testid="banner-partial"
+        role="alert"
       >
         <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
         <div>
@@ -89,7 +90,7 @@ export function WeatherBanners({ weather, isHKCovered, onRefetch, isRefetching }
     const ts = formatTimestamp(mostRecentCachedAt(weather), language === 'tc' ? 'zh-HK' : 'en-US');
     return (
       <div
-        className="glass-card border-red-500/30 bg-red-500/5 p-4 rounded-xl flex items-start gap-3 text-red-600 dark:text-red-400 animate-fade-in"
+        className="glass-card border-severity-error/30 bg-severity-error/5 p-4 rounded-xl flex items-start gap-3 text-severity-error animate-fade-in"
         data-testid="banner-cache"
         role="alert"
       >
@@ -107,7 +108,7 @@ export function WeatherBanners({ weather, isHKCovered, onRefetch, isRefetching }
             type="button"
             onClick={onRefetch}
             disabled={isRefetching}
-            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-500/15 hover:bg-red-500/25 disabled:opacity-50 text-xs font-medium transition-colors"
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-severity-error/15 hover:bg-severity-error/25 disabled:opacity-50 text-xs font-medium transition-colors"
             aria-label={t('data.refetchLive')}
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? 'animate-spin' : ''}`} />
@@ -125,8 +126,9 @@ export function WeatherBanners({ weather, isHKCovered, onRefetch, isRefetching }
   if (weather.hkoFailed && !weather.isFallback && isHKCovered) {
     return (
       <div
-        className="glass-card border-amber-500/20 bg-amber-500/5 p-4 rounded-xl flex items-start gap-3 text-amber-600 dark:text-amber-400 animate-fade-in"
+        className="glass-card border-severity-warning/20 bg-severity-warning/5 p-4 rounded-xl flex items-start gap-3 text-severity-warning animate-fade-in"
         data-testid="banner-hko-failed"
+        role="alert"
       >
         <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
         <div>

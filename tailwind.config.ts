@@ -57,6 +57,12 @@ export default {
           rain: "hsl(var(--weather-rain))",
           snow: "hsl(var(--weather-snow))",
         },
+        severity: {
+          warning: "hsl(var(--severity-warning-fg))",
+          success: "hsl(var(--severity-success-fg))",
+          error: "hsl(var(--severity-error-fg))",
+          info: "hsl(var(--severity-info-fg))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

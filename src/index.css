@@ -37,7 +37,7 @@
     --secondary-foreground: 30 14% 12%;
 
     --muted: 36 24% 84%;
-    --muted-foreground: 30 8% 36%;
+    --muted-foreground: 30 8% 28%;
 
     --accent: 14 38% 38%;
     --accent-foreground: 36 50% 96%;
@@ -62,6 +62,15 @@
     --weather-cloudy: 220 20% 50%;
     --weather-rain: 200 80% 50%;
     --weather-snow: 200 30% 85%;
+
+    /* Severity text colors - deep, high-contrast hues for the editorial
+       palette. Used by StatusBadge and inline status tones; the chip
+       backgrounds stay translucent (text/bg-severity-X with /10 alpha).
+       Each lands at at least 5.5:1 on the cream background. */
+    --severity-warning-fg: 35 92% 30%;
+    --severity-success-fg: 142 76% 22%;
+    --severity-error-fg: 0 70% 32%;
+    --severity-info-fg: 200 80% 28%;
 
     --sidebar-background: 36 32% 91%;
     --sidebar-foreground: 30 14% 12%;
@@ -95,7 +104,7 @@
     --secondary-foreground: 36 32% 88%;
 
     --muted: 24 8% 16%;
-    --muted-foreground: 36 12% 60%;
+    --muted-foreground: 36 12% 52%;
 
     --accent: 14 50% 60%;
     --accent-foreground: 24 10% 8%;
