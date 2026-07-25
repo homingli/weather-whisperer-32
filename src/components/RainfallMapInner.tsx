@@ -1,16 +1,15 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MapContainer, TileLayer, useMap, Marker, ZoomControl } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
-import { union } from '@turf/union';
-import type { FeatureCollection } from 'geojson';
 import { AlertCircle, RefreshCw, Play, Pause, Layers } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { PRD_BOUNDS } from '@/lib/hko-weather';
 import { TIMING } from '@/lib/constants';
-
-const EMPTY_STEPS: StepData[] = [];
+import { parseRainfallCSVText, buildRainGrid, type RainGrid } from '@/lib/rainfallGrid';
+import { RAINFALL_BANDS } from '@/lib/rainfallBands';
+import { RainfallCellsLayer } from './RainfallCellsLayer';
 
 interface UserLocation {
   latitude: number;
@@ -26,32 +25,10 @@ const locationIcon = new L.Icon({
 });
 
 interface NowcastResult {
-  timeSteps: StepData[];
+  grid: RainGrid;
   updateTime: string;
   lastModified: number;
-  globalBounds: {
-    minLat: number;
-    maxLat: number;
-    minLon: number;
-    maxLon: number;
-  };
 }
-
-interface StepData {
-  endTime: string;
-  formattedTime: string;
-  cellsByColor: Map<string, FeatureCollection>;
-}
-
-const RAINFALL_BANDS = [
-  { max: 0.5, color: '#a0c4ff', label: '< 0.5' },
-  { max: 2, color: '#4facfe', label: '0.5 - 2' },
-  { max: 5, color: '#00f2fe', label: '2 - 5' },
-  { max: 10, color: '#43e97b', label: '5 - 10' },
-  { max: 20, color: '#f6d365', label: '10 - 20' },
-  { max: 30, color: '#ff0844', label: '20 - 30' },
-  { max: Infinity, color: '#9d0b0b', label: '> 30' },
-] as const;
 
 // Two basemap styles: a light/clean Carto Positron tile and a dark Carto
 // Dark Matter tile. The map theme defaults to the app theme (synced via
@@ -65,181 +42,23 @@ const TILE_URLS = {
 const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-const getRainfallColor = (value: number): string => {
-  for (const band of RAINFALL_BANDS) {
-    if (value <= band.max) return band.color;
-  }
-  return RAINFALL_BANDS[RAINFALL_BANDS.length - 1].color;
-};
-
-// Alpha is baked into the RGBA color so fillOpacity stays at 1 — using
-// fillOpacity < 1 produces horizontal scan-line banding in Leaflet's SVG
-// renderer. Stroke is disabled (weight 0) so adjacent cells of the same
-// color blend into a single patch instead of showing a visible grid.
-const hexToRgba = (hex: string, alpha: number) => {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
-
-const FILL_ALPHA = 0.4;
-
-// Per-color style cache. react-leaflet invokes style once per feature inside the
-// SVG render loop, so we memoize by hex color to keep the returned object
-// reference stable across features and re-renders.
-const polygonStyleCache = new Map<string, ReturnType<typeof polygonStyle>>();
-const polygonStyle = (color: string) => {
-  const cached = polygonStyleCache.get(color);
-  if (cached) return cached;
-  const style = {
-    fillColor: hexToRgba(color, FILL_ALPHA),
-    fillOpacity: 1,
-    color: hexToRgba(color, 1),
-    weight: 0,
-  };
-  polygonStyleCache.set(color, style);
-  return style;
-};
-
-// Manual layer pattern. We use `useMap` to grab the Leaflet map instance and
-// drive the GeoJSON layer ourselves with refs and effects. This bypasses
-// react-leaflet's reconciliation, which doesn't reliably fire updateGeoJSON
-// when the data prop changes (the overlay would freeze on the first rendered
-// step). The layer is created once per color and updated in place via
-// clearLayers + addData — far cheaper on mobile than remounting the renderer
-// on every step change. The hidden div is purely a test affordance: it lets
-// unit tests verify the data flowing into each layer without mounting a real
-// Leaflet map. It is invisible in the DOM.
-const ColorGeoLayer = ({ color, data }: {
-  color: string;
-  data: FeatureCollection;
-}) => {
-  const map = useMap();
-  const layerRef = useRef<L.GeoJSON | null>(null);
-  const style = polygonStyle(color);
-
-  useEffect(() => {
-    if (!map) return;
-    if (!layerRef.current) {
-      layerRef.current = L.geoJSON(data, { style, renderer: L.svg() }).addTo(map);
-    } else {
-      layerRef.current.setStyle(style);
-      layerRef.current.clearLayers();
-      layerRef.current.addData(data);
-    }
-  }, [color, data, map, style]);
-
-  useEffect(() => {
-    return () => {
-      layerRef.current?.remove();
-      layerRef.current = null;
-    };
-  }, []);
-
-  return (
-    <div
-      data-testid="geojson"
-      data-fill-color={style.fillColor}
-      data-stroke-color={style.color}
-      data-feature-count={data.features.length}
-      style={{ display: 'none' }}
-    />
-  );
-};
-
-// Note on banding: the HKO nowcast grid is derived from radar sweeps, and the
-// radar scan pattern produces faint horizontal banding that is visible in the
-// raw data regardless of how the overlay is rendered. It is a source-data
-// artifact, not a renderer/canvas/CSS issue. The merged-patches approach
-// (one polygon per color band) is the cleanest we can render the data.
-
-const parseRainfallCSV = (csvText: string): NowcastResult => {
-  const lines = csvText.split('\n');
-  let updateTime = '';
-  let updateTimeFound = false;
-
-  let globalMinLat = Infinity, globalMaxLat = -Infinity;
-  let globalMinLon = Infinity, globalMaxLon = -Infinity;
-  const temp: Record<string, Record<string, FeatureCollection>> = {};
-
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line) continue;
-    const parts = line.split(',');
-    if (parts.length < 5) continue;
-
-    const value = parseFloat(parts[4]);
-    if (value <= 0) continue;
-
-    const lat = parseFloat(parts[2]);
-    const lon = parseFloat(parts[3]);
-
-    if (!updateTimeFound && parts[0] && parts[0].length >= 12) {
-      updateTime = `${parts[0].substring(0, 4)}-${parts[0].substring(4, 6)}-${parts[0].substring(6, 8)} ${parts[0].substring(8, 10)}:${parts[0].substring(10, 12)}`;
-      updateTimeFound = true;
-    }
-
-    if (lat < globalMinLat) globalMinLat = lat;
-    if (lat > globalMaxLat) globalMaxLat = lat;
-    if (lon < globalMinLon) globalMinLon = lon;
-    if (lon > globalMaxLon) globalMaxLon = lon;
-
-    const endTime = parts[1];
-    if (!endTime) continue;
-
-    const color = getRainfallColor(value);
-
-    const feature: L.GeoJSON.IGeoJSONFeature = {
-      type: 'Feature',
-      geometry: {
-        type: 'Polygon',
-        coordinates: [[
-          [lon - 0.0095, lat - 0.009],
-          [lon + 0.0095, lat - 0.009],
-          [lon + 0.0095, lat + 0.009],
-          [lon - 0.0095, lat + 0.009],
-          [lon - 0.0095, lat - 0.009],
-        ]],
-      },
-      properties: null,
-    };
-
-    if (!temp[endTime]) temp[endTime] = {};
-    if (!temp[endTime][color]) {
-      temp[endTime][color] = { type: 'FeatureCollection', features: [] };
-    }
-    temp[endTime][color].features.push(feature);
-  }
-
-  const sortedEndTimes = Object.keys(temp).sort();
-  const timeSteps: StepData[] = sortedEndTimes.map(endTime => {
-    const byColor = temp[endTime];
-    const cellsByColor = new Map<string, FeatureCollection>();
-    for (const [color, fc] of Object.entries(byColor)) {
-      cellsByColor.set(color, fc);
-    }
-    const formattedTime = endTime.length >= 12
-      ? `${endTime.substring(8, 10)}:${endTime.substring(10, 12)}`
-      : endTime;
-    return { endTime, formattedTime, cellsByColor };
-  });
-
-  const latPad = (globalMaxLat - globalMinLat) * 0.02;
-  const lonPad = (globalMaxLon - globalMinLon) * 0.02;
-
+// Convert a grid extent into a {minLat, maxLat, minLon, maxLon} bounds object
+// for the viewport-fit effect. The grid is bounded by the first/last observed
+// cell centers; we expand by half a cell using the spacing between the two
+// outermost centers so the fit bounds the actual painted extent.
+function gridBounds(grid: RainGrid): { minLat: number; maxLat: number; minLon: number; maxLon: number } {
+  const { rows, cols, cellLats, cellLons } = grid;
+  const halfLatSouth = rows >= 2 ? (cellLats[0] - cellLats[1]) / 2 : 0.009;
+  const halfLatNorth = rows >= 2 ? (cellLats[rows - 1] - cellLats[rows - 2]) / 2 : 0.009;
+  const halfLonWest = cols >= 2 ? (cellLons[0] - cellLons[1]) / 2 : 0.0095;
+  const halfLonEast = cols >= 2 ? (cellLons[cols - 1] - cellLons[cols - 2]) / 2 : 0.0095;
   return {
-    timeSteps,
-    updateTime,
-    globalBounds: {
-      minLat: globalMinLat - latPad,
-      maxLat: globalMaxLat + latPad,
-      minLon: globalMinLon - lonPad,
-      maxLon: globalMaxLon + lonPad,
-    },
+    minLat: cellLats[0] + halfLatSouth,
+    maxLat: cellLats[rows - 1] + halfLatNorth,
+    minLon: cellLons[0] + halfLonWest,
+    maxLon: cellLons[cols - 1] + halfLonEast,
   };
-};
+}
 
 // total is null when Content-Length is missing (mobile carriers, HTTP/2/3,
 // or Vercel's edge sometimes strip the header). The UI then switches from a
@@ -297,12 +116,14 @@ const fetchRainfallNowcast = async (onProgress?: ProgressCallback): Promise<Nowc
         position += chunk.length;
       }
 
-      return { ...parseRainfallCSV(new TextDecoder().decode(allChunks)), lastModified };
+      const parsed = parseRainfallCSVText(new TextDecoder().decode(allChunks));
+      return { grid: buildRainGrid(parsed.rows)!, updateTime: parsed.updateTime, lastModified };
     }
 
     // Fallback: no ReadableStream (very old browsers only — HKO always sends one)
     const csvText = await response.text();
-    return { ...parseRainfallCSV(csvText), lastModified };
+    const parsed = parseRainfallCSVText(csvText);
+    return { grid: buildRainGrid(parsed.rows)!, updateTime: parsed.updateTime, lastModified };
   } finally {
     clearTimeout(timeoutId);
   }
@@ -374,24 +195,26 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
     retry: 0,
   });
 
-  const timeSteps = data?.timeSteps || EMPTY_STEPS;
+  const grid = data?.grid ?? null;
+  const stepCount = grid?.stepCount ?? 0;
+  const stepTimes = grid?.stepTimes ?? [];
   const updateTime = data?.updateTime || '';
+  const dataBounds = grid ? gridBounds(grid) : null;
   const { t } = useLanguage();
-  const dataBounds = data?.globalBounds ?? null;
 
   useEffect(() => {
-    if (timeSteps.length > 0) setActiveStepIndex(0);
-  }, [data]);
+    if (stepCount > 0) setActiveStepIndex(0);
+  }, [data, stepCount]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isPlaying && timeSteps.length > 0) {
+    let interval: NodeJS.Timeout | undefined;
+    if (isPlaying && stepCount > 0) {
       interval = setInterval(() => {
-        setActiveStepIndex((prevIndex) => (prevIndex + 1) % timeSteps.length);
+        setActiveStepIndex((prevIndex) => (prevIndex + 1) % stepCount);
       }, TIMING.RAINFALL_AUTOPLAY_MS);
     }
     return () => { if (interval) clearInterval(interval); };
-  }, [isPlaying, timeSteps]);
+  }, [isPlaying, stepCount]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -445,44 +268,9 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
     }
   }, [data, isLoading]);
 
-  const activeStep = timeSteps[activeStepIndex];
-  const activeCellsByColor = activeStep?.cellsByColor || null;
-
-  // Merge adjacent cells of the same color into a single polygon per color
-  // band. This drops the per-cell grid look (each color = one shape, no
-  // internal cell boundaries) and reduces the SVG draw count from
-  // ~100-500 paths to 6 per step. Memoized so the merge re-runs only on
-  // step change, not on every render. Single-cell groups pass through
-  // untouched. turf.union returns a single Feature (Polygon or MultiPolygon
-  // for disjoint clusters); we wrap it in a FeatureCollection for the
-  // GeoJSON layer. Polygon-clipping can throw on degenerate geometry, so
-  // the union call is wrapped — on failure we fall back to the raw cells.
-  const mergedCellsByColor = useMemo<Map<string, FeatureCollection> | null>(() => {
-    if (!activeCellsByColor) return null;
-    const out = new Map<string, FeatureCollection>();
-    for (const [color, fc] of activeCellsByColor) {
-      if (fc.features.length === 0) continue;
-      if (fc.features.length === 1) {
-        out.set(color, fc);
-        continue;
-      }
-      try {
-        const merged = union(fc as FeatureCollection<any>);
-        if (merged) {
-          out.set(color, { type: 'FeatureCollection', features: [merged] });
-        } else {
-          out.set(color, fc);
-        }
-      } catch {
-        out.set(color, fc);
-      }
-    }
-    return out;
-  }, [activeCellsByColor]);
-
   return (
     <div className="absolute inset-0 flex flex-col">
-      {!isLoading && timeSteps.length > 0 && (
+      {!isLoading && stepCount > 0 && (
         <div className="px-6 py-5 bg-background/50 border-b border-border/50 flex flex-row items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-3">
             <button
@@ -495,7 +283,7 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
             </button>
             <div className="flex flex-col min-w-[80px]">
               <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">Forecast Step</span>
-              <span className="text-lg font-bold text-foreground">{activeStep.formattedTime}</span>
+              <span className="text-lg font-bold text-foreground">{stepTimes[activeStepIndex]}</span>
             </div>
           </div>
 
@@ -503,7 +291,7 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
             <input
               type="range"
               min={0}
-              max={timeSteps.length - 1}
+              max={stepCount - 1}
               value={activeStepIndex}
               onChange={(e) => {
                 setActiveStepIndex(parseInt(e.target.value));
@@ -513,7 +301,7 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
               aria-label={t('nowcast.slider')}
             />
             <div className="flex justify-between text-xs font-semibold text-muted-foreground px-1">
-              {timeSteps.map((step, index) => (
+              {stepTimes.map((time, index) => (
                 <button
                   key={index}
                   onClick={() => {
@@ -525,12 +313,30 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
                     index === activeStepIndex ? 'text-primary font-bold' : ''
                   }`}
                 >
-                  {step.formattedTime}
+                  {time}
                 </button>
               ))}
             </div>
           </div>
         </div>
+      )}
+
+      {/* Hidden test affordance: lets unit tests verify the grid shape flowing
+          into the canvas layer without mounting a real Leaflet map. The shape
+          here is the source of truth for the layer's data. */}
+      {grid && (
+        <div
+          data-testid="rain-grid"
+          data-rows={grid.rows}
+          data-cols={grid.cols}
+          data-step-count={grid.stepCount}
+          data-active-step={activeStepIndex}
+          data-min-lat={grid.cellLats[0]}
+          data-min-lon={grid.cellLons[0]}
+          data-cell-dlat={grid.cellLats.length >= 2 ? grid.cellLats[1] - grid.cellLats[0] : 0.018}
+          data-cell-dlon={grid.cellLons.length >= 2 ? grid.cellLons[1] - grid.cellLons[0] : 0.0195}
+          style={{ display: 'none' }}
+        />
       )}
 
       {/* flex-1 = fills the remaining height after step controls; the parent
@@ -636,6 +442,13 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
           doubleClickZoom={false}
           dragging={false}
           zoomControl={false}
+          // preferCanvas routes all L.Path instances (Rectangles, Polygons)
+          // through L.canvas() instead of L.svg(). The canvas renderer
+          // handles zoom animation natively via its own zoom-animated
+          // container, which scales smoothly with the basemap. With svg()
+          // every path becomes a DOM element and the 121×121 grid balloons
+          // past React's reconciliation budget.
+          preferCanvas={true}
           className="w-full h-full"
           ref={mapRef}
           aria-label={t('nowcast.mapLabel')}
@@ -648,13 +461,9 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
             url={basemapIsDark ? TILE_URLS.dark : TILE_URLS.light}
           />
 
-          {mergedCellsByColor && Array.from(mergedCellsByColor.entries()).map(([color, featureCollection]) => (
-            <ColorGeoLayer
-              key={color}
-              color={color}
-              data={featureCollection}
-            />
-          ))}
+          {grid && (
+            <RainfallCellsLayer grid={grid} activeStep={activeStepIndex} />
+          )}
 
           {userLocation && (
             <Marker
