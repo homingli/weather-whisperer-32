@@ -2,8 +2,9 @@ import type { HKOWarning } from '@/lib/hko-types';
 import { getWarningIcon, getWarningColor } from '@/lib/hko-weather';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
-import { useState, memo, useMemo, useEffect } from 'react';
+import { useState, memo, useMemo, useEffect, useRef } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useStatusRegion } from '@/lib/aria-utils';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -40,6 +41,7 @@ export const WeatherAlerts = memo(function WeatherAlerts({
   const [selectedWarning, setSelectedWarning] = useState<HKOWarning | null>(null);
   const [pulsing, setPulsing] = useState(false);
   const { language, t } = useLanguage();
+  const { announce } = useStatusRegion();
   const locale = language === 'tc' ? zhTW : undefined;
 
   // Filter out cancelled warnings and sort by issue time (most recent first).
@@ -74,6 +76,23 @@ export const WeatherAlerts = memo(function WeatherAlerts({
     const timer = setTimeout(() => setPulsing(false), 1500);
     return () => clearTimeout(timer);
   }, [pulseTrigger]);
+
+  // Parallel screen-reader announcement for newly-issued warnings (WCAG 4.1.3).
+  // The visual pulse className is preserved so existing tests still pass; the
+  // reduced-motion media query in index.css suppresses it for users who need that.
+  const announcedTrigger = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (pulseTrigger === undefined || pulseTrigger === announcedTrigger.current) return;
+    announcedTrigger.current = pulseTrigger;
+    const codes = pulseCodes;
+    if (!codes || codes.size === 0) return;
+    const names = activeWarnings
+      .filter((w) => codes.has(w.code))
+      .map((w) => t(`warnings.${w.code}`, w.name));
+    if (names.length > 0) {
+      announce(`New weather warning: ${names.join(', ')}`, 'assertive');
+    }
+  }, [pulseTrigger, pulseCodes, activeWarnings, t, announce]);
 
   if (activeWarnings.length === 0) return null;
 
