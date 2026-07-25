@@ -7,7 +7,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock react-leaflet to avoid JSDOM rendering issues.
 // The component renders color-bucketed GeoJSON FeatureCollections — one layer per
-// rainfall color — instead of per-cell rectangles (see P3-001).
+// rainfall color — instead of per-cell rectangles (see P3-001). The layers are
+// driven manually via useMap + useRef instead of react-leaflet's <GeoJSON>,
+// so useMap returns a stub map with the methods L.geoJSON().addTo() invokes.
+const stubMap = {
+  addLayer: () => {},
+  removeLayer: () => {},
+  getPane: () => document.createElement('div'),
+  getContainer: () => document.body,
+};
 vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }: any) => <div data-testid="map-container">{children}</div>,
   TileLayer: () => <div data-testid="tile-layer" />,
@@ -21,6 +29,7 @@ vi.mock('react-leaflet', () => ({
   ),
   ZoomControl: () => <div data-testid="zoom-control" />,
   Marker: ({ position }: any) => <div data-testid="marker" data-position={JSON.stringify(position)} />,
+  useMap: () => stubMap,
 }));
 
 const mockCsvData = `Updated Date and Time (in Hong Kong Time),Ending Date and Time (in Hong Kong Time),Latitude (degree),Longitude (degree),Half-hourly Nowcast Accumulated Rainfall (mm)
