@@ -178,13 +178,26 @@ export const RainfallCellsLayer = ({
   // Sync rectangles with the grid. On the first run after mount we
   // create every cell that has rain at any step. On subsequent runs
   // (refetches) we add cells that newly have rain and remove cells
-  // that no longer do. If the grid shape changes (rows/cols/lat/lon
-  // identity), we tear down and rebuild from scratch.
+  // that no longer do. If the grid shape changes (rows/cols, or the
+  // extreme cell-center lat/lon values), we tear down and rebuild
+  // from scratch — existing rectangles would otherwise keep their
+  // old cellBounds() and visually drift from the basemap.
   useEffect(() => {
     if (!map) return;
     const layers = layersRef.current;
     const { rows, cols, values, stepCount } = grid;
-    const shapeKey = `${rows}/${cols}/${grid.cellLats.length}/${grid.cellLons.length}`;
+    // Shape key includes the extreme cell-center values, not just the
+    // array length, so a refetch that keeps (rows, cols) but shifts the
+    // observed lat/lon (e.g. HKO changes its grid resolution while
+    // publishing the same cell count) is detected as a shape change and
+    // triggers a full rebuild. Without this, existing rectangles would
+    // keep their old cellBounds() and the overlay would visually drift
+    // from the basemap until full unmount.
+    const latFirst = grid.cellLats[0];
+    const latLast = grid.cellLats[rows - 1];
+    const lonFirst = grid.cellLons[0];
+    const lonLast = grid.cellLons[cols - 1];
+    const shapeKey = `${rows}/${cols}/${latFirst}/${latLast}/${lonFirst}/${lonLast}`;
     const shapeChanged = shapeRef.current !== shapeKey;
     if (shapeChanged) {
       // Grid shape changed — full rebuild. Also reset lastColor so the
