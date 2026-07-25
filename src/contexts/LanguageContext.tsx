@@ -388,10 +388,18 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem(STORAGE_KEYS.LANGUAGE) as Language) || 'en';
+    const initial =
+      typeof window !== 'undefined'
+        ? (localStorage.getItem(STORAGE_KEYS.LANGUAGE) as Language) || 'en'
+        : 'en';
+    // WCAG 3.1.1 — set <html lang> synchronously before the first paint so
+    // screen readers never see a flash of 'en' on a Chinese-filled page.
+    // Mutating document.documentElement is a non-React side effect and is
+    // idempotent; the useEffect below handles subsequent changes.
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = HTML_LANG[initial];
     }
-    return 'en';
+    return initial;
   });
 
   const setLanguage = useCallback((lang: Language) => {
@@ -399,10 +407,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
   }, []);
 
-  // WCAG 3.1.1 — keep <html lang> in sync with the active UI language so
-  // screen readers use the correct voice and pronunciation. Without this,
-  // Chinese content (e.g. "觀塘") is read with the English TTS engine and
-  // mispronounced.
+  // Keep <html lang> in sync with later language changes (covers the
+  // setLanguage call above). The first paint is handled by the useState
+  // initializer above.
   useEffect(() => {
     if (typeof document === 'undefined') return;
     document.documentElement.lang = HTML_LANG[language];

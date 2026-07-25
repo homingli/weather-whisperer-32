@@ -83,4 +83,13 @@ describe('LanguageContext <html lang> sync (WCAG 3.1.1)', () => {
     act(() => result.current.setLanguage('en'));
     expect(document.documentElement.lang).toBe('en');
   });
+
+  it('sets <html lang> synchronously on cold load (no flash of en on tc)', () => {
+    localStorage.setItem('weather-language', 'tc');
+    // The useState initializer mutates document.documentElement.lang in the
+    // same tick as the first render, so reading it immediately after
+    // renderHook returns must yield 'zh-Hant-HK' — not 'en'.
+    renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+    expect(document.documentElement.lang).toBe('zh-Hant-HK');
+  });
 });
