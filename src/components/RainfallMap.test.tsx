@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { forwardRef } from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { RainfallMap } from './RainfallMap';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { writeNowcastCache, clearNowcastCache } from '@/lib/nowcastCache';
 
 // Mock react-leaflet. The rainfall overlay is a RainfallCellsLayer that
 // mounts L.Rectangle instances via the canvas renderer (L.canvas()).
@@ -11,7 +13,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // here exposes the minimal API surface that RainfallCellsLayer calls
 // into via useMap().
 
-const stubMap = {
+const stubMap: Record<string, unknown> = {
   addLayer: () => {},
   removeLayer: () => {},
   getPane: () => document.createElement('div'),
@@ -30,10 +32,34 @@ const stubMap = {
   off: () => {},
   add: () => stubMap,
   remove: () => {},
+  // Viewport-init effect calls these once the ref finally lands.
+  fitBounds: () => {},
+  setView: () => {},
 };
+// Interaction-handler stubs. Each is an object with an `enabled` flag and
+// enable()/disable() mutators. Tests assert on `enabled` to verify the
+// lock/unlock behavior fires after the map ref lands.
+const makeHandler = () => {
+  const h = { enabled: false, enable() { h.enabled = true; }, disable() { h.enabled = false; } };
+  return h;
+};
+['dragging', 'scrollWheelZoom', 'doubleClickZoom', 'touchZoom', 'boxZoom', 'keyboard'].forEach((k) => {
+  stubMap[k] = makeHandler();
+});
+
+// forwardRef mirrors the real react-leaflet ref forwarding: the parent's
+// ref callback fires with the stub map so the lock/unlock useEffect sees a
+// non-null ref. Previously this was a plain <div> and the lock effect never
+// re-fired in tests, masking the cache-hit bug.
+const MapContainerStub = forwardRef<unknown, { children?: React.ReactNode }>(
+  function MapContainerStub(props, ref) {
+    if (typeof ref === 'function') ref(stubMap);
+    return <div data-testid="map-container">{props.children}</div>;
+  }
+);
 
 vi.mock('react-leaflet', () => ({
-  MapContainer: ({ children }: { children?: React.ReactNode }) => <div data-testid="map-container">{children}</div>,
+  MapContainer: MapContainerStub,
   TileLayer: () => <div data-testid="tile-layer" />,
   ZoomControl: () => <div data-testid="zoom-control" />,
   Marker: ({ position }: { position: [number, number] }) => <div data-testid="marker" data-position={JSON.stringify(position)} />,
@@ -67,6 +93,10 @@ const mockCsvData = `Updated Date and Time (in Hong Kong Time),Ending Date and T
 describe('RainfallMap Component', () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
+    // Clear the localStorage nowcast cache between tests so a previous test's
+    // "Load Map" → fetch → cache write doesn't cause the next test to skip
+    // the load button and go straight to the map.
+    clearNowcastCache();
   });
 
   const renderWithLanguage = (ui: React.ReactElement) => {
@@ -195,6 +225,117 @@ describe('RainfallMap Component', () => {
     await waitFor(() => {
       expect(screen.getByText('Failed to load data')).toBeInTheDocument();
       expect(screen.getByText('Could not load gridded rainfall data.')).toBeInTheDocument();
+    });
+  });
+
+  it('skips the Load Map prompt and renders directly from cache when fresh', async () => {
+    // Pre-seed the localStorage cache with a valid CSV. The outer wrapper
+    // should detect the fresh cache on mount, skip the "Load Map" button,
+    // and mount RainfallMapInner with the cached CSV as initialData —
+    // meaning fetch should never be called.
+    writeNowcastCache(mockCsvData, '2026-05-17 16:00', Date.now());
+
+    const mockFetch = vi.fn();
+    vi.stubGlobal('fetch', mockFetch);
+
+    renderWithLanguage(<RainfallMap />);
+
+    // The "Load Map" button is never rendered when cache is fresh.
+    expect(screen.queryByRole('button', { name: /Load Map/i })).toBeNull();
+
+    // Header still renders.
+    expect(screen.getByText('Rain Cloud Nowcast')).toBeInTheDocument();
+
+    // The cached grid is shown immediately (initialData, no loading state).
+    await waitFor(() => {
+      expect(screen.getByText('Updated: 2026-05-17 16:00')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('rain-grid')).toBeInTheDocument();
+    expect(screen.getByTestId('map-container')).toBeInTheDocument();
+
+    // Network is not touched because the cache hit is within staleTime.
+    // (refetchInterval will fire later, but at this point fetch = 0 calls.)
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('shows the Load Map prompt again after the cache is cleared', async () => {
+    writeNowcastCache(mockCsvData, '2026-05-17 16:00', Date.now());
+    clearNowcastCache();
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => null },
+      text: async () => mockCsvData,
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    renderWithLanguage(<RainfallMap />);
+
+    // Without a cache the prompt renders and fetch waits for the click.
+    expect(screen.getByRole('button', { name: /Load Map/i })).toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('enables map interactions (drag / zoom / keyboard) when loaded from cache', async () => {
+    // Reset the stub handler flags so this test isn't polluted by earlier ones.
+    (['dragging', 'scrollWheelZoom', 'doubleClickZoom', 'touchZoom', 'boxZoom', 'keyboard'] as const).forEach((k) => {
+      (stubMap[k] as { enabled: boolean }).enabled = false;
+    });
+
+    writeNowcastCache(mockCsvData, '2026-05-17 16:00', Date.now());
+    const mockFetch = vi.fn();
+    vi.stubGlobal('fetch', mockFetch);
+
+    renderWithLanguage(<RainfallMap />);
+
+    // The cache-hit path renders directly. Once the map ref lands (i.e.
+    // react-leaflet's useImperativeHandle fires), our ref callback must
+    // apply the unlock state — even though the lock useEffect only ran
+    // once on mount with mapRef.current = null.
+    await waitFor(() => {
+      expect(screen.getByTestId('map-container')).toBeInTheDocument();
+      expect(screen.getByTestId('rain-grid')).toBeInTheDocument();
+    });
+
+    // Each interaction handler is enabled.
+    (['dragging', 'scrollWheelZoom', 'doubleClickZoom', 'touchZoom', 'boxZoom', 'keyboard'] as const).forEach((k) => {
+      expect(stubMap[k]).toHaveProperty('enabled', true);
+    });
+  });
+
+  it('locks map interactions during initial fetch and unlocks after data arrives', async () => {
+    // Reset handler flags.
+    (['dragging', 'scrollWheelZoom', 'doubleClickZoom', 'touchZoom', 'boxZoom', 'keyboard'] as const).forEach((k) => {
+      (stubMap[k] as { enabled: boolean }).enabled = false;
+    });
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => null },
+      text: async () => mockCsvData,
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    renderWithLanguage(<RainfallMap />);
+
+    // Click Load Map to mount the inner component with no initialData.
+    screen.getByRole('button', { name: /Load Map/i }).click();
+
+    // While the fetch is in flight, the map ref callback fires with
+    // data=undefined and isLoading=true → handlers disabled.
+    await waitFor(() => {
+      expect(screen.getByTestId('map-container')).toBeInTheDocument();
+    });
+    (['dragging', 'scrollWheelZoom', 'doubleClickZoom', 'touchZoom', 'boxZoom', 'keyboard'] as const).forEach((k) => {
+      expect(stubMap[k]).toHaveProperty('enabled', false);
+    });
+
+    // After the fetch resolves, the lock useEffect re-runs and enables them.
+    await waitFor(() => {
+      expect(screen.getByTestId('rain-grid')).toBeInTheDocument();
+    });
+    (['dragging', 'scrollWheelZoom', 'doubleClickZoom', 'touchZoom', 'boxZoom', 'keyboard'] as const).forEach((k) => {
+      expect(stubMap[k]).toHaveProperty('enabled', true);
     });
   });
 });
