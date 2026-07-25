@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapContainer, TileLayer, GeoJSON, Marker, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
+import { union } from '@turf/union';
 import type { FeatureCollection } from 'geojson';
 import { AlertCircle, RefreshCw, Play, Pause, Layers } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { PRD_BOUNDS } from '@/lib/hko-weather';
 import { TIMING } from '@/lib/constants';
 
@@ -51,32 +53,17 @@ const RAINFALL_BANDS = [
   { max: Infinity, color: '#9d0b0b', label: '> 30' },
 ] as const;
 
-type Basemap = 'positron' | 'voyager' | 'osm';
-
-const BASEMAPS: Record<Basemap, { url: string; label: string; attribution: string }> = {
-  positron: {
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png',
-    label: 'Positron',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
-  voyager: {
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    label: 'Voyager',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
-  osm: {
-    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    label: 'OpenStreetMap',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  },
+// Two basemap styles: a light/clean Carto Positron tile and a dark Carto
+// Dark Matter tile. The map theme defaults to the app theme (synced via
+// useEffect on resolvedTheme) but the switch button lets the user flip
+// it independently. Tile keys are stable across the theme switch so the
+// layer component remounts and fetches the new tile set on each toggle.
+const TILE_URLS = {
+  light: 'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png',
+  dark: 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png',
 };
-
-const BASEMAP_ORDER: Basemap[] = ['positron', 'voyager', 'osm'];
-
-const nextBasemap = (current: Basemap): Basemap => {
-  const idx = BASEMAP_ORDER.indexOf(current);
-  return BASEMAP_ORDER[(idx + 1) % BASEMAP_ORDER.length];
-};
+const TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
 const getRainfallColor = (value: number): string => {
   for (const band of RAINFALL_BANDS) {
@@ -85,9 +72,10 @@ const getRainfallColor = (value: number): string => {
   return RAINFALL_BANDS[RAINFALL_BANDS.length - 1].color;
 };
 
-// weight: 0.5 + color matching fill fills the anti-aliasing gap between
-// adjacent polygons. Alpha is baked into the RGBA color so fillOpacity stays at 1
-// — using fillOpacity < 1 produces horizontal scan-line banding in Leaflet's SVG renderer.
+// Alpha is baked into the RGBA color so fillOpacity stays at 1 — using
+// fillOpacity < 1 produces horizontal scan-line banding in Leaflet's SVG
+// renderer. Stroke is disabled (weight 0) so adjacent cells of the same
+// color blend into a single patch instead of showing a visible grid.
 const hexToRgba = (hex: string, alpha: number) => {
   const h = hex.replace('#', '');
   const r = parseInt(h.slice(0, 2), 16);
@@ -99,7 +87,7 @@ const hexToRgba = (hex: string, alpha: number) => {
 const FILL_ALPHA = 0.4;
 
 // Per-color style cache. react-leaflet invokes style once per feature inside the
-// canvas/SVG render loop, so we memoize by hex color to keep the returned object
+// SVG render loop, so we memoize by hex color to keep the returned object
 // reference stable across features and re-renders.
 const polygonStyleCache = new Map<string, ReturnType<typeof polygonStyle>>();
 const polygonStyle = (color: string) => {
@@ -109,7 +97,7 @@ const polygonStyle = (color: string) => {
     fillColor: hexToRgba(color, FILL_ALPHA),
     fillOpacity: 1,
     color: hexToRgba(color, 1),
-    weight: 0.5,
+    weight: 0,
   };
   polygonStyleCache.set(color, style);
   return style;
@@ -124,11 +112,17 @@ const ColorGeoLayer = memo(({ color, data, stepIndex }: {
     key={`${stepIndex}-${color}`}
     data={data}
     style={polygonStyle(color)}
-    renderer={L.canvas({ padding: 0.5 })}
+    renderer={L.svg()}
   />
 ), (prev, next) =>
   prev.stepIndex === next.stepIndex && prev.color === next.color && prev.data === next.data
 );
+
+// Note on banding: the HKO nowcast grid is derived from radar sweeps, and the
+// radar scan pattern produces faint horizontal banding that is visible in the
+// raw data regardless of how the overlay is rendered. It is a source-data
+// artifact, not a renderer/canvas/CSS issue. The merged-patches approach
+// (one polygon per color band) is the cleanest we can render the data.
 
 const parseRainfallCSV = (csvText: string): NowcastResult => {
   const lines = csvText.split('\n');
@@ -294,7 +288,28 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
   // mode without a sentinel like -1.
   const [bytesReceived, setBytesReceived] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [basemap, setBasemap] = useState<Basemap>('positron');
+  // Map basemap is a light/dark toggle that defaults to the app theme. The
+  // switch button flips it independently; the effect below re-aligns it with
+  // the app theme whenever the theme changes.
+  const [basemapIsDark, setBasemapIsDark] = useState(false);
+  const { resolvedTheme } = useTheme();
+  useEffect(() => {
+    setBasemapIsDark(resolvedTheme === 'dark');
+  }, [resolvedTheme]);
+
+  // Zoom bounds differ by viewport: mobile keeps minZoom 8 (slightly wider
+  // context), desktop tightens to 9 (less empty ocean). maxZoom 17 is shared.
+  // Same 1080px breakpoint as the rest of the app.
+  const [isMobile, setIsMobile] = useState(
+    () => window.matchMedia('(max-width: 1080px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1080px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  const minZoom = isMobile ? 8 : 9;
 
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hkoGriddedRainfallNowcast'],
@@ -402,6 +417,38 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
   const activeStep = timeSteps[activeStepIndex];
   const activeCellsByColor = activeStep?.cellsByColor || null;
 
+  // Merge adjacent cells of the same color into a single polygon per color
+  // band. This drops the per-cell grid look (each color = one shape, no
+  // internal cell boundaries) and reduces the SVG draw count from
+  // ~100-500 paths to 6 per step. Memoized so the merge re-runs only on
+  // step change, not on every render. Single-cell groups pass through
+  // untouched. turf.union returns a single Feature (Polygon or MultiPolygon
+  // for disjoint clusters); we wrap it in a FeatureCollection for the
+  // GeoJSON layer. Polygon-clipping can throw on degenerate geometry, so
+  // the union call is wrapped — on failure we fall back to the raw cells.
+  const mergedCellsByColor = useMemo<Map<string, FeatureCollection> | null>(() => {
+    if (!activeCellsByColor) return null;
+    const out = new Map<string, FeatureCollection>();
+    for (const [color, fc] of activeCellsByColor) {
+      if (fc.features.length === 0) continue;
+      if (fc.features.length === 1) {
+        out.set(color, fc);
+        continue;
+      }
+      try {
+        const merged = union(fc as FeatureCollection<any>);
+        if (merged) {
+          out.set(color, { type: 'FeatureCollection', features: [merged] });
+        } else {
+          out.set(color, fc);
+        }
+      } catch {
+        out.set(color, fc);
+      }
+    }
+    return out;
+  }, [activeCellsByColor]);
+
   return (
     <div className="absolute inset-0 flex flex-col">
       {!isLoading && timeSteps.length > 0 && (
@@ -469,9 +516,9 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
             <span className="px-1 tabular-nums">{formatString(t('nowcast.updated'), updateTime)}</span>
           )}
           <button
-            onClick={() => setBasemap(nextBasemap(basemap))}
+            onClick={() => setBasemapIsDark(v => !v)}
             className="p-1 hover:bg-muted/50 rounded transition-colors"
-            aria-label={`Switch basemap (current: ${BASEMAPS[basemap].label})`}
+            aria-label={`Switch basemap (current: ${basemapIsDark ? 'dark' : 'light'})`}
           >
             <Layers className="w-4 h-4" />
           </button>
@@ -552,8 +599,8 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
         <MapContainer
           center={[22.40, 114.10]}
           zoom={9}
-          minZoom={8}
-          maxZoom={16}
+          minZoom={minZoom}
+          maxZoom={17}
           scrollWheelZoom={false}
           doubleClickZoom={false}
           dragging={false}
@@ -565,12 +612,12 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
         >
           <ZoomControl position="topleft" />
           <TileLayer
-            key={basemap}
-            attribution={BASEMAPS[basemap].attribution}
-            url={BASEMAPS[basemap].url}
+            key={basemapIsDark ? 'dark' : 'light'}
+            attribution={TILE_ATTRIBUTION}
+            url={basemapIsDark ? TILE_URLS.dark : TILE_URLS.light}
           />
 
-          {activeCellsByColor && Array.from(activeCellsByColor.entries()).map(([color, featureCollection]) => (
+          {mergedCellsByColor && Array.from(mergedCellsByColor.entries()).map(([color, featureCollection]) => (
             <ColorGeoLayer
               key={`${activeStepIndex}-${color}`}
               color={color}
