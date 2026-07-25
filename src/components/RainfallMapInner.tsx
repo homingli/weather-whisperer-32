@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useMemo, memo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MapContainer, TileLayer, GeoJSON, Marker, ZoomControl } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap, Marker, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import { union } from '@turf/union';
 import type { FeatureCollection } from 'geojson';
@@ -103,20 +103,51 @@ const polygonStyle = (color: string) => {
   return style;
 };
 
-const ColorGeoLayer = memo(({ color, data, stepIndex }: {
+// Manual layer pattern. We use `useMap` to grab the Leaflet map instance and
+// drive the GeoJSON layer ourselves with refs and effects. This bypasses
+// react-leaflet's reconciliation, which doesn't reliably fire updateGeoJSON
+// when the data prop changes (the overlay would freeze on the first rendered
+// step). The layer is created once per color and updated in place via
+// clearLayers + addData — far cheaper on mobile than remounting the renderer
+// on every step change. The hidden div is purely a test affordance: it lets
+// unit tests verify the data flowing into each layer without mounting a real
+// Leaflet map. It is invisible in the DOM.
+const ColorGeoLayer = ({ color, data }: {
   color: string;
   data: FeatureCollection;
-  stepIndex: number;
-}) => (
-  <GeoJSON
-    key={`${stepIndex}-${color}`}
-    data={data}
-    style={polygonStyle(color)}
-    renderer={L.svg()}
-  />
-), (prev, next) =>
-  prev.stepIndex === next.stepIndex && prev.color === next.color && prev.data === next.data
-);
+}) => {
+  const map = useMap();
+  const layerRef = useRef<L.GeoJSON | null>(null);
+  const style = polygonStyle(color);
+
+  useEffect(() => {
+    if (!map) return;
+    if (!layerRef.current) {
+      layerRef.current = L.geoJSON(data, { style, renderer: L.svg() }).addTo(map);
+    } else {
+      layerRef.current.setStyle(style);
+      layerRef.current.clearLayers();
+      layerRef.current.addData(data);
+    }
+  }, [color, data, map, style]);
+
+  useEffect(() => {
+    return () => {
+      layerRef.current?.remove();
+      layerRef.current = null;
+    };
+  }, []);
+
+  return (
+    <div
+      data-testid="geojson"
+      data-fill-color={style.fillColor}
+      data-stroke-color={style.color}
+      data-feature-count={data.features.length}
+      style={{ display: 'none' }}
+    />
+  );
+};
 
 // Note on banding: the HKO nowcast grid is derived from radar sweeps, and the
 // radar scan pattern produces faint horizontal banding that is visible in the
@@ -619,10 +650,9 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
 
           {mergedCellsByColor && Array.from(mergedCellsByColor.entries()).map(([color, featureCollection]) => (
             <ColorGeoLayer
-              key={`${activeStepIndex}-${color}`}
+              key={color}
               color={color}
               data={featureCollection}
-              stepIndex={activeStepIndex}
             />
           ))}
 
