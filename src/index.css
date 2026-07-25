@@ -132,6 +132,11 @@
     --sidebar-border: 36 32% 88% / 0.18;
     --sidebar-ring: 36 32% 88%;
 
+    /* Severity tokens — dark mode overrides. The :root values are deep
+       hues calibrated for the cream light-mode bg; in dark mode we
+       invert toward lighter tints so they pass 4.5:1 against the
+       newsprint-black background (24 10% 8%). */
+    --severity-info-fg: 217 100% 81%;
   }
 }
 

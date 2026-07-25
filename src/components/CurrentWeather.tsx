@@ -404,13 +404,23 @@ function SunriseSunsetCountdown({
 
   const label = t(type === 'sunrise' ? 'daily.sunrise' : 'daily.sunset');
 
+  // Theme-tinted countdown value, calibrated to pass 3:1 on cream (large
+  // text threshold) and 4.5:1 on the dark editorial bg. Sunrise: amber-600
+  // #d97706; Sunset: blue-700 #1d4ed8. Single hex values intentionally —
+  // same color reads correctly against both bgs. Icon stays muted to keep
+  // the row label + icon a quiet caption above the prominent value.
+  const tone = type === 'sunrise' ? '#d97706' : '#1d4ed8';
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2 kicker text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
         <span>{label}</span>
       </div>
-      <div className={`font-display text-2xl md:text-3xl font-light tabular-nums leading-tight ${countdown.isNow ? 'text-severity-warning' : ''}`}>
+      <div
+        className="font-display text-2xl md:text-3xl font-light tabular-nums leading-tight"
+        style={{ color: empty ? undefined : tone }}
+      >
         {empty ? '—' : countdown.text}
       </div>
       <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
