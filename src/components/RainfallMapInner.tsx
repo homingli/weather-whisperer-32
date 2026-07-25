@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapContainer, TileLayer, Marker, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
@@ -9,6 +9,7 @@ import { PRD_BOUNDS } from '@/lib/hko-weather';
 import { TIMING } from '@/lib/constants';
 import { parseRainfallCSVText, buildRainGrid, type RainGrid } from '@/lib/rainfallGrid';
 import { RAINFALL_BANDS } from '@/lib/rainfallBands';
+import { writeNowcastCache } from '@/lib/nowcastCache';
 import { RainfallCellsLayer } from './RainfallCellsLayer';
 
 interface UserLocation {
@@ -116,20 +117,34 @@ const fetchRainfallNowcast = async (onProgress?: ProgressCallback): Promise<Nowc
         position += chunk.length;
       }
 
-      const parsed = parseRainfallCSVText(new TextDecoder().decode(allChunks));
+      const csvText = new TextDecoder().decode(allChunks);
+      const parsed = parseRainfallCSVText(csvText);
+      // Persist for next mount (15-min TTL). Non-blocking on quota errors.
+      writeNowcastCache(csvText, parsed.updateTime, lastModified);
       return { grid: buildRainGrid(parsed.rows)!, updateTime: parsed.updateTime, lastModified };
     }
 
     // Fallback: no ReadableStream (very old browsers only — HKO always sends one)
     const csvText = await response.text();
     const parsed = parseRainfallCSVText(csvText);
+    writeNowcastCache(csvText, parsed.updateTime, lastModified);
     return { grid: buildRainGrid(parsed.rows)!, updateTime: parsed.updateTime, lastModified };
   } finally {
     clearTimeout(timeoutId);
   }
 };
 
-export default function RainfallMapInner({ userLocation }: { userLocation?: UserLocation }) {
+export default function RainfallMapInner({
+  userLocation,
+  initialCsv,
+}: {
+  userLocation?: UserLocation;
+  /** Cached CSV text from the 15-min localStorage cache. When present, we
+   *  parse it once at mount and hand the result to React Query as
+   *  initialData so the first render shows the parsed grid with no network
+   *  round-trip and no loading state. */
+  initialCsv?: string | null;
+}) {
   const mapRef = useRef<L.Map | null>(null);
   const viewportInit = useRef(false);
   const prevUserLoc = useRef<string | null>(null);
@@ -144,6 +159,26 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
   // switch button flips it independently; the effect below re-aligns it with
   // the app theme whenever the theme changes.
   const [basemapIsDark, setBasemapIsDark] = useState(false);
+
+  // Parse the cached CSV once at mount. Memoized on initialCsv so subsequent
+  // renders (and subsequent refetches) don't re-parse. On parse failure we
+  // return null and let the queryFn handle it like a cold start — no special
+  // error path needed because the network fetch will overwrite the cache
+  // anyway.
+  const cachedResult = useMemo<NowcastResult | null>(() => {
+    if (!initialCsv) return null;
+    try {
+      const parsed = parseRainfallCSVText(initialCsv);
+      const grid = buildRainGrid(parsed.rows);
+      if (!grid) return null;
+      // lastModified is 0 on the cache-hit path: we don't carry the HTTP
+      // Last-Modified header through, and the field is unused now that
+      // refetchInterval anchors on dataUpdatedAt.
+      return { grid, updateTime: parsed.updateTime, lastModified: 0 };
+    } catch {
+      return null;
+    }
+  }, [initialCsv]);
   const { resolvedTheme } = useTheme();
   useEffect(() => {
     setBasemapIsDark(resolvedTheme === 'dark');
@@ -182,16 +217,24 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
         }
       });
     },
-    staleTime: TIMING.STALE_TIME_MS,
+    // 15-min TTL aligned with the localStorage cache. Within this window
+    // the cached CSV is served as initialData (see below) and React Query
+    // considers it fresh — no fetch on mount, on focus, or on reconnect.
+    staleTime: TIMING.NOWCAST_CACHE_TTL_MS,
     refetchInterval: (query) => {
-      const lm = query.state.data?.lastModified;
-      if (!lm) return TIMING.NOWCAST_REFETCH_INTERVAL_MS;
-      // HKO generates every 30 min; add 5-min grace period so the first
-      // post-grace poll is at 35 min, then floors to 5 min.
-      const GRACE_MS = 5 * 60 * 1000;
-      const timeUntilNext = lm + TIMING.NOWCAST_REFETCH_INTERVAL_MS - Date.now() + GRACE_MS;
-      return Math.max(timeUntilNext, GRACE_MS);
+      // Schedule the next refetch for when the cache TTL expires, so the
+      // background refresh always lines up with cache invalidation. Uses
+      // dataUpdatedAt (set by initialDataUpdatedAt below for cache hits) as
+      // the anchor so the cache TTL and the refetch cadence stay in sync.
+      // A non-positive value here just means "refetch now" — React Query
+      // treats it as 0, which is exactly what we want for an already-
+      // expired cache.
+      const cachedAt = query.state.dataUpdatedAt;
+      if (!cachedAt) return TIMING.NOWCAST_CACHE_TTL_MS;
+      return cachedAt + TIMING.NOWCAST_CACHE_TTL_MS - Date.now();
     },
+    initialData: cachedResult ?? undefined,
+    initialDataUpdatedAt: cachedResult ? Date.now() : 0,
     retry: 0,
   });
 
@@ -247,7 +290,18 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
   // Lock the map while rainfall grid data is still being fetched; unlock once
   // the CSV is parsed and the cells are on screen. This prevents the user from
   // panning/zooming a blank basemap that would mislead them about coverage.
-  useEffect(() => {
+  //
+  // Invoked from the MapContainer ref callback below (NOT a useEffect). With
+  // initialData, [data, isLoading] don't change after mount, so the only way
+  // to apply the lock state on the cache path is via the ref callback —
+  // react-leaflet's useImperativeHandle fires after our useEffect would have
+  // run with mapRef.current = null.
+  //
+  // Subsequent state changes are handled by React's ref detach/reattach:
+  // when applyMapLockState's identity changes (deps [data, isLoading]),
+  // handleMapRef gets a new identity, React calls the old ref with null and
+  // the new ref with the current map, which invokes the new applyMapLockState.
+  const applyMapLockState = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
     const ready = !!data && !isLoading;
@@ -267,6 +321,16 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
       map.keyboard.disable();
     }
   }, [data, isLoading]);
+
+  // useCallback so the ref identity tracks applyMapLockState's identity;
+  // React's detach/reattach on identity change fires the new closure.
+  const handleMapRef = useCallback(
+    (map: L.Map | null) => {
+      mapRef.current = map;
+      if (map) applyMapLockState();
+    },
+    [applyMapLockState],
+  );
 
   return (
     <div className="absolute inset-0 flex flex-col">
@@ -450,7 +514,14 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
           // past React's reconciliation budget.
           preferCanvas={true}
           className="w-full h-full"
-          ref={mapRef}
+          // Callback ref (not the useRef object) so we can apply the lock
+          // state the moment react-leaflet's useImperativeHandle lands the
+          // map instance — fires after our lock useEffect runs and handles
+          // the initialData case where [data, isLoading] never change.
+          // The ref identity tracks applyMapLockState's identity (deps
+          // [data, isLoading]) so React's detach/reattach handles state
+          // transitions too — no separate useEffect needed.
+          ref={handleMapRef}
           aria-label={t('nowcast.mapLabel')}
           role="application"
         >
