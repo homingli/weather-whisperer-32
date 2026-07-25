@@ -28,8 +28,23 @@ import { getRainfallColor, RAINFALL_BANDS } from '@/lib/rainfallBands';
  * Keying by flatIndex lets the sync effect add/remove layers
  * incrementally on refetch instead of tearing down and rebuilding all
  * ~10k rectangles every 6 minutes.
+ *
+ * `lastColor` caches the rgba string (with alpha baked in) last applied
+ * to the rectangle; the step-update effect skips `setStyle` for cells
+ * whose color at the new step matches. Without this cache, every step
+ * change runs ~10k `setStyle` calls even when the rain pattern barely
+ * moves.
+ *   - `undefined`: rectangle just mounted, never painted. The next
+ *     step-update always applies a style.
+ *   - `null`: rectangle is currently hidden (HIDDEN_STYLE).
+ *   - string: rectangle is visible with this color.
  */
-type LayerMap = Map<number, L.Rectangle>;
+interface CellLayer {
+  rect: L.Rectangle;
+  lastColor: string | null | undefined;
+}
+
+type LayerMap = Map<number, CellLayer>;
 
 /**
  * Alpha for the rainfall overlay. Baked into the rgba fillColor string so
@@ -53,24 +68,38 @@ function withAlpha(hex: string, alpha: number): string {
  * (cellLats[r], cellLons[c]); the bounds are midpoints with adjacent cells
  * so adjacent cells share boundaries and there's no gap between them.
  *
- * For the southernmost / westernmost cells, fall back to the same half-cell
- * spacing HKO uses (0.009° lat, 0.0095° lon) when no neighbor exists.
+ * For the edge cells (no neighbor on one side) we extrapolate using the
+ * delta between the first pair of observed cells on that axis. This
+ * preserves the "no assumed cell size" principle: even if HKO changes
+ * its grid resolution, the edge cells stay in register with the
+ * interior. For the degenerate 1-row / 1-col case we fall back to a
+ * nominal 0.018 / 0.0195 step (only reachable in tests).
  */
 function cellBounds(grid: RainGrid, r: number, c: number): L.LatLngBoundsExpression {
   const cellLat = grid.cellLats[r];
   const cellLon = grid.cellLons[c];
+  // Edge delta: for r=0 the south edge extends past cellLats[0] by the
+  // same distance as cellLats[1] - cellLats[0]. For r=rows-1 it extends
+  // past cellLats[rows-1] by the same distance. Only when rows === 1 do
+  // we fall back to a hardcoded step (test-only path).
+  const latStep = grid.rows >= 2
+    ? Math.abs(grid.cellLats[1] - grid.cellLats[0])
+    : 0.018;
+  const lonStep = grid.cols >= 2
+    ? Math.abs(grid.cellLons[1] - grid.cellLons[0])
+    : 0.0195;
   const halfLatSouth = r > 0
     ? (grid.cellLats[r - 1] + cellLat) / 2
-    : cellLat - 0.009;
+    : cellLat - latStep / 2;
   const halfLatNorth = r < grid.rows - 1
     ? (cellLat + grid.cellLats[r + 1]) / 2
-    : cellLat + 0.009;
+    : cellLat + latStep / 2;
   const halfLonWest = c > 0
     ? (grid.cellLons[c - 1] + cellLon) / 2
-    : cellLon - 0.0095;
+    : cellLon - lonStep / 2;
   const halfLonEast = c < grid.cols - 1
     ? (cellLon + grid.cellLons[c + 1]) / 2
-    : cellLon + 0.0095;
+    : cellLon + lonStep / 2;
   return [
     [halfLatSouth, halfLonWest],
     [halfLatNorth, halfLonEast],
@@ -140,7 +169,7 @@ export const RainfallCellsLayer = ({
     const layers = layersRef.current;
     const shape = shapeRef;
     return () => {
-      for (const rect of layers.values()) rect.remove();
+      for (const { rect } of layers.values()) rect.remove();
       layers.clear();
       shape.current = '';
     };
@@ -158,8 +187,9 @@ export const RainfallCellsLayer = ({
     const shapeKey = `${rows}/${cols}/${grid.cellLats.length}/${grid.cellLons.length}`;
     const shapeChanged = shapeRef.current !== shapeKey;
     if (shapeChanged) {
-      // Grid shape changed — full rebuild.
-      for (const rect of layers.values()) rect.remove();
+      // Grid shape changed — full rebuild. Also reset lastColor so the
+      // step-update effect paints every cell on the next step change.
+      for (const { rect } of layers.values()) rect.remove();
       layers.clear();
       shapeRef.current = shapeKey;
     }
@@ -183,11 +213,11 @@ export const RainfallCellsLayer = ({
               fillColor: '#000000', // overwritten on first activeStep update
             });
             rect.addTo(map);
-            layers.set(flatIndex, rect);
+            layers.set(flatIndex, { rect, lastColor: undefined });
           }
         } else {
           if (layers.has(flatIndex)) {
-            const rect = layers.get(flatIndex)!;
+            const { rect } = layers.get(flatIndex)!;
             rect.remove();
             layers.delete(flatIndex);
           }
@@ -199,21 +229,32 @@ export const RainfallCellsLayer = ({
   // Update each cell's style based on its value at the active step.
   // Cells with value <= 0 are hidden; otherwise their fillColor is
   // resolved via the rainfall bands (alpha baked into the color).
+  // setStyle is skipped for cells whose new color matches lastColor
+  // (cheap no-op on canvas renderer, but architecturally mirrors the
+  // incremental diff we do on refetch). On the first paint, lastColor
+  // is undefined so we always call setStyle.
   useEffect(() => {
     const layers = layersRef.current;
     if (layers.size === 0) return;
     if (activeStep < 0 || activeStep >= grid.stepCount) return;
     const { rows, cols, values } = grid;
     const stepOffset = activeStep * rows * cols;
-    for (const [flatIndex, rect] of layers) {
+    for (const [flatIndex, layer] of layers) {
       const v = values[stepOffset + flatIndex];
       if (v <= 0) {
-        rect.setStyle(HIDDEN_STYLE);
+        if (layer.lastColor !== null) {
+          layer.rect.setStyle(HIDDEN_STYLE);
+          layer.lastColor = null;
+        }
       } else {
-        rect.setStyle({
-          ...VISIBLE_STYLE,
-          fillColor: withAlpha(getRainfallColor(v), OVERLAY_ALPHA),
-        });
+        const nextColor = withAlpha(getRainfallColor(v), OVERLAY_ALPHA);
+        if (layer.lastColor !== nextColor) {
+          layer.rect.setStyle({
+            ...VISIBLE_STYLE,
+            fillColor: nextColor,
+          });
+          layer.lastColor = nextColor;
+        }
       }
     }
   }, [grid, activeStep]);
