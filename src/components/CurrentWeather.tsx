@@ -3,7 +3,7 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIconNode, weatherDescriptionKey } from "@/lib/weather";
 import { SENTINEL_THRESHOLD } from "@/lib/constants";
-import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, Thermometer } from "lucide-react";
+import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, Thermometer, AlertTriangle } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { formatInTimezone, appLocale } from "@/lib/utils";
 
@@ -48,20 +48,18 @@ function uvBandFor(uv: number | null): UvBand {
 type RainBand = { max: number; color: string; label: string };
 
 const RAINFALL_BANDS: RainBand[] = [
-  { max: 0.5,       color: "#a0c4ff", label: "< 0.5 mm" },
-  { max: 2,         color: "#4facfe", label: "0.5 – 2 mm" },
-  { max: 5,         color: "#00f2fe", label: "2 – 5 mm" },
-  { max: 10,        color: "#43e97b", label: "5 – 10 mm" },
-  { max: 20,        color: "#f6d365", label: "10 – 20 mm" },
-  { max: 30,        color: "#ff0844", label: "20 – 30 mm" },
+  { max: 2,         color: "#a0c4ff", label: "0.5 – 2 mm" },
+  { max: 5,         color: "#4facfe", label: "2 – 5 mm" },
+  { max: 10,        color: "#00f2fe", label: "5 – 10 mm" },
+  { max: 20,        color: "#43e97b", label: "10 – 20 mm" },
+  { max: 30,        color: "#f6d365", label: "20 – 30 mm" },
   { max: Infinity,  color: "#9d0b0b", label: "> 30 mm" },
 ];
 
 function rainfallBandIndexFor(mm: number): number {
   if (!isFinite(mm) || mm < 0) return -1;
-  // No segment lights up until precipitation reaches the first band (0.5 mm).
-  // 0.0 mm (or trace amounts below 0.5) leaves every band dull.
-  if (mm < RAINFALL_BANDS[0].max) return -1;
+  // Below the HKO nowcast legend's first tier (0.5 mm); no band lights up.
+  if (mm < 0.5) return -1;
   for (let i = 0; i < RAINFALL_BANDS.length; i++) if (mm <= RAINFALL_BANDS[i].max) return i;
   return RAINFALL_BANDS.length - 1;
 }
@@ -289,7 +287,14 @@ function RangeBar({
   const clamped = Math.max(lo, Math.min(hi, current));
   const currentPct = ((clamped - lo) / range) * 100;
   return (
-    <div className="flex flex-col gap-3">
+    <div
+      className="flex flex-col gap-3"
+      aria-label={
+        empty
+          ? `${label}: range unavailable`
+          : `${label}: range ${Math.round(lo)}° to ${Math.round(hi)}°, currently ${Math.round(current)}°`
+      }
+    >
       <div className="flex items-baseline justify-between gap-2">
         <span className="kicker text-muted-foreground inline-flex items-center gap-2">
           <Thermometer className="h-3.5 w-3.5" />
@@ -301,7 +306,7 @@ function RangeBar({
       </div>
       <div className="relative h-2 bg-foreground/10" style={{
         background: "linear-gradient(90deg, #3b82f6 0%, #06b6d4 35%, #eab308 65%, #ef4444 100%)",
-      }}>
+      }} aria-hidden="true">
         <div
           className="absolute -top-1.5 -translate-x-1/2 h-5 w-5 rotate-45 border border-foreground bg-background"
           style={{ left: `${currentPct}%` }}
@@ -399,13 +404,23 @@ function SunriseSunsetCountdown({
 
   const label = t(type === 'sunrise' ? 'daily.sunrise' : 'daily.sunset');
 
+  // Theme-tinted countdown value, calibrated to pass 3:1 on cream (large
+  // text threshold) and 4.5:1 on the dark editorial bg. Sunrise: amber-600
+  // #d97706; Sunset: blue-700 #1d4ed8. Single hex values intentionally —
+  // same color reads correctly against both bgs. Icon stays muted to keep
+  // the row label + icon a quiet caption above the prominent value.
+  const tone = type === 'sunrise' ? '#d97706' : '#1d4ed8';
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2 kicker text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
         <span>{label}</span>
       </div>
-      <div className={`font-display text-2xl md:text-3xl font-light tabular-nums leading-tight ${countdown.isNow ? 'text-severity-warning' : ''}`}>
+      <div
+        className="font-display text-2xl md:text-3xl font-light tabular-nums leading-tight"
+        style={{ color: empty ? undefined : tone }}
+      >
         {empty ? '—' : countdown.text}
       </div>
       <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
@@ -494,8 +509,19 @@ function WindCompass({
 function UvChip({
   uv, band, label, empty,
 }: { uv: number | null; band: UvBand; label: string; empty: boolean }) {
+  // -1 when uv is null (band is the null sentinel); otherwise the index
+  // of the active band inside UV_BANDS. Drives the icon overlay position.
+  const activeIdx = UV_BANDS.indexOf(band);
+  const showIcon = !empty && uv != null && activeIdx >= 0;
   return (
-    <div className="flex flex-col gap-3">
+    <div
+      className="flex flex-col gap-3"
+      aria-label={
+        empty || uv == null
+          ? `${label}: unavailable`
+          : `${label}: ${uv.toFixed(1)}, ${band.label}`
+      }
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="kicker text-muted-foreground inline-flex items-center gap-2">
           <Sun className="h-3.5 w-3.5" />
@@ -513,7 +539,7 @@ function UvChip({
           )}
         </span>
       </div>
-      <div className="flex h-2 overflow-hidden border border-foreground/15">
+      <div className="relative flex h-2 overflow-hidden border border-foreground/15" aria-hidden="true">
         {UV_BANDS.slice(0, 5).map((b, i) => {
           const priorMax = i > 0 ? UV_BANDS[i - 1].max : 0;
           const segActive = !empty && uv != null && uv > priorMax && uv <= b.max;
@@ -525,10 +551,22 @@ function UvChip({
                 backgroundColor: b.bg,
                 opacity: segActive ? 1 : 0.18,
               }}
-              aria-hidden
             />
           );
         })}
+        {showIcon && (
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              left: `${((activeIdx + 0.5) / 5) * 100}%`,
+              top: '-14px',
+              transform: 'translateX(-50%)',
+              color: band.text,
+            }}
+          >
+            <AlertTriangle className="h-3 w-3" />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -548,7 +586,14 @@ function PrecipBar({
   const activeBand = bandIndex >= 0 ? RAINFALL_BANDS[bandIndex] : undefined;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div
+      className="flex flex-col gap-3"
+      aria-label={
+        empty
+          ? `${t('daily.precip')}: unavailable`
+          : `${t('daily.precip')}: ${mm.toFixed(1)} mm${activeBand ? `, ${activeBand.label}` : ', below 0.5 mm'}`
+      }
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="kicker text-muted-foreground inline-flex items-center gap-2">
           <Droplets className="h-3.5 w-3.5" />
@@ -564,7 +609,7 @@ function PrecipBar({
           </span>
         </span>
       </div>
-      <div className="relative h-2 overflow-hidden border border-foreground/15">
+      <div className="relative h-2 overflow-hidden border border-foreground/15" aria-hidden="true">
         <div className="absolute inset-0 grid grid-cols-7">
           {RAINFALL_BANDS.map((b, i) => (
             <div
@@ -575,7 +620,6 @@ function PrecipBar({
                 transition: "opacity 300ms ease-out",
               }}
               className="h-full"
-              aria-hidden
             />
           ))}
         </div>
@@ -583,8 +627,20 @@ function PrecipBar({
           <div
             className="absolute -top-1 h-5 w-0.5 bg-foreground"
             style={{ left: `${posPct}%`, boxShadow: "0 0 0 2px hsl(var(--background))" }}
-            aria-hidden
           />
+        )}
+        {!empty && bandIndex >= 0 && (
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              left: `${((bandIndex + 0.5) / 7) * 100}%`,
+              top: '-14px',
+              transform: 'translateX(-50%)',
+              color: activeBand!.color,
+            }}
+          >
+            <Droplets className="h-3 w-3" />
+          </div>
         )}
       </div>
       <div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground/50 tabular-nums">

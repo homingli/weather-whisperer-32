@@ -45,6 +45,7 @@ export function WeatherBanners({ weather, isHKCovered, onRefetch, isRefetching }
       <div
         className="glass-card border-severity-warning/20 bg-severity-warning/5 p-4 rounded-xl flex items-start gap-3 text-severity-warning animate-fade-in"
         data-testid="banner-hko"
+        role="alert"
       >
         <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
         <div>

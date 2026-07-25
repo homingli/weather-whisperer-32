@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { RainfallMap } from './RainfallMap';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock react-leaflet to avoid JSDOM rendering issues.
@@ -45,9 +46,11 @@ describe('RainfallMap Component', () => {
     });
     return render(
       <QueryClientProvider client={queryClient}>
-        <LanguageProvider>
-          {ui}
-        </LanguageProvider>
+        <ThemeProvider>
+          <LanguageProvider>
+            {ui}
+          </LanguageProvider>
+        </ThemeProvider>
       </QueryClientProvider>
     );
   };
@@ -96,9 +99,11 @@ describe('RainfallMap Component', () => {
     expect(fillColors).toContain('rgba(0, 242, 254, 0.4)');
     expect(fillColors).toContain('rgba(246, 211, 101, 0.4)');
 
-    // All features should be present (2 + 1 + 1 = 4 cells).
+    // Cells of the same color band are merged into a single polygon via
+    // turf.union — the two 0.5–2 mm cells become one MultiPolygon feature,
+    // so the total drops from 4 cells to 3 features (one per color band).
     const featureCounts = layers.map(el => Number(el.getAttribute('data-feature-count')));
-    expect(featureCounts.reduce((sum, n) => sum + n, 0)).toBe(4);
+    expect(featureCounts.reduce((sum, n) => sum + n, 0)).toBe(3);
   });
 
   it('transitions timeline step and swaps the rendered color buckets', async () => {
