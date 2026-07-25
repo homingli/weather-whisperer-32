@@ -4,10 +4,9 @@
 // pipeline. The grid is rectangular with cells observed from the source data;
 // cellLats/cellLons carry the actual lat/lon of each row/col, so the renderer
 // can paint at the real geographic positions even when HKO varies its spacing.
-// Cells with value <= 0 are stored as 0 and skipped at paint time. Active
-// step is a single mutable index into the values array — no merge step, no
-// GeoJSON serialization, no synchronous geometry operations on the slider
-// hot path.
+// Cells with value <= 0 are stored as 0 and skipped at paint time. The active
+// step is a prop on the React layer, not a field on the grid, so the grid
+// itself is fully immutable and identical for every consumer.
 //
 // The grid is built from OBSERVED lat/lon values, not from an assumed cell
 // size. A previous version used CELL_DLAT=0.009 / CELL_DLON=0.0095, which
@@ -17,8 +16,6 @@
 // or wildly misaligned overlay. The current build snaps each row/col to
 // the nearest observed cell center; row 0..120 and col 0..120 are exactly
 // 121×121 = 14,641 cells per step.
-
-import { getRainfallColor } from './rainfallBands';
 
 /**
  * Snap radius (in degrees) when matching an incoming (lat, lon) to a stored
@@ -42,8 +39,6 @@ export interface RainGrid {
   stepTimes: string[];
   /** values[step * rows * cols + row * cols + col] = mm (0 = no rain). */
   values: Float32Array;
-  /** Mutable active step index; controlled by the React component. */
-  activeStep: number;
 }
 
 /** Pure: parse rows then derive a grid from the observed lat/lon values. */
@@ -118,7 +113,6 @@ export function buildRainGrid(rows: CellRow[]): RainGrid | null {
     stepCount,
     stepTimes,
     values,
-    activeStep: 0,
   };
 }
 
@@ -166,8 +160,11 @@ export function parseUpdateTime(field: string): string {
 
 // Parse the CSV text into a flat row list. Single pass, no allocations beyond
 // the result array. Rows with value <= 0 are filtered here so the grid builder
-// doesn't have to skip them again. PapaParse is used in fetchRainfallGrid
-// for streaming; this function is the synchronous fallback kept for tests.
+// doesn't have to skip them again. PapaParse was considered for streaming but
+// rejected: the CSV is fixed-schema (5 columns, comma-separated, no quoting),
+// the full text is already in memory by the time we parse, and the manual
+// parser avoids the ~50KB PapaParse bundle cost with no measurable speed
+// difference at the row counts we handle (~14k cells × 4 steps).
 export function parseRainfallCSVText(csvText: string): {
   rows: CellRow[];
   updateTime: string;
@@ -194,7 +191,3 @@ export function parseRainfallCSVText(csvText: string): {
   }
   return { rows, updateTime };
 }
-
-// Resolve the color hex string for a given mm value. Re-exported from
-// rainfallBands so the parser and the canvas layer share the source of truth.
-export { getRainfallColor };

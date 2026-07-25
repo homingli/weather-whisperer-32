@@ -97,7 +97,6 @@ function makeGrid(values: number[][][]): RainGrid {
     stepCount,
     stepTimes: ['t0', 't1', 't2'].slice(0, stepCount),
     values: valuesArr,
-    activeStep: 0,
   };
 }
 
@@ -187,6 +186,63 @@ describe('RainfallCellsLayer', () => {
     expect(mockRects[0].style.fill).not.toBe(false);
     expect(mockRects[1].style.fill).toBe(false);
     expect(mockRects[0].styleUpdates).toBeGreaterThan(beforeUpdates);
+  });
+
+  it('skips setStyle for cells whose color is unchanged at the new step', async () => {
+    // 1x2 grid, 2 steps. (0,0) and (0,1) both have the same value (1.0)
+    // at both steps. The step-update effect should NOT call setStyle
+    // on either rectangle when activeStep changes, because the rgba
+    // color is identical. Caches (lastColor) make this O(changes) not
+    // O(cells).
+    const grid = makeGrid([
+      [[1.0, 1.0]],
+      [[2.0, 2.0]],
+    ]);
+    const { rerender } = render(<RainfallCellsLayer grid={grid} activeStep={0} />);
+
+    await waitFor(() => {
+      expect(mockRects.length).toBe(2);
+    });
+
+    const step0Updates0 = mockRects[0].styleUpdates;
+    const step0Updates1 = mockRects[1].styleUpdates;
+
+    // Move to step 1: same values → no setStyle calls.
+    rerender(<RainfallCellsLayer grid={grid} activeStep={1} />);
+
+    expect(mockRects[0].styleUpdates).toBe(step0Updates0);
+    expect(mockRects[1].styleUpdates).toBe(step0Updates1);
+
+    // Move back to step 0: still no setStyle calls.
+    rerender(<RainfallCellsLayer grid={grid} activeStep={0} />);
+    expect(mockRects[0].styleUpdates).toBe(step0Updates0);
+    expect(mockRects[1].styleUpdates).toBe(step0Updates1);
+  });
+
+  it('only calls setStyle on cells whose color actually changes', async () => {
+    // 1x3 grid, 2 steps. (0,0) = 1.0 both steps (no change).
+    // (0,1) = 1.0 → 5.0 (change). (0,2) = 5.0 both steps (no change).
+    const grid = makeGrid([
+      [[1.0, 1.0]],
+      [[1.0, 5.0]],
+      [[5.0, 5.0]],
+    ]);
+    const { rerender } = render(<RainfallCellsLayer grid={grid} activeStep={0} />);
+
+    await waitFor(() => {
+      expect(mockRects.length).toBe(3);
+    });
+
+    const before0 = mockRects[0].styleUpdates;
+    const before1 = mockRects[1].styleUpdates;
+    const before2 = mockRects[2].styleUpdates;
+
+    // Move to step 1: only rect at index 1 should get a setStyle call.
+    rerender(<RainfallCellsLayer grid={grid} activeStep={1} />);
+
+    expect(mockRects[0].styleUpdates).toBe(before0);
+    expect(mockRects[1].styleUpdates).toBeGreaterThan(before1);
+    expect(mockRects[2].styleUpdates).toBe(before2);
   });
 
   it('re-shows a cell that becomes visible after being hidden', async () => {
@@ -296,5 +352,37 @@ describe('RainfallCellsLayer', () => {
     expect(stubMap.removeLayerCalls).toBe(2);
     // 3 new rectangles added.
     expect(stubMap.addLayerCalls).toBe(5);
+  });
+
+  it('derives cellBounds edge delta from observed cell pair, not HKO magic numbers', async () => {
+    // 2x2 grid with non-standard lat/lon spacing (0.025 lat, 0.020 lon)
+    // so the only cell with rain is the (0,0) corner. Its south and
+    // west edges should extend by half of the observed first pair
+    // delta — 0.0125 and 0.010 respectively — NOT 0.009 / 0.0095.
+    const grid: RainGrid = {
+      rows: 2,
+      cols: 2,
+      cellLats: new Float64Array([22.0, 22.025]),
+      cellLons: new Float64Array([113.0, 113.020]),
+      stepCount: 1,
+      stepTimes: ['t0'],
+      values: new Float32Array([1.0, 0, 0, 0]),
+    };
+    render(<RainfallCellsLayer grid={grid} activeStep={0} />);
+
+    await waitFor(() => {
+      expect(mockRects.length).toBe(1);
+    });
+
+    // The sole cell is (row=0, col=0) at center (22.0, 113.0).
+    // South edge: 22.0 - 0.0125 = 21.9875 (observed lat step 0.025 / 2)
+    // North edge: midpoint with row=1 (22.025) = 22.0125
+    // West edge: 113.0 - 0.0100 = 112.9900 (observed lon step 0.020 / 2)
+    // East edge: midpoint with col=1 (113.020) = 113.0100
+    const bounds = mockRects[0].bounds as [[number, number], [number, number]];
+    expect(bounds[0][0]).toBeCloseTo(21.9875, 5);
+    expect(bounds[1][0]).toBeCloseTo(22.0125, 5);
+    expect(bounds[0][1]).toBeCloseTo(112.99, 5);
+    expect(bounds[1][1]).toBeCloseTo(113.01, 5);
   });
 });

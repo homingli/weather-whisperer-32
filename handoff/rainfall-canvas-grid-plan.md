@@ -1,8 +1,49 @@
 # Rainfall map: canvas renderer + typed-array grid
 
 Branch: `perf/rainfall-canvas-grid`
-Date: 2026-07-25
-Status: plan, no code yet
+Date: 2026-07-25 (plan); updated 2026-07-26 (post-implementation)
+Status: implemented; see "Decision changes" below for divergences from the
+original plan
+
+## Decision changes from plan
+
+The original plan was written before the implementation. Several decisions
+changed during implementation; the implementation is the source of truth
+and the rest of this doc should be read as historical context. Key changes:
+
+- **Renderer is `preferCanvas` on `MapContainer`, not a custom pane.**
+  `MapContainer` is configured with `preferCanvas={true}`, which routes
+  every `L.Path` through `L.canvas()` automatically. We don't subclass
+  `L.Layer`. The plan's custom-canvas-pane approach (with manual
+  `requestAnimationFrame` redraw scheduling and `moveend`/`zoomend` hooks)
+  was rejected: `L.canvas()` already does all of that and we get
+  `Renderer._updateTransform`'s native zoom animation for free.
+- **Per-cell `L.Rectangle` instead of one canvas + `fillRect`.** The
+  original plan sketched a hand-rolled canvas-paint loop. The
+  implementation creates one `L.Rectangle` per non-zero cell (via
+  `L.canvas()` renderer), which gives us Leaflet's built-in zoom
+  transform and lets us skip the per-step `fillRect` call entirely.
+- **Grid model: `cellLats`/`cellLons` (Float64Array), not `minLat`/
+  `dLat`/`dLon` constants.** The plan assumed constant HKO spacing of
+  0.009 / 0.0095; the implementation instead captures the actual
+  observed cell-center lat/lon per row/col, so the grid is correct even
+  if HKO varies its resolution. `stepStarts: Uint16Array` was
+  replaced by stride indexing (`values[step * rows * cols + ...]`).
+- **No `activeStep` field on `RainGrid`.** The plan had it; the
+  implementation keeps the grid fully immutable and passes
+  `activeStep` as a prop on the React layer.
+- **No PapaParse.** The plan originally listed `papaparse` as a
+  dependency; the manual parser won (fixed-schema 5-column CSV, no
+  quoting, already in memory by the time we parse). No new npm
+  dep.
+- **Incremental sync on refetch.** The plan did not anticipate that
+  refetch (every ~30 min) would tear down 10k rectangles. The
+  implementation keys rectangles by `flatIndex` and adds/removes only
+  diffs. See `RainfallCellsLayer.tsx` for details.
+- **Color cache per cell.** Each rectangle remembers its last applied
+  rgba string; `setStyle` is skipped for cells whose color at the
+  new step matches. Cheap on canvas renderer, but architecturally
+  mirrors the incremental diff approach used for refetch.
 
 ## Problem
 
