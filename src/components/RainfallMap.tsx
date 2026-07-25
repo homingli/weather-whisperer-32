@@ -1,6 +1,7 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState, useEffect, useMemo } from 'react';
 import { CloudRain, RefreshCw } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { readNowcastCache } from '@/lib/nowcastCache';
 
 // Leaflet + react-leaflet + the entire rainfall parsing pipeline are split
 // into a separate chunk so the ~150 kB gz of leaflet bundle is only fetched
@@ -25,8 +26,24 @@ const LoadingShell = () => {
 };
 
 export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
+  // Sync cache read at mount: when the 15-min localStorage cache is fresh we
+  // skip the "Load Map" prompt entirely and hand the cached CSV straight to
+  // RainfallMapInner so the first render shows the parsed grid with no
+  // network round-trip. Cache read is synchronous and ~50-100 ms at worst,
+  // acceptable for a one-time mount cost.
+  const initialCachedCsv = useMemo(() => readNowcastCache()?.csvText ?? null, []);
+  const [isLoaded, setIsLoaded] = useState(initialCachedCsv !== null);
   const { t } = useLanguage();
+
+  // Preload the lazy chunk in parallel with the React tree render when we
+  // already know the user wants the map (fresh cache hit). By the time
+  // Suspense mounts the inner, the chunk is usually already in memory and
+  // the LoadingShell fallback never paints.
+  useEffect(() => {
+    if (initialCachedCsv) {
+      void import('./RainfallMapInner');
+    }
+  }, [initialCachedCsv]);
 
   return (
     <div className="glass-card overflow-hidden">
@@ -62,7 +79,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
           </div>
         ) : (
           <Suspense fallback={<LoadingShell />}>
-            <RainfallMapInner userLocation={userLocation} />
+            <RainfallMapInner userLocation={userLocation} initialCsv={initialCachedCsv} />
           </Suspense>
         )}
       </div>
