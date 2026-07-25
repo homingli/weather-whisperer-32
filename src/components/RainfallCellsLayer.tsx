@@ -21,11 +21,15 @@ import L from 'leaflet';
 import type { RainGrid } from '@/lib/rainfallGrid';
 import { getRainfallColor, RAINFALL_BANDS } from '@/lib/rainfallBands';
 
-interface CellLayer {
-  rect: L.Rectangle;
-  /** Flat index into grid.values: row * cols + col (NOT step-dependent). */
-  flatIndex: number;
-}
+/**
+ * Per-cell rectangle handle keyed by flatIndex (row * cols + col). The
+ * flatIndex is stable across refetches because the HKO grid shape
+ * (rows, cols, cellLats, cellLons) is fixed; only the values change.
+ * Keying by flatIndex lets the sync effect add/remove layers
+ * incrementally on refetch instead of tearing down and rebuilding all
+ * ~10k rectangles every 6 minutes.
+ */
+type LayerMap = Map<number, L.Rectangle>;
 
 /**
  * Alpha for the rainfall overlay. Baked into the rgba fillColor string so
@@ -77,7 +81,7 @@ function cellBounds(grid: RainGrid, r: number, c: number): L.LatLngBoundsExpress
 const VISIBLE_STYLE: L.PathOptions = {
   stroke: false,
   // `fill: true` must be explicit: L.setStyle MERGES into existing options
-  // (see Leaflet Path.setStyle at leafet-src.js:8199). After we hide a cell
+  // (see Leaflet Path.setStyle at leaflet-src.js:8199). After we hide a cell
   // by setting `fill: false`, a subsequent setStyle({ fillColor: ... }) call
   // would leave `fill: false` in place — the cell would stay hidden even
   // though its color updated. Same for opacity/fillOpacity: explicit values
@@ -98,10 +102,19 @@ const HIDDEN_STYLE: L.PathOptions = {
 };
 
 /**
- * Layer component: mounts all per-cell Rectangles once, then updates their
- * fill colors when the active step changes. The MapContainer is configured
- * with `preferCanvas={true}` so all Rectangles render to a single shared
- * canvas with native zoom animation.
+ * Layer component: incrementally syncs per-cell Rectangles with the
+ * grid, then updates their fill colors when the active step changes.
+ * The MapContainer is configured with `preferCanvas={true}` so all
+ * Rectangles render to a single shared canvas with native zoom
+ * animation.
+ *
+ * Sync model: rectangles are keyed by flatIndex (row * cols + col),
+ * which is stable across refetches because the HKO grid shape stays
+ * fixed. On refetch, cells that newly have rain at any step get a
+ * fresh Rectangle; cells that no longer have rain at any step get
+ * removed; existing cells stay in place. Only when grid.shape changes
+ * (rows, cols, or cellLats/cellLons identity) do we do a full rebuild
+ * — for real HKO data that path doesn't fire.
  */
 export const RainfallCellsLayer = ({
   grid,
@@ -111,21 +124,51 @@ export const RainfallCellsLayer = ({
   activeStep: number;
 }) => {
   const map = useMap();
-  const layersRef = useRef<CellLayer[] | null>(null);
+  const layersRef = useRef<LayerMap>(new Map());
+  // Track the grid shape so we only do a full rebuild when the
+  // shape changes (rows/cols/lat/lon identity), not on every refetch.
+  const shapeRef = useRef<string>('');
 
-  // Mount: create one Rectangle per cell that has a non-zero value at
-  // ANY step. Cells that are always zero are skipped (no path needed).
-  // The renderer redraws the canvas on zoomend; during the zoom
-  // animation Leaflet's Renderer._updateTransform scales the canvas,
-  // which scales all paths visually.
+  // Cleanup: remove every rectangle when the map (or the component) is
+  // torn down. This effect only fires on map unmount; refetches reuse
+  // existing rectangles via the sync effect below. The `layers` and
+  // `shape` references are captured at effect creation; they point to
+  // the same Map and ref we use throughout the component's lifetime
+  // (we never reassign `layersRef.current`), so the cleanup sees
+  // whatever the sync effect last added.
+  useEffect(() => {
+    const layers = layersRef.current;
+    const shape = shapeRef;
+    return () => {
+      for (const rect of layers.values()) rect.remove();
+      layers.clear();
+      shape.current = '';
+    };
+  }, [map]);
+
+  // Sync rectangles with the grid. On the first run after mount we
+  // create every cell that has rain at any step. On subsequent runs
+  // (refetches) we add cells that newly have rain and remove cells
+  // that no longer do. If the grid shape changes (rows/cols/lat/lon
+  // identity), we tear down and rebuild from scratch.
   useEffect(() => {
     if (!map) return;
-    const layers: CellLayer[] = [];
+    const layers = layersRef.current;
     const { rows, cols, values, stepCount } = grid;
+    const shapeKey = `${rows}/${cols}/${grid.cellLats.length}/${grid.cellLons.length}`;
+    const shapeChanged = shapeRef.current !== shapeKey;
+    if (shapeChanged) {
+      // Grid shape changed — full rebuild.
+      for (const rect of layers.values()) rect.remove();
+      layers.clear();
+      shapeRef.current = shapeKey;
+    }
+
+    // Walk the grid and add rectangles for cells that have rain at any
+    // step. Skip cells that are zero for every step (no path needed).
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const flatIndex = r * cols + c;
-        // Skip cells that are zero for every step.
         let hasRain = false;
         for (let s = 0; s < stepCount; s++) {
           if (values[s * rows * cols + flatIndex] > 0) {
@@ -133,20 +176,24 @@ export const RainfallCellsLayer = ({
             break;
           }
         }
-        if (!hasRain) continue;
-        const rect = L.rectangle(cellBounds(grid, r, c), {
-          ...VISIBLE_STYLE,
-          fillColor: '#000000', // overwritten on first activeStep update
-        });
-        rect.addTo(map);
-        layers.push({ rect, flatIndex });
+        if (hasRain) {
+          if (!layers.has(flatIndex)) {
+            const rect = L.rectangle(cellBounds(grid, r, c), {
+              ...VISIBLE_STYLE,
+              fillColor: '#000000', // overwritten on first activeStep update
+            });
+            rect.addTo(map);
+            layers.set(flatIndex, rect);
+          }
+        } else {
+          if (layers.has(flatIndex)) {
+            const rect = layers.get(flatIndex)!;
+            rect.remove();
+            layers.delete(flatIndex);
+          }
+        }
       }
     }
-    layersRef.current = layers;
-    return () => {
-      for (const { rect } of layers) rect.remove();
-      layersRef.current = null;
-    };
   }, [map, grid]);
 
   // Update each cell's style based on its value at the active step.
@@ -154,11 +201,11 @@ export const RainfallCellsLayer = ({
   // resolved via the rainfall bands (alpha baked into the color).
   useEffect(() => {
     const layers = layersRef.current;
-    if (!layers) return;
+    if (layers.size === 0) return;
     if (activeStep < 0 || activeStep >= grid.stepCount) return;
     const { rows, cols, values } = grid;
     const stepOffset = activeStep * rows * cols;
-    for (const { rect, flatIndex } of layers) {
+    for (const [flatIndex, rect] of layers) {
       const v = values[stepOffset + flatIndex];
       if (v <= 0) {
         rect.setStyle(HIDDEN_STYLE);

@@ -150,12 +150,6 @@ export interface CellRow {
   value: number;
 }
 
-export interface ParseResult {
-  grid: RainGrid | null;
-  updateTime: string;
-  lastModified: number;
-}
-
 export function formatHHMM(endTime: string): string {
   if (endTime.length >= 12) {
     return `${endTime.substring(8, 10)}:${endTime.substring(10, 12)}`;
