@@ -431,7 +431,7 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
                 setActiveStepIndex(parseInt(e.target.value));
                 setIsPlaying(false);
               }}
-              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none"
+              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label={t('nowcast.slider')}
             />
             <div className="flex justify-between text-xs font-semibold text-muted-foreground px-1">
@@ -442,7 +442,8 @@ export default function RainfallMapInner({ userLocation }: { userLocation?: User
                     setActiveStepIndex(index);
                     setIsPlaying(false);
                   }}
-                  className={`hover:text-primary transition-colors ${
+                  aria-current={index === activeStepIndex ? 'true' : undefined}
+                  className={`px-2 py-1 min-h-[24px] rounded hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                     index === activeStepIndex ? 'text-primary font-bold' : ''
                   }`}
                 >

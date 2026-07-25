@@ -172,10 +172,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
               );
             })()}
             <div className="overflow-hidden">
-              <h1
-                className="cw-rise block font-display text-[22vw] leading-[0.85] font-light tracking-[-0.04em]"
-                aria-label={isEmpty ? '—' : `${Math.round(weather.apparentTemperature)} degrees`}
-              >
+              <h1 className="cw-rise block font-display text-[22vw] leading-[0.85] font-light tracking-[-0.04em]">
                 {fmt(weather.apparentTemperature, '°')}
               </h1>
             </div>
@@ -187,10 +184,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
       ) : (
         <header className="grid gap-10 md:grid-cols-[1fr_auto] md:items-end">
           <div className="overflow-hidden">
-            <h1
-              className="cw-rise block font-display text-[14vw] md:text-[160px] leading-[0.85] font-light tracking-[-0.04em]"
-              aria-label={isEmpty ? '—' : `${Math.round(weather.apparentTemperature)} degrees`}
-            >
+            <h1 className="cw-rise block font-display text-[14vw] md:text-[160px] leading-[0.85] font-light tracking-[-0.04em]">
               {fmt(weather.apparentTemperature, '°')}
             </h1>
           </div>
@@ -220,7 +214,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           icon={needsUmbrella ? Umbrella : UmbrellaOff}
           label={t('umbrella.label')}
           value={needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
-          valueTone={needsUmbrella ? 'text-cyan-400' : 'text-muted-foreground/70'}
+          valueTone={needsUmbrella ? 'text-severity-info' : 'text-muted-foreground'}
         />
         <SunriseSunsetCountdown
           type={sunEvent?.type ?? 'sunset'}
@@ -411,7 +405,7 @@ function SunriseSunsetCountdown({
         <Icon className="h-3.5 w-3.5" />
         <span>{label}</span>
       </div>
-      <div className={`font-display text-2xl md:text-3xl font-light tabular-nums leading-tight ${countdown.isNow ? 'text-amber-400' : ''}`}>
+      <div className={`font-display text-2xl md:text-3xl font-light tabular-nums leading-tight ${countdown.isNow ? 'text-severity-warning' : ''}`}>
         {empty ? '—' : countdown.text}
       </div>
       <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">

@@ -62,3 +62,25 @@ describe('LanguageContext warning names', () => {
     expect(result.current.t('warnings.UNKNOWN_XYZ', 'API-provided name')).toBe('API-provided name');
   });
 });
+
+describe('LanguageContext <html lang> sync (WCAG 3.1.1)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    document.documentElement.lang = 'en';
+  });
+
+  it('sets <html lang> to zh-Hant-HK when language is tc', () => {
+    const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+    expect(document.documentElement.lang).toBe('en');
+    act(() => result.current.setLanguage('tc'));
+    expect(document.documentElement.lang).toBe('zh-Hant-HK');
+  });
+
+  it('sets <html lang> back to en when switching from tc to en', () => {
+    localStorage.setItem('weather-language', 'tc');
+    const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+    expect(document.documentElement.lang).toBe('zh-Hant-HK');
+    act(() => result.current.setLanguage('en'));
+    expect(document.documentElement.lang).toBe('en');
+  });
+});

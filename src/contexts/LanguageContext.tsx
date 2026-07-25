@@ -1,7 +1,17 @@
-import { createContext, useContext, useState, ReactNode, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { STORAGE_KEYS } from '@/lib/constants';
 
 export type Language = 'en' | 'tc';
+
+/**
+ * Map our short language codes to BCP-47 `lang` values that screen readers
+ * and browser TTS engines can recognise. 'tc' is Traditional Chinese as used
+ * in Hong Kong; 'en' is generic English.
+ */
+const HTML_LANG: Record<Language, string> = {
+  en: 'en',
+  tc: 'zh-Hant-HK',
+};
 
 interface LanguageContextType {
   language: Language;
@@ -59,6 +69,7 @@ const translations: Record<Language, Record<string, string>> = {
     'hourly.now': 'Now',
     'hourly.temperature': 'Temperature',
     'hourly.rainChance': 'Rain Chance',
+    'hourly.chartLabel': 'Hourly temperature and rain probability chart',
     
     // Daily forecast
     'daily.title': '7-DAY FORECAST',
@@ -67,6 +78,7 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.low': 'Low',
     'daily.high': 'High',
     'daily.precip': 'Precipitation',
+    'daily.chartLabel': '7-day temperature range and precipitation chart',
     'daily.sunrise': 'Sunrise',
     'daily.sunset': 'Sunset',
 
@@ -238,6 +250,7 @@ const translations: Record<Language, Record<string, string>> = {
     'hourly.now': '現在',
     'hourly.temperature': '溫度',
     'hourly.rainChance': '降雨機率',
+    'hourly.chartLabel': '每小時溫度與降雨機率圖表',
     
     // Daily forecast
     'daily.title': '7日天氣預報',
@@ -248,6 +261,7 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.precip': '降雨量',
     'daily.sunrise': '日出',
     'daily.sunset': '日落',
+    'daily.chartLabel': '七日溫度範圍與降雨量圖表',
 
     // Range bar label (the temperature range above the hero)
     'label.temperature': '氣溫',
@@ -384,6 +398,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(lang);
     localStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
   }, []);
+
+  // WCAG 3.1.1 — keep <html lang> in sync with the active UI language so
+  // screen readers use the correct voice and pronunciation. Without this,
+  // Chinese content (e.g. "觀塘") is read with the English TTS engine and
+  // mispronounced.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.lang = HTML_LANG[language];
+  }, [language]);
 
   const t = useCallback((key: string, fallback?: string): string => {
     return translations[language][key] || fallback || key;

@@ -194,7 +194,8 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
               placeholder={t('search.placeholder')}
               value={query}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="border-0 bg-transparent p-0 h-auto text-foreground placeholder:text-muted-foreground focus-visible:ring-0"
+              aria-label={t('search.placeholder')}
+              className="border-0 bg-transparent p-0 h-auto text-foreground placeholder:text-muted-foreground"
               autoFocus
             />
           </div>
