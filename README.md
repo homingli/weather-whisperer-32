@@ -27,6 +27,7 @@ A modern, responsive weather application built with React and TypeScript. Featur
 - **Adaptive Cache Cadence**: React Query refetches every 5 minutes under normal conditions, drops to 1 minute when any source has failed so the app self-heals once the source recovers
 - **Three-Tier Offline Support**: A `localStorage` last-known snapshot seeds instant first paint; React Query handles in-memory freshness; the Workbox service worker replays the last successful API response when fully offline. Amber banners indicate partial data (one source missing); red banners indicate cached data only, with a refetch button.
 - **PWA**: Service worker uses a NetworkFirst policy with two cache buckets (`api-cache` for direct API hosts, `hko-proxy-cache` for the dev Vite proxy / prod Vercel rewrite) so dev and prod offline behavior match
+- **Accessibility (WCAG 2.1 AA)**: Skip link, sr-only data tables for the hourly/daily charts, `<html lang>` synced to the active UI language, semantic severity color tokens (≥5.5:1 on cream), `role="alert"` on the offline + partial-data banners, `aria-current` on the rainfall nowcast time-step buttons, and `aria-label`s on icon-only controls — see `handoff/ada-compliance-plan.md`
 
 ## Technology Stack
 
@@ -41,7 +42,7 @@ A modern, responsive weather application built with React and TypeScript. Featur
 - **Charts**: Recharts 2
 - **Date Handling**: date-fns 3
 - **PWA**: vite-plugin-pwa with workbox `NetworkFirst`
-- **Testing**: Vitest 2 with Testing Library + jsdom (133 tests, 12 files)
+- **Testing**: Vitest 2 with Testing Library + jsdom (156 tests, 15 files)
 
 ## Project Structure
 
@@ -243,6 +244,23 @@ All icon assets (Leaflet markers, 20 HKO warning GIFs) are locally hosted under 
 - Lazy-loaded heavy modules (`HourlyForecast`, `RainfallMap` via `React.lazy` + `Suspense`)
 - Production-optimized build with Vite
 - Preconnect/dns-prefetch hints for external APIs and basemap tiles
+
+## Accessibility
+
+Conformance target is **WCAG 2.1 Level AA** (the de facto ADA Title III web standard after *Robles v. Domino's*, 2019). See `handoff/ada-compliance-plan.md` for the full audit and remediation roadmap.
+
+What's in place today:
+
+- **Document language** — `<html lang>` is synced to `zh-Hant-HK` / `en` synchronously inside the `LanguageProvider` initializer, so screen readers never see a flash of English on a Chinese-filled page
+- **Skip link** — "Skip to main content" link is the first focusable element
+- **Landmarks** — `<main id="main-content">`, `<nav aria-label>`, `<footer aria-label>`, plus an `sr-only <h1>Weather Forecast</h1>`
+- **Live regions** — `role="alert"` on the offline / partial-data banners; `role="status" aria-live="polite"` on the refresh indicator
+- **Forms** — the city search input has an `aria-label`; the search dialog uses a Radix `Dialog` with `sr-only DialogTitle`
+- **Charts** — each Recharts SVG has an `aria-label` and an accompanying `sr-only <table>` exposing the same data points to screen readers
+- **Color contrast** — semantic severity tokens (`--severity-warning-fg`, `--severity-success-fg`, `--severity-error-fg`, `--severity-info-fg`) at ≥5.5:1 on cream, and a deeper `--muted-foreground` (28% light / 52% dark) so `/50`, `/60`, `/70` subdivisions clear 4.5:1
+- **Keyboard** — visible `focus-visible:ring-2` ring on every interactive element; explicit `aria-current` on the RainfallMap time-step buttons; `<h1>` in `NotFound.tsx` programmatically focuses on mount
+
+Remaining work (Phase 3-6 of the plan): non-color cues inside the visualization widgets, `prefers-reduced-motion` guards on all animations, Leaflet `role="application"` removal + keyboard pan/zoom, `DropdownMenuRadioGroup` for the theme/language picker, and Playwright + `@axe-core` e2e coverage.
 
 ## License
 

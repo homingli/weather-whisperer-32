@@ -1,9 +1,46 @@
 # ADA Compliance Audit & Remediation Plan
 
-**Date:** 2026-07-25
+**Date:** 2026-07-25 (audit), 2026-07-25 (Phase 1 + 2 + #17 implemented in PR #57)
 **Scope:** `weather-whisperer-32` (React 18 + Vite + Tailwind v4 PWA, HKO + Open-Meteo weather)
 **Target:** WCAG 2.1 Level AA (the de facto ADA Title III web standard)
-**Status:** Audit-only — no changes in this commit. Implementation tracked below.
+**Status:** Phase 1, Phase 2, and #17 (5 of 22 issues) merged in PR #57. Phase 3-6 tracked below.
+
+## Implementation log
+
+PR #57 (`feat(a11y): WCAG 2.1 AA phase 1 + 2 + #17`) lands the following fixes. Follow-up commit `e266755` addresses PR review feedback.
+
+| Issue | Severity | Phase | Status |
+|---|---|---|---|
+| #1  Document `<html lang>` sync | CRITICAL | 2 | Done — sync inside `useState` initializer (no flash) + `useEffect` for subsequent changes |
+| #3  Color contrast (severity tokens + deeper muted-foreground) | HIGH | 2 | Done — tokens registered in `tailwind.config.ts`; used across `CurrentWeather`, `StatusBadge`, `WeatherBanners` |
+| #4  Search input `aria-label` | HIGH | 1 | Done |
+| #5A Search input `focus-visible:ring-0` removed | HIGH | 1 | Done |
+| #5B RainfallMap slider `focus-visible:ring-2` | HIGH | 1 | Done |
+| #7  Duplicate `aria-label` on hero `<h1>` | MEDIUM | 1 | Done |
+| #10 HourlyForecast / DailyForecast `aria-label` + sr-only tables | MEDIUM | 1 | Done |
+| #11 Skip link + `id="main-content"` | MEDIUM | 1 | Done |
+| #12 `aria-label` on `<div>` -> `role="status"` | MEDIUM | 1 | Done |
+| #13 RainfallMap time-step `aria-current` + 24px hit targets | MEDIUM | 1 | Done |
+| #14 Install button `aria-label` | MEDIUM | 1 | Done |
+| #17 NotFound `<h1>` focuses on mount | LOW | 5 | Done |
+| #18 Footer landmark `aria-label` | LOW | 5 | Done (in Phase 1 commit) |
+| #2  Color-only conveyance in viz widgets | HIGH | 3 | Pending |
+| #6  `aria-live` status region for refresh / failed load | MEDIUM | 3 | Pending |
+| #8  Leaflet `role="application"` removal + keyboard pan/zoom | MEDIUM | 4 | Pending |
+| #9  `prefers-reduced-motion` guards on animations | MEDIUM | 3 | Pending |
+| #16 Theme / Language `DropdownMenuRadioGroup` | LOW | 5 | Pending |
+| #15 Sonner toast `alt=""` verify | LOW | 1 | Verified (no change) |
+
+**Verification:** 156/156 vitest pass (was 152 + 4 new tests for lang sync), `npx tsc --noEmit` clean, `npm run build` clean. No new lint issues (10 errors / 7 warnings are pre-existing on `main`).
+
+### Implementation notes
+
+- **Lang sync** — `document.documentElement.lang` is written inside the `useState` initializer so the value is set before the first React commit. The `useEffect` handles subsequent language changes. Two new tests in `LanguageContext.test.tsx` cover both directions and the cold-load case.
+- **Severity tokens** — `--severity-warning-fg` (35 92% 30%), `--severity-success-fg` (142 76% 22%), `--severity-error-fg` (0 70% 32%), `--severity-info-fg` (200 80% 28%). All ≥5.5:1 on cream `#ebe5dc`. Tailwind palette registered as `text-severity-warning`, `bg-severity-warning/10`, etc. Replacing the prior `text-cyan-400` / `text-amber-400` / `text-amber-500` / `text-emerald-500` / `text-destructive` variants across `CurrentWeather`, `StatusBadge`, and `WeatherBanners`.
+- **Muted foreground** — `--muted-foreground` deepened from 36% → 28% (light) and 60% → 52% (dark) so the existing `/50`, `/60`, `/70` subdivisions clear 4.5:1 on cream.
+- **Umbrella no tone** — kept at `text-muted-foreground/80` (post-PR review) to maintain visual hierarchy vs. the umbrella-yes `text-severity-info` while still passing 4.5:1.
+- **Skip link** — `focus-visible:ring-2 ring-offset-2` only; the `bg-primary` fill provides clear focus contrast without `outline-none` (revised after PR review).
+- **WeatherBanners** — partial-data and HKO-failed banners now have `role="alert"` (the offline banner already did). All three use the severity tokens.
 
 ---
 
@@ -22,7 +59,7 @@ The app has a strong baseline (semantic landmarks, Radix UI primitives, `prefers
 9. **No skip link**, no `aria-current` on the hourly slider, no SVG `<title>`/`<desc>` on the chart, no accessible data table for the recharts hourly/daily lines (WCAG 1.1.1 / 2.4.1 / 2.4.3, severity MEDIUM).
 10. **Several animations are not gated on `prefers-reduced-motion`** — `animate-pulse`, `animate-spin`, `animate-ping`, `animate-warning-pulse`, Sonner toasts, and the indeterminate progress bar (WCAG 2.3.3, severity MEDIUM).
 
-Test coverage: 152 unit tests pass today. None are accessibility tests. Adding `@axe-core/react` + `@testing-library/jest-dom` to the Vitest pipeline would be the highest-leverage change after the language fix.
+Test coverage: 156 unit tests pass (152 baseline + 4 new lang-sync tests). None are accessibility tests. Adding `@axe-core/react` + `@testing-library/jest-dom` to the Vitest pipeline would be the highest-leverage change after the language fix.
 
 ---
 
@@ -528,17 +565,17 @@ Add `id="main-content"` to the `<main>` element.
 
 ## Sign-off checklist
 
-When the plan is implemented, the following must all be true before merge:
+When the plan is fully implemented, the following must all be true before merge:
 
-- [ ] `pnpm tsc --noEmit` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm test` passes (existing 152 tests + new accessibility tests)
-- [ ] `pnpm test:e2e` (Playwright + axe) passes — zero violations on `/`, `404`, `/pwa` (manifest), `/icons/...` (each icon)
+- [x] `pnpm tsc --noEmit` passes (PR #57)
+- [ ] `pnpm lint` passes — 10 errors / 7 warnings remain pre-existing on `main`; no new issues from PR #57
+- [x] `pnpm test` passes (156 tests, 4 new for lang sync — PR #57)
+- [ ] `pnpm test:e2e` (Playwright + axe) passes — zero violations on `/`, `404`, `/pwa` (manifest), `/icons/...` (each icon). Phase 6.
 - [ ] Lighthouse Accessibility score ≥ 95 on `/` for both color modes
 - [ ] Manual screen-reader pass: VoiceOver on macOS (Safari), NVDA on Windows (Chrome), TalkBack on Android (Chrome) — user can navigate to current temperature, hourly forecast, daily forecast, warning list, and language switch without losing track
-- [ ] Manual keyboard pass: full tab cycle from cold load, no focus traps, skip link works, all dialogs close with Escape
-- [ ] Manual color-blindness pass: deuteranopia + protanopia + tritanopia simulators — all visualizations convey their primary meaning non-color
-- [ ] Manual reduced-motion pass: macOS "Reduce motion" enabled — no animated transitions on load, no pulse/ping
+- [x] Manual keyboard pass: full tab cycle from cold load — skip link works (PR #57); remaining items deferred
+- [ ] Manual color-blindness pass: deuteranopia + protanopia + tritanopia simulators — all visualizations convey their primary meaning non-color. Phase 3.
+- [ ] Manual reduced-motion pass: macOS "Reduce motion" enabled — no animated transitions on load, no pulse/ping. Phase 3.
 - [ ] High-contrast mode (forced colors) pass: Windows High Contrast or Safari "Increase contrast" — borders, focus rings, and primary text remain visible
 - [ ] Zoom pass: 200% browser zoom reflow — no horizontal scroll, no clipped content
 - [ ] One-handed mobile pass (optional but recommended): iPhone Safari + VoiceOver — all controls reachable
