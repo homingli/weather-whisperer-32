@@ -5,31 +5,55 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Mock react-leaflet to avoid JSDOM rendering issues.
-// The component renders color-bucketed GeoJSON FeatureCollections — one layer per
-// rainfall color — instead of per-cell rectangles (see P3-001). The layers are
-// driven manually via useMap + useRef instead of react-leaflet's <GeoJSON>,
-// so useMap returns a stub map with the methods L.geoJSON().addTo() invokes.
+// Mock react-leaflet. The rainfall overlay is a RainfallCellsLayer that
+// mounts L.Rectangle instances via the canvas renderer (L.canvas()).
+// The actual rendering happens inside Leaflet's renderer; the stub map
+// here exposes the minimal API surface that RainfallCellsLayer calls
+// into via useMap().
+
 const stubMap = {
   addLayer: () => {},
   removeLayer: () => {},
   getPane: () => document.createElement('div'),
   getContainer: () => document.body,
+  getPanes: () => ({ overlayPane: document.createElement('div') }),
+  getSize: () => ({ x: 600, y: 600 }),
+  getBounds: () => ({
+    getSouth: () => 21.5,
+    getNorth: () => 23.0,
+    getWest: () => 113.0,
+    getEast: () => 114.5,
+  }),
+  containerPointToLayerPoint: () => ({ x: 0, y: 0 }),
+  latLngToLayerPoint: () => ({ x: 0, y: 0 }),
+  on: () => {},
+  off: () => {},
+  add: () => stubMap,
+  remove: () => {},
 };
+
 vi.mock('react-leaflet', () => ({
-  MapContainer: ({ children }: any) => <div data-testid="map-container">{children}</div>,
+  MapContainer: ({ children }: { children?: React.ReactNode }) => <div data-testid="map-container">{children}</div>,
   TileLayer: () => <div data-testid="tile-layer" />,
-  GeoJSON: ({ style, data }: any) => (
-    <div
-      data-testid="geojson"
-      data-fill-color={style?.fillColor}
-      data-stroke-color={style?.color}
-      data-feature-count={data?.features?.length}
-    />
-  ),
   ZoomControl: () => <div data-testid="zoom-control" />,
-  Marker: ({ position }: any) => <div data-testid="marker" data-position={JSON.stringify(position)} />,
+  Marker: ({ position }: { position: [number, number] }) => <div data-testid="marker" data-position={JSON.stringify(position)} />,
   useMap: () => stubMap,
+}));
+
+vi.mock('./RainfallCellsLayer', () => ({
+  RainfallCellsLayer: ({ grid, activeStep }: { grid: { rows: number; cols: number; stepCount: number }; activeStep: number }) => {
+    // The real component mounts L.Rectangle instances imperatively; the
+    // mock is a no-op render that exposes the grid shape for assertions.
+    return (
+      <div
+        data-testid="rainfall-cells-layer"
+        data-rows={grid.rows}
+        data-cols={grid.cols}
+        data-step-count={grid.stepCount}
+        data-active-step={activeStep}
+      />
+    );
+  },
 }));
 
 const mockCsvData = `Updated Date and Time (in Hong Kong Time),Ending Date and Time (in Hong Kong Time),Latitude (degree),Longitude (degree),Half-hourly Nowcast Accumulated Rainfall (mm)
@@ -64,7 +88,7 @@ describe('RainfallMap Component', () => {
     );
   };
 
-  it('renders correctly and parses CSV rainfall data', async () => {
+  it('renders correctly and parses CSV into a Float32Array grid', async () => {
     // Mock the global fetch call
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -89,37 +113,34 @@ describe('RainfallMap Component', () => {
     // Check MapContainer renders
     expect(screen.getByTestId('map-container')).toBeInTheDocument();
 
-    // The 4 non-zero rainfall cells fall into 3 color buckets:
-    //   - #4facfe (0.5–2 mm band): 1.5 + 0.8 mm  → 2 features
-    //   - #00f2fe (2–5 mm band):   3.5 mm          → 1 feature
-    //   - #f6d365 (10–20 mm band): 12.5 mm         → 1 feature
-    // polygonStyle() applies FILL_ALPHA (0.4) to the fill so the renderer can
-    // anti-alias the seams; the stroke uses full alpha so we assert against
-    // the stroke (full alpha) and assert fill alpha separately.
-    const layers = screen.getAllByTestId('geojson');
-    expect(layers).toHaveLength(3);
+    // The rain grid is the new data model. The CSV has 4 non-zero cells
+    // across 3 distinct color bands (1.5 mm + 0.8 mm = #4facfe, 3.5 mm =
+    // #00f2fe, 12.5 mm = #f6d365). The grid is built from the OBSERVED
+    // lat/lon values — the 4 non-zero cells have 4 unique lats and 4 unique
+    // lons, so the grid is exactly 4×4. No fixed dLat/dLat constants; the
+    // observed spacing is reported via data-cell-dlat / -dlon.
+    const grid = screen.getByTestId('rain-grid');
+    expect(grid).toBeInTheDocument();
+    expect(grid.getAttribute('data-step-count')).toBe('1');
+    expect(Number(grid.getAttribute('data-rows'))).toBe(4);
+    expect(Number(grid.getAttribute('data-cols'))).toBe(4);
 
-    const fillColors = layers.map(el => el.getAttribute('data-fill-color'));
-    const strokeColors = layers.map(el => el.getAttribute('data-stroke-color'));
-    expect(strokeColors).toContain('rgba(79, 172, 254, 1)');   // #4facfe
-    expect(strokeColors).toContain('rgba(0, 242, 254, 1)');    // #00f2fe
-    expect(strokeColors).toContain('rgba(246, 211, 101, 1)'); // #f6d365
-    expect(fillColors).toContain('rgba(79, 172, 254, 0.4)');
-    expect(fillColors).toContain('rgba(0, 242, 254, 0.4)');
-    expect(fillColors).toContain('rgba(246, 211, 101, 0.4)');
+    // dLat/dLon are derived from adjacent observed cells (not assumed).
+    expect(Number(grid.getAttribute('data-cell-dlat'))).toBeGreaterThan(0);
+    expect(Number(grid.getAttribute('data-cell-dlon'))).toBeGreaterThan(0);
 
-    // Cells of the same color band are merged into a single polygon via
-    // turf.union — the two 0.5–2 mm cells become one MultiPolygon feature,
-    // so the total drops from 4 cells to 3 features (one per color band).
-    const featureCounts = layers.map(el => Number(el.getAttribute('data-feature-count')));
-    expect(featureCounts.reduce((sum, n) => sum + n, 0)).toBe(3);
+    // The cells layer is mounted with the grid.
+    const cellsLayer = screen.getByTestId('rainfall-cells-layer');
+    expect(cellsLayer).toBeInTheDocument();
+    expect(cellsLayer.getAttribute('data-step-count')).toBe('1');
+    expect(cellsLayer.getAttribute('data-active-step')).toBe('0');
   });
 
-  it('transitions timeline step and swaps the rendered color buckets', async () => {
-    // Multi-step CSV so we can verify the active step drives the layer set.
-    // Step 1: 1 cell at 1.5mm  (one #4facfe bucket)
-    // Step 2: 1 cell at 1.5mm  (one #4facfe bucket)
-    // Step 3: 1 cell at 12.5mm (one #f6d365 bucket)
+  it('transitions timeline step and updates the active step in the layer', async () => {
+    // Multi-step CSV so we can verify the active step drives the layer.
+    // Step 1: 1 cell at 1.5mm
+    // Step 2: 1 cell at 1.5mm
+    // Step 3: 1 cell at 12.5mm
     const multiStepCsv = `Updated Date and Time (in Hong Kong Time),Ending Date and Time (in Hong Kong Time),Latitude (degree),Longitude (degree),Half-hourly Nowcast Accumulated Rainfall (mm)
 202605171600,202605171630,22.3119,114.1728,1.5
 202605171600,202605171700,22.3119,114.1728,1.5
@@ -139,27 +160,25 @@ describe('RainfallMap Component', () => {
     await waitFor(() => {
       expect(screen.getAllByText('16:30').length).toBeGreaterThan(0);
     });
-    let layers = screen.getAllByTestId('geojson');
-    expect(layers).toHaveLength(1);
-    expect(layers[0].getAttribute('data-stroke-color')).toBe('rgba(79, 172, 254, 1)');
+    let grid = screen.getByTestId('rain-grid');
+    expect(grid.getAttribute('data-step-count')).toBe('3');
+    expect(grid.getAttribute('data-active-step')).toBe('0');
 
-    // Step 3 (17:30) — only the 12.5 mm cell, different bucket.
+    // Step 3 (17:30) — different mm value, different color band.
     const stepButtons = screen.getAllByRole('button', { name: '17:30' });
     fireEvent.click(stepButtons[0]);
 
     await waitFor(() => {
-      layers = screen.getAllByTestId('geojson');
-      expect(layers).toHaveLength(1);
-      expect(layers[0].getAttribute('data-stroke-color')).toBe('rgba(246, 211, 101, 1)');
+      grid = screen.getByTestId('rain-grid');
+      expect(grid.getAttribute('data-active-step')).toBe('2');
     });
 
-    // Step 2 (17:00) — 1.5 mm cell, back to the lighter bucket.
+    // Step 2 (17:00) — back to the 1.5 mm cell.
     const stepButton17 = screen.getAllByRole('button', { name: '17:00' });
     fireEvent.click(stepButton17[0]);
     await waitFor(() => {
-      layers = screen.getAllByTestId('geojson');
-      expect(layers).toHaveLength(1);
-      expect(layers[0].getAttribute('data-stroke-color')).toBe('rgba(79, 172, 254, 1)');
+      grid = screen.getByTestId('rain-grid');
+      expect(grid.getAttribute('data-active-step')).toBe('1');
     });
   });
 
