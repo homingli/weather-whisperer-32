@@ -162,7 +162,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
 
       <div className="hf-rule h-px editorial-rule mt-3 mb-4" />
 
-      <div className="hf-chart flex-1 w-full min-h-0">
+      <div className="hf-chart flex-1 w-full min-h-0" aria-label={t('hourly.chartLabel')} role="img">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 10 }}>
             {/* Day/night background areas */}
@@ -284,6 +284,36 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Screen-reader-only data table — accessible alternative to the chart.
+          Keyboard/screen-reader users get the same data without the visual
+          encoding. Mirrors the chartData rows. */}
+      <table className="sr-only">
+        <caption>{t('hourly.chartLabel')}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{language === 'tc' ? '時間' : 'Time'}</th>
+            <th scope="col">{t('hourly.temperature')}</th>
+            <th scope="col">{t('hourly.rainChance')}</th>
+            <th scope="col">{t('weather.wind')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {chartData.map((row, i) => (
+            <tr key={`sr-hour-${i}`}>
+              <th scope="row">{row.displayTime}</th>
+              <td>{`${row.temperature}°`}</td>
+              <td>
+                {row.rainChance}%
+                {row.rainIntensity > 0 ? ` (${row.rainIntensity}mm)` : ''}
+              </td>
+              <td>
+                {Math.round(row.windSpeed)} {t('unit.kmh')}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 });

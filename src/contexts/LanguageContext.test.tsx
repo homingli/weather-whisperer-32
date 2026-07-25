@@ -62,3 +62,34 @@ describe('LanguageContext warning names', () => {
     expect(result.current.t('warnings.UNKNOWN_XYZ', 'API-provided name')).toBe('API-provided name');
   });
 });
+
+describe('LanguageContext <html lang> sync (WCAG 3.1.1)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    document.documentElement.lang = 'en';
+  });
+
+  it('sets <html lang> to zh-Hant-HK when language is tc', () => {
+    const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+    expect(document.documentElement.lang).toBe('en');
+    act(() => result.current.setLanguage('tc'));
+    expect(document.documentElement.lang).toBe('zh-Hant-HK');
+  });
+
+  it('sets <html lang> back to en when switching from tc to en', () => {
+    localStorage.setItem('weather-language', 'tc');
+    const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+    expect(document.documentElement.lang).toBe('zh-Hant-HK');
+    act(() => result.current.setLanguage('en'));
+    expect(document.documentElement.lang).toBe('en');
+  });
+
+  it('sets <html lang> synchronously on cold load (no flash of en on tc)', () => {
+    localStorage.setItem('weather-language', 'tc');
+    // The useState initializer mutates document.documentElement.lang in the
+    // same tick as the first render, so reading it immediately after
+    // renderHook returns must yield 'zh-Hant-HK' — not 'en'.
+    renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+    expect(document.documentElement.lang).toBe('zh-Hant-HK');
+  });
+});
