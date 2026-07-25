@@ -385,4 +385,47 @@ describe('RainfallCellsLayer', () => {
     expect(bounds[0][1]).toBeCloseTo(112.99, 5);
     expect(bounds[1][1]).toBeCloseTo(113.01, 5);
   });
+
+  it('rebuilds when refetch keeps (rows, cols) but shifts cell-center lat/lon', async () => {
+    // Regression test: the shapeKey used to only count rows/cols, so a
+    // refetch with the same cell count but shifted observed lat/lon (e.g.
+    // HKO changes its grid resolution while publishing the same 121x121
+    // count) was treated as a no-op. Existing rectangles would keep
+    // their old cellBounds() and the overlay would visually drift from
+    // the basemap. The fix: include the extreme cell-center values in
+    // the shapeKey so a spacing shift triggers a full rebuild.
+    const initial = makeGrid([
+      [[1.0, 0]],
+      [[0, 2.0]],
+    ]);
+    const { rerender } = render(<RainfallCellsLayer grid={initial} activeStep={0} />);
+
+    await waitFor(() => {
+      expect(mockRects.length).toBe(2);
+    });
+
+    // Refetch: same (rows=2, cols=1) count, but the observed cellLats
+    // and cellLons are shifted. The shapeKey should detect this and do
+    // a full rebuild (existing rectangles removed, new ones created).
+    const shifted: RainGrid = {
+      rows: 2,
+      cols: 1,
+      cellLats: new Float64Array([22.5, 22.525]),
+      cellLons: new Float64Array([113.5]),
+      stepCount: 2,
+      stepTimes: ['t0', 't1'],
+      values: new Float32Array([1.0, 0, 0, 2.0]),
+    };
+    rerender(<RainfallCellsLayer grid={shifted} activeStep={0} />);
+
+    // Existing rectangles removed.
+    expect(mockRects[0].removed).toBe(true);
+    expect(mockRects[1].removed).toBe(true);
+    // New rectangles created (still 2 cells with rain at step 0).
+    expect(stubMap.addLayerCalls).toBe(4);
+    // The new rectangles should use the shifted bounds.
+    const newBounds0 = mockRects[2].bounds as [[number, number], [number, number]];
+    expect(newBounds0[0][0]).toBeCloseTo(22.4875, 5);
+    expect(newBounds0[1][0]).toBeCloseTo(22.5125, 5);
+  });
 });
