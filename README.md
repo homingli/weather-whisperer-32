@@ -244,6 +244,9 @@ All icon assets (Leaflet markers, 20 HKO warning GIFs) are locally hosted under 
 - Lazy-loaded heavy modules (`HourlyForecast`, `RainfallMap` via `React.lazy` + `Suspense`)
 - Production-optimized build with Vite
 - Preconnect/dns-prefetch hints for external APIs and basemap tiles
+- Shared `Intl.DateTimeFormat` cache (`src/lib/utils.ts`) avoids per-render formatter construction
+- `LocalClock` isolates the per-second tick so the rest of the current-weather card stays referentially stable
+- All diagnostic logging is gated behind `import.meta.env.PROD` (no-op in production builds)
 
 ## Accessibility
 
