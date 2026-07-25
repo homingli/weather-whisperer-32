@@ -1,13 +1,14 @@
-// Tests for RainfallCellsLayer. Verifies the cell rectangle count and
-// the active-step fill-color resolution. Mocks leaflet so the tests
-// run in jsdom without a real map.
+// Tests for RainfallCellsLayer. Verifies the cell rectangle count, the
+// active-step fill-color resolution, and the incremental sync behavior
+// on refetch. Mocks leaflet so the tests run in jsdom without a real map.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { RainfallCellsLayer } from './RainfallCellsLayer';
 import type { RainGrid } from '@/lib/rainfallGrid';
 
-// Mock react-leaflet's useMap.
+// Mock react-leaflet's useMap. Track added/removed layers so we can
+// assert on the incremental sync behavior.
 const stubMap: {
   addLayerCalls: number;
   removeLayerCalls: number;
@@ -20,11 +21,13 @@ vi.mock('react-leaflet', () => ({
 }));
 
 // Mock leaflet so the test doesn't try to instantiate a real map layer.
-// We capture the L.rectangle calls so we can assert on them.
+// We capture every L.rectangle call so we can assert on the per-cell
+// style and the diff between refetches.
 interface MockRect {
   bounds: unknown;
   style: Record<string, unknown>;
   addedTo: unknown;
+  removed: boolean;
   styleUpdates: number;
   setStyle: (style: Record<string, unknown>) => void;
 }
@@ -36,6 +39,7 @@ vi.mock('leaflet', () => {
       bounds,
       style,
       addedTo: null,
+      removed: false,
       styleUpdates: 0,
       setStyle(newStyle: Record<string, unknown>) {
         Object.assign(this.style, newStyle);
@@ -50,6 +54,8 @@ vi.mock('leaflet', () => {
         return this;
       },
       remove() {
+        if (rect.removed) return;
+        rect.removed = true;
         stubMap.removeLayerCalls += 1;
       },
       setStyle: rect.setStyle.bind(rect),
@@ -223,5 +229,72 @@ describe('RainfallCellsLayer', () => {
     });
     unmount();
     expect(stubMap.removeLayerCalls).toBe(2);
+  });
+
+  it('adds and removes rectangles incrementally on refetch with same shape', async () => {
+    // Initial: 2x2 grid, 1 step. Cells (0,0)=1.0, (1,1)=2.0 active.
+    // (0,1) and (1,0) zero → 2 rectangles.
+    const initial = makeGrid([
+      [[1.0], [0]],
+      [[0], [2.0]],
+    ]);
+    const { rerender } = render(<RainfallCellsLayer grid={initial} activeStep={0} />);
+
+    await waitFor(() => {
+      expect(mockRects.length).toBe(2);
+    });
+    expect(stubMap.addLayerCalls).toBe(2);
+    expect(stubMap.removeLayerCalls).toBe(0);
+
+    // Refetch: same shape (rows=2, cols=2, same cellLats/cellLons) but
+    // cell (0,1) now has rain at step 0 and cell (1,1) is now zero.
+    // Expected: add one rectangle for (0,1), remove the rectangle for
+    // (1,1). The original (0,0) rectangle stays alive.
+    const refetched = makeGrid([
+      [[1.0], [3.0]],
+      [[0], [0]],
+    ]);
+    rerender(<RainfallCellsLayer grid={refetched} activeStep={0} />);
+
+    // 1 new rectangle created, 1 removed. Total mocks: 3.
+    expect(mockRects.length).toBe(3);
+    expect(stubMap.addLayerCalls).toBe(3);
+    expect(stubMap.removeLayerCalls).toBe(1);
+
+    // The original (0,0) rectangle must still be present (not removed).
+    expect(mockRects[0].removed).toBe(false);
+    // The (1,1) rectangle (mockRects[1]) must be removed.
+    expect(mockRects[1].removed).toBe(true);
+    // The new (0,1) rectangle (mockRects[2]) must be added to the map.
+    expect(mockRects[2].addedTo).toBe(stubMap);
+  });
+
+  it('does a full rebuild when grid shape changes', async () => {
+    // Initial: 2x2 grid.
+    const initial = makeGrid([
+      [[1.0], [0]],
+      [[0], [2.0]],
+    ]);
+    const { rerender } = render(<RainfallCellsLayer grid={initial} activeStep={0} />);
+
+    await waitFor(() => {
+      expect(mockRects.length).toBe(2);
+    });
+
+    // Refetch: shape changes to 3x3 (different cellLats, cellLons).
+    // Expected: all existing rectangles removed, fresh ones created.
+    const bigger = makeGrid([
+      [[1.0], [0], [0]],
+      [[0], [2.0], [0]],
+      [[0], [0], [3.0]],
+    ]);
+    rerender(<RainfallCellsLayer grid={bigger} activeStep={0} />);
+
+    // All old rectangles (2) removed.
+    expect(mockRects[0].removed).toBe(true);
+    expect(mockRects[1].removed).toBe(true);
+    expect(stubMap.removeLayerCalls).toBe(2);
+    // 3 new rectangles added.
+    expect(stubMap.addLayerCalls).toBe(5);
   });
 });
