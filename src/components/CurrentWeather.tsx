@@ -214,7 +214,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           icon={needsUmbrella ? Umbrella : UmbrellaOff}
           label={t('umbrella.label')}
           value={needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
-          valueTone={needsUmbrella ? 'text-severity-info' : 'text-muted-foreground'}
+          valueTone={needsUmbrella ? 'text-severity-info' : 'text-muted-foreground/80'}
         />
         <SunriseSunsetCountdown
           type={sunEvent?.type ?? 'sunset'}
