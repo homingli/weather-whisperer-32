@@ -46,19 +46,7 @@ describe('WeatherAlerts', () => {
     expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 
-  it('filters out warnings whose detail text says cancelled', () => {
-    renderWithLanguage(
-      <WeatherAlerts
-        warnings={[
-          warning({
-            code: 'TC8',
-            details: { contents: ['The Typhoon Signal No. 8 has been cancelled.'] },
-          }),
-        ]}
-      />,
-    );
-    expect(screen.queryByRole('button')).toBeNull();
-  });
+  
 
   it('applies animate-warning-pulse class to matching button when pulseCodes contains its code', () => {
     const { container } = renderWithLanguage(

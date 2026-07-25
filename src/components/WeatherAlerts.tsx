@@ -42,15 +42,15 @@ export const WeatherAlerts = memo(function WeatherAlerts({
   const { language, t } = useLanguage();
   const locale = language === 'tc' ? zhTW : undefined;
 
-  // Filter out cancelled warnings and sort by issue time (most recent first)
+  // Filter out cancelled warnings and sort by issue time (most recent first).
+  // Cancellation is detected via actionCode === 'Cancel' — the canonical HKO
+  // signal (see HKO warnsum schema). A previous detail-text regex
+  // (`/cancelled|取消/i`) was removed because the TC3 bulletin's precautionary
+  // text contains "outdoor activities be cancelled" / "取消所有戶外活動",
+  // which falsely hid the active warning.
   const activeWarnings = useMemo(() => {
     return (warnings || [])
-      .filter((w): w is HKOWarning => {
-        if (w.actionCode === 'Cancel') return false;
-        // Hide warnings whose detail text explicitly says cancelled
-        if (w.details?.contents?.some(c => /cancelled|取消/i.test(c))) return false;
-        return true;
-      })
+      .filter((w): w is HKOWarning => w.actionCode !== 'Cancel')
       .sort((a, b) => new Date(b.issueTime).getTime() - new Date(a.issueTime).getTime());
   }, [warnings]);
 
