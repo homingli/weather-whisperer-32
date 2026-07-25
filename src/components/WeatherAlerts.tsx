@@ -126,15 +126,15 @@ export const WeatherAlerts = memo(function WeatherAlerts({
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {format(new Date(selectedWarning.issueTime), language === 'tc' ? 'M月d日 HH:mm' : 'MMM d, h:mm a', { locale })}
                   </div>
-                  {selectedWarning.details?.contents && selectedWarning.details.contents.length > 0 && (
-                    <div className="mt-4 text-sm text-foreground/90 space-y-2 leading-relaxed">
-                      {selectedWarning.details.contents.map((content, i) => (
-                        <p key={i}>{content}</p>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
+              {selectedWarning.details?.contents && selectedWarning.details.contents.length > 0 && (
+                <div className="mt-4 text-sm text-foreground/90 space-y-2 leading-relaxed">
+                  {selectedWarning.details.contents.map((content, i) => (
+                    <p key={i}>{content}</p>
+                  ))}
+                </div>
+              )}
             </div>
           </DialogContent>
         )}
