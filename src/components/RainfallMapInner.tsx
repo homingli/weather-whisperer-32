@@ -171,7 +171,10 @@ export default function RainfallMapInner({
       const parsed = parseRainfallCSVText(initialCsv);
       const grid = buildRainGrid(parsed.rows);
       if (!grid) return null;
-      return { grid, updateTime: parsed.updateTime, lastModified: Date.now() };
+      // lastModified is 0 on the cache-hit path: we don't carry the HTTP
+      // Last-Modified header through, and the field is unused now that
+      // refetchInterval anchors on dataUpdatedAt.
+      return { grid, updateTime: parsed.updateTime, lastModified: 0 };
     } catch {
       return null;
     }
@@ -223,12 +226,12 @@ export default function RainfallMapInner({
       // background refresh always lines up with cache invalidation. Uses
       // dataUpdatedAt (set by initialDataUpdatedAt below for cache hits) as
       // the anchor so the cache TTL and the refetch cadence stay in sync.
+      // A non-positive value here just means "refetch now" — React Query
+      // treats it as 0, which is exactly what we want for an already-
+      // expired cache.
       const cachedAt = query.state.dataUpdatedAt;
       if (!cachedAt) return TIMING.NOWCAST_CACHE_TTL_MS;
-      const timeUntilExpiry = cachedAt + TIMING.NOWCAST_CACHE_TTL_MS - Date.now();
-      // Floor at 60 s so a clock skew or already-expired cache doesn't
-      // produce a 0 / negative interval that would hot-loop the fetcher.
-      return Math.max(timeUntilExpiry, 60_000);
+      return cachedAt + TIMING.NOWCAST_CACHE_TTL_MS - Date.now();
     },
     initialData: cachedResult ?? undefined,
     initialDataUpdatedAt: cachedResult ? Date.now() : 0,
@@ -288,16 +291,16 @@ export default function RainfallMapInner({
   // the CSV is parsed and the cells are on screen. This prevents the user from
   // panning/zooming a blank basemap that would mislead them about coverage.
   //
-  // Extracted into a helper because the useEffect below AND the MapContainer
-  // ref callback (further down) both need to apply the same state. With
-  // initialData, [data, isLoading] don't change after mount so the useEffect
-  // only ever runs once — and at that moment react-leaflet hasn't set our ref
-  // yet (useImperativeHandle fires in a later commit cycle). Without the ref
-  // callback the cache path would leave the map permanently disabled.
+  // Invoked from the MapContainer ref callback below (NOT a useEffect). With
+  // initialData, [data, isLoading] don't change after mount, so the only way
+  // to apply the lock state on the cache path is via the ref callback —
+  // react-leaflet's useImperativeHandle fires after our useEffect would have
+  // run with mapRef.current = null.
   //
-  // useCallback keeps the reference stable across renders so the useEffect
-  // doesn't fire every render. Deps are [data, isLoading] so the effect runs
-  // exactly when the lock state should change.
+  // Subsequent state changes are handled by React's ref detach/reattach:
+  // when applyMapLockState's identity changes (deps [data, isLoading]),
+  // handleMapRef gets a new identity, React calls the old ref with null and
+  // the new ref with the current map, which invokes the new applyMapLockState.
   const applyMapLockState = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -319,9 +322,15 @@ export default function RainfallMapInner({
     }
   }, [data, isLoading]);
 
-  useEffect(() => {
-    applyMapLockState();
-  }, [applyMapLockState]);
+  // useCallback so the ref identity tracks applyMapLockState's identity;
+  // React's detach/reattach on identity change fires the new closure.
+  const handleMapRef = useCallback(
+    (map: L.Map | null) => {
+      mapRef.current = map;
+      if (map) applyMapLockState();
+    },
+    [applyMapLockState],
+  );
 
   return (
     <div className="absolute inset-0 flex flex-col">
@@ -509,10 +518,10 @@ export default function RainfallMapInner({
           // state the moment react-leaflet's useImperativeHandle lands the
           // map instance — fires after our lock useEffect runs and handles
           // the initialData case where [data, isLoading] never change.
-          ref={(map) => {
-            mapRef.current = map;
-            if (map) applyMapLockState();
-          }}
+          // The ref identity tracks applyMapLockState's identity (deps
+          // [data, isLoading]) so React's detach/reattach handles state
+          // transitions too — no separate useEffect needed.
+          ref={handleMapRef}
           aria-label={t('nowcast.mapLabel')}
           role="application"
         >

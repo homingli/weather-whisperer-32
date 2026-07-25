@@ -123,10 +123,13 @@ describe('nowcastCache', () => {
       writeNowcastCache(sampleCsv, '2026-05-17 16:00', Date.now());
       const result = readNowcastCache();
       expect(result).not.toBeNull();
-      expect(result?.v).toBe(NOWCAST_CACHE_SCHEMA_VERSION);
       expect(result?.csvText).toBe(sampleCsv);
       expect(result?.updateTime).toBe('2026-05-17 16:00');
       expect(typeof result?.cachedAt).toBe('number');
+      // On-disk envelope stores the schema version; the read shape doesn't
+      // expose it (callers don't care, the version check is internal).
+      const onDisk = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOWCAST_CACHE) ?? '{}');
+      expect(onDisk.v).toBe(NOWCAST_CACHE_SCHEMA_VERSION);
     });
 
     it('returns null when the cache is older than NOWCAST_CACHE_TTL_MS', () => {
