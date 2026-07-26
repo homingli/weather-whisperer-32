@@ -256,7 +256,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                 if (!row) return null;
                 return (
                   <div
-                    className="rounded-none border border-border bg-card px-3 py-2 text-base shadow-md font-display"
+                    className="rounded-none border border-border bg-card px-3 py-2 text-sm shadow-md"
                     style={{
                       backgroundColor: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",

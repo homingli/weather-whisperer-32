@@ -260,7 +260,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
                   // mapping). Round + append unit suffix at the edge.
                   const windLabel = units === 'us' ? t('unit.mph', 'mph') : t('unit.kmh', 'km/h');
                   const precipLabel = units === 'us' ? t('unit.in', 'in') : 'mm';
-                  const tempStr = `${Math.round(data.temperature)}${temperatureUnitLabel(units)}`;
+                  const tempStr = `${data.temperature.toFixed(1)}${temperatureUnitLabel(units)}`;
                   const windStr = `${Math.round(data.windSpeed)} ${windLabel}`;
                   const precipStr = data.rainIntensity > 0
                     ? `${units === 'us' ? data.rainIntensity.toFixed(2) : data.rainIntensity.toFixed(1)} ${precipLabel}`
