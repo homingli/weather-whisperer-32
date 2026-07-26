@@ -274,6 +274,7 @@ const Index = () => {
                     {/* Slide 1: Current weather */}
                     <SwiperSlide>
                       <CurrentWeather
+                        compact
                         weather={weather.current ?? PLACEHOLDER_CURRENT}
                         hourlyForecast={weather.hourly || []}
                         dailyForecast={weather?.daily?.[0]}
