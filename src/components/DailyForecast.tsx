@@ -127,7 +127,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
     });
 
     return { chartData: rows, yDomainMin: yMin, yDomainMax: yMax };
-  }, [forecast, formatDayLine1, formatDayLine2]);
+  }, [forecast, formatDayLine1, formatDayLine2, units]);
 
   // GSAP entrance: rows rise + numerals fade in
   useGSAP(() => {
