@@ -14,6 +14,8 @@ export const SENTINEL_THRESHOLD = -100;
 export const STORAGE_KEYS = {
   LANGUAGE: 'weather-language',
   THEME_MODE: 'theme-mode',
+  /** User's preferred unit system: 'metric' (default) or 'us'. */
+  UNITS: 'weather-units',
   DEFAULT_CITY: 'weather-default-city',
   RECENT_CITIES: 'weather-recent-cities',
   /** Last-known weather snapshot for cold-start first paint. Schema-versioned. */

@@ -1,6 +1,15 @@
 import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from "@/lib/weather";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from "recharts";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useUnits } from "@/contexts/UnitsContext";
+import {
+  celsiusToFahrenheit,
+  kmhToMph,
+  mmToInches,
+  temperatureUnitLabel,
+  windSpeedUnitLabel,
+  precipitationUnitLabel,
+} from "@/lib/units";
 import { formatInTimezone, appLocale } from "@/lib/utils";
 import { useMemo, useCallback, memo, useRef } from "react";
 import gsap from "gsap";
@@ -14,6 +23,7 @@ interface HourlyForecastProps {
 
 export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecastProps) => {
   const { language, t } = useLanguage();
+  const { units } = useUnits();
   const root = useRef<HTMLDivElement>(null);
 
   const hoursData = forecast.slice(0, 8);
@@ -31,10 +41,21 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
   const chartData = hoursData.map((hour, index) => ({
     time: (hour.time instanceof Date) ? hour.time.getTime() : new Date(hour.time).getTime(),
     displayTime: index === 0 ? t('hourly.now') : formatTimeInTimezone(hour.time instanceof Date ? hour.time : new Date(hour.time)),
-    temperature: Math.round(hour.temperature),
+    // In US mode, plot in °F / mph so the temperature line traces the
+    // actual value with full precision. Source data is decimal °C / km/h;
+    // rounding to integer °C first (as we did for the daily chart) loses
+    // precision and produces a stepped line — e.g. 20.4°C and 20.6°C
+    // both round to 20, but the actual Fahrenheit reads 69°F and 69°F,
+    // not 68°F. Keeping full precision through the chart and rounding
+    // only at the label layer is the accurate path. (DailyForecast does
+    // the opposite — keeps °C — because its bar gradient stops are
+    // calibrated against °C thresholds; converting to °F would stretch
+    // the y-domain and shift the gradient stops so every bar reads solid
+    // red. Different chart, different tradeoff.)
+    temperature: units === 'us' ? celsiusToFahrenheit(hour.temperature) : hour.temperature,
     rainChance: hour.precipitationProbability,
-    rainIntensity: hour.precipitation,
-    windSpeed: hour.windSpeed,
+    rainIntensity: units === 'us' ? mmToInches(hour.precipitation) : hour.precipitation,
+    windSpeed: units === 'us' ? kmhToMph(hour.windSpeed) : hour.windSpeed,
     windDirection: hour.windDirection,
     isDay: hour.isDay,
   }));
@@ -210,7 +231,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
               axisLine={false}
               tickLine={false}
               tick={{ fill: 'hsl(var(--weather-sunny))', fontSize: 14 }}
-              tickFormatter={(value) => `${value}°`}
+              tickFormatter={(value) => `${Math.round(value)}${temperatureUnitLabel(units)}`}
               width={45}
             />
             <YAxis
@@ -235,22 +256,31 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   const data = payload[0].payload;
+                  // data values are already in the active unit (see chartData
+                  // mapping). Round + append unit suffix at the edge.
+                  const windLabel = units === 'us' ? t('unit.mph', 'mph') : t('unit.kmh', 'km/h');
+                  const precipLabel = units === 'us' ? t('unit.in', 'in') : 'mm';
+                  const tempStr = `${data.temperature.toFixed(1)}${temperatureUnitLabel(units)}`;
+                  const windStr = `${Math.round(data.windSpeed)} ${windLabel}`;
+                  const precipStr = data.rainIntensity > 0
+                    ? `${units === 'us' ? data.rainIntensity.toFixed(2) : data.rainIntensity.toFixed(1)} ${precipLabel}`
+                    : '';
                   return (
                     <div className="rounded-none border border-border bg-card px-3 py-2 text-sm shadow-md" style={{ backgroundColor: 'hsl(var(--card))' }}>
                       <p className="font-medium text-foreground mb-1">{formatTooltipLabel(label)}</p>
                       <div className="space-y-1">
                         <p className="text-weather-sunny flex justify-between gap-4">
                           <span>{t('hourly.temperature')}:</span>
-                          <span className="font-semibold">{data.temperature}°</span>
+                          <span className="font-semibold">{tempStr}</span>
                         </p>
                         <p className="text-weather-rain flex justify-between gap-4">
                           <span>{t('hourly.rainChance')}:</span>
-                          <span className="font-semibold">{data.rainChance}% {data.rainIntensity > 0 ? `(${data.rainIntensity}mm)` : ''}</span>
+                          <span className="font-semibold">{data.rainChance}% {precipStr && `(${precipStr})`}</span>
                         </p>
                         <div className="text-sky-400 flex justify-between gap-4">
                           <span>{t('weather.wind')}:</span>
                           <div className="flex items-center gap-1.5">
-                            <span className="font-semibold">{Math.round(data.windSpeed)} {t('unit.kmh')}</span>
+                            <span className="font-semibold">{windStr}</span>
                             <div style={{ transform: `rotate(${data.windDirection}deg)` }} className="inline-block transition-transform duration-500">
                               <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[8px] border-b-sky-400" />
                             </div>
@@ -302,13 +332,13 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
           {chartData.map((row, i) => (
             <tr key={`sr-hour-${i}`}>
               <th scope="row">{row.displayTime}</th>
-              <td>{`${row.temperature}°`}</td>
+              <td>{Math.round(row.temperature)}{temperatureUnitLabel(units)}</td>
               <td>
                 {row.rainChance}%
-                {row.rainIntensity > 0 ? ` (${row.rainIntensity}mm)` : ''}
+                {row.rainIntensity > 0 ? ` (${units === 'us' ? row.rainIntensity.toFixed(2) : row.rainIntensity.toFixed(1)} ${precipitationUnitLabel(units)})` : ''}
               </td>
               <td>
-                {Math.round(row.windSpeed)} {t('unit.kmh')}
+                {Math.round(row.windSpeed)} {windSpeedUnitLabel(units)}
               </td>
             </tr>
           ))}

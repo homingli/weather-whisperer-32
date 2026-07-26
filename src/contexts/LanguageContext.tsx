@@ -176,7 +176,14 @@ const translations: Record<Language, Record<string, string>> = {
     // Language
     'language.en': 'English',
     'language.tc': '繁體中文',
-    
+
+    // Units (metric ↔ US)
+    'settings.units': 'Units',
+    'settings.metric': 'Metric',
+    'settings.us': 'US',
+    'unit.mph': 'mph',
+    'unit.in': 'in',
+
     // Current weather
     'weather.feelsLike': 'Feels like',
     'weather.wind': 'Wind',
@@ -357,7 +364,14 @@ const translations: Record<Language, Record<string, string>> = {
     // Language
     'language.en': 'English',
     'language.tc': '繁體中文',
-    
+
+    // Units (metric ↔ US)
+    'settings.units': '單位',
+    'settings.metric': '公制',
+    'settings.us': '美制',
+    'unit.mph': '英里/小時',
+    'unit.in': '英寸',
+
     // Current weather
     'weather.feelsLike': '體感溫度',
     'weather.wind': '風',
