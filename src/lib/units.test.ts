@@ -4,14 +4,13 @@ import {
   kmhToMph,
   mmToInches,
   toDisplayTemperature,
-  toDisplayWindSpeed,
-  toDisplayPrecipitation,
   temperatureUnitLabel,
   windSpeedUnitLabel,
   precipitationUnitLabel,
   formatTemperature,
   formatWindSpeed,
   formatPrecipitation,
+  formatHeroTemperature,
 } from './units';
 
 describe('celsiusToFahrenheit', () => {
@@ -125,27 +124,6 @@ describe('toDisplayTemperature', () => {
   });
 });
 
-describe('toDisplayWindSpeed', () => {
-  it('returns integer km/h in metric mode', () => {
-    expect(toDisplayWindSpeed(15.7, 'metric')).toBe(16);
-  });
-
-  it('returns integer mph in US mode', () => {
-    // 15.7 * 0.621371 ≈ 9.7555 → 10
-    expect(toDisplayWindSpeed(15.7, 'us')).toBe(10);
-  });
-});
-
-describe('toDisplayPrecipitation', () => {
-  it('returns mm in metric mode (no conversion)', () => {
-    expect(toDisplayPrecipitation(2.35, 'metric')).toBe(2.35);
-  });
-
-  it('returns inches in US mode', () => {
-    expect(toDisplayPrecipitation(25.4, 'us')).toBeCloseTo(1.0, 4);
-  });
-});
-
 describe('unit label helpers', () => {
   it('temperatureUnitLabel returns °C / °F', () => {
     expect(temperatureUnitLabel('metric')).toBe('°C');
@@ -160,5 +138,22 @@ describe('unit label helpers', () => {
   it('precipitationUnitLabel returns mm / in', () => {
     expect(precipitationUnitLabel('metric')).toBe('mm');
     expect(precipitationUnitLabel('us')).toBe('in');
+  });
+});
+
+describe('formatHeroTemperature', () => {
+  it('returns bare ° with no C/F letter', () => {
+    expect(formatHeroTemperature(20, 'metric', -100)).toBe('20°');
+    expect(formatHeroTemperature(18, 'us', -100)).toBe('64°');
+  });
+
+  it('returns — when value is below the sentinel', () => {
+    expect(formatHeroTemperature(-999, 'metric', -100)).toBe('—');
+    expect(formatHeroTemperature(-200, 'us', -100)).toBe('—');
+  });
+
+  it('accepts a custom sentinel threshold', () => {
+    expect(formatHeroTemperature(5, 'metric', 10)).toBe('—');
+    expect(formatHeroTemperature(15, 'metric', 10)).toBe('15°');
   });
 });
