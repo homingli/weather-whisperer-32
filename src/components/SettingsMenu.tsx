@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Menu, Sun, Moon, SunMoon, Globe, Check, Search, LocateFixed, MapPin, RefreshCw } from 'lucide-react';
+import { useState, KeyboardEvent } from 'react';
+import { Menu, Sun, Moon, SunMoon, Search, LocateFixed, MapPin, RefreshCw, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage, Language, formatString } from '@/contexts/LanguageContext';
+import { useUnits, Units } from '@/contexts/UnitsContext';
+import { cn } from '@/lib/utils';
 import { searchCities, GeoLocation, getUserLocation, reverseGeocode, setDefaultCity } from '@/lib/weather';
 import { toast } from 'sonner';
 
@@ -28,9 +30,83 @@ interface SettingsMenuProps {
   onRefresh?: () => Promise<void>;
 }
 
+/**
+ * Segmented pill toggle. Used for both Units and Language — any 2- or 3-way
+ * exclusive choice. Implemented as a radio group for a11y (role=radiogroup /
+ * role=radio + aria-checked) instead of using DropdownMenuItem, because the
+ * two states are mutually exclusive and the active option is always visible.
+ */
+function PillToggle<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (next: T) => void;
+}) {
+  // Arrow-key navigation between radio buttons (a11y: standard radiogroup UX).
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const idx = options.findIndex((o) => o.value === value);
+    if (idx === -1) return;
+    let next = idx;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      next = (idx + 1) % options.length;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      next = (idx - 1 + options.length) % options.length;
+    } else if (e.key === 'Home') {
+      next = 0;
+    } else if (e.key === 'End') {
+      next = options.length - 1;
+    } else {
+      return;
+    }
+    e.preventDefault();
+    onChange(options[next].value);
+  };
+
+  return (
+    <div className="flex flex-col gap-2 px-2 py-2">
+      <span className="text-sm text-muted-foreground font-normal">{label}</span>
+      <div
+        role="radiogroup"
+        aria-label={label}
+        onKeyDown={handleKeyDown}
+        className="flex rounded-md border border-border overflow-hidden bg-background"
+      >
+        {options.map((opt, i) => {
+          const active = opt.value === value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              tabIndex={active ? 0 : -1}
+              onClick={() => onChange(opt.value)}
+              className={cn(
+                'flex-1 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                i > 0 && 'border-l border-border',
+                active
+                  ? 'bg-foreground text-background'
+                  : 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/60',
+              )}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefresh }: SettingsMenuProps) {
   const { mode, setMode } = useTheme();
   const { language, setLanguage, t } = useLanguage();
+  const { units, setUnits } = useUnits();
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<GeoLocation[]>([]);
@@ -105,6 +181,14 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
     c => !(currentCity && c.latitude === currentCity.latitude && c.longitude === currentCity.longitude)
   ).slice(0, 3);
 
+  // Pill options for units — short labels (the menu had verbose "(°C, km/h, mm)"
+  // suffixes that don't fit in a pill; the active unit is unambiguous from
+  // the rest of the UI).
+  const unitOptions: { value: Units; label: string }[] = [
+    { value: 'metric', label: 'Metric' },
+    { value: 'us', label: 'US' },
+  ];
+
   return (
     <>
       <DropdownMenu>
@@ -114,7 +198,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
             <span className="sr-only">Settings</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-[260px] text-lg p-2">
+        <DropdownMenuContent align="end" className="min-w-[280px] text-lg p-2">
           {/* Location section */}
           <DropdownMenuLabel className="text-sm text-muted-foreground font-normal px-2 py-2.5">
             {language === 'tc' ? '位置' : 'Location'}
@@ -148,7 +232,17 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
 
           <DropdownMenuSeparator />
 
-          {/* Theme section */}
+          {/* Units pill toggle */}
+          <PillToggle
+            label={t('settings.units')}
+            value={units}
+            options={unitOptions}
+            onChange={setUnits}
+          />
+
+          <DropdownMenuSeparator />
+
+          {/* Theme section (3-way — kept as dropdown items with check marks) */}
           <DropdownMenuLabel className="text-sm text-muted-foreground font-normal px-2 py-2.5">
             {language === 'tc' ? '主題' : 'Theme'}
           </DropdownMenuLabel>
@@ -170,17 +264,13 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
 
           <DropdownMenuSeparator />
 
-          {/* Language section */}
-          <DropdownMenuLabel className="text-sm text-muted-foreground font-normal px-2 py-2.5">
-            {language === 'tc' ? '語言' : 'Language'}
-          </DropdownMenuLabel>
-          {languages.map((l) => (
-            <DropdownMenuItem key={l.value} onClick={() => setLanguage(l.value)} className="gap-2.5 py-3">
-              <Globe className="h-5 w-5" />
-              {l.label}
-              {language === l.value && <Check className="h-5 w-5 ml-auto text-primary" />}
-            </DropdownMenuItem>
-          ))}
+          {/* Language pill toggle */}
+          <PillToggle
+            label={language === 'tc' ? '語言' : 'Language'}
+            value={language}
+            options={languages}
+            onChange={setLanguage}
+          />
         </DropdownMenuContent>
       </DropdownMenu>
 

@@ -4,6 +4,7 @@ import { CurrentWeather } from '@/components/CurrentWeather';
 import { HourlyForecast } from '@/components/HourlyForecast';
 import { LocalClock } from '@/components/LocalClock';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { UnitsProvider } from '@/contexts/UnitsContext';
 import { CurrentWeather as CurrentWeatherType, HourlyForecast as HourlyForecastType } from '@/lib/weather';
 
 const mockWeather: CurrentWeatherType = {
@@ -46,18 +47,20 @@ describe('Location and Time Integration', () => {
     
     render(
       <LanguageProvider>
-        <div data-testid="dashboard">
-          <LocalClock timezone={timezone} />
-          <CurrentWeather
-            weather={mockWeather}
-            hourlyForecast={mockHourly}
-            timezone={timezone}
-          />
-          <HourlyForecast
-            forecast={mockHourly}
-            timezone={timezone}
-          />
-        </div>
+        <UnitsProvider>
+          <div data-testid="dashboard">
+            <LocalClock timezone={timezone} />
+            <CurrentWeather
+              weather={mockWeather}
+              hourlyForecast={mockHourly}
+              timezone={timezone}
+            />
+            <HourlyForecast
+              forecast={mockHourly}
+              timezone={timezone}
+            />
+          </div>
+        </UnitsProvider>
       </LanguageProvider>
     );
 

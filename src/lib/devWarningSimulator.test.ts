@@ -4,6 +4,7 @@ import {
   useDevSimulatedWarnings,
   useDevBaselineNonce,
   devAddWarning,
+  devAddCancelledWarning,
   devRemoveWarning,
   devClearWarnings,
   devResetBaseline,
@@ -69,6 +70,22 @@ describe('devWarningSimulator', () => {
     it('devAddWarning falls back to the code when no name is given', () => {
       devAddWarning('UNKNOWN_CODE');
       expect(devListWarnings()[0].name).toBe('UNKNOWN_CODE');
+    });
+
+    it('devAddCancelledWarning sets actionCode to Cancel', () => {
+      devAddCancelledWarning('TC1');
+      const w = devListWarnings()[0];
+      expect(w.code).toBe('TC1');
+      expect(w.actionCode).toBe('Cancel');
+    });
+
+    it('devAddCancelledWarning replaces an existing warning with the same code', () => {
+      devAddWarning('TC1', 'Active TC1');
+      devAddCancelledWarning('TC1', 'Cancelled TC1');
+      const list = devListWarnings();
+      expect(list).toHaveLength(1);
+      expect(list[0].actionCode).toBe('Cancel');
+      expect(list[0].name).toBe('Cancelled TC1');
     });
 
     it('devRemoveWarning removes a single warning by code', () => {

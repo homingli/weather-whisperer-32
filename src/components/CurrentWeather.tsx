@@ -5,6 +5,16 @@ import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, ge
 import { SENTINEL_THRESHOLD } from "@/lib/constants";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, Thermometer, AlertTriangle } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
+import { useUnits } from "@/contexts/UnitsContext";
+import type { Units } from "@/lib/units";
+import {
+  formatTemperature,
+  formatWindSpeed,
+  formatPrecipitation,
+  mmToInches,
+  formatHeroTemperature,
+  precipitationUnitLabel,
+} from "@/lib/units";
 import { formatInTimezone, appLocale } from "@/lib/utils";
 
 /** Convert a wind bearing (0-360°, 0 = N) to a compass abbreviation. */
@@ -23,7 +33,8 @@ interface CurrentWeatherProps {
   dailyForecast?: DailyForecast;
   locationName?: string;
   timezone?: string;
-  /** Force single-column mobile layout regardless of viewport width */
+  /** Mobile-only swiper layout: tighter padding, centered hero with
+   *  icon and apparent-temp side-by-side. */
   compact?: boolean;
 }
 
@@ -56,21 +67,43 @@ const RAINFALL_BANDS: RainBand[] = [
   { max: Infinity,  color: "#9d0b0b", label: "> 30 mm" },
 ];
 
-function rainfallBandIndexFor(mm: number): number {
+// US-mode variant — same colors as the metric bands (HKO-defined) but labels
+// show inch thresholds so the band the marker lights up reads in the active
+// unit system. Thresholds are the inch-equivalent of the metric ones.
+const RAINFALL_BANDS_US: RainBand[] = [
+  { max: 0.08,      color: "#a0c4ff", label: "0.02 – 0.08 in" },
+  { max: 0.2,       color: "#4facfe", label: "0.08 – 0.2 in" },
+  { max: 0.4,       color: "#00f2fe", label: "0.2 – 0.4 in" },
+  { max: 0.8,       color: "#43e97b", label: "0.4 – 0.8 in" },
+  { max: 1.2,       color: "#f6d365", label: "0.8 – 1.2 in" },
+  { max: Infinity,  color: "#9d0b0b", label: "> 1.2 in" },
+];
+
+function rainfallBandIndexFor(mm: number, units: Units): number {
   if (!isFinite(mm) || mm < 0) return -1;
-  // Below the HKO nowcast legend's first tier (0.5 mm); no band lights up.
-  if (mm < 0.5) return -1;
-  for (let i = 0; i < RAINFALL_BANDS.length; i++) if (mm <= RAINFALL_BANDS[i].max) return i;
-  return RAINFALL_BANDS.length - 1;
+  // Look up against the active bands array. In US mode, compare against inch
+  // thresholds (after converting mm to inches); otherwise compare against
+  // metric thresholds directly. Mixing the two arrays by index without
+  // conversion mis-lights bands (e.g. 5 mm → 0.197 in → "0.08–0.2 in",
+  // NOT band index 2 of the inch array which would be "0.2–0.4 in").
+  const bands = units === 'us' ? RAINFALL_BANDS_US : RAINFALL_BANDS;
+  const value = units === 'us' ? mmToInches(mm) : mm;
+  // "Below the lowest band" — 0.5 mm / 0.02 in. Match exactly to preserve
+  // the HKO-source "trace" cutoff.
+  const traceCutoff = units === 'us' ? 0.02 : 0.5;
+  if (value < traceCutoff) return -1;
+  for (let i = 0; i < bands.length; i++) {
+    if (value <= bands[i].max) return i;
+  }
+  return bands.length - 1;
 }
 
 export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone, compact = false }: CurrentWeatherProps) => {
   const { language, t } = useLanguage();
+  const { units } = useUnits();
   const root = useRef<HTMLDivElement>(null);
 
   const isEmpty = weather.apparentTemperature < SENTINEL_THRESHOLD;
-
-  const fmt = (v: number, suffix = '') => v < SENTINEL_THRESHOLD ? '—' : `${Math.round(v)}${suffix}`;
 
   const needsUmbrella = useMemo(() => {
     const isCurrentlyRaining = (weather.precipitation ?? 0) > 2;
@@ -119,10 +152,6 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
   }, [dailyForecast, weather.isDay, locale, timezone, hour12]);
 
   const uvBand = useMemo(() => uvBandFor(weather.uvIndex), [weather.uvIndex]);
-  const precipBandIndex = useMemo(
-    () => rainfallBandIndexFor(weather.precipitation ?? 0),
-    [weather.precipitation],
-  );
   const humidityPct = isEmpty ? 0 : Math.max(0, Math.min(100, weather.humidity));
   const windDeg = isEmpty ? 0 : weather.windDirection;
 
@@ -145,6 +174,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           current={weather.temperature}
           label={t('label.temperature')}
           empty={isEmpty}
+          units={units}
         />
       </div>
 
@@ -153,7 +183,8 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
         {t('weather.feelsLike')}
       </p>
 
-      {/* Hero — desktop 2-col (temp | icon+conditions), mobile side-by-side icon+temp */}
+      {/* Hero — compact mode: icon + apparent-temp side-by-side, centered (mobile swiper).
+          Desktop mode: 2-col with temp on the left, icon + conditions on the right. */}
       {compact ? (
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-center gap-6">
@@ -171,7 +202,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
             })()}
             <div className="overflow-hidden">
               <h1 className="cw-rise block font-display text-[22vw] leading-[0.85] font-light tracking-[-0.04em]">
-                {fmt(weather.apparentTemperature, '°')}
+                {formatHeroTemperature(weather.apparentTemperature, units, SENTINEL_THRESHOLD)}
               </h1>
             </div>
           </div>
@@ -183,7 +214,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
         <header className="grid gap-10 md:grid-cols-[1fr_auto] md:items-end">
           <div className="overflow-hidden">
             <h1 className="cw-rise block font-display text-[14vw] md:text-[160px] leading-[0.85] font-light tracking-[-0.04em]">
-              {fmt(weather.apparentTemperature, '°')}
+              {formatHeroTemperature(weather.apparentTemperature, units, SENTINEL_THRESHOLD)}
             </h1>
           </div>
           <div className="cw-fade flex flex-col gap-3 max-w-xs">
@@ -229,8 +260,8 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
       <div className={`grid gap-x-10 gap-y-8 cw-fade ${compact ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
         <PrecipBar
           mm={weather.precipitation ?? 0}
-          bandIndex={precipBandIndex}
           empty={isEmpty}
+          units={units}
         />
         <UvChip uv={weather.uvIndex} band={uvBand} label={t('weather.uvIndex')} empty={isEmpty} />
         <HumidityBar pct={humidityPct} label={t('weather.humidity')} empty={isEmpty} />
@@ -239,7 +270,8 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           speed={weather.windSpeed}
           label={t('weather.wind')}
           empty={isEmpty}
-          label_kmh={t('unit.kmh', 'km/h')}
+          unitLabel={units === 'us' ? t('unit.mph', 'mph') : t('unit.kmh', 'km/h')}
+          units={units}
         />
       </div>
     </div>
@@ -279,20 +311,23 @@ function FactBlock({ icon: Icon, label, value, rotation, iconClass, valueTone }:
 
 /* ── Temperature range bar: low ── current ── high ──────────────────── */
 function RangeBar({
-  low, high, current, label, empty,
-}: { low?: number; high?: number; current: number; label: string; empty: boolean }) {
+  low, high, current, label, empty, units,
+}: { low?: number; high?: number; current: number; label: string; empty: boolean; units: Units }) {
   const lo = low ?? current;
   const hi = high ?? current;
   const range = Math.max(hi - lo, 0.1);
   const clamped = Math.max(lo, Math.min(hi, current));
   const currentPct = ((clamped - lo) / range) * 100;
+  const loStr = empty ? '—' : formatTemperature(lo, units);
+  const hiStr = empty ? '—' : formatTemperature(hi, units);
+  const curStr = empty ? '—' : formatTemperature(current, units);
   return (
     <div
       className="flex flex-col gap-3"
       aria-label={
         empty
           ? `${label}: range unavailable`
-          : `${label}: range ${Math.round(lo)}° to ${Math.round(hi)}°, currently ${Math.round(current)}°`
+          : `${label}: range ${loStr} to ${hiStr}, currently ${curStr}`
       }
     >
       <div className="flex items-baseline justify-between gap-2">
@@ -301,7 +336,7 @@ function RangeBar({
           {label}
         </span>
         <span className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none">
-          {empty ? '—' : `${Math.round(current)}°`}
+          {curStr}
         </span>
       </div>
       <div className="relative h-2 bg-foreground/10" style={{
@@ -314,8 +349,8 @@ function RangeBar({
         />
       </div>
       <div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
-        <span>{empty ? '—' : `${Math.round(lo)}°`}</span>
-        <span>{empty ? '—' : `${Math.round(hi)}°`}</span>
+        <span>{loStr}</span>
+        <span>{hiStr}</span>
       </div>
     </div>
   );
@@ -468,8 +503,8 @@ function HumidityBar({ pct, label, empty }: { pct: number; label: string; empty:
  * label, and degree number all agree on direction.
  */
 function WindCompass({
-  deg, speed, label, empty, label_kmh,
-}: { deg: number; speed: number; label: string; empty: boolean; label_kmh: string }) {
+  deg, speed, label, empty, unitLabel, units,
+}: { deg: number; speed: number; label: string; empty: boolean; unitLabel: string; units: Units }) {
   const towardDeg = ((deg ?? 0) + 180) % 360;
   return (
     <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -479,9 +514,9 @@ function WindCompass({
       </span>
       <div className="flex items-center gap-3">
         <span className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none">
-          {empty ? '—' : `${Math.round(speed)}`}
+          {empty ? '—' : formatWindSpeed(speed, units)}
           <span className="text-xs ml-1 text-muted-foreground/70 not-italic" style={{ fontFamily: "'Outfit', sans-serif" }}>
-            {label_kmh}
+            {unitLabel}
           </span>
         </span>
         <div
@@ -574,16 +609,23 @@ function UvChip({
 
 /* ── Precipitation: rainfall nowcast color bar with mm marker ──────── */
 function PrecipBar({
-  mm, bandIndex, empty,
-}: { mm: number; bandIndex: number; empty: boolean }) {
+  mm, empty, units,
+}: { mm: number; empty: boolean; units: Units }) {
   const { t } = useLanguage();
-  // Position the marker along the bar (linear scale up to 30 mm).
-  const maxTick = 30;
-  const mmClamped = Math.max(0, Math.min(mm, maxTick));
-  const posPct = (mmClamped / maxTick) * 100;
+  // US mode uses inch labels/positions and an inch-equivalent max tick.
+  const bands = units === 'us' ? RAINFALL_BANDS_US : RAINFALL_BANDS;
+  const maxTick = units === 'us' ? 1.2 : 30;
+  const displayValue = units === 'us' ? mmToInches(mm) : mm;
+  const displayClamped = Math.max(0, Math.min(displayValue, maxTick));
+  const posPct = (displayClamped / maxTick) * 100;
+  // Compute the band index against the active bands array — never share
+  // indices between metric and US arrays, their thresholds differ.
+  const bandIndex = rainfallBandIndexFor(mm, units);
   // bandIndex === -1 means "no band lit" (precipitation below the first
   // band's threshold). All segments render at the dim opacity in that case.
-  const activeBand = bandIndex >= 0 ? RAINFALL_BANDS[bandIndex] : undefined;
+  const activeBand = bandIndex >= 0 ? bands[bandIndex] : undefined;
+  const unitLabel = precipitationUnitLabel(units);
+  const belowLabel = units === 'us' ? 'below 0.02 in' : 'below 0.5 mm';
 
   return (
     <div
@@ -591,7 +633,7 @@ function PrecipBar({
       aria-label={
         empty
           ? `${t('daily.precip')}: unavailable`
-          : `${t('daily.precip')}: ${mm.toFixed(1)} mm${activeBand ? `, ${activeBand.label}` : ', below 0.5 mm'}`
+          : `${t('daily.precip')}: ${formatPrecipitation(mm, units)} ${unitLabel}${activeBand ? `, ${activeBand.label}` : `, ${belowLabel}`}`
       }
     >
       <div className="flex items-center justify-between gap-2">
@@ -603,15 +645,15 @@ function PrecipBar({
           className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none"
           style={{ color: empty || !activeBand ? "currentColor" : activeBand.color }}
         >
-          {empty ? '—' : `${mm.toFixed(1)}`}
+          {empty ? '—' : formatPrecipitation(mm, units)}
           <span className="text-xs ml-1 text-muted-foreground/70" style={{ fontFamily: "'Outfit', sans-serif" }}>
-            mm
+            {unitLabel}
           </span>
         </span>
       </div>
       <div className="relative h-2 overflow-hidden border border-foreground/15" aria-hidden="true">
         <div className="absolute inset-0 grid grid-cols-7">
-          {RAINFALL_BANDS.map((b, i) => (
+          {bands.map((b, i) => (
             <div
               key={b.label}
               style={{
@@ -644,11 +686,11 @@ function PrecipBar({
         )}
       </div>
       <div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground/50 tabular-nums">
-        <span>&lt; 0.5</span>
-        <span>5</span>
-        <span>10</span>
-        <span>20</span>
-        <span>30+</span>
+        <span>{units === 'us' ? '0.02' : '0.5'}</span>
+        <span>{units === 'us' ? '0.2' : '5'}</span>
+        <span>{units === 'us' ? '0.4' : '10'}</span>
+        <span>{units === 'us' ? '0.8' : '20'}</span>
+        <span>{units === 'us' ? '1.2+' : '30+'}</span>
       </div>
     </div>
   );
