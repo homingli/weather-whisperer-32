@@ -1,5 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { celsiusToFahrenheit, kmhToMph, mmToInches, formatTemperature, formatWindSpeed, formatPrecipitation } from './units';
+import {
+  celsiusToFahrenheit,
+  kmhToMph,
+  mmToInches,
+  toDisplayTemperature,
+  toDisplayWindSpeed,
+  toDisplayPrecipitation,
+  temperatureUnitLabel,
+  windSpeedUnitLabel,
+  precipitationUnitLabel,
+  formatTemperature,
+  formatWindSpeed,
+  formatPrecipitation,
+} from './units';
 
 describe('celsiusToFahrenheit', () => {
   it('converts 0°C to 32°F (water freezing)', () => {
@@ -98,5 +111,54 @@ describe('formatPrecipitation', () => {
   it('formats a trace of 0.5 mm as 0.02 in in US', () => {
     // 0.5 * 0.0393701 ≈ 0.01969 → "0.02"
     expect(formatPrecipitation(0.5, 'us')).toBe('0.02');
+  });
+});
+
+describe('toDisplayTemperature', () => {
+  it('returns integer °C in metric mode (no conversion)', () => {
+    expect(toDisplayTemperature(20.4, 'metric')).toBe(20);
+  });
+
+  it('returns integer °F in US mode (with conversion)', () => {
+    // 20.4 °C * 9/5 + 32 = 68.72 → 69
+    expect(toDisplayTemperature(20.4, 'us')).toBe(69);
+  });
+});
+
+describe('toDisplayWindSpeed', () => {
+  it('returns integer km/h in metric mode', () => {
+    expect(toDisplayWindSpeed(15.7, 'metric')).toBe(16);
+  });
+
+  it('returns integer mph in US mode', () => {
+    // 15.7 * 0.621371 ≈ 9.7555 → 10
+    expect(toDisplayWindSpeed(15.7, 'us')).toBe(10);
+  });
+});
+
+describe('toDisplayPrecipitation', () => {
+  it('returns mm in metric mode (no conversion)', () => {
+    expect(toDisplayPrecipitation(2.35, 'metric')).toBe(2.35);
+  });
+
+  it('returns inches in US mode', () => {
+    expect(toDisplayPrecipitation(25.4, 'us')).toBeCloseTo(1.0, 4);
+  });
+});
+
+describe('unit label helpers', () => {
+  it('temperatureUnitLabel returns °C / °F', () => {
+    expect(temperatureUnitLabel('metric')).toBe('°C');
+    expect(temperatureUnitLabel('us')).toBe('°F');
+  });
+
+  it('windSpeedUnitLabel returns km/h / mph', () => {
+    expect(windSpeedUnitLabel('metric')).toBe('km/h');
+    expect(windSpeedUnitLabel('us')).toBe('mph');
+  });
+
+  it('precipitationUnitLabel returns mm / in', () => {
+    expect(precipitationUnitLabel('metric')).toBe('mm');
+    expect(precipitationUnitLabel('us')).toBe('in');
   });
 });

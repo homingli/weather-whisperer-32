@@ -1,5 +1,5 @@
 import { useState, KeyboardEvent } from 'react';
-import { Menu, Sun, Moon, SunMoon, Search, LocateFixed, MapPin, RefreshCw } from 'lucide-react';
+import { Menu, Sun, Moon, SunMoon, Search, LocateFixed, MapPin, RefreshCw, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -249,17 +249,17 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
           <DropdownMenuItem onClick={() => setMode('light')} className="gap-2.5 py-3">
             <Sun className="h-5 w-5" />
             {themeLabels.light}
-            {mode === 'light' && <span className="h-5 w-5 ml-auto flex items-center justify-center text-primary text-base">✓</span>}
+            {mode === 'light' && <Check className="h-5 w-5 ml-auto text-primary" />}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setMode('dark')} className="gap-2.5 py-3">
             <Moon className="h-5 w-5" />
             {themeLabels.dark}
-            {mode === 'dark' && <span className="h-5 w-5 ml-auto flex items-center justify-center text-primary text-base">✓</span>}
+            {mode === 'dark' && <Check className="h-5 w-5 ml-auto text-primary" />}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setMode('auto')} className="gap-2.5 py-3">
             <SunMoon className="h-5 w-5" />
             {themeLabels.auto}
-            {mode === 'auto' && <span className="h-5 w-5 ml-auto flex items-center justify-center text-primary text-base">✓</span>}
+            {mode === 'auto' && <Check className="h-5 w-5 ml-auto text-primary" />}
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
