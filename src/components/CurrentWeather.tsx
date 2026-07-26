@@ -33,6 +33,9 @@ interface CurrentWeatherProps {
   dailyForecast?: DailyForecast;
   locationName?: string;
   timezone?: string;
+  /** Mobile-only swiper layout: tighter padding, centered hero with
+   *  icon and apparent-temp side-by-side. */
+  compact?: boolean;
 }
 
 /* ── UV index banding (WHO-aligned colors and exposure levels) ─────── */
@@ -95,7 +98,7 @@ function rainfallBandIndexFor(mm: number, units: Units): number {
   return bands.length - 1;
 }
 
-export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone }: CurrentWeatherProps) => {
+export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone, compact = false }: CurrentWeatherProps) => {
   const { language, t } = useLanguage();
   const { units } = useUnits();
   const root = useRef<HTMLDivElement>(null);
@@ -155,9 +158,9 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
   return (
     <div
       ref={root}
-      className="editorial-card overflow-hidden p-6 sm:p-8 md:p-12 lg:p-14"
+      className={`editorial-card overflow-hidden ${compact ? 'p-6' : 'p-8 md:p-12 lg:p-14'}`}
     >
-      <div className="flex items-baseline justify-between gap-4 cw-fade mb-6">
+      <div className={`flex items-baseline justify-between gap-4 cw-fade ${compact ? '' : 'mb-6'}`}>
         <span className="kicker text-muted-foreground">{t('header.dailyEdition')}</span>
       </div>
 
@@ -176,38 +179,66 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
       </div>
 
       {/* Feels-like kicker above the hero so the big number is read as apparent temperature. */}
-      <p className="cw-fade kicker text-muted-foreground mb-2 text-center md:text-left">
+      <p className={`cw-fade kicker text-muted-foreground mb-2 ${compact ? 'text-center' : 'md:text-left'}`}>
         {t('weather.feelsLike')}
       </p>
 
-      {/* Hero — responsive: stacked on mobile (icon over temp), 2-col on md+ (temp | icon+conditions) */}
-      <header className="grid gap-10 md:grid-cols-[1fr_auto] md:items-end">
-        <div className="overflow-hidden">
-          <h1 className="cw-rise block font-display text-[22vw] md:text-[160px] leading-[0.85] font-light tracking-[-0.04em]">
-            {formatHeroTemperature(weather.apparentTemperature, units, SENTINEL_THRESHOLD)}
-          </h1>
-        </div>
-        <div className="cw-fade flex flex-col items-center gap-3 max-w-xs md:items-start">
-          <span
-            className="inline-flex items-center justify-center text-foreground leading-none select-none"
-            role="img"
-            aria-label={t(weatherDescriptionKey(weather.weatherCode))}
-          >
+      {/* Hero — compact mode: icon + apparent-temp side-by-side, centered (mobile swiper).
+          Desktop mode: 2-col with temp on the left, icon + conditions on the right. */}
+      {compact ? (
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-center gap-6">
             {(() => {
               const Icon = getWeatherIconNode(weather.weatherCode, weather.isDay);
-              return <Icon className="h-[88px] w-[88px] md:h-20 md:w-20" strokeWidth={1.25} />;
+              return (
+                <span
+                  className="inline-flex items-center justify-center text-[88px] sm:text-[110px] leading-none select-none text-foreground"
+                  role="img"
+                  aria-label={t(weatherDescriptionKey(weather.weatherCode))}
+                >
+                  <Icon className="h-[88px] w-[88px] sm:h-[110px] sm:w-[110px]" strokeWidth={1.25} />
+                </span>
+              );
             })()}
-          </span>
-          <p className="font-display text-xl md:text-3xl italic font-light leading-tight text-center md:text-left">
+            <div className="overflow-hidden">
+              <h1 className="cw-rise block font-display text-[22vw] leading-[0.85] font-light tracking-[-0.04em]">
+                {formatHeroTemperature(weather.apparentTemperature, units, SENTINEL_THRESHOLD)}
+              </h1>
+            </div>
+          </div>
+          <p className="cw-fade text-center font-display italic text-xl text-muted-foreground">
             {t(weatherDescriptionKey(weather.weatherCode))}
           </p>
         </div>
-      </header>
+      ) : (
+        <header className="grid gap-10 md:grid-cols-[1fr_auto] md:items-end">
+          <div className="overflow-hidden">
+            <h1 className="cw-rise block font-display text-[14vw] md:text-[160px] leading-[0.85] font-light tracking-[-0.04em]">
+              {formatHeroTemperature(weather.apparentTemperature, units, SENTINEL_THRESHOLD)}
+            </h1>
+          </div>
+          <div className="cw-fade flex flex-col gap-3 max-w-xs">
+            <span
+              className="inline-flex items-center justify-center text-foreground leading-none select-none"
+              role="img"
+              aria-label={t(weatherDescriptionKey(weather.weatherCode))}
+            >
+              {(() => {
+                const Icon = getWeatherIconNode(weather.weatherCode, weather.isDay);
+                return <Icon className="h-16 w-16 md:h-20 md:w-20" strokeWidth={1.25} />;
+              })()}
+            </span>
+            <p className="font-display text-2xl md:text-3xl italic font-light leading-tight">
+              {t(weatherDescriptionKey(weather.weatherCode))}
+            </p>
+          </div>
+        </header>
+      )}
 
       <div className="cw-rule h-px editorial-rule my-8" />
 
       {/* Mid section — umbrella + sunrise/sunset */}
-      <div className="grid grid-cols-2 md:grid-cols-2 gap-x-10 gap-y-6 cw-fade">
+      <div className={`grid gap-x-10 gap-y-6 cw-fade ${compact ? 'grid-cols-2' : 'md:grid-cols-2'}`}>
         <FactBlock
           icon={needsUmbrella ? Umbrella : UmbrellaOff}
           label={t('umbrella.label')}
@@ -226,7 +257,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
       <div className="cw-rule h-px editorial-rule my-8" />
 
       {/* Bottom section — creative visualizations */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8 cw-fade">
+      <div className={`grid gap-x-10 gap-y-8 cw-fade ${compact ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
         <PrecipBar
           mm={weather.precipitation ?? 0}
           empty={isEmpty}
