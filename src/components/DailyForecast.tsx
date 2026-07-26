@@ -2,6 +2,8 @@ import { DailyForecast as DailyForecastType, getWeatherIconNode, weatherDescript
 import { addDays } from "date-fns";
 import { Droplets } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useUnits } from "@/contexts/UnitsContext";
+import { formatTemperature, formatWindSpeed } from "@/lib/units";
 import { translatePsr } from "@/lib/hko-weather";
 import { getDateTimeFormatter, formatInTimezone, appLocale } from "@/lib/utils";
 import { useMemo, useCallback, memo, useRef } from "react";
@@ -49,6 +51,7 @@ function tomorrowYmdInTimezone(timeZone: string): string {
 
 export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) => {
   const { language, t } = useLanguage();
+  const { units } = useUnits();
   const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const root = useRef<HTMLDivElement>(null);
 
@@ -255,7 +258,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                       {row.line1} · {row.line2}
                     </p>
                     <p className="text-muted-foreground">
-                      {t("daily.low")}: {row.temperatureMin}° · {t("daily.high")}: {row.temperatureMax}°
+                      {t("daily.low")}: {formatTemperature(row.temperatureMin, units)} · {t("daily.high")}: {formatTemperature(row.temperatureMax, units)}
                     </p>
                     {row.precipLabel && (
                       <p className="text-weather-rain mt-1 text-sm">
@@ -263,7 +266,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                       </p>
                     )}
                     <div className="text-sky-400 mt-1 text-sm flex items-center justify-between">
-                      <span>{t('weather.wind')}: {Math.round(row.windSpeedMax)} {t('unit.kmh')}</span>
+                      <span>{t('weather.wind')}: {formatWindSpeed(row.windSpeedMax, units)} {units === 'us' ? t('unit.mph', 'mph') : t('unit.kmh', 'km/h')}</span>
                       <div style={{ transform: `rotate(${row.windDirectionDominant}deg)` }} className="inline-block transition-transform duration-500 ml-2">
                         <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[6px] border-b-sky-400" />
                       </div>
@@ -282,14 +285,14 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                 position="top"
                 offset={8}
                 style={{ fontSize: '15px', fill: 'hsl(var(--foreground))', fontWeight: 500, fontFamily: "'Playfair Display', serif" }}
-                formatter={(val: number) => `${val}°`}
+                formatter={(val: number) => formatTemperature(val, units)}
               />
               <LabelList
                 dataKey="temperatureMin"
                 position="bottom"
                 offset={8}
                 style={{ fontSize: '14px', fill: 'hsl(var(--muted-foreground))', fontWeight: 400, fontFamily: "'Playfair Display', serif" }}
-                formatter={(val: number) => `${val}°`}
+                formatter={(val: number) => formatTemperature(val, units)}
               />
               {chartData.map((row) => (
                 <Cell key={`cell-${row.index}`} fill={`url(#dailyTempRange-${row.index})`} />
@@ -316,10 +319,10 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
           {chartData.map((row, i) => (
             <tr key={`sr-day-${i}`}>
               <th scope="row">{`${row.line1} ${row.line2}`}</th>
-              <td>{`${row.temperatureMin}°`}</td>
-              <td>{`${row.temperatureMax}°`}</td>
+              <td>{formatTemperature(row.temperatureMin, units)}</td>
+              <td>{formatTemperature(row.temperatureMax, units)}</td>
               <td>{row.precipLabel ?? '—'}</td>
-              <td>{`${Math.round(row.windSpeedMax)} ${t('unit.kmh')}`}</td>
+              <td>{`${formatWindSpeed(row.windSpeedMax, units)} ${units === 'us' ? t('unit.mph', 'mph') : t('unit.kmh', 'km/h')}`}</td>
             </tr>
           ))}
         </tbody>

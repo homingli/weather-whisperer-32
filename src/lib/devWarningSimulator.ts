@@ -70,6 +70,23 @@ export const devAddWarning = (code: string, name?: string): void => {
   notify();
 };
 
+/**
+ * Inject a warning that has already been cancelled (actionCode === 'Cancel').
+ * The WeatherAlerts filter (`actionCode !== 'Cancel'`) should drop this entry
+ * so nothing renders. Useful for visually verifying the cancellation filter
+ * when live HKO data isn't available. actionCode case matches production's
+ * exact `'Cancel'` check.
+ */
+export const devAddCancelledWarning = (code: string, name?: string): void => {
+  if (!IS_DEV) return;
+  const warning: HKOWarning = {
+    ...makeWarning(code, name),
+    actionCode: 'Cancel',
+  };
+  state.simulated = [...state.simulated.filter((w) => w.code !== code), warning];
+  notify();
+};
+
 /** Remove a fake warning. Fires a "cancelled" toast in the UI. */
 export const devRemoveWarning = (code: string): void => {
   if (!IS_DEV) return;
@@ -99,3 +116,27 @@ export const devResetBaseline = (): void => {
 export const devListWarnings = (): HKOWarning[] => {
   return IS_DEV ? state.simulated.slice() : [];
 };
+
+/**
+ * Expose simulator helpers on `window.__devWarnings` for visual debugging in
+ * the browser console. Production builds skip this entirely. Available in
+ * dev only.
+ *
+ * Console usage:
+ *   __devWarnings.add('WTS')                  // add an active warning
+ *   __devWarnings.addCancelled('TC1')         // add a cancelled warning
+ *   __devWarnings.remove('TC1')               // remove by code
+ *   __devWarnings.clear()                     // remove all simulated
+ *   __devWarnings.resetBaseline()             // clear + bump nonce
+ *   __devWarnings.list()                      // snapshot of current list
+ */
+if (IS_DEV && typeof window !== 'undefined') {
+  (window as unknown as { __devWarnings?: unknown }).__devWarnings = {
+    add: devAddWarning,
+    addCancelled: devAddCancelledWarning,
+    remove: devRemoveWarning,
+    clear: devClearWarnings,
+    resetBaseline: devResetBaseline,
+    list: devListWarnings,
+  };
+}

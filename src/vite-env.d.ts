@@ -6,9 +6,10 @@ declare global {
   interface Window {
     __devWarnings?: {
       add: (code: string, name?: string) => void;
+      addCancelled: (code: string, name?: string) => void;
       remove: (code: string) => void;
       clear: () => void;
-      reset: () => void;
+      resetBaseline: () => void;
       list: () => HKOWarning[];
     };
   }

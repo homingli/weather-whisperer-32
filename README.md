@@ -9,7 +9,7 @@ A modern, responsive weather application built with React and TypeScript. Featur
 - **Fetching Status Screen**: Animated loading overlay with per-source status badges (Open-Meteo / HKO) during initial data fetch; `FetchingStatus` + `StatusBadge` components
 - **Local Clock**: High-frequency (1s) time display extracted into a memoized component for referential stability of the parent card
 - **Warning Change Detector**: Detects when HKO warnings are newly issued or cancelled between polls, with baseline reset on city switches
-- **Consolidated Settings**: Manage location search, current location detection, theme, language, and manual data refresh from a single menu
+- **Consolidated Settings**: Manage location search, current location detection, theme, language, unit system (Metric ↔ US), and manual data refresh from a single menu
 - **Multi-Language Support**: English and Traditional Chinese interface
 - **Location Services**: Auto-detect user location or search for any city worldwide with recent cities history (last 3)
 - **Weather Data**: Current conditions, hourly forecasts (6 hours), and daily forecasts (7 days)
@@ -220,6 +220,7 @@ The application persists the following to `localStorage`:
 - `weather-language` — user language preference (`'en' | 'tc'`)
 - `theme-mode` — user theme preference (`'light' | 'dark' | 'auto'`)
 - `weather-last-known-v1` — schema-versioned envelope of the last successful weather fetch. Read synchronously at mount as the cold-start seed for instant first paint; cleared on city switch; overwritten on every successful fetch.
+- `weather-units` — user's preferred unit system: `'metric'` (default — °C / km/h / mm) or `'us'` (°F / mph / in). Read at provider mount, written on toggle.
 
 Cache strategy is a three-tier design:
 

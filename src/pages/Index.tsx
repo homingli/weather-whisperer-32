@@ -14,11 +14,6 @@ import { useWarningChangeDetector } from '@/hooks/useWarningChangeDetector';
 import {
   useDevSimulatedWarnings,
   useDevBaselineNonce,
-  devAddWarning,
-  devRemoveWarning,
-  devClearWarnings,
-  devResetBaseline,
-  devListWarnings,
 } from '@/lib/devWarningSimulator';
 import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName, getWarningIcon } from '@/lib/hko-weather';
 import { PLACEHOLDER_SENTINEL } from '@/lib/constants';
@@ -144,22 +139,9 @@ const Index = () => {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  // Dev-only: expose the warning simulator to the console for QA.
-  // Try __devWarnings.add('TC8') / .remove('TC8') / .reset() / .list().
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    window.__devWarnings = {
-      add: devAddWarning,
-      remove: devRemoveWarning,
-      clear: devClearWarnings,
-      reset: devResetBaseline,
-      list: devListWarnings,
-    };
-    console.info('[dev] __devWarnings ready: __devWarnings.add("TC8") / .remove("TC8") / .reset() / .list()');
-    return () => {
-      delete window.__devWarnings;
-    };
-  }, []);
+  // Dev-only: `window.__devWarnings` is mounted by devWarningSimulator.ts at
+  // module load time. Try __devWarnings.add('TC8') / .addCancelled('TC1') /
+  // .remove('TC8') / .resetBaseline() / .list().
 
   // Freshness banner moved into <WeatherBanners>; the hook augments the
   // cached data with `fallbackSource: 'cache'` when the background fetch
