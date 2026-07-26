@@ -1,7 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, act } from '@testing-library/react';
 import { HourlyForecast } from './HourlyForecast';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { UnitsProvider, useUnits } from '@/contexts/UnitsContext';
 import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from '@/lib/weather';
 
 // Track chart renders so we can assert on the data passed to Recharts.
@@ -60,12 +61,15 @@ const mockHourlyData: HourlyForecastType[] = [
 describe('HourlyForecast Component', () => {
   beforeEach(() => {
     renderedChartData.length = 0;
+    localStorage.clear();
   });
 
   const renderWithLanguage = (ui: React.ReactElement) => {
     return render(
       <LanguageProvider>
-        {ui}
+        <UnitsProvider>
+          {ui}
+        </UnitsProvider>
       </LanguageProvider>
     );
   };
@@ -191,5 +195,32 @@ describe('HourlyForecast Component', () => {
     // Both renders should succeed with a chart container.
     expect(hkContainer.querySelector('[data-testid="chart-container"]')).toBeTruthy();
     expect(tokyoContainer.querySelector('[data-testid="chart-container"]')).toBeTruthy();
+  });
+
+  it('renders sr-only table cells in metric by default and in us when units=us', () => {
+    // 20°C → 20°C, 68°F. 10 km/h → 10 km/h, 6 mph.
+    function FlipProbe() {
+      const { setUnits } = useUnits();
+      return <button data-testid="hf-flip-us" onClick={() => setUnits('us')}>flip</button>;
+    }
+    const { container } = render(
+      <LanguageProvider>
+        <UnitsProvider>
+          <FlipProbe />
+          <HourlyForecast forecast={mockHourlyData} />
+        </UnitsProvider>
+      </LanguageProvider>
+    );
+    // Metric: "20°C" and "km/h" appear in sr-only cells.
+    const srTable = container.querySelector('table.sr-only');
+    expect(srTable).toBeTruthy();
+    expect(srTable!.textContent).toContain('20°C');
+    expect(srTable!.textContent).toContain('km/h');
+
+    act(() => {
+      screen.getByTestId('hf-flip-us').click();
+    });
+    expect(srTable!.textContent).toContain('68°F');
+    expect(srTable!.textContent).toContain('mph');
   });
 });
