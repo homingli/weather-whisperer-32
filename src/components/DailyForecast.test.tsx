@@ -4,7 +4,6 @@ import { DailyForecast } from './DailyForecast';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitsProvider, useUnits } from '@/contexts/UnitsContext';
 import { DailyForecast as DailyForecastType } from '@/lib/weather';
-import { toDisplayTemperature, toDisplayWindSpeed, temperatureUnitLabel, windSpeedUnitLabel } from '@/lib/units';
 
 // Mock Recharts so the test doesn't depend on jsdom SVG layout — we're only
 // checking that the LabelList formatters receive the right values.
@@ -75,20 +74,20 @@ describe('DailyForecast', () => {
 
   it('renders temperatures in °C by default (metric)', () => {
     // temperatureMax 25°C, temperatureMin 18°C
-    renderWithProviders(<DailyForecast forecast={mockForecast} />);
-    // Y-axis tick label would show 25; bar geometry and LabelList at 25°C.
-    // Use the helper to know what to expect in metric mode.
-    const max = toDisplayTemperature(25, 'metric');
-    const min = toDisplayTemperature(18, 'metric');
-    expect(max).toBe(25);
-    expect(min).toBe(18);
-    expect(temperatureUnitLabel('metric')).toBe('°C');
+    const { container } = renderWithProviders(<DailyForecast forecast={mockForecast} />);
+    // sr-only table reads °C directly from chartData.
+    const srTable = container.querySelector('table.sr-only');
+    expect(srTable).toBeTruthy();
+    expect(srTable!.textContent).toContain('25°C');
+    expect(srTable!.textContent).toContain('18°C');
   });
 
-  it('recomputes chart data when units toggle from metric to us', () => {
-    // Regression: chartData useMemo in DailyForecast didn't list `units` in
-    // its deps array, so toggling units left the bar geometry / LabelList
-    // values stale (in °C while labels rendered °F).
+  it('renders temperatures in °C by default and °F when units=us, while keeping bar geometry in metric scale', () => {
+    // chartData stays in metric (°C) — only labels convert at the edge.
+    // This keeps the gradient stops and bar heights calibrated against
+    // metric thresholds (red-hot, yellow-warm, blue-cool). US-mode
+    // labels show Fahrenheit values at the °C tick mark — a small offset
+    // acceptable for a hidden-axis chart.
     function FlipProbe() {
       const { setUnits } = useUnits();
       return <button data-testid="flip-us" onClick={() => setUnits('us')}>flip</button>;
@@ -101,33 +100,24 @@ describe('DailyForecast', () => {
         </UnitsProvider>
       </LanguageProvider>,
     );
-    // Sanity: in metric mode, max=25 (°C integer).
-    const maxMetric = toDisplayTemperature(25, 'metric');
-    expect(maxMetric).toBe(25);
-    expect(temperatureUnitLabel('metric')).toBe('°C');
+
+    const srTable = container.querySelector('table.sr-only');
+    expect(srTable).toBeTruthy();
+    // Metric mode: raw °C values.
+    expect(srTable!.textContent).toContain('25°C');
+    expect(srTable!.textContent).toContain('18°C');
+    expect(srTable!.textContent).toContain('10 km/h');
 
     act(() => {
       screen.getByTestId('flip-us').click();
     });
 
-    // After toggle, the chart data should reflect Fahrenheit conversion:
-    // 25 °C * 9/5 + 32 = 77, 18 °C = 64.4 → 64.
-    const maxUs = toDisplayTemperature(25, 'us');
-    const minUs = toDisplayTemperature(18, 'us');
-    expect(maxUs).toBe(77);
-    expect(minUs).toBe(64);
-    expect(temperatureUnitLabel('us')).toBe('°F');
-
-    // Wind speeds convert too: 10 km/h → 6 mph, 12 → 7.
-    expect(toDisplayWindSpeed(10, 'us')).toBe(6);
-    expect(toDisplayWindSpeed(12, 'us')).toBe(7);
-    expect(windSpeedUnitLabel('us')).toBe('mph');
-
-    // The rendered sr-only table should now show 77°F / 64°F (it reads from
-    // chartData, which must have been recomputed when units flipped).
-    const srTable = container.querySelector('table.sr-only');
-    expect(srTable).toBeTruthy();
+    // US mode: labels converted via formatTemperature / formatWindSpeed.
+    // 25°C → 77°F, 18°C → 64°F. 10 km/h → 6 mph.
     expect(srTable!.textContent).toContain('77°F');
     expect(srTable!.textContent).toContain('64°F');
+    expect(srTable!.textContent).toContain('6 mph');
+    expect(srTable!.textContent).not.toContain('25°C');
+    expect(srTable!.textContent).not.toContain('10 km/h');
   });
 });

@@ -3,7 +3,7 @@ import { addDays } from "date-fns";
 import { Droplets } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
-import { toDisplayTemperature, toDisplayWindSpeed, temperatureUnitLabel, windSpeedUnitLabel } from "@/lib/units";
+import { formatTemperature, formatWindSpeed, windSpeedUnitLabel } from "@/lib/units";
 import { translatePsr } from "@/lib/hko-weather";
 import { getDateTimeFormatter, formatInTimezone, appLocale } from "@/lib/utils";
 import { useMemo, useCallback, memo, useRef } from "react";
@@ -100,12 +100,16 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
     const yMax = weekMax + pad;
 
     const rows = forecast.map((day, index) => {
-      // Convert source metric values to the active display unit so chart
-      // bar heights + LabelList positions match their labels. The Y-axis
-      // itself is hidden, but LabelList text and bar geometry should be
-      // self-consistent.
-      const low = toDisplayTemperature(day.temperatureMin, units);
-      const high = toDisplayTemperature(day.temperatureMax, units);
+      // Keep chart data in metric scale (°C). The Y-axis is hidden, but
+      // bar heights and gradient stops are calibrated against metric
+      // thresholds (red-hot, yellow-warm, blue-cool). Converting the data
+      // to °F would stretch the chart domain and shift the gradient stops
+      // so every bar reads as solid red. Instead, labels convert at the
+      // edge via `formatTemperature` / `formatWindSpeed`, accepting a
+      // small label-vs-position offset (the °F value sits at the °C tick
+      // mark) — visually acceptable for a hidden-axis chart.
+      const low = Math.round(day.temperatureMin);
+      const high = Math.round(day.temperatureMax);
       const showPSR = day.precipitationProbabilityRaw;
       const showPercentage = !showPSR && day.precipitationProbabilityMax > 0;
       return {
@@ -114,7 +118,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
         temperatureMin: low,
         temperatureMax: high,
         weatherCode: day.weatherCode,
-        windSpeedMax: toDisplayWindSpeed(day.windSpeedMax, units),
+        windSpeedMax: Math.round(day.windSpeedMax),
         windDirectionDominant: day.windDirectionDominant,
         precipLabel: showPSR
           ? translatePsr(day.precipitationProbabilityRaw, language as 'en' | 'tc')
@@ -127,7 +131,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
     });
 
     return { chartData: rows, yDomainMin: yMin, yDomainMax: yMax };
-  }, [forecast, formatDayLine1, formatDayLine2, units]);
+  }, [forecast, formatDayLine1, formatDayLine2]);
 
   // GSAP entrance: rows rise + numerals fade in
   useGSAP(() => {
@@ -262,7 +266,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                       {row.line1} · {row.line2}
                     </p>
                     <p className="text-muted-foreground">
-                      {t("daily.low")}: {row.temperatureMin}{temperatureUnitLabel(units)} · {t("daily.high")}: {row.temperatureMax}{temperatureUnitLabel(units)}
+                      {t("daily.low")}: {formatTemperature(row.temperatureMin, units)} · {t("daily.high")}: {formatTemperature(row.temperatureMax, units)}
                     </p>
                     {row.precipLabel && (
                       <p className="text-weather-rain mt-1 text-sm">
@@ -270,7 +274,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                       </p>
                     )}
                     <div className="text-sky-400 mt-1 text-sm flex items-center justify-between">
-                      <span>{t('weather.wind')}: {row.windSpeedMax} {windSpeedUnitLabel(units)}</span>
+                      <span>{t('weather.wind')}: {formatWindSpeed(row.windSpeedMax, units)} {windSpeedUnitLabel(units)}</span>
                       <div style={{ transform: `rotate(${row.windDirectionDominant}deg)` }} className="inline-block transition-transform duration-500 ml-2">
                         <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[6px] border-b-sky-400" />
                       </div>
@@ -289,14 +293,14 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                 position="top"
                 offset={8}
                 style={{ fontSize: '15px', fill: 'hsl(var(--foreground))', fontWeight: 500, fontFamily: "'Playfair Display', serif" }}
-                formatter={(val: number) => `${val}${temperatureUnitLabel(units)}`}
+                formatter={(val: number) => formatTemperature(val, units)}
               />
               <LabelList
                 dataKey="temperatureMin"
                 position="bottom"
                 offset={8}
                 style={{ fontSize: '14px', fill: 'hsl(var(--muted-foreground))', fontWeight: 400, fontFamily: "'Playfair Display', serif" }}
-                formatter={(val: number) => `${val}${temperatureUnitLabel(units)}`}
+                formatter={(val: number) => formatTemperature(val, units)}
               />
               {chartData.map((row) => (
                 <Cell key={`cell-${row.index}`} fill={`url(#dailyTempRange-${row.index})`} />
@@ -323,10 +327,10 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
           {chartData.map((row, i) => (
             <tr key={`sr-day-${i}`}>
               <th scope="row">{`${row.line1} ${row.line2}`}</th>
-              <td>{row.temperatureMin}{temperatureUnitLabel(units)}</td>
-              <td>{row.temperatureMax}{temperatureUnitLabel(units)}</td>
+              <td>{formatTemperature(row.temperatureMin, units)}</td>
+              <td>{formatTemperature(row.temperatureMax, units)}</td>
               <td>{row.precipLabel ?? '—'}</td>
-              <td>{`${row.windSpeedMax} ${windSpeedUnitLabel(units)}`}</td>
+              <td>{`${formatWindSpeed(row.windSpeedMax, units)} ${windSpeedUnitLabel(units)}`}</td>
             </tr>
           ))}
         </tbody>
