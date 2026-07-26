@@ -292,14 +292,14 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
                 dataKey="temperatureMax"
                 position="top"
                 offset={8}
-                style={{ fontSize: '15px', fill: 'hsl(var(--foreground))', fontWeight: 500, fontFamily: "'Playfair Display', serif" }}
+                style={{ fontSize: '15px', fill: 'hsl(var(--foreground))', fontWeight: 500 }}
                 formatter={(val: number) => formatTemperature(val, units)}
               />
               <LabelList
                 dataKey="temperatureMin"
                 position="bottom"
                 offset={8}
-                style={{ fontSize: '14px', fill: 'hsl(var(--muted-foreground))', fontWeight: 400, fontFamily: "'Playfair Display', serif" }}
+                style={{ fontSize: '14px', fill: 'hsl(var(--muted-foreground))', fontWeight: 400 }}
                 formatter={(val: number) => formatTemperature(val, units)}
               />
               {chartData.map((row) => (
