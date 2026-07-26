@@ -169,4 +169,30 @@ describe('CurrentWeather Component', () => {
     expect(container.textContent).toContain('0.20');
     expect(container.textContent).toContain('in');
   });
+
+  it('precipitation band lookup is correct in US mode (5 mm lights 0.08–0.2 in, not 0.2–0.4 in)', () => {
+    // Regression: bandIndex was previously computed against the metric
+    // RAINFALL_BANDS array (5 mm step) and reused as the index into
+    // RAINFALL_BANDS_US (0.2 in step). 5 mm = 0.197 in is in the
+    // "0.08–0.2 in" band (index 1), not "0.2–0.4 in" (index 2).
+    const wetWeather = { ...mockWeather, precipitation: 5 };
+    function FlipProbe() {
+      const { setUnits } = useUnits();
+      return <button data-testid="flip-us-4" onClick={() => setUnits('us')}>flip</button>;
+    }
+    const { container } = render(
+      <LanguageProvider>
+        <UnitsProvider>
+          <FlipProbe />
+          <CurrentWeather weather={wetWeather} hourlyForecast={mockHourly} timezone="UTC" />
+        </UnitsProvider>
+      </LanguageProvider>
+    );
+    act(() => {
+      screen.getByTestId('flip-us-4').click();
+    });
+    // aria-label for the bar includes the band name.
+    expect(container.querySelector('[aria-label*="0.08"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label*="0.2 – 0.4 in"]')).toBeNull();
+  });
 });

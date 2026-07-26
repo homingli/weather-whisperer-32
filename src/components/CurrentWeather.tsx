@@ -6,7 +6,13 @@ import { SENTINEL_THRESHOLD } from "@/lib/constants";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, Thermometer, AlertTriangle } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
-import { formatTemperature, formatWindSpeed, formatPrecipitation, mmToInches, celsiusToFahrenheit } from "@/lib/units";
+import {
+  formatTemperature,
+  formatWindSpeed,
+  formatPrecipitation,
+  mmToInches,
+  toDisplayTemperature,
+} from "@/lib/units";
 import { formatInTimezone, appLocale } from "@/lib/utils";
 
 /** Convert a wind bearing (0-360°, 0 = N) to a compass abbreviation. */
@@ -70,12 +76,23 @@ const RAINFALL_BANDS_US: RainBand[] = [
   { max: Infinity,  color: "#9d0b0b", label: "> 1.2 in" },
 ];
 
-function rainfallBandIndexFor(mm: number): number {
+function rainfallBandIndexFor(mm: number, units: 'metric' | 'us'): number {
   if (!isFinite(mm) || mm < 0) return -1;
-  // Below the HKO nowcast legend's first tier (0.5 mm); no band lights up.
-  if (mm < 0.5) return -1;
-  for (let i = 0; i < RAINFALL_BANDS.length; i++) if (mm <= RAINFALL_BANDS[i].max) return i;
-  return RAINFALL_BANDS.length - 1;
+  // Look up against the active bands array. In US mode, compare against inch
+  // thresholds (after converting mm to inches); otherwise compare against
+  // metric thresholds directly. Mixing the two arrays by index without
+  // conversion mis-lights bands (e.g. 5 mm → 0.197 in → "0.08–0.2 in",
+  // NOT band index 2 of the inch array which would be "0.2–0.4 in").
+  const bands = units === 'us' ? RAINFALL_BANDS_US : RAINFALL_BANDS;
+  const value = units === 'us' ? mmToInches(mm) : mm;
+  // "Below the lowest band" — 0.5 mm / 0.02 in. Match exactly to preserve
+  // the HKO-source "trace" cutoff.
+  const traceCutoff = units === 'us' ? 0.02 : 0.5;
+  if (value < traceCutoff) return -1;
+  for (let i = 0; i < bands.length; i++) {
+    if (value <= bands[i].max) return i;
+  }
+  return bands.length - 1;
 }
 
 export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone, compact = false }: CurrentWeatherProps) => {
@@ -91,8 +108,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
   // the editorial typography.
   const fmtTemp = (c: number) => {
     if (c < SENTINEL_THRESHOLD) return '—';
-    const v = units === 'us' ? celsiusToFahrenheit(c) : c;
-    return `${Math.round(v)}°`;
+    return `${toDisplayTemperature(c, units)}°`;
   };
 
   const needsUmbrella = useMemo(() => {
@@ -142,10 +158,6 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
   }, [dailyForecast, weather.isDay, locale, timezone, hour12]);
 
   const uvBand = useMemo(() => uvBandFor(weather.uvIndex), [weather.uvIndex]);
-  const precipBandIndex = useMemo(
-    () => rainfallBandIndexFor(weather.precipitation ?? 0),
-    [weather.precipitation],
-  );
   const humidityPct = isEmpty ? 0 : Math.max(0, Math.min(100, weather.humidity));
   const windDeg = isEmpty ? 0 : weather.windDirection;
 
@@ -253,7 +265,6 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
       <div className={`grid gap-x-10 gap-y-8 cw-fade ${compact ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
         <PrecipBar
           mm={weather.precipitation ?? 0}
-          bandIndex={precipBandIndex}
           empty={isEmpty}
           units={units}
         />
@@ -603,8 +614,8 @@ function UvChip({
 
 /* ── Precipitation: rainfall nowcast color bar with mm marker ──────── */
 function PrecipBar({
-  mm, bandIndex, empty, units,
-}: { mm: number; bandIndex: number; empty: boolean; units: 'metric' | 'us' }) {
+  mm, empty, units,
+}: { mm: number; empty: boolean; units: 'metric' | 'us' }) {
   const { t } = useLanguage();
   // US mode uses inch labels/positions and an inch-equivalent max tick.
   const bands = units === 'us' ? RAINFALL_BANDS_US : RAINFALL_BANDS;
@@ -612,6 +623,9 @@ function PrecipBar({
   const displayValue = units === 'us' ? mmToInches(mm) : mm;
   const displayClamped = Math.max(0, Math.min(displayValue, maxTick));
   const posPct = (displayClamped / maxTick) * 100;
+  // Compute the band index against the active bands array — never share
+  // indices between metric and US arrays, their thresholds differ.
+  const bandIndex = rainfallBandIndexFor(mm, units);
   // bandIndex === -1 means "no band lit" (precipitation below the first
   // band's threshold). All segments render at the dim opacity in that case.
   const activeBand = bandIndex >= 0 ? bands[bandIndex] : undefined;

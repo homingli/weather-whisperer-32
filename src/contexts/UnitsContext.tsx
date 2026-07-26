@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { STORAGE_KEYS } from '@/lib/constants';
+import type { Units } from '@/lib/units';
 
-export type Units = 'metric' | 'us';
+export type { Units };
 
 interface UnitsContextType {
   units: Units;
