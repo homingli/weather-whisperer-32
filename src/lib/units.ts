@@ -31,26 +31,10 @@ export function mmToInches(mm: number): number {
   return mm * 0.0393701;
 }
 
-/**
- * Convert a Celsius value to the display unit (integer). Returns the raw
- * numeric value — caller is responsible for appending the unit label.
- */
+/** Convert a Celsius value to the display unit (integer). */
 export function toDisplayTemperature(celsius: number, units: Units): number {
   if (units === 'us') return Math.round(celsiusToFahrenheit(celsius));
   return Math.round(celsius);
-}
-
-/** Same as `toDisplayTemperature` but for wind speed. */
-export function toDisplayWindSpeed(kmh: number, units: Units): number {
-  if (units === 'us') return Math.round(kmhToMph(kmh));
-  return Math.round(kmh);
-}
-
-/** Same as `toDisplayTemperature` but for precipitation. Not rounded so
- *  callers can choose precision (mm: 1 decimal, in: 2 decimal). */
-export function toDisplayPrecipitation(mm: number, units: Units): number {
-  if (units === 'us') return mmToInches(mm);
-  return mm;
 }
 
 /** Unit suffix string for temperature in the active unit. */
@@ -58,7 +42,7 @@ export function temperatureUnitLabel(units: Units): string {
   return units === 'us' ? '°F' : '°C';
 }
 
-/** Unit label for wind speed (matches existing LanguageContext keys for i18n). */
+/** Unit label for wind speed. */
 export function windSpeedUnitLabel(units: Units): string {
   return units === 'us' ? 'mph' : 'km/h';
 }
@@ -75,7 +59,8 @@ export function formatTemperature(celsius: number, units: Units): string {
 
 /** Format a wind speed in km/h for display. Integer mph in US mode, integer km/h in metric. */
 export function formatWindSpeed(kmh: number, units: Units): string {
-  return `${toDisplayWindSpeed(kmh, units)}`;
+  if (units === 'us') return `${Math.round(kmhToMph(kmh))}`;
+  return `${Math.round(kmh)}`;
 }
 
 /** Format a precipitation amount in mm for display.
@@ -85,4 +70,15 @@ export function formatPrecipitation(mm: number, units: Units): string {
     return mmToInches(mm).toFixed(2);
   }
   return mm.toFixed(1);
+}
+
+/**
+ * Format a Celsius value for the hero numeral — bare `°` suffix, no C/F
+ * letter. The unit context is shown on the range bar above and the menu
+ * selection; the editorial hero stays clean. Returns `—` when the value is
+ * below `SENTINEL_THRESHOLD` (signals "no data yet").
+ */
+export function formatHeroTemperature(celsius: number, units: Units, sentinelThreshold: number): string {
+  if (celsius < sentinelThreshold) return '—';
+  return `${toDisplayTemperature(celsius, units)}°`;
 }

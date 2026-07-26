@@ -6,12 +6,14 @@ import { SENTINEL_THRESHOLD } from "@/lib/constants";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, Thermometer, AlertTriangle } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
+import type { Units } from "@/lib/units";
 import {
   formatTemperature,
   formatWindSpeed,
   formatPrecipitation,
   mmToInches,
-  toDisplayTemperature,
+  formatHeroTemperature,
+  precipitationUnitLabel,
 } from "@/lib/units";
 import { formatInTimezone, appLocale } from "@/lib/utils";
 
@@ -31,8 +33,6 @@ interface CurrentWeatherProps {
   dailyForecast?: DailyForecast;
   locationName?: string;
   timezone?: string;
-  /** Force single-column mobile layout regardless of viewport width */
-  compact?: boolean;
 }
 
 /* ── UV index banding (WHO-aligned colors and exposure levels) ─────── */
@@ -76,7 +76,7 @@ const RAINFALL_BANDS_US: RainBand[] = [
   { max: Infinity,  color: "#9d0b0b", label: "> 1.2 in" },
 ];
 
-function rainfallBandIndexFor(mm: number, units: 'metric' | 'us'): number {
+function rainfallBandIndexFor(mm: number, units: Units): number {
   if (!isFinite(mm) || mm < 0) return -1;
   // Look up against the active bands array. In US mode, compare against inch
   // thresholds (after converting mm to inches); otherwise compare against
@@ -95,21 +95,12 @@ function rainfallBandIndexFor(mm: number, units: 'metric' | 'us'): number {
   return bands.length - 1;
 }
 
-export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone, compact = false }: CurrentWeatherProps) => {
+export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone }: CurrentWeatherProps) => {
   const { language, t } = useLanguage();
   const { units } = useUnits();
   const root = useRef<HTMLDivElement>(null);
 
   const isEmpty = weather.apparentTemperature < SENTINEL_THRESHOLD;
-
-  // Hero shows just "20°" — no C/F letter. The unit context is already visible
-  // on the range bar above (which uses the explicit °C / °F form), and the
-  // choice is shown in the menu. Keeping the hero numeral clean preserves
-  // the editorial typography.
-  const fmtTemp = (c: number) => {
-    if (c < SENTINEL_THRESHOLD) return '—';
-    return `${toDisplayTemperature(c, units)}°`;
-  };
 
   const needsUmbrella = useMemo(() => {
     const isCurrentlyRaining = (weather.precipitation ?? 0) > 2;
@@ -164,9 +155,9 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
   return (
     <div
       ref={root}
-      className={`editorial-card overflow-hidden ${compact ? 'p-6' : 'p-8 md:p-12 lg:p-14'}`}
+      className="editorial-card overflow-hidden p-6 sm:p-8 md:p-12 lg:p-14"
     >
-      <div className={`flex items-baseline justify-between gap-4 cw-fade ${compact ? '' : 'mb-6'}`}>
+      <div className="flex items-baseline justify-between gap-4 cw-fade mb-6">
         <span className="kicker text-muted-foreground">{t('header.dailyEdition')}</span>
       </div>
 
@@ -185,65 +176,38 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
       </div>
 
       {/* Feels-like kicker above the hero so the big number is read as apparent temperature. */}
-      <p className={`cw-fade kicker text-muted-foreground mb-2 ${compact ? 'text-center' : 'md:text-left'}`}>
+      <p className="cw-fade kicker text-muted-foreground mb-2 text-center md:text-left">
         {t('weather.feelsLike')}
       </p>
 
-      {/* Hero — desktop 2-col (temp | icon+conditions), mobile side-by-side icon+temp */}
-      {compact ? (
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-center gap-6">
+      {/* Hero — responsive: stacked on mobile (icon over temp), 2-col on md+ (temp | icon+conditions) */}
+      <header className="grid gap-10 md:grid-cols-[1fr_auto] md:items-end">
+        <div className="overflow-hidden">
+          <h1 className="cw-rise block font-display text-[22vw] md:text-[160px] leading-[0.85] font-light tracking-[-0.04em]">
+            {formatHeroTemperature(weather.apparentTemperature, units, SENTINEL_THRESHOLD)}
+          </h1>
+        </div>
+        <div className="cw-fade flex flex-col items-center gap-3 max-w-xs md:items-start">
+          <span
+            className="inline-flex items-center justify-center text-foreground leading-none select-none"
+            role="img"
+            aria-label={t(weatherDescriptionKey(weather.weatherCode))}
+          >
             {(() => {
               const Icon = getWeatherIconNode(weather.weatherCode, weather.isDay);
-              return (
-                <span
-                  className="inline-flex items-center justify-center text-[88px] sm:text-[110px] leading-none select-none text-foreground"
-                  role="img"
-                  aria-label={t(weatherDescriptionKey(weather.weatherCode))}
-                >
-                  <Icon className="h-[88px] w-[88px] sm:h-[110px] sm:w-[110px]" strokeWidth={1.25} />
-                </span>
-              );
+              return <Icon className="h-[88px] w-[88px] md:h-20 md:w-20" strokeWidth={1.25} />;
             })()}
-            <div className="overflow-hidden">
-              <h1 className="cw-rise block font-display text-[22vw] leading-[0.85] font-light tracking-[-0.04em]">
-                {fmtTemp(weather.apparentTemperature)}
-              </h1>
-            </div>
-          </div>
-          <p className="cw-fade text-center font-display italic text-xl text-muted-foreground">
+          </span>
+          <p className="font-display text-xl md:text-3xl italic font-light leading-tight text-center md:text-left">
             {t(weatherDescriptionKey(weather.weatherCode))}
           </p>
         </div>
-      ) : (
-        <header className="grid gap-10 md:grid-cols-[1fr_auto] md:items-end">
-          <div className="overflow-hidden">
-            <h1 className="cw-rise block font-display text-[14vw] md:text-[160px] leading-[0.85] font-light tracking-[-0.04em]">
-              {fmtTemp(weather.apparentTemperature)}
-            </h1>
-          </div>
-          <div className="cw-fade flex flex-col gap-3 max-w-xs">
-            <span
-              className="inline-flex items-center justify-center text-foreground leading-none select-none"
-              role="img"
-              aria-label={t(weatherDescriptionKey(weather.weatherCode))}
-            >
-              {(() => {
-                const Icon = getWeatherIconNode(weather.weatherCode, weather.isDay);
-                return <Icon className="h-16 w-16 md:h-20 md:w-20" strokeWidth={1.25} />;
-              })()}
-            </span>
-            <p className="font-display text-2xl md:text-3xl italic font-light leading-tight">
-              {t(weatherDescriptionKey(weather.weatherCode))}
-            </p>
-          </div>
-        </header>
-      )}
+      </header>
 
       <div className="cw-rule h-px editorial-rule my-8" />
 
       {/* Mid section — umbrella + sunrise/sunset */}
-      <div className={`grid gap-x-10 gap-y-6 cw-fade ${compact ? 'grid-cols-2' : 'md:grid-cols-2'}`}>
+      <div className="grid grid-cols-2 md:grid-cols-2 gap-x-10 gap-y-6 cw-fade">
         <FactBlock
           icon={needsUmbrella ? Umbrella : UmbrellaOff}
           label={t('umbrella.label')}
@@ -262,7 +226,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
       <div className="cw-rule h-px editorial-rule my-8" />
 
       {/* Bottom section — creative visualizations */}
-      <div className={`grid gap-x-10 gap-y-8 cw-fade ${compact ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8 cw-fade">
         <PrecipBar
           mm={weather.precipitation ?? 0}
           empty={isEmpty}
@@ -317,7 +281,7 @@ function FactBlock({ icon: Icon, label, value, rotation, iconClass, valueTone }:
 /* ── Temperature range bar: low ── current ── high ──────────────────── */
 function RangeBar({
   low, high, current, label, empty, units,
-}: { low?: number; high?: number; current: number; label: string; empty: boolean; units: 'metric' | 'us' }) {
+}: { low?: number; high?: number; current: number; label: string; empty: boolean; units: Units }) {
   const lo = low ?? current;
   const hi = high ?? current;
   const range = Math.max(hi - lo, 0.1);
@@ -509,7 +473,7 @@ function HumidityBar({ pct, label, empty }: { pct: number; label: string; empty:
  */
 function WindCompass({
   deg, speed, label, empty, unitLabel, units,
-}: { deg: number; speed: number; label: string; empty: boolean; unitLabel: string; units: 'metric' | 'us' }) {
+}: { deg: number; speed: number; label: string; empty: boolean; unitLabel: string; units: Units }) {
   const towardDeg = ((deg ?? 0) + 180) % 360;
   return (
     <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -615,7 +579,7 @@ function UvChip({
 /* ── Precipitation: rainfall nowcast color bar with mm marker ──────── */
 function PrecipBar({
   mm, empty, units,
-}: { mm: number; empty: boolean; units: 'metric' | 'us' }) {
+}: { mm: number; empty: boolean; units: Units }) {
   const { t } = useLanguage();
   // US mode uses inch labels/positions and an inch-equivalent max tick.
   const bands = units === 'us' ? RAINFALL_BANDS_US : RAINFALL_BANDS;
@@ -629,7 +593,7 @@ function PrecipBar({
   // bandIndex === -1 means "no band lit" (precipitation below the first
   // band's threshold). All segments render at the dim opacity in that case.
   const activeBand = bandIndex >= 0 ? bands[bandIndex] : undefined;
-  const unitLabel = units === 'us' ? t('unit.in', 'in') : 'mm';
+  const unitLabel = precipitationUnitLabel(units);
   const belowLabel = units === 'us' ? 'below 0.02 in' : 'below 0.5 mm';
 
   return (
