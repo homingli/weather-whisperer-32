@@ -184,7 +184,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
         })}
       </div>
 
-      <div className="df-chart flex-1 min-h-0 w-full min-w-0" aria-label={t('daily.chartLabel')} role="img">
+      <div className="df-chart flex-1 min-h-0 w-full min-w-0 touch-pan-y" aria-label={t('daily.chartLabel')} role="img">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}

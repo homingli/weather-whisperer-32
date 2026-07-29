@@ -153,7 +153,7 @@ const Index = () => {
         isMobile ? '' : ' max-w-2xl lg:max-w-5xl xl:max-w-7xl'
       }`}>
         {/* Top bar: row 1 = [date time]; row 2 = [location]; right column spans both */}
-        <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 mb-4 shrink-0">
+        <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 mb-3 shrink-0">
           <div className="flex items-center">
             {weather?.timezone && (
               <LocalClock timezone={weather.timezone} />
@@ -264,11 +264,11 @@ const Index = () => {
                 <div className="flex flex-col flex-1 min-h-0 mt-3 animate-fade-in">
                   <Swiper
                     modules={[Pagination]}
-                    pagination={{ clickable: true }}
+                    pagination={{ el: '#swiper-mobile-deck-pagination', clickable: true }}
                     spaceBetween={16}
                     slidesPerView={1}
                     className="swiper-mobile-deck"
-                    threshold={10}
+                    threshold={30}
                     noSwipingClass="no-swipe"
                   >
                     {/* Slide 1: Current weather */}
@@ -307,8 +307,11 @@ const Index = () => {
                     )}
                   </Swiper>
 
-                  {/* Swipe hint — arrows flank the swiper dots to form one pagination indicator */}
-                  <div className="flex items-center justify-center gap-3 py-2 text-muted-foreground/50 shrink-0">
+                  {/* Swipe hint + pagination — bullets render here (outside the swiper
+                      so they don't overlap the rainfall band's legend). CSS overrides
+                      in src/index.css neutralize swiper's default absolute positioning
+                      so the dots flow inline with the chevrons. */}
+                  <div id="swiper-mobile-deck-pagination" className="flex items-center justify-center gap-3 py-2 text-muted-foreground/50 shrink-0">
                     <ChevronLeft className="h-3 w-3" />
                     <ChevronRight className="h-3 w-3" />
                   </div>
