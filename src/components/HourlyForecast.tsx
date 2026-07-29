@@ -183,7 +183,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
 
       <div className="hf-rule h-px editorial-rule mt-3 mb-4" />
 
-      <div className="hf-chart flex-1 w-full min-h-0" aria-label={t('hourly.chartLabel')} role="img">
+      <div className="hf-chart flex-1 w-full min-h-0 touch-pan-y" aria-label={t('hourly.chartLabel')} role="img">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 10 }}>
             {/* Day/night background areas */}
