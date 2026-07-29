@@ -235,18 +235,25 @@
   height: 100% !important;
 }
 
-.swiper-mobile-deck .swiper-pagination {
-  position: absolute;
-  bottom: 0.5rem;
-  left: 0;
-  right: 0;
+/* Pagination renders OUTSIDE the swiper (into #swiper-mobile-deck-pagination
+   in src/pages/Index.tsx). Neutralize swiper's default absolute positioning
+   so bullets flow inline with the chevron hint instead of overlapping card
+   content (e.g. the rainfall band's legend at the bottom of the map). */
+#swiper-mobile-deck-pagination.swiper-pagination {
+  position: static !important;
+  width: auto !important;
+  display: inline-flex;
+  gap: 0.25rem;
+  background: transparent;
 }
 
-.swiper-mobile-deck .swiper-pagination-bullet {
+#swiper-mobile-deck-pagination .swiper-pagination-bullet {
+  margin: 0 !important;
+  opacity: 1;
   background-color: hsl(var(--foreground) / 0.35);
 }
 
-.swiper-mobile-deck .swiper-pagination-bullet-active {
+#swiper-mobile-deck-pagination .swiper-pagination-bullet-active {
   background-color: hsl(var(--foreground));
 }
 

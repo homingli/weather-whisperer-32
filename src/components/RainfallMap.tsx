@@ -47,16 +47,9 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
 
   return (
     <div className="glass-card overflow-hidden">
-      <div className="px-6 py-4 border-b border-border/50 flex flex-wrap justify-between items-center gap-4">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <CloudRain className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-semibold">{t('nowcast.title')}</h2>
-          </div>
-          <span className="text-xs text-muted-foreground">
-            {t('nowcast.subtitle')}
-          </span>
-        </div>
+      <div className="px-6 py-4 border-b border-border/50 flex items-baseline justify-between gap-4">
+        <h2 className="kicker text-muted-foreground font-display text-base">{t('nowcast.title')}</h2>
+        <span className="kicker text-muted-foreground/60">STAY OR GO</span>
       </div>
 
       <div
