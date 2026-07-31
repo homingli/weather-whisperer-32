@@ -3,6 +3,8 @@ import { render, screen, act } from '@testing-library/react';
 import { WeatherAlerts } from './WeatherAlerts';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import type { HKOWarning } from '@/lib/hko-types';
+import warnsumEn from '@/lib/__fixtures__/hko-warnsum-2026-07-31-en.json';
+import warnsumTc from '@/lib/__fixtures__/hko-warnsum-2026-07-31-tc.json';
 
 const warning = (overrides: Partial<HKOWarning> = {}): HKOWarning => ({
   name: 'Typhoon Signal No. 8',
@@ -43,6 +45,50 @@ describe('WeatherAlerts', () => {
         ]}
       />,
     );
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+  });
+
+  it('filters out CANCEL warnings (uppercase — what live HKO actually returns)', () => {
+    // Regression: prior to fix/mobile-responsive-design, the filter compared
+    // against mixed-case 'Cancel' but live HKO returns uppercase 'CANCEL',
+    // so a cancelled amber rainstorm stayed visible in production. Both
+    // casings must now be filtered.
+    renderWithLanguage(
+      <WeatherAlerts
+        warnings={[
+          warning({ code: 'WRAINA', name: 'Amber Rainstorm (Cancelled)', actionCode: 'CANCEL' }),
+          warning({ code: 'WTS', name: 'Thunderstorm Warning', actionCode: 'EXTEND' }),
+        ]}
+      />,
+    );
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /Thunderstorm/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Amber Rainstorm/i })).toBeNull();
+  });
+
+  it('filters the cancelled amber rainstorm from the live 2026-07-31 EN fixture', () => {
+    // Locks the regression against the exact JSON shape HKO returns. The live
+    // feed uses uppercase 'CANCEL' for the warning that triggered the bug;
+    // only the active 'EXTEND' thunderstorm warning should render.
+    // Fixture: src/lib/__fixtures__/hko-warnsum-2026-07-31-en.json
+    const liveWarnings = Object.values(warnsumEn) as HKOWarning[];
+    expect(liveWarnings.map(w => w.actionCode)).toContain('CANCEL');
+
+    renderWithLanguage(<WeatherAlerts warnings={liveWarnings} />);
+
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /Thunderstorm/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Rainstorm/i })).toBeNull();
+  });
+
+  it('filters the cancelled amber rainstorm from the live 2026-07-31 TC fixture', () => {
+    // Same shape, Traditional Chinese names. actionCode case is identical
+    // across languages (per fixture inspection 2026-07-31).
+    const liveWarnings = Object.values(warnsumTc) as HKOWarning[];
+    expect(liveWarnings.map(w => w.actionCode)).toContain('CANCEL');
+
+    renderWithLanguage(<WeatherAlerts warnings={liveWarnings} />);
+
     expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 

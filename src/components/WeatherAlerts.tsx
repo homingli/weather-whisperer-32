@@ -45,14 +45,18 @@ export const WeatherAlerts = memo(function WeatherAlerts({
   const locale = language === 'tc' ? zhTW : undefined;
 
   // Filter out cancelled warnings and sort by issue time (most recent first).
-  // Cancellation is detected via actionCode === 'Cancel' — the canonical HKO
-  // signal (see HKO warnsum schema). A previous detail-text regex
+  // Cancellation is detected via actionCode === 'CANCEL' (uppercase — what the
+  // HKO warnsum feed actually returns). The previous mixed-case 'Cancel'
+  // comparison silently failed against live data, so a CANCELLED amber
+  // rainstorm warning stayed visible in production (regression prior to
+  // fix/mobile-responsive-design). Compared with .toUpperCase() so the check
+  // survives any case drift in the API. A previous detail-text regex
   // (`/cancelled|取消/i`) was removed because the TC3 bulletin's precautionary
   // text contains "outdoor activities be cancelled" / "取消所有戶外活動",
   // which falsely hid the active warning.
   const activeWarnings = useMemo(() => {
     return (warnings || [])
-      .filter((w): w is HKOWarning => w.actionCode !== 'Cancel')
+      .filter((w): w is HKOWarning => w.actionCode?.toUpperCase() !== 'CANCEL')
       .sort((a, b) => new Date(b.issueTime).getTime() - new Date(a.issueTime).getTime());
   }, [warnings]);
 
@@ -106,10 +110,12 @@ export const WeatherAlerts = memo(function WeatherAlerts({
               key={warning.code}
               onClick={() => setSelectedWarning(warning)}
               className={cn(
-                /* Mobile: 40×40px buttons with 24px icons so two warnings + settings
-                   fit in the header row on a 360px viewport. Desktop reverts to 48×48
-                   with 32px icons for touch comfort. */
-                'min-h-[2.5rem] w-10 sm:min-h-[3rem] sm:w-12 flex items-center justify-center rounded-md transition-colors hover:bg-red-500/10',
+                /* WCAG 2.5.5 Level AAA: 44×44 CSS pixel tap target. Mobile 44×44
+                   (w-11 h-11) with 28px icons (w-7 h-7) keeps the header row
+                   compact on 360px viewports while meeting AAA. Desktop sm+
+                   reverts to 48×48 with 32px icons for visual breathing room
+                   (also AAA). */
+                'min-h-[2.75rem] w-11 h-11 sm:min-h-[3rem] sm:w-12 sm:h-12 flex items-center justify-center rounded-md transition-colors hover:bg-red-500/10',
                 shouldPulse && 'animate-warning-pulse',
               )}
               title={t(`warnings.${warning.code}`, warning.name)}
@@ -118,7 +124,7 @@ export const WeatherAlerts = memo(function WeatherAlerts({
               <img
                 src={getWarningIcon(warning.code)}
                 alt={warning.name}
-                className="object-contain w-6 h-6 sm:w-8 sm:h-8 drop-shadow-sm"
+                className="object-contain w-7 h-7 sm:w-8 sm:h-8 drop-shadow-sm"
               />
             </button>
           );

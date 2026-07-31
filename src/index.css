@@ -145,14 +145,12 @@
     height: 100% !important;
   }
 
-  /* Horizontal-scroll safety net: prevents a single off-grid element (e.g.
-     a wide hero number, an oversized SVG icon, a recharts container that
-     ignores its slide width) from pushing the body wider than the viewport
-     and creating phantom horizontal scroll on narrow phones. Vertical scroll
-     is unaffected. */
-  html, body {
-    overflow-x: clip;
-  }
+  /* Horizontal-scroll safety net is scoped to the mobile swiper below
+     (.swiper-mobile-deck + .editorial-card inside it) so the safety net only
+     bites where an off-grid slide child can actually escape — a single
+     element in the page body no longer gets its overflow clipped globally,
+     which was over-broad (clipping legitimately wide layout elements and
+     any future horizontal carousel). */
 
   * {
     @apply border-border;

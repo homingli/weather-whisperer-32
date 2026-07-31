@@ -7,25 +7,61 @@ interface LocalClockProps {
   timezone?: string;
 }
 
+/** Match the Tailwind `sm:` breakpoint — below this width the clock drops
+ *  seconds from the display, so the polling interval can drop to 60s. */
+const NARROW_VIEWPORT_QUERY = '(max-width: 639px)';
+
 /**
- * LocalClock — owns the per-second state for the date/time display.
+ * LocalClock — owns the per-tick state for the date/time display.
  *
  * Extracted from CurrentWeather so the rest of the card stays referentially stable
  * (useMemo, Intl.DateTimeFormat instances via the shared cache) while only this
  * small subtree re-renders each tick.
  *
- * The displayed time format includes seconds, so a 1-second interval is justified.
- * TODO: if the format ever drops to minute precision, switch to setInterval(..., 60_000)
- *       and drop the seconds from the formatter options.
+ * The polling interval tracks the displayed precision:
+ *   - wide viewport (>= sm): seconds shown → 1s interval (justified).
+ *   - narrow viewport (< sm): seconds hidden  → 60s interval (60× fewer re-renders
+ *     when the user only sees minutes). The interval re-binds on viewport changes.
  */
 export const LocalClock = memo(({ timezone }: LocalClockProps) => {
   const { language } = useLanguage();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [isNarrow, setIsNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(NARROW_VIEWPORT_QUERY).matches,
+  );
+
+  // Re-render the tick interval when viewport crosses the sm breakpoint.
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW_VIEWPORT_QUERY);
+    const handler = (e: MediaQueryListEvent) => setIsNarrow(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    const periodMs = isNarrow ? 60_000 : 1_000;
+    // Align the first tick to the next minute boundary on narrow viewports so
+    // the displayed minute flips exactly when the wall clock does, not 0–59s
+    // after a viewport resize.
+    const initialDelay = isNarrow
+      ? Math.max(0, 60_000 - (Date.now() % 60_000))
+      : 0;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+    if (initialDelay > 0) {
+      setCurrentTime(new Date());
+      timeoutId = setTimeout(() => {
+        setCurrentTime(new Date());
+        intervalId = setInterval(() => setCurrentTime(new Date()), periodMs);
+      }, initialDelay);
+    } else {
+      intervalId = setInterval(() => setCurrentTime(new Date()), periodMs);
+    }
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isNarrow]);
 
   const locale = appLocale(language);
   const hour12 = language !== 'tc';
@@ -83,9 +119,10 @@ export const LocalClock = memo(({ timezone }: LocalClockProps) => {
       </span>
       <span aria-hidden className="text-xs sm:text-sm text-muted-foreground/60">|</span>
       <span className="text-xs sm:text-sm uppercase tracking-[0.14em] sm:tracking-[0.18em] text-foreground tabular-nums">
-        {/* Drop seconds on narrow viewports to keep the row compact. */}
-        <span className="hidden sm:inline">{timeText}</span>
-        <span className="sm:hidden">{shortTimeText}</span>
+        {/* Drop seconds on narrow viewports to keep the row compact. The
+            timer interval is also dropped to 60s in that case (see useEffect
+            above) so we don't burn re-renders on a value the user can't see. */}
+        {isNarrow ? shortTimeText : timeText}
       </span>
     </div>
   );

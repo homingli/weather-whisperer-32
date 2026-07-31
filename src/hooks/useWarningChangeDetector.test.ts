@@ -34,6 +34,18 @@ describe('diffWarnings (pure)', () => {
     expect(result.next.codes.size).toBe(0);
   });
 
+  it('treats CANCEL actionCode (uppercase — live HKO) as not-active', () => {
+    // Regression coverage: HKO returns uppercase 'CANCEL'. Mixed-case 'Cancel'
+    // comparison silently failed against live data, so a cancelled amber
+    // rainstorm warning was treated as active and produced no diff when it
+    // should have been 'removed'.
+    const prev = { codes: new Set<string>(['WRAINA']), byCode: new Map<string, HKOWarning>() };
+    prev.byCode.set('WRAINA', makeWarning({ code: 'WRAINA', actionCode: 'Issue' }));
+    const result = diffWarnings(prev, [makeWarning({ code: 'WRAINA', actionCode: 'CANCEL' })]);
+    expect(result.next.codes.has('WRAINA')).toBe(false);
+    expect(result.diff.removed.map(w => w.code)).toEqual(['WRAINA']);
+  });
+
   it('detects newly added active warning', () => {
     const prev = { codes: new Set<string>(), byCode: new Map<string, HKOWarning>() };
     const result = diffWarnings(prev, [makeWarning({ code: 'TC8', name: 'Typhoon 8' })]);
