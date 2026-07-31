@@ -158,7 +158,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
   return (
     <div
       ref={root}
-      className={`editorial-card overflow-hidden ${compact ? 'p-6' : 'p-8 md:p-12 lg:p-14'}`}
+      className={`editorial-card min-h-0 ${compact ? 'overflow-x-hidden overflow-y-auto p-6 overscroll-contain' : 'overflow-hidden p-8 md:p-12 lg:p-14'}`}
     >
       <div className={`flex items-baseline justify-between gap-4 cw-fade ${compact ? '' : 'mb-6'}`}>
         <span className="kicker text-muted-foreground">{t('header.dailyEdition')}</span>
@@ -200,8 +200,12 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
                 </span>
               );
             })()}
-            <div className="overflow-hidden">
-              <h1 className="cw-rise block font-display text-[22vw] leading-[0.85] font-light tracking-[-0.04em]">
+            <div className="overflow-hidden min-w-0">
+              {/* Clamp(72px, 22vw, 140px) — the previous uncapped `text-[22vw]`
+                  scaled to ~169px on a 768px tablet and clipped the right edge
+                  of the card. 140px is the largest size that still fits the
+                  icon + numerals side-by-side in the available card width. */}
+              <h1 className="cw-rise block font-display text-[clamp(72px,22vw,140px)] leading-[0.85] font-light tracking-[-0.04em]">
                 {formatHeroTemperature(weather.apparentTemperature, units, SENTINEL_THRESHOLD)}
               </h1>
             </div>
@@ -212,8 +216,8 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
         </div>
       ) : (
         <header className="grid gap-10 md:grid-cols-[1fr_auto] md:items-end">
-          <div className="overflow-hidden">
-            <h1 className="cw-rise block font-display text-[14vw] md:text-[160px] leading-[0.85] font-light tracking-[-0.04em]">
+          <div className="overflow-hidden min-w-0">
+            <h1 className="cw-rise block font-display text-[clamp(80px,14vw,160px)] leading-[0.85] font-light tracking-[-0.04em]">
               {formatHeroTemperature(weather.apparentTemperature, units, SENTINEL_THRESHOLD)}
             </h1>
           </div>

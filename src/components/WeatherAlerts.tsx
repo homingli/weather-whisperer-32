@@ -106,7 +106,10 @@ export const WeatherAlerts = memo(function WeatherAlerts({
               key={warning.code}
               onClick={() => setSelectedWarning(warning)}
               className={cn(
-                'min-h-[3rem] w-12 flex items-center justify-center rounded-md transition-colors hover:bg-red-500/10',
+                /* Mobile: 40×40px buttons with 24px icons so two warnings + settings
+                   fit in the header row on a 360px viewport. Desktop reverts to 48×48
+                   with 32px icons for touch comfort. */
+                'min-h-[2.5rem] w-10 sm:min-h-[3rem] sm:w-12 flex items-center justify-center rounded-md transition-colors hover:bg-red-500/10',
                 shouldPulse && 'animate-warning-pulse',
               )}
               title={t(`warnings.${warning.code}`, warning.name)}
@@ -115,7 +118,7 @@ export const WeatherAlerts = memo(function WeatherAlerts({
               <img
                 src={getWarningIcon(warning.code)}
                 alt={warning.name}
-                className="object-contain w-8 h-8 drop-shadow-sm"
+                className="object-contain w-6 h-6 sm:w-8 sm:h-8 drop-shadow-sm"
               />
             </button>
           );

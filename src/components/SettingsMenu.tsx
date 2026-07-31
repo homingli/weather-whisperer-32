@@ -193,8 +193,8 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-full min-h-[3.5rem] w-14 text-muted-foreground hover:text-foreground">
-            <Menu className="h-7 w-7" />
+          <Button variant="ghost" size="icon" className="h-full min-h-[2.5rem] sm:min-h-[3.5rem] w-12 sm:w-14 text-muted-foreground hover:text-foreground">
+            <Menu className="h-6 w-6 sm:h-7 sm:w-7" />
             <span className="sr-only">Settings</span>
           </Button>
         </DropdownMenuTrigger>

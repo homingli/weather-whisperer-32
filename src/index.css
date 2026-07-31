@@ -145,6 +145,15 @@
     height: 100% !important;
   }
 
+  /* Horizontal-scroll safety net: prevents a single off-grid element (e.g.
+     a wide hero number, an oversized SVG icon, a recharts container that
+     ignores its slide width) from pushing the body wider than the viewport
+     and creating phantom horizontal scroll on narrow phones. Vertical scroll
+     is unaffected. */
+  html, body {
+    overflow-x: clip;
+  }
+
   * {
     @apply border-border;
   }
@@ -220,9 +229,33 @@
 .swiper-mobile-deck .editorial-card,
 .swiper-mobile-deck .glass-card {
   height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  /* Allow vertical scroll when content exceeds the slide (e.g. tiny phone
+     viewports where the precipitation + UV + humidity stack can't fit
+     alongside the hero numerals). Keep overflow-x:hidden so the rotated
+     diamond marker on the temperature gradient stays clipped to the bar. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom scrollbar inside editorial-card so the cream scrollbar doesn't
+   visually clash with the cream card background. */
+.swiper-mobile-deck .editorial-card::-webkit-scrollbar,
+.swiper-mobile-deck .glass-card::-webkit-scrollbar {
+  width: 6px;
+}
+.swiper-mobile-deck .editorial-card::-webkit-scrollbar-thumb,
+.swiper-mobile-deck .glass-card::-webkit-scrollbar-thumb {
+  background: hsl(var(--foreground) / 0.18);
+  border-radius: 3px;
+}
+.swiper-mobile-deck .editorial-card::-webkit-scrollbar-thumb:hover,
+.swiper-mobile-deck .glass-card::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--foreground) / 0.3);
 }
 
 /* RainfallMap: let the map area stretch to fill remaining card height */
