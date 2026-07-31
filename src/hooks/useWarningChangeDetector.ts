@@ -9,7 +9,8 @@ export interface WarningDiff {
 /**
  * Pure diff: returns the warnings that became active (added) or stopped being
  * active (removed) when moving from `prev` to `current`. Warnings with
- * `actionCode === 'Cancel'` are treated as not-active.
+ * `actionCode === 'CANCEL'` (uppercase — what the HKO warnsum feed actually
+ * returns, compared case-insensitively) are treated as not-active.
  */
 export function diffWarnings(
   prev: { codes: Set<string>; byCode: Map<string, HKOWarning> } | null,
@@ -19,7 +20,7 @@ export function diffWarnings(
     return { next: { codes: new Set(), byCode: new Map() }, diff: { added: [], removed: [] } };
   }
 
-  const active = current.filter(w => w.actionCode !== 'Cancel');
+  const active = current.filter(w => w.actionCode?.toUpperCase() !== 'CANCEL');
   const codes = new Set(active.map(w => w.code));
   const byCode = new Map(active.map(w => [w.code, w] as const));
 

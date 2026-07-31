@@ -42,7 +42,7 @@ A modern, responsive weather application built with React and TypeScript. Featur
 - **Charts**: Recharts 2
 - **Date Handling**: date-fns 3
 - **PWA**: vite-plugin-pwa with workbox `NetworkFirst`
-- **Testing**: Vitest 2 with Testing Library + jsdom (156 tests, 15 files)
+- **Testing**: Vitest 2 with Testing Library + jsdom (260 tests, 22 files)
 
 ## Project Structure
 
@@ -57,7 +57,7 @@ src/
 │   ├── DailyForecast.tsx      # 7-day forecast with min/max bounds
 │   ├── RainfallMap.tsx        # Leaflet map + HKO gridded nowcast, GeoJSON layers
 │   ├── FetchingStatus.tsx     # Per-source loading screen (Open-Meteo + HKO status badges)
-│   ├── LocalClock.tsx         # Per-second local time display (extracted for perf)
+│   ├── LocalClock.tsx         # Adaptive-interval clock: 1s when seconds shown (>= sm), 60s when dropped (< sm)
 │   ├── StatusBadge.tsx        # Pill-shaped status indicator (fetching/success/error/waiting)
 │   ├── WeatherBanners.tsx     # Warning banners for fallback mode and HKO failures
 │   ├── SettingsMenu.tsx       # Language, theme, location, manual refresh
@@ -97,10 +97,11 @@ src/
 ├── test/              # Vitest setup + integration suite
 │   ├── setup.ts
 │   └── Integration.test.tsx
-├── components/*.test.tsx        # Component unit tests (5 files, 24 tests)
-├── lib/*.test.ts                # API/parsing unit tests (4 files, 84 tests)
-├── contexts/*.test.tsx          # Context tests (2 files, 17 tests)
-├── hooks/*.test.ts              # Hook tests (1 file, 17 tests)
+├── lib/__fixtures__/          # Live HKO warnsum snapshots for regression tests (README inside)
+├── components/*.test.tsx        # Component unit tests (11 files)
+├── lib/*.test.ts                # API/parsing unit tests (8 files)
+├── contexts/*.test.tsx          # Context tests (3 files)
+├── hooks/*.test.ts              # Hook tests (1 file)
 ├── App.tsx             # Providers, router, error boundary
 └── main.tsx            # Application entry point
 ```
@@ -200,7 +201,7 @@ Real-time weather warnings rendered as compact icons in the top bar; clicking op
 - Special weather advisories (Hot Weather, Cold Weather, Frost, etc.)
 - Tsunami and landslip warnings
 - 20 locally-hosted animated warning GIFs (no CDN dependencies)
-- Cancelled warnings are filtered via `actionCode` + detail-text check
+- Cancelled warnings are filtered via `actionCode.toUpperCase() !== 'CANCEL'` (case-insensitive — HKO returns uppercase `CANCEL`). Locked against live fixture in `src/lib/__fixtures__/`
 
 ### Gridded Rainfall Nowcast
 - HKO gridded rainfall data visualized on an interactive Leaflet map
@@ -246,7 +247,7 @@ All icon assets (Leaflet markers, 20 HKO warning GIFs) are locally hosted under 
 - Production-optimized build with Vite
 - Preconnect/dns-prefetch hints for external APIs and basemap tiles
 - Shared `Intl.DateTimeFormat` cache (`src/lib/utils.ts`) avoids per-render formatter construction
-- `LocalClock` isolates the per-second tick so the rest of the current-weather card stays referentially stable
+- `LocalClock` isolates the per-tick re-render so the rest of the current-weather card stays referentially stable; the tick interval itself adapts to the displayed precision (1s when seconds are visible on `sm+`, 60s when they're dropped below `sm` — re-binds on viewport changes via `matchMedia`)
 - All diagnostic logging is gated behind `import.meta.env.PROD` (no-op in production builds)
 
 ## Accessibility

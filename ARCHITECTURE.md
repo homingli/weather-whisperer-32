@@ -141,7 +141,7 @@ Weather Whisperer is a modern, responsive weather dashboard built with React and
   - `DailyForecast.tsx`: 7-day forecast with min/max bounds
   - `RainfallMap.tsx`: Interactive Leaflet map visualizing HKO's gridded rainfall nowcast for HK + Pearl River Delta (Guangdong, China). Time-slider controls are rendered **above** the map so users see the active timestep before viewing the visualization. Data-driven viewport fit. Renders `GeoJSON` layers per color bucket via `polygonStyle()` (RGBA fill + stroke).
   - `SettingsMenu.tsx`: Global settings controls (Language, Theme, Location, manual refresh)
-  - `WeatherAlerts.tsx`: HKO warning icons in the top bar; clicking opens modal with full alert details
+  - `WeatherAlerts.tsx`: HKO warning icons in the top bar; tapping opens a modal with the full safety text. Tap targets are **44×44 CSS px on mobile (WCAG 2.5.5 AAA)** with 28px icons, and 48×48 with 32px icons on `sm+`. Cancellation filter is case-insensitive on `actionCode` against `"CANCEL"` — HKO returns uppercase; a previous mixed-case compare silently let a cancelled amber rainstorm stay visible until 2026-07-31.
 - `src/contexts/`: Global application state
   - `LanguageContext.tsx`: Manages i18n between English and Traditional Chinese (HK)
   - `ThemeContext.tsx`: Manages active theme (Light, Dark, and Sun-synced Auto)
@@ -347,19 +347,29 @@ Timeouts throw → trigger React Query retry. No `Cache-Control` headers set or 
 `weather-last-known-v1` is the new persistence layer. It is read synchronously on mount, cleared on city switch, and overwritten on every successful `fetchWeather` call. The envelope's `cityId` (rounded to 2 decimal places of lat/lon) prevents cross-city paint. Schema version mismatch or parse error causes a silent drop rather than a crash.
 
 ## Testing Strategy
-The project uses **Vitest** with jsdom. Coverage is split across layers (**133 tests**, 12 files):
-- **Unit tests**:
-  - `src/lib/weather.test.ts` — Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
-  - `src/lib/hko-weather.test.ts` — 47 tests covering PSR normalization/percentage/umbrella, PSR translation, station/district lookup, bounds checks, HKO icon mapping, and warning display helpers.
-  - `src/lib/weather-manager.test.ts` — 13 tests covering all `fetchWeather` orchestration branches: HK/non-HK routing, parallel fetch + merge, HKO fallback, both-fail, progress callbacks, `lang` propagation.
-  - `src/lib/devWarningSimulator.test.ts` — 12 tests covering simulated warnings CRUD, baseline nonce bumping, and dev-only environment isolation.
-- **Component tests**:
-  - `src/components/CurrentWeather.test.tsx` — render with fixture data, umbrella indicator, sun event display.
-  - `src/components/HourlyForecast.test.tsx` — 6 tests: empty forecast, chartData shape validation (via mock capture), day/night `ReferenceArea` bands, sun-event `ReferenceLine` label capture, timezone propagation. Recharts is mocked because jsdom lacks ResizeObserver.
-  - `src/components/RainfallMap.test.tsx` — 3 tests: CSV fetch + bucket color assertions (RGBA stroke/fill), timeline-step transition (`fireEvent.click`), fetch error handling. `vi.stubGlobal('fetch')` with `vi.unstubAllGlobals()` in `beforeEach`.
-  - `src/components/WeatherAlerts.test.tsx` — 10 tests: HKO warning rendering, modal open/close, warning detail display, cancelled warning filtering, TC/rainstorm signal icons.
+The project uses **Vitest** with jsdom. Coverage is split across layers (**260 tests**, 22 files):
+- **Unit tests** (lib/):
+  - `src/lib/weather.test.ts` (2) — Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
+  - `src/lib/hko-weather.test.ts` (47) — PSR normalization/percentage/umbrella, PSR translation, station/district lookup, bounds checks, HKO icon mapping, warning display helpers.
+  - `src/lib/weather-manager.test.ts` (14) — all `fetchWeather` orchestration branches: HK/non-HK routing, parallel fetch + merge, HKO fallback, both-fail, progress callbacks, `lang` propagation.
+  - `src/lib/devWarningSimulator.test.ts` (14) — simulated warnings CRUD, baseline nonce bumping, dev-only environment isolation.
+  - `src/lib/units.test.ts` (29), `src/lib/rainfallGrid.test.ts` (8), `src/lib/nowcastCache.test.ts` (20), `src/lib/weather/storage.test.ts` (12).
+  - `src/lib/__fixtures__/` — live HKO `warnsum` response snapshots (EN + TC, captured 2026-07-31). Used by `WeatherAlerts.test.tsx` to lock the uppercase `CANCEL` regression against the real API shape.
+- **Hook tests** (hooks/):
+  - `src/hooks/useWarningChangeDetector.test.ts` (18) — diff semantics, baseline reset on `resetKey`, case-insensitive `CANCEL` filtering, `Reissue` no-diff.
+- **Context tests** (contexts/):
+  - `src/contexts/LanguageContext.test.tsx` (12), `src/contexts/ThemeContext.test.tsx` (8), `src/contexts/UnitsContext.test.tsx` (6).
+- **Component tests** (components/):
+  - `src/components/CurrentWeather.test.tsx` (7) — fixture-data render, umbrella indicator, sun event display.
+  - `src/components/HourlyForecast.test.tsx` (7) — empty forecast, chartData shape validation (mock capture), day/night `ReferenceArea` bands, sun-event `ReferenceLine` label capture, timezone propagation. Recharts is mocked because jsdom lacks ResizeObserver.
+  - `src/components/RainfallMap.test.tsx` (7), `src/components/RainfallCellsLayer.test.tsx` (12) — CSV fetch + bucket color assertions (RGBA stroke/fill), timeline-step transition (`fireEvent.click`), fetch error handling. `vi.stubGlobal('fetch')` with `vi.unstubAllGlobals()` in `beforeEach`.
+  - `src/components/LocalClock.test.tsx` (6) — wide-viewport renders HH:MM:SS with 1s interval; narrow-viewport (via `matchMedia` stub) drops seconds, uses 60s interval aligned to the next minute boundary.
+  - `src/components/WeatherAlerts.test.tsx` (12) — HKO warning rendering, modal open/close, warning detail display, cancellation filter (mixed-case + uppercase `CANCEL`), live-fixture replay of the 2026-07-31 cancelled amber rainstorm regression (EN + TC), TC/rainstorm signal icons, pulse animation.
+  - `src/components/DailyForecast.test.tsx` (3), `src/components/WeatherBanners.test.tsx` (7), `src/components/SettingsMenu.test.tsx` (8).
 - **Integration test**:
-  - `src/test/Integration.test.tsx` — composes `CurrentWeather` + `HourlyForecast` with providers and fake timers; validates locale-agnostic time formatting (bounded `/09:00:00\s*PM/` pattern).
+  - `src/test/Integration.test.tsx` (1) — composes `CurrentWeather` + `HourlyForecast` with providers and fake timers; validates locale-agnostic time formatting (bounded `/09:00:00\s*PM/` pattern).
+
+Test infra: `matchMedia` is stubbed in `src/test/setup.ts`; `vi.stubGlobal('matchMedia', ...)` is used in component tests that need viewport-specific branches (LocalClock narrow mode, etc.).
 
 ## State Management & Styling
 - **React Context API** handles user preferences with localStorage persistence (Theme + Language).
