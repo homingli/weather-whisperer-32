@@ -166,6 +166,14 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
           const Icon = getWeatherIconNode(day.weatherCode, true);
           return (
             <div key={row.index} className="flex flex-col items-center gap-1 min-w-0 px-0.5">
+              <div className="flex flex-col items-center leading-tight">
+                <span className="text-[13px] font-medium text-muted-foreground">
+                  {row.line1}
+                </span>
+                <span className="text-[11px] font-medium text-muted-foreground/70">
+                  {row.line2}
+                </span>
+              </div>
               <span
                 className="inline-flex items-center justify-center text-foreground leading-none"
                 role="img"
@@ -219,29 +227,8 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
               orientation="top"
               axisLine={false}
               tickLine={false}
-              tick={(props) => {
-                const { x, y, payload } = props;
-                const row = chartData[payload.value as number];
-                if (!row) return null;
-                return (
-                  <g transform={`translate(${x},${y})`}>
-                    <text
-                      textAnchor="middle"
-                      fill="hsl(var(--muted-foreground))"
-                      fontSize={13}
-                      className="font-medium"
-                    >
-                      <tspan x={0} dy={-24}>
-                        {row.line1}
-                      </tspan>
-                      <tspan x={0} dy={15} className="text-muted-foreground/70 font-medium" fontSize={11}>
-                        {row.line2}
-                      </tspan>
-                    </text>
-                  </g>
-                );
-              }}
-              height={44}
+              tick={false}
+              height={0}
               interval={0}
             />
             <YAxis
