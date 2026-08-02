@@ -45,7 +45,11 @@ export function WeatherBanners({ weather, isHKCovered, onRefetch, isRefetching }
       <div
         className="glass-card border-severity-warning/20 bg-severity-warning/5 p-4 rounded-xl flex items-start gap-3 text-severity-warning animate-fade-in"
         data-testid="banner-hko"
-        role="alert"
+        // WCAG 4.1.3 — informational amber, not an interruption. Use
+        // role="status" so screen readers don't barge in over the user's
+        // current speech. The offline cache banner (below) remains
+        // role="alert" because it blocks the user from seeing live data.
+        role="status"
       >
         <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
         <div>
@@ -69,7 +73,10 @@ export function WeatherBanners({ weather, isHKCovered, onRefetch, isRefetching }
       <div
         className="glass-card border-severity-warning/20 bg-severity-warning/5 p-4 rounded-xl flex items-start gap-3 text-severity-warning animate-fade-in"
         data-testid="banner-partial"
-        role="alert"
+        // WCAG 4.1.3 — informational amber, not an interruption. Use
+        // role="status" so screen readers don't barge in over the user's
+        // current speech.
+        role="status"
       >
         <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
         <div>
@@ -133,7 +140,10 @@ export function WeatherBanners({ weather, isHKCovered, onRefetch, isRefetching }
       <div
         className="glass-card border-severity-warning/20 bg-severity-warning/5 p-4 rounded-xl flex items-start gap-3 text-severity-warning animate-fade-in"
         data-testid="banner-hko-failed"
-        role="alert"
+        // WCAG 4.1.3 — informational amber, not an interruption. Use
+        // role="status" so screen readers don't barge in over the user's
+        // current speech.
+        role="status"
       >
         <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
         <div>

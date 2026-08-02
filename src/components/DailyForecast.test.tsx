@@ -72,6 +72,11 @@ describe('DailyForecast', () => {
     expect(screen.getByText(/7-day forecast/i)).toBeInTheDocument();
   });
 
+  it('renders the localized "look ahead" kicker', () => {
+    renderWithProviders(<DailyForecast forecast={mockForecast} />);
+    expect(screen.getByText('A look ahead')).toBeInTheDocument();
+  });
+
   it('renders temperatures in °C by default (metric)', () => {
     // temperatureMax 25°C, temperatureMin 18°C
     const { container } = renderWithProviders(<DailyForecast forecast={mockForecast} />);
