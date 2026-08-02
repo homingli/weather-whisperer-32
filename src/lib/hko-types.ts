@@ -38,6 +38,13 @@ export interface HKOCurrentWeatherResponse {
     }>;
     recordTime: string;
   };
+  wind?: {
+    data: Array<{
+      place: string;
+      speed: number;
+      direction: number;
+    }>;
+  };
   warningMessage?: string[];
 }
 

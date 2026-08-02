@@ -6,7 +6,8 @@ import { UnitsProvider, useUnits } from '@/contexts/UnitsContext';
 import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from '@/lib/weather';
 
 // Track chart renders so we can assert on the data passed to Recharts.
-const renderedChartData: unknown[] = [];
+type ChartCapture = Record<string, unknown>;
+const renderedChartData: ChartCapture[] = [];
 vi.mock('recharts', async () => {
   const React = await import('react') as any;
   const OriginalModule = await vi.importActual('recharts') as any;
@@ -173,11 +174,11 @@ describe('HourlyForecast Component', () => {
     // The mock captures label values in renderedChartData so we can assert
     // on them without depending on SVG rendering in jsdom.
     const capturedSunEvents = renderedChartData.filter(
-      (e: Record<string, unknown>) => 'refLineLabel' in e
+      (e) => 'refLineLabel' in e
     );
     expect(capturedSunEvents.length).toBeGreaterThanOrEqual(1);
     // Each captured sun event label is a formatted time string (e.g. "6:00 PM").
-    const firstLabel = capturedSunEvents[0]?.refLineLabel as string;
+    const firstLabel = capturedSunEvents[0]?.refLineLabel;
     expect(firstLabel).toMatch(/\d{1,2}:\d{2}\s*[AP]M/i);
   });
 

@@ -109,7 +109,11 @@ export function WeatherBanners({ weather, isHKCovered, onRefetch, isRefetching }
             type="button"
             onClick={onRefetch}
             disabled={isRefetching}
-            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-severity-error/15 hover:bg-severity-error/25 disabled:opacity-50 text-xs font-medium transition-colors"
+            // WCAG 2.5.5 Level AAA: 44×44 CSS pixel tap target. min-h-[2.75rem]
+            // (44px) lifts the offline refetch button above the 28px it had
+            // with text-xs + py-1.5 alone; the px-3 padding keeps the visual
+            // horizontal balance.
+            className="shrink-0 inline-flex items-center gap-1.5 min-h-[2.75rem] px-3 py-1.5 rounded-md bg-severity-error/15 hover:bg-severity-error/25 disabled:opacity-50 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label={t('data.refetchLive')}
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? 'animate-spin' : ''}`} />
