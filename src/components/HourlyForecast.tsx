@@ -1,6 +1,6 @@
 import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from "@/lib/weather";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from "recharts";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
 import {
   celsiusToFahrenheit,
@@ -177,7 +177,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
           {t('hourly.title')}
         </h3>
         <span className="kicker text-muted-foreground/60">
-          The next {hoursData.length} hours
+          {formatString(t('hourly.nextNHours'), hoursData.length)}
         </span>
       </div>
 
@@ -269,16 +269,32 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
                     <div className="rounded-none border border-border bg-card px-3 py-2 text-sm shadow-md" style={{ backgroundColor: 'hsl(var(--card))' }}>
                       <p className="font-medium text-foreground mb-1">{formatTooltipLabel(label)}</p>
                       <div className="space-y-1">
-                        <p className="text-weather-sunny flex justify-between gap-4">
-                          <span>{t('hourly.temperature')}:</span>
+                        {/* WCAG 1.4.3 — text-weather-sunny (yellow) on bg-card
+                            (cream) failed contrast. Keep the line label in
+                            text-foreground and convey the temperature "warmer"
+                            tone via a small colored swatch. */}
+                        <p className="text-foreground flex justify-between gap-4 items-center">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="inline-block h-2 w-2 rounded-sm" style={{ backgroundColor: 'hsl(var(--weather-sunny))' }} aria-hidden="true" />
+                            {t('hourly.temperature')}:
+                          </span>
                           <span className="font-semibold">{tempStr}</span>
                         </p>
-                        <p className="text-weather-rain flex justify-between gap-4">
-                          <span>{t('hourly.rainChance')}:</span>
+                        <p className="text-foreground flex justify-between gap-4">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="inline-block h-2 w-2 rounded-sm" style={{ backgroundColor: 'hsl(var(--weather-rain))' }} aria-hidden="true" />
+                            {t('hourly.rainChance')}:
+                          </span>
                           <span className="font-semibold">{data.rainChance}% {precipStr && `(${precipStr})`}</span>
                         </p>
-                        <div className="text-sky-400 flex justify-between gap-4">
-                          <span>{t('weather.wind')}:</span>
+                        {/* WCAG 1.4.3 — text-sky-400 on bg-card failed contrast.
+                            Keep the row text in text-foreground and use the
+                            small sky swatch + arrow to convey "wind" tone. */}
+                        <div className="text-foreground flex justify-between gap-4 items-center">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="inline-block h-2 w-2 rounded-sm bg-sky-400" aria-hidden="true" />
+                            {t('weather.wind')}:
+                          </span>
                           <div className="flex items-center gap-1.5">
                             <span className="font-semibold">{windStr}</span>
                             <div style={{ transform: `rotate(${data.windDirection}deg)` }} className="inline-block transition-transform duration-500">

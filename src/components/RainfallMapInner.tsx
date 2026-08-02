@@ -350,7 +350,7 @@ export default function RainfallMapInner({
               {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
             </button>
             <div className="flex flex-col min-w-[80px]">
-              <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">Forecast Step</span>
+              <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">{t('nowcast.forecastStep')}</span>
               <span className="text-lg font-bold text-foreground">{stepTimes[activeStepIndex]}</span>
             </div>
           </div>
@@ -427,7 +427,7 @@ export default function RainfallMapInner({
             // phone-sized hit zone. inline-flex + items-center +
             // justify-center centers the icon in the 44×44 box.
             className="inline-flex items-center justify-center min-h-[2.75rem] min-w-[2.75rem] p-1 hover:bg-muted/50 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            aria-label={`Switch basemap (current: ${basemapIsDark ? 'dark' : 'light'})`}
+            aria-label={formatString(t('nowcast.switchBasemap'), t(basemapIsDark ? 'nowcast.basemapDark' : 'nowcast.basemapLight'))}
           >
             <Layers className="w-4 h-4" />
           </button>
@@ -435,7 +435,8 @@ export default function RainfallMapInner({
             onClick={() => refetch()}
             className="inline-flex items-center justify-center min-h-[2.75rem] min-w-[2.75rem] p-1 hover:bg-muted/50 rounded transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             disabled={isFetching}
-            title="Refresh gridded nowcast"
+            aria-label={t('nowcast.refreshNowcast')}
+            title={t('nowcast.refreshNowcast')}
           >
             <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-primary' : ''}`} />
           </button>
@@ -494,13 +495,13 @@ export default function RainfallMapInner({
         {error && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm p-6 text-center">
             <AlertCircle className="w-10 h-10 text-destructive mb-2" />
-            <p className="text-lg font-medium text-foreground mb-1">Failed to load data</p>
+            <p className="text-lg font-medium text-foreground mb-1">{t('nowcast.loadFailed')}</p>
             <p className="text-muted-foreground mb-4">{t('nowcast.error')}</p>
             <button
               onClick={() => refetch()}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
             >
-              Try Again
+              {t('nowcast.tryAgain')}
             </button>
           </div>
         )}
