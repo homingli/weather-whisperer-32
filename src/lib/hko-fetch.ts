@@ -8,11 +8,20 @@ import { hkoIconToWeatherCode } from './hko-icons';
 import { fetchWithTimeout } from './fetch-utils';
 import { logTiming, logFailure } from './log';
 import { TIMING } from './constants';
+import {
+  parseHKOForecast,
+  parseHKOWarningSummary,
+  parseHKOWarningInfo,
+  parseHKOCurrentWeather,
+  logParseWarnings,
+} from './parsers';
 
 const HKO_API_BASE = 'https://data.weather.gov.hk/weatherAPI/opendata/weather.php';
 
-/** Generic HKO API fetcher with consistent timeout, logging, and error handling */
-async function hkoFetch<T>(dataType: string, lang: 'en' | 'tc'): Promise<T> {
+/** Generic HKO API fetcher with consistent timeout, logging, and error handling.
+ *  The returned data is `unknown`; callers pass it through the appropriate
+ *  parser (parseHKOForecast, etc.) to get a typed shape with logged shape drift. */
+async function hkoFetchRaw(dataType: string, lang: 'en' | 'tc'): Promise<unknown> {
   const start = Date.now();
   try {
     const response = await fetchWithTimeout(`${HKO_API_BASE}?dataType=${dataType}&lang=${lang}`, { timeout: TIMING.HKO_TIMEOUT_MS });
@@ -78,19 +87,33 @@ function parseHkoDate(dateStr: string): Date {
 // --- Public fetch functions (delegating to hkoFetch) ---
 
 export async function getHKOForecast(lang: 'en' | 'tc' = 'en'): Promise<HKOForecastResponse> {
-  return hkoFetch<HKOForecastResponse>('fnd', lang);
+  const raw = await hkoFetchRaw('fnd', lang);
+  const { data, warnings } = parseHKOForecast(raw);
+  logParseWarnings('HKO fnd', warnings);
+  if (!data) throw new Error('HKO fnd: unparseable response');
+  return data;
 }
 
 export async function getHKOWarningSummary(lang: 'en' | 'tc' = 'en'): Promise<HKOWarningSummaryResponse> {
-  return hkoFetch<HKOWarningSummaryResponse>('warnsum', lang);
+  const raw = await hkoFetchRaw('warnsum', lang);
+  const { data, warnings } = parseHKOWarningSummary(raw);
+  logParseWarnings('HKO warnsum', warnings);
+  return data ?? {};
 }
 
 export async function getHKOWarningInfo(lang: 'en' | 'tc' = 'en'): Promise<HKOWarningInfoResponse> {
-  return hkoFetch<HKOWarningInfoResponse>('warningInfo', lang);
+  const raw = await hkoFetchRaw('warningInfo', lang);
+  const { data, warnings } = parseHKOWarningInfo(raw);
+  logParseWarnings('HKO warningInfo', warnings);
+  return { details: data ?? undefined };
 }
 
 export async function getHKOCurrentWeather(lang: 'en' | 'tc' = 'en'): Promise<HKOCurrentWeatherResponse> {
-  return hkoFetch<HKOCurrentWeatherResponse>('rhrread', lang);
+  const raw = await hkoFetchRaw('rhrread', lang);
+  const { data, warnings } = parseHKOCurrentWeather(raw);
+  logParseWarnings('HKO rhrread', warnings);
+  if (!data) throw new Error('HKO rhrread: unparseable response');
+  return data;
 }
 
 // --- Data building ---
