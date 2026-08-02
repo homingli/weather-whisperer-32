@@ -80,13 +80,7 @@ function headlineIconAndLabel(
   };
 }
 
-/**
- * Stable default `HeadlineInfo` used when the prop is omitted (e.g. a
- * stale `localStorage` snapshot from a pre-v2 schema reaches the render
- * path). Module-scope so the reference is identical across renders;
- * otherwise the inline `headline ?? { source: 'om' }` literal would
- * re-create the object every render and invalidate the `useMemo` below.
- */
+/** Module-scope so the useMemo sees a stable reference. */
 const HEADLINE_DEFAULT_OM: HeadlineInfo = { source: 'om' };
 
 /* ── UV index banding (WHO-aligned colors and exposure levels) ─────── */
@@ -206,19 +200,6 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
   const humidityPct = isEmpty ? 0 : Math.max(0, Math.min(100, weather.humidity));
   const windDeg = isEmpty ? 0 : weather.windDirection;
 
-  // Headline icon + label — HKO path swaps icon + label when the
-  // `weather-manager` set `headline.source === 'hko'`; OM path falls
-  // through to the WMO lookup keyed off `weather.weatherCode`.
-  //
-  // Defensive default: if a stale `localStorage` snapshot (pre-v2 schema)
-  // reaches the render path with `headline === undefined`, fall through to
-  // the OM (WMO) path so the hero still renders. The v2 schema bump in
-  // `LAST_KNOWN_SCHEMA_VERSION` drops those snapshots on read; this default
-  // is a belt-and-braces guard so the hero never crashes. The default
-  // object is hoisted to module scope so its reference is stable across
-  // renders — without this, the useMemo below would invalidate every render
-  // because `headline ?? { source: 'om' }` creates a fresh literal each
-  // time when `headline` is undefined.
   const resolvedHeadline: HeadlineInfo = headline ?? HEADLINE_DEFAULT_OM;
   const headlineRender = useMemo(
     () => headlineIconAndLabel(resolvedHeadline, weather),

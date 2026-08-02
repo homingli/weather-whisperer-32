@@ -4,8 +4,6 @@
 **Scope:** `weather-whisperer-32` — all weather-code translation paths
 **Status:** Documented, no code change.
 
-This file is a codebook. It lists every weather code the app currently recognises, the human-readable label the UI uses for it, and (for HKO codes) how the implementation maps to WMO. Pure reference, no narrative beyond what's needed to read the tables.
-
 ## Sources of truth in the codebase
 
 | What | File | Function / table |

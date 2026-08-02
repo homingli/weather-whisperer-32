@@ -101,19 +101,15 @@ export async function fetchWeather(
 
   /** Build the sources field for a non-HK or partial result. */
   function attachOmOnly(data: WeatherData): WeatherData {
-    // Non-HK paths use the OM headline regardless of the source data's
-    // existing `headline` field. The `data` here is always `omData`, which
-    // doesn't yet carry a headline (Phase 2 added the field requirement
-    // but the OM parser doesn't set it). Forcing source: 'om' keeps the
-    // contract — the headline field is always present, always accurate.
+    // Force source: 'om' so the headline field stays accurate regardless of
+    // any pre-existing `headline` on the input data.
     return { ...data, headline: { source: 'om' as const }, sources: { om: omSource } };
   }
 
   /**
    * Resolve the headline from the HKO current-weather icon field. Returns
    * `{ source: 'hko', hkoIconCode }` only when the icon is a finite integer
-   * other than the 9999 sentinel; otherwise the OM headline wins. See
-   * handoff/hko-headline-icon-plan.md Phase 2 step 3.
+   * other than the 9999 sentinel; otherwise the OM headline wins.
    */
   function headlineFromHkoIcon(icon: number[] | undefined): HeadlineInfo {
     const code = icon?.[0];

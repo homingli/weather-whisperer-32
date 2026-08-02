@@ -2,10 +2,8 @@
 
 **Date:** 2026-08-02
 **Scope:** `weather-whisperer-32` (React 18 + Vite + Tailwind v3 PWA, HKO + Open-Meteo weather)
-**Branch:** TBD — working tree only, no commit (project rule)
-**Status:** Planned, no code change yet. Awaiting user sign-off before implementation.
-
-Companion doc: `handoff/hko-wmo-code-mapping.md` (the codebook this plan builds on).
+**Branch:** `feat/hko-headline-icon` (PR #71)
+**Status:** Implemented across 5 phases. See `handoff/hko-headline-icon.md` for the operational summary.
 
 ## Goal
 

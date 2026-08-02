@@ -5,9 +5,7 @@
 **Plan:** [`hko-headline-icon-plan.md`](./hko-headline-icon-plan.md)
 **Codebook:** [`hko-wmo-code-mapping.md`](./hko-wmo-code-mapping.md)
 **Branch:** working tree only — no commit, per project rule
-**Status:** All 5 phases implemented. 322 / 322 tests pass. Build clean. No new lint errors.
-
-This document is the post-implementation handoff: what shipped, what didn't, where the seams are, and what to verify on a real device. The plan is the design contract; this file is the operational summary for the next person touching the code.
+**Status:** All 5 phases implemented. 323 / 323 tests pass. Build clean. No new lint errors.
 
 ## What shipped
 
