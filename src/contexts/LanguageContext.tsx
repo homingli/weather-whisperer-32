@@ -19,6 +19,8 @@ interface LanguageContextType {
   t: (key: string, fallback?: string) => string;
 }
 
+const VALID_LANGUAGES: ReadonlySet<Language> = new Set<Language>(['en', 'tc']);
+
 const translations: Record<Language, Record<string, string>> = {
   en: {
     // Header
@@ -402,10 +404,14 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
-    const initial =
-      typeof window !== 'undefined'
-        ? (localStorage.getItem(STORAGE_KEYS.LANGUAGE) as Language) || 'en'
-        : 'en';
+    let initial: Language = 'en';
+    if (typeof window !== 'undefined') {
+      const raw = localStorage.getItem(STORAGE_KEYS.LANGUAGE) as Language | null;
+      // Validate against the set of supported languages so a tampered
+      // localStorage value (e.g. 'fr') doesn't leak into <html lang> or the
+      // translations[] lookup. Mirrors the pattern in UnitsContext.tsx.
+      if (raw && VALID_LANGUAGES.has(raw)) initial = raw;
+    }
     // WCAG 3.1.1 — set <html lang> synchronously before the first paint so
     // screen readers never see a flash of 'en' on a Chinese-filled page.
     // Mutating document.documentElement is a non-React side effect and is

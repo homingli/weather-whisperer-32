@@ -1,4 +1,4 @@
-import { getWeather as getOpenMeteoWeather, WeatherData } from './weather';
+import { getWeather as getOpenMeteoWeather, WeatherData, DailyForecast } from './weather';
 import { isInHongKong, getHKODailyAndWarnings, getHKOCurrentWeather, buildHKOWeatherData, fetchHKOWeatherData } from './hko-weather';
 import type { HKOCurrentWeatherResponse } from './hko-types';
 import { SourceState, SourceId } from './weather/types';
@@ -213,16 +213,26 @@ export async function fetchWeather(
     hkoCurrentData?.temperature.data[0];
   const hkoCurrentTemperature = hkoTempReading?.value;
 
+  // HKO seeds sunrise/sunset with epoch-0 sentinels (HKO daily doesn't publish
+  // sun times); replace any invalid date with the OM value so the chart's
+  // sunrise/sunset markers don't render at 1970.
+  const isValidDate = (d: Date | undefined | null): d is Date =>
+    d instanceof Date && !isNaN(d.getTime()) && d.getTime() > 0;
+
   const merged: WeatherData = {
     ...omData!,
     current: hkoCurrentTemperature != null
       ? { ...omData!.current, temperature: hkoCurrentTemperature }
       : omData!.current,
-    daily: (hkoData.daily ?? []).filter(Boolean).map((day: any, i: number) => ({
-      ...day,
-      sunrise: omData!.daily[i]?.sunrise || day.sunrise,
-      sunset: omData!.daily[i]?.sunset || day.sunset,
-    })),
+    daily: (hkoData.daily ?? []).filter(Boolean).map((day: DailyForecast, i: number) => {
+      const omSunrise = omData!.daily[i]?.sunrise;
+      const omSunset = omData!.daily[i]?.sunset;
+      return {
+        ...day,
+        sunrise: isValidDate(day.sunrise) ? day.sunrise : (isValidDate(omSunrise) ? omSunrise : day.sunrise),
+        sunset: isValidDate(day.sunset) ? day.sunset : (isValidDate(omSunset) ? omSunset : day.sunset),
+      };
+    }),
     warnings: hkoData.warnings,
     nearestStation: hkoData.nearestStation,
     nearestDistrict: hkoData.nearestDistrict,

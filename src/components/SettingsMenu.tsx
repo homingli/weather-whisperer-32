@@ -87,7 +87,10 @@ function PillToggle<T extends string>({
               tabIndex={active ? 0 : -1}
               onClick={() => onChange(opt.value)}
               className={cn(
-                'flex-1 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                // WCAG 2.5.5 Level AAA: 44×44 CSS pixel tap target. min-h-[2.75rem]
+                // (44px) keeps the toggle on a phone hit-zone; the icon-only
+                // icons above get the same treatment.
+                'flex-1 min-h-[2.75rem] px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 i > 0 && 'border-l border-border',
                 active
                   ? 'bg-foreground text-background'
@@ -193,7 +196,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-full min-h-[2.5rem] sm:min-h-[3.5rem] w-12 sm:w-14 text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="icon" className="h-full min-h-[2.75rem] sm:min-h-[3.5rem] w-12 sm:w-14 text-muted-foreground hover:text-foreground">
             <Menu className="h-6 w-6 sm:h-7 sm:w-7" />
             <span className="sr-only">Settings</span>
           </Button>

@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 
 interface WeatherAlertsProps {
-  warnings: unknown[];
+  warnings?: HKOWarning[];
   /** Increments on each new-warning diff; replays the pulse animation on matching badges. */
   pulseTrigger?: number;
   /** Set of warning codes that were just added — only these badges should pulse. */
@@ -55,8 +55,8 @@ export const WeatherAlerts = memo(function WeatherAlerts({
   // text contains "outdoor activities be cancelled" / "取消所有戶外活動",
   // which falsely hid the active warning.
   const activeWarnings = useMemo(() => {
-    return (warnings || [])
-      .filter((w): w is HKOWarning => w.actionCode?.toUpperCase() !== 'CANCEL')
+    return (warnings ?? [])
+      .filter((w) => w.actionCode?.toUpperCase() !== 'CANCEL')
       .sort((a, b) => new Date(b.issueTime).getTime() - new Date(a.issueTime).getTime());
   }, [warnings]);
 
