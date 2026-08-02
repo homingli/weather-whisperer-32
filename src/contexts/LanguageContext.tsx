@@ -121,6 +121,32 @@ const translations: Record<Language, Record<string, string>> = {
     'weather.desc.thunderstormWithHeavyHail': 'Thunderstorm with heavy hail',
     'weather.desc.unknown': 'Unknown',
 
+    // HKO icon descriptions (50-65, 70-77, 80-93). Codes 60/61/62/64 and
+    // 75/76/77 reuse weather.desc.* keys (wording matches WMO); see
+    // handoff/hko-headline-icon-plan.md for the full mapping.
+    'hko.desc.sunny': 'Sunny',
+    'hko.desc.sunnyPeriods': 'Sunny periods',
+    'hko.desc.sunnyIntervals': 'Sunny intervals',
+    'hko.desc.sunnyPeriodsFewShowers': 'Sunny periods with a few showers',
+    'hko.desc.sunnyIntervalsShowers': 'Sunny intervals with showers',
+    'hko.desc.rain': 'Rain',
+    'hko.desc.thunderstorms': 'Thunderstorms',
+    'hko.desc.clear': 'Clear',
+    'hko.desc.clearPeriods': 'Clear periods',
+    'hko.desc.clearIntervals': 'Clear intervals',
+    'hko.desc.clearPeriodsFewShowers': 'Clear periods with a few showers',
+    'hko.desc.clearIntervalsShowers': 'Clear intervals with showers',
+    'hko.desc.windy': 'Windy',
+    'hko.desc.dry': 'Dry',
+    'hko.desc.humid': 'Humid',
+    'hko.desc.fog': 'Fog',
+    'hko.desc.mist': 'Mist',
+    'hko.desc.haze': 'Haze',
+    'hko.desc.hot': 'Hot',
+    'hko.desc.warm': 'Warm',
+    'hko.desc.cool': 'Cool',
+    'hko.desc.cold': 'Cold',
+
     // Sunrise / sunset countdown
     'sun.now': 'now',
     'sun.inHoursMinutes': 'in {0}h {1}m',
@@ -334,6 +360,35 @@ const translations: Record<Language, Record<string, string>> = {
     'weather.desc.thunderstormWithHail': '雷暴夾冰雹',
     'weather.desc.thunderstormWithHeavyHail': '強雷暴夾冰雹',
     'weather.desc.unknown': '未知',
+
+    // HKO icon descriptions (50-65, 70-77, 80-93). Codes that share
+    // wording with WMO use the weather.desc.* keys; see
+    // handoff/hko-headline-icon-plan.md. TC phrasing follows HK conventions
+    // (天晴 / 多雲 / 密雲 / 轉雨 etc.) so the headline reads naturally to HK
+    // users. Day/night parallels mirror each other (50 ↔ 70, 51 ↔ 71, etc.)
+    // so the nighttime wording reuses the daytime vocabulary.
+    'hko.desc.sunny': '天晴',
+    'hko.desc.sunnyPeriods': '短暫陽光',
+    'hko.desc.sunnyIntervals': '部分時間有陽光',
+    'hko.desc.sunnyPeriodsFewShowers': '短暫陽光，局部有驟雨',
+    'hko.desc.sunnyIntervalsShowers': '陽光驟雨',
+    'hko.desc.rain': '雨',
+    'hko.desc.thunderstorms': '雷暴',
+    'hko.desc.clear': '天晴',
+    'hko.desc.clearPeriods': '短暫天晴',
+    'hko.desc.clearIntervals': '部分時間天晴',
+    'hko.desc.clearPeriodsFewShowers': '短暫天晴，局部有驟雨',
+    'hko.desc.clearIntervalsShowers': '部分時間有驟雨',
+    'hko.desc.windy': '風勢頗大',
+    'hko.desc.dry': '乾燥',
+    'hko.desc.humid': '潮濕',
+    'hko.desc.fog': '有霧',
+    'hko.desc.mist': '薄霧',
+    'hko.desc.haze': '煙霞',
+    'hko.desc.hot': '炎熱',
+    'hko.desc.warm': '和暖',
+    'hko.desc.cool': '稍涼',
+    'hko.desc.cold': '寒冷',
 
     // Sunrise / sunset countdown
     'sun.now': '現在',

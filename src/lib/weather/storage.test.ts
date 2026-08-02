@@ -10,6 +10,7 @@ import type { WeatherData } from './types';
 
 function makeWeather(overrides: Partial<WeatherData> = {}): WeatherData {
   return {
+    headline: { source: 'om' as const },
     current: {
       temperature: 25,
       apparentTemperature: 27,
@@ -54,7 +55,7 @@ describe('weather/storage', () => {
 
       const result = readLastKnownWeather(cityId);
       expect(result).not.toBeNull();
-      expect(result?.v).toBe(1);
+      expect(result?.v).toBe(2);
       expect(result?.cityId).toBe(cityId);
       expect(result?.lang).toBe('en');
       expect(typeof result?.fetchedAt).toBe('number');
@@ -89,11 +90,37 @@ describe('weather/storage', () => {
       expect(readLastKnownWeather('22.31,114.17')).toBeNull();
     });
 
-    it('drops the envelope when fetchedAt is missing or wrong type', () => {
+    it('drops legacy v1 envelopes (HKO headline shape change)', () => {
+      // Regression for the bug where users on the previous app version had
+      // v1 snapshots persisted without the required `WeatherData.headline`
+      // field. Without the v2 schema bump, those snapshots reached
+      // CurrentWeather's headline lookup and crashed the render path with
+      // "Cannot read properties of undefined (reading 'source')". The v2
+      // bump drops them on read so the live fetch (which writes v2 with
+      // the new field) takes over without a crash.
       localStorage.setItem(
         STORAGE_KEYS.LAST_KNOWN,
         JSON.stringify({
           v: 1,
+          cityId: '22.31,114.17',
+          lang: 'en',
+          fetchedAt: Date.now(),
+          // Intentionally omit `headline` — that's the v1 shape.
+          data: {
+            current: makeWeather().current,
+            hourly: [],
+            daily: [],
+          },
+        })
+      );
+      expect(readLastKnownWeather('22.31,114.17')).toBeNull();
+    });
+
+    it('drops the envelope when fetchedAt is missing or wrong type', () => {
+      localStorage.setItem(
+        STORAGE_KEYS.LAST_KNOWN,
+        JSON.stringify({
+          v: 2,
           cityId: '22.31,114.17',
           lang: 'en',
           data: makeWeather(),
@@ -106,7 +133,7 @@ describe('weather/storage', () => {
       localStorage.setItem(
         STORAGE_KEYS.LAST_KNOWN,
         JSON.stringify({
-          v: 1,
+          v: 2,
           cityId: '22.31,114.17',
           lang: 'en',
           fetchedAt: Date.now(),

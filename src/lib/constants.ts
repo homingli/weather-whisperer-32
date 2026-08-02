@@ -25,8 +25,15 @@ export const STORAGE_KEYS = {
   NOWCAST_CACHE: 'weather-nowcast-cache-v1',
 } as const;
 
-/** Bump when the LastKnownEnvelope shape changes; readers drop on mismatch. */
-export const LAST_KNOWN_SCHEMA_VERSION = 1 as const;
+/** Bump when the LastKnownEnvelope shape changes; readers drop on mismatch.
+ *  v2 — added the required `WeatherData.headline` field (HKO headline icon
+ *  plan). Old v1 snapshots are missing `headline`, which crashes the
+ *  `CurrentWeather` render path that reads `headline.source`. Dropping on
+ *  mismatch lets users see a brief loading state (FetchingStatus overlay)
+ *  while the live fetch populates the new shape; the alternative is
+ *  optional propagation in `CurrentWeather` (added in tandem as a defensive
+ *  guard against future shape drift). */
+export const LAST_KNOWN_SCHEMA_VERSION = 2 as const;
 
 /** Bump when the NowcastCacheEnvelope shape changes; readers drop on mismatch.
  *  v2 = LZString-compressed csvText (was raw CSV in v1). */

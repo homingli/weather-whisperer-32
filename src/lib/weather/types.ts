@@ -85,6 +85,14 @@ export interface DailyForecast {
 }
 
 export interface WeatherData {
+  /**
+   * Headline source for the `CurrentWeather` hero. Always present — non-HK
+   * paths and degraded cases write `{ source: 'om' }` so downstream code
+   * never has to handle `undefined`. When `source === 'hko'`, the headline
+   * reads from the HKO icon taxonomy via `getHKODescription(hkoIconCode)`;
+   * otherwise it falls through to the WMO path using `current.weatherCode`.
+   */
+  headline: HeadlineInfo;
   /** Current conditions */
   current: CurrentWeather;
   /** Hourly forecast (may be empty) */
@@ -121,6 +129,17 @@ export interface WeatherData {
 
 /** Identifier for a weather data source */
 export type SourceId = 'om' | 'hko';
+
+/**
+ * Polymorphic headline carrier. `source` discriminates which code set the
+ * `CurrentWeather` hero should read; `hkoIconCode` is meaningful only when
+ * `source === 'hko'`. See `handoff/hko-headline-icon-plan.md` Decision 5.
+ */
+export interface HeadlineInfo {
+  source: 'hko' | 'om';
+  /** HKO icon code (50–93). Undefined when source is 'om'. */
+  hkoIconCode?: number | null;
+}
 
 /** Per-source freshness snapshot embedded in `WeatherData.sources` */
 export type SourceState = {
