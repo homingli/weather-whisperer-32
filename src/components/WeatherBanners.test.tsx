@@ -119,4 +119,47 @@ describe('WeatherBanners', () => {
       expect(screen.getByTestId('banner-hko-failed')).toBeInTheDocument();
     });
   });
+
+  describe('WCAG 4.1.3 role semantics', () => {
+    it('uses role="alert" only for the offline (cache) banner — interrupts screen readers', () => {
+      const weather = makeWeather({
+        isFallback: true,
+        fallbackSource: 'cache',
+        sources: { om: failedHko, hko: failedHko },
+      });
+      renderBanner(weather);
+      const banner = screen.getByTestId('banner-cache');
+      expect(banner).toHaveAttribute('role', 'alert');
+    });
+
+    it('uses role="status" for the informational amber banners — non-interrupting', () => {
+      const hko: WeatherData = makeWeather({
+        isFallback: true,
+        fallbackSource: 'HKO',
+        sources: { om: failedHko, hko: okHko },
+      });
+      const { rerender } = renderBanner(hko);
+      expect(screen.getByTestId('banner-hko')).toHaveAttribute('role', 'status');
+
+      const partial: WeatherData = makeWeather({
+        isFallback: true,
+        fallbackSource: 'partial',
+        sources: { om: okOm, hko: failedHko },
+      });
+      rerender(
+        <LanguageProvider>
+          <WeatherBanners weather={partial} isHKCovered={true} />
+        </LanguageProvider>
+      );
+      expect(screen.getByTestId('banner-partial')).toHaveAttribute('role', 'status');
+
+      const hkoFailed: WeatherData = makeWeather({ hkoFailed: true });
+      rerender(
+        <LanguageProvider>
+          <WeatherBanners weather={hkoFailed} isHKCovered={true} />
+        </LanguageProvider>
+      );
+      expect(screen.getByTestId('banner-hko-failed')).toHaveAttribute('role', 'status');
+    });
+  });
 });

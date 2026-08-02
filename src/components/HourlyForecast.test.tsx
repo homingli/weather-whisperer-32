@@ -80,6 +80,11 @@ describe('HourlyForecast Component', () => {
     expect(screen.getByText(/HOURLY FORECAST/i)).toBeInTheDocument();
   });
 
+  it('renders the localized "next N hours" kicker', () => {
+    renderWithLanguage(<HourlyForecast forecast={mockHourlyData} />);
+    expect(screen.getByText(/the next \d+ hours/i)).toBeInTheDocument();
+  });
+
   it('handles empty forecast gracefully — renders title and chart container without crashing', () => {
     renderWithLanguage(<HourlyForecast forecast={[]} />);
     expect(screen.getByText(/HOURLY FORECAST/i)).toBeInTheDocument();

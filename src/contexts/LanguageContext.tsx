@@ -209,6 +209,32 @@ const translations: Record<Language, Record<string, string>> = {
     'nowcast.play': 'Play timeline',
     'nowcast.pause': 'Pause timeline',
     'nowcast.slider': 'Rainfall timeline',
+    'nowcast.stayOrGo': 'STAY OR GO',
+    'nowcast.forecastStep': 'Forecast Step',
+    'nowcast.switchBasemap': 'Switch basemap (current: {0})',
+    'nowcast.refreshNowcast': 'Refresh gridded nowcast',
+    'nowcast.loadFailed': 'Failed to load data',
+    'nowcast.tryAgain': 'Try Again',
+    'nowcast.basemapLight': 'light',
+    'nowcast.basemapDark': 'dark',
+
+    // Wind direction (aria-label on the rotating arrow SVG)
+    'weather.windDirAria': 'Wind direction toward {0}° {1}',
+
+    // Settings menu
+    'settings.label': 'Settings',
+
+    // Hourly / daily chart kickers
+    'hourly.nextNHours': 'The next {0} hours',
+    'daily.lookAhead': 'A look ahead',
+
+    // 404 page
+    'notFound.code': '404',
+    'notFound.title': 'Oops! Page not found',
+    'notFound.returnHome': 'Return to Home',
+
+    // PWA install button (visible label)
+    'pwa.install': 'Install',
   },
   tc: {
     // Header
@@ -397,6 +423,32 @@ const translations: Record<Language, Record<string, string>> = {
     'nowcast.play': '播放時間線',
     'nowcast.pause': '暫停時間線',
     'nowcast.slider': '雨量時間線',
+    'nowcast.stayOrGo': '留或走',
+    'nowcast.forecastStep': '預報時段',
+    'nowcast.switchBasemap': '切換地圖底圖（目前：{0}）',
+    'nowcast.refreshNowcast': '刷新雨量預報',
+    'nowcast.loadFailed': '載入資料失敗',
+    'nowcast.tryAgain': '重試',
+    'nowcast.basemapLight': '淺色',
+    'nowcast.basemapDark': '深色',
+
+    // Wind direction (aria-label on the rotating arrow SVG)
+    'weather.windDirAria': '風向：{0}° {1}',
+
+    // Settings menu
+    'settings.label': '設定',
+
+    // Hourly / daily chart kickers
+    'hourly.nextNHours': '未來 {0} 小時',
+    'daily.lookAhead': '七日概覽',
+
+    // 404 page
+    'notFound.code': '404',
+    'notFound.title': '抱歉，找不到此頁面',
+    'notFound.returnHome': '返回首頁',
+
+    // PWA install button (visible label)
+    'pwa.install': '安裝',
   },
 };
 

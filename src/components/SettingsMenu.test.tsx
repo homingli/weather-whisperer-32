@@ -96,4 +96,53 @@ describe('SettingsMenu units + language pill toggles', () => {
   });
 });
 
+describe('SettingsMenu theme radio group (WCAG 4.1.2)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  const renderMenu = () =>
+    render(
+      <ThemeProvider>
+        <LanguageProvider>
+          <UnitsProvider>
+            <SettingsMenu currentCity={noCity} recentCities={noRecent} onCitySelect={() => {}} />
+          </UnitsProvider>
+        </LanguageProvider>
+      </ThemeProvider>,
+    );
+
+  it('renders the theme picker as menuitemradio entries with 3 options', async () => {
+    renderMenu();
+    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
+    // Radix DropdownMenu items render as role="menuitemradio" inside a
+    // menu, not bare role="radio" inside a radiogroup. The semantic
+    // purpose is the same (exclusive 1-of-N choice) — what matters for
+    // WCAG 4.1.2 is that the active option is marked with aria-checked.
+    expect(screen.getByRole('menuitemradio', { name: /light/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitemradio', { name: /dark/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitemradio', { name: /auto/i })).toBeInTheDocument();
+  });
+
+  it('marks Auto as the default checked theme', async () => {
+    renderMenu();
+    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
+    expect(screen.getByRole('menuitemradio', { name: /auto/i })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('menuitemradio', { name: /light/i })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('menuitemradio', { name: /dark/i })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('persists Dark selection to localStorage when clicked', async () => {
+    renderMenu();
+    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /dark/i }));
+    // Radix closes the menu after a radio item is chosen, so re-open to
+    // verify the aria-checked state reflects the persisted selection.
+    expect(localStorage.getItem('theme-mode')).toBe('dark');
+    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
+    expect(screen.getByRole('menuitemradio', { name: /dark/i })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('menuitemradio', { name: /auto/i })).toHaveAttribute('aria-checked', 'false');
+  });
+});
+
 // Tiny helper — avoids an extra import surface just for `within`.

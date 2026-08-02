@@ -1,5 +1,5 @@
 import { useState, KeyboardEvent } from 'react';
-import { Menu, Sun, Moon, SunMoon, Search, LocateFixed, MapPin, RefreshCw, Check } from 'lucide-react';
+import { Menu, Sun, Moon, SunMoon, Search, LocateFixed, MapPin, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -8,6 +8,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -198,7 +200,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="h-full min-h-[2.75rem] sm:min-h-[3.5rem] w-12 sm:w-14 text-muted-foreground hover:text-foreground">
             <Menu className="h-6 w-6 sm:h-7 sm:w-7" />
-            <span className="sr-only">Settings</span>
+            <span className="sr-only">{t('settings.label')}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-[280px] text-lg p-2">
@@ -245,25 +247,33 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
 
           <DropdownMenuSeparator />
 
-          {/* Theme section (3-way — kept as dropdown items with check marks) */}
+          {/* Theme section (3-way radio group — WCAG 4.1.2).
+              Previously three DropdownMenuItems with a Check icon for the
+              active one. Screen-reader users heard three unlabeled
+              checkboxes instead of a 1-of-3 radio group. The Radix
+              RadioGroup sets role="radiogroup" + role="radio" +
+              aria-checked, and the ItemIndicator dot replaces the
+              hand-managed Check icon. */}
           <DropdownMenuLabel className="text-sm text-muted-foreground font-normal px-2 py-2.5">
             {language === 'tc' ? '主題' : 'Theme'}
           </DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => setMode('light')} className="gap-2.5 py-3">
-            <Sun className="h-5 w-5" />
-            {themeLabels.light}
-            {mode === 'light' && <Check className="h-5 w-5 ml-auto text-primary" />}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setMode('dark')} className="gap-2.5 py-3">
-            <Moon className="h-5 w-5" />
-            {themeLabels.dark}
-            {mode === 'dark' && <Check className="h-5 w-5 ml-auto text-primary" />}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setMode('auto')} className="gap-2.5 py-3">
-            <SunMoon className="h-5 w-5" />
-            {themeLabels.auto}
-            {mode === 'auto' && <Check className="h-5 w-5 ml-auto text-primary" />}
-          </DropdownMenuItem>
+          <DropdownMenuRadioGroup
+            value={mode}
+            onValueChange={(v) => setMode(v as 'light' | 'dark' | 'auto')}
+          >
+            <DropdownMenuRadioItem value="light" className="gap-2.5 py-3">
+              <Sun className="h-5 w-5" />
+              {themeLabels.light}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="dark" className="gap-2.5 py-3">
+              <Moon className="h-5 w-5" />
+              {themeLabels.dark}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="auto" className="gap-2.5 py-3">
+              <SunMoon className="h-5 w-5" />
+              {themeLabels.auto}
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
 
           <DropdownMenuSeparator />
 
