@@ -65,6 +65,7 @@ function makeOpenMeteoData(overrides: Partial<WeatherData> = {}): WeatherData {
     sunset: new Date(2024, 0, 8 + i, 18, 0),
   }));
   return {
+    headline: { source: 'om' as const },
     current,
     hourly,
     daily,
@@ -159,6 +160,7 @@ describe('fetchWeather orchestration', () => {
       mockGetHKOCurrent.mockResolvedValue(makeHkoCurrent());
       mockBuildHKO.mockImplementation(async (_current, dailyAndWarnings, _lat, _lon, _lang) => {
         return {
+          headline: { source: 'hko' as const, hkoIconCode: _current.icon?.[0] ?? null },
           current: { ...makeOpenMeteoData().current, temperature: 99 },
           hourly: [],
           daily: dailyAndWarnings.daily,
@@ -270,6 +272,7 @@ describe('fetchWeather orchestration', () => {
       mockGetHKOCurrent.mockResolvedValue(hkoCurrent);
       mockBuildHKO.mockImplementation(async (current, dailyAndWarnings) => {
         return {
+          headline: { source: 'hko' as const, hkoIconCode: current.icon?.[0] ?? null },
           current: {
             temperature: 25,
             apparentTemperature: 27,
@@ -377,6 +380,62 @@ describe('fetchWeather orchestration', () => {
         ['hko', 'error'],  // "not applicable"
         ['openMeteo', 'success'],
       ]);
+    });
+  });
+
+  // ── Phase 2: headline propagation ───────────────────────────────
+  // See handoff/hko-headline-icon-plan.md Phase 2 step 3. The headline
+  // field is always present on the merged record. source is 'hko' only
+  // when the HKO current fetch succeeded AND its icon field is a finite
+  // integer other than the 9999 sentinel.
+  describe('headline propagation', () => {
+    beforeEach(() => {
+      mockIsInHK.mockReturnValue(true);
+      mockGetOpenMeteo.mockResolvedValue(makeOpenMeteoData());
+      mockGetHKODaily.mockResolvedValue(makeHkoDaily());
+    });
+
+    it('writes headline.source=hko when HKO current icon is [50]', async () => {
+      mockGetHKOCurrent.mockResolvedValue(makeHkoCurrent()); // icon: [50]
+      const result = await fetchWeather(HK_LAT, HK_LON);
+      expect(result.headline).toEqual({ source: 'hko', hkoIconCode: 50 });
+    });
+
+    it('writes headline.source=hko with the actual code when HKO reports 82 (Humid)', async () => {
+      mockGetHKOCurrent.mockResolvedValue({ ...makeHkoCurrent(), icon: [82] });
+      const result = await fetchWeather(HK_LAT, HK_LON);
+      expect(result.headline).toEqual({ source: 'hko', hkoIconCode: 82 });
+    });
+
+    it('falls back to source=om when the HKO icon is the 9999 sentinel', async () => {
+      mockGetHKOCurrent.mockResolvedValue({ ...makeHkoCurrent(), icon: [9999] });
+      const result = await fetchWeather(HK_LAT, HK_LON);
+      expect(result.headline).toEqual({ source: 'om' });
+    });
+
+    it('falls back to source=om when the HKO icon array is empty', async () => {
+      mockGetHKOCurrent.mockResolvedValue({ ...makeHkoCurrent(), icon: [] });
+      const result = await fetchWeather(HK_LAT, HK_LON);
+      expect(result.headline).toEqual({ source: 'om' });
+    });
+
+    it('falls back to source=om when the HKO current fetch fails', async () => {
+      mockGetHKOCurrent.mockRejectedValue(new Error('HKO current boom'));
+      const result = await fetchWeather(HK_LAT, HK_LON);
+      expect(result.headline).toEqual({ source: 'om' });
+    });
+
+    it('writes source=om on the non-HK path regardless of any HKO state', async () => {
+      mockIsInHK.mockReturnValue(false);
+      mockGetOpenMeteo.mockResolvedValue(makeOpenMeteoData());
+      const result = await fetchWeather(NON_HK_LAT, NON_HK_LON);
+      expect(result.headline).toEqual({ source: 'om' });
+    });
+
+    it('writes source=om on the partial path (OM ok, HKO failed)', async () => {
+      mockGetHKODaily.mockRejectedValue(new Error('HKO daily boom'));
+      const result = await fetchWeather(HK_LAT, HK_LON);
+      expect(result.headline).toEqual({ source: 'om' });
     });
   });
 });

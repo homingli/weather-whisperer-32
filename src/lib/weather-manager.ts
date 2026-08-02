@@ -1,4 +1,4 @@
-import { getWeather as getOpenMeteoWeather, WeatherData, DailyForecast } from './weather';
+import { getWeather as getOpenMeteoWeather, WeatherData, DailyForecast, HeadlineInfo } from './weather';
 import { isInHongKong, getHKODailyAndWarnings, getHKOCurrentWeather, buildHKOWeatherData, fetchHKOWeatherData } from './hko-weather';
 import type { HKOCurrentWeatherResponse } from './hko-types';
 import { SourceState, SourceId } from './weather/types';
@@ -101,7 +101,22 @@ export async function fetchWeather(
 
   /** Build the sources field for a non-HK or partial result. */
   function attachOmOnly(data: WeatherData): WeatherData {
-    return { ...data, sources: { om: omSource } };
+    // Force source: 'om' so the headline field stays accurate regardless of
+    // any pre-existing `headline` on the input data.
+    return { ...data, headline: { source: 'om' as const }, sources: { om: omSource } };
+  }
+
+  /**
+   * Resolve the headline from the HKO current-weather icon field. Returns
+   * `{ source: 'hko', hkoIconCode }` only when the icon is a finite integer
+   * other than the 9999 sentinel; otherwise the OM headline wins.
+   */
+  function headlineFromHkoIcon(icon: number[] | undefined): HeadlineInfo {
+    const code = icon?.[0];
+    if (code != null && Number.isFinite(code) && code !== 9999) {
+      return { source: 'hko', hkoIconCode: code };
+    }
+    return { source: 'om' };
   }
 
   /** Persist the snapshot and return the data unchanged. */
@@ -183,6 +198,7 @@ export async function fetchWeather(
     // the cached side is the correct semantic.
     const result: WeatherData = {
       ...omData!,
+      headline: { source: 'om' as const },
       sources: { om: omSource, hko: hkoSource },
       isFallback: true,
       fallbackSource: 'partial',
@@ -221,6 +237,7 @@ export async function fetchWeather(
 
   const merged: WeatherData = {
     ...omData!,
+    headline: headlineFromHkoIcon(hkoCurrentData?.icon),
     current: hkoCurrentTemperature != null
       ? { ...omData!.current, temperature: hkoCurrentTemperature }
       : omData!.current,

@@ -241,7 +241,16 @@ export async function buildHKOWeatherData(
   };
 
   // HKO does not publish hourly data; return empty array
+  // HKO icon, skipping the 9999 no-data sentinel.
+  const hkoIconCode = currentHko.icon?.length && Number.isFinite(currentHko.icon[0]) && currentHko.icon[0] !== 9999
+    ? currentHko.icon[0]
+    : null;
+
   return {
+    headline: {
+      source: hkoIconCode != null ? 'hko' : 'om',
+      hkoIconCode,
+    },
     current, hourly: [],
     daily: dailyAndWarnings.daily,
     warnings: dailyAndWarnings.warnings,

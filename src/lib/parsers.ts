@@ -309,6 +309,7 @@ export function parseOpenMeteoForecast(input: unknown): ParseResult<WeatherData>
 
   return {
     data: {
+      headline: { source: 'om' as const },
       current: {
         temperature: currentTemp,
         apparentTemperature: readNumber(current, 'apparent_temperature', currentTemp, warnings),
