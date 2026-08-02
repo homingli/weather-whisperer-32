@@ -1,5 +1,7 @@
 /** Public weather data transport types */
 
+import type { HKOWarning } from '../hko-types';
+
 export interface GeoLocation {
   /** City/place name */
   name: string;
@@ -90,7 +92,7 @@ export interface WeatherData {
   /** Daily forecast */
   daily: DailyForecast[];
   /** Active weather warnings */
-  warnings?: unknown[];
+  warnings?: HKOWarning[];
   /** IANA timezone identifier */
   timezone?: string;
   /** Nearest weather station name */

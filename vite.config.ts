@@ -10,6 +10,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    allowedHosts: ['.lh'],
     proxy: {
       '/hko-data': {
         target: 'https://data.weather.gov.hk/weatherAPI/hko_data',

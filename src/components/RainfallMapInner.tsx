@@ -121,14 +121,18 @@ const fetchRainfallNowcast = async (onProgress?: ProgressCallback): Promise<Nowc
       const parsed = parseRainfallCSVText(csvText);
       // Persist for next mount (15-min TTL). Non-blocking on quota errors.
       writeNowcastCache(csvText, parsed.updateTime, lastModified);
-      return { grid: buildRainGrid(parsed.rows)!, updateTime: parsed.updateTime, lastModified };
+      const grid = buildRainGrid(parsed.rows);
+      if (!grid) throw new Error('No rain cells in nowcast payload');
+      return { grid, updateTime: parsed.updateTime, lastModified };
     }
 
     // Fallback: no ReadableStream (very old browsers only — HKO always sends one)
     const csvText = await response.text();
     const parsed = parseRainfallCSVText(csvText);
     writeNowcastCache(csvText, parsed.updateTime, lastModified);
-    return { grid: buildRainGrid(parsed.rows)!, updateTime: parsed.updateTime, lastModified };
+    const grid = buildRainGrid(parsed.rows);
+    if (!grid) throw new Error('No rain cells in nowcast payload');
+    return { grid, updateTime: parsed.updateTime, lastModified };
   } finally {
     clearTimeout(timeoutId);
   }
@@ -418,14 +422,18 @@ export default function RainfallMapInner({
           )}
           <button
             onClick={() => setBasemapIsDark(v => !v)}
-            className="p-1 hover:bg-muted/50 rounded transition-colors"
+            // WCAG 2.5.5 Level AAA: 44×44 CSS pixel tap target. min-h/-w
+            // overrides the p-1 default so the small icon stays inside a
+            // phone-sized hit zone. inline-flex + items-center +
+            // justify-center centers the icon in the 44×44 box.
+            className="inline-flex items-center justify-center min-h-[2.75rem] min-w-[2.75rem] p-1 hover:bg-muted/50 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label={`Switch basemap (current: ${basemapIsDark ? 'dark' : 'light'})`}
           >
             <Layers className="w-4 h-4" />
           </button>
           <button
             onClick={() => refetch()}
-            className="p-1 hover:bg-muted/50 rounded transition-colors disabled:opacity-50"
+            className="inline-flex items-center justify-center min-h-[2.75rem] min-w-[2.75rem] p-1 hover:bg-muted/50 rounded transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             disabled={isFetching}
             title="Refresh gridded nowcast"
           >
@@ -523,7 +531,6 @@ export default function RainfallMapInner({
           // transitions too — no separate useEffect needed.
           ref={handleMapRef}
           aria-label={t('nowcast.mapLabel')}
-          role="application"
         >
           <ZoomControl position="topleft" />
           <TileLayer

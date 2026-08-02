@@ -158,16 +158,16 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
   return (
     <div
       ref={root}
-      className={`editorial-card ${compact ? 'overflow-x-hidden overflow-y-auto p-6 overscroll-contain' : 'overflow-hidden p-8 md:p-12 lg:p-14'}`}
+      className={`editorial-card ${compact ? 'overflow-x-hidden overflow-y-auto p-6 overscroll-contain' : 'overflow-hidden p-6 md:p-8 lg:p-10'}`}
     >
-      <div className={`flex items-baseline justify-between gap-4 cw-fade ${compact ? '' : 'mb-6'}`}>
+      <div className={`flex items-baseline justify-between gap-4 cw-fade ${compact ? '' : 'mb-4'}`}>
         <span className="kicker text-muted-foreground">{t('header.dailyEdition')}</span>
       </div>
 
-      <div className="cw-rule h-px editorial-rule mb-8" />
+      <div className="cw-rule h-px editorial-rule mb-5" />
 
       {/* Today's temperature range sits above the hero so the day's low/high context is set before the headline number. */}
-      <div className="mb-8 cw-fade">
+      <div className="mb-5 cw-fade">
         <RangeBar
           low={dailyForecast?.temperatureMin}
           high={dailyForecast?.temperatureMax}
@@ -218,7 +218,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           </p>
         </div>
       ) : (
-        <header className="grid gap-10 md:grid-cols-[1fr_auto] md:items-end">
+        <header className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
           <div className="overflow-hidden min-w-0">
             <h1 className="cw-rise block font-display text-[clamp(80px,14vw,160px)] leading-[0.85] font-light tracking-[-0.04em]">
               {formatHeroTemperature(weather.apparentTemperature, units, SENTINEL_THRESHOLD)}
@@ -242,10 +242,10 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
         </header>
       )}
 
-      <div className="cw-rule h-px editorial-rule my-8" />
+      <div className="cw-rule h-px editorial-rule my-6" />
 
       {/* Mid section — umbrella + sunrise/sunset */}
-      <div className={`grid gap-x-10 gap-y-6 cw-fade ${compact ? 'grid-cols-2' : 'md:grid-cols-2'}`}>
+      <div className={`grid gap-x-10 gap-y-4 cw-fade ${compact ? 'grid-cols-2' : 'md:grid-cols-2'}`}>
         <FactBlock
           icon={needsUmbrella ? Umbrella : UmbrellaOff}
           label={t('umbrella.label')}
@@ -261,10 +261,10 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
         />
       </div>
 
-      <div className="cw-rule h-px editorial-rule my-8" />
+      <div className="cw-rule h-px editorial-rule my-6" />
 
       {/* Bottom section — creative visualizations */}
-      <div className={`grid gap-x-10 gap-y-8 cw-fade ${compact ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
+      <div className={`grid gap-x-10 gap-y-6 cw-fade ${compact ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
         <PrecipBar
           mm={weather.precipitation ?? 0}
           empty={isEmpty}

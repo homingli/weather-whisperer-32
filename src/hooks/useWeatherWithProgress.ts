@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { fetchWeather } from '@/lib/weather-manager';
 import { WeatherData } from '@/lib/weather';
 import { isInHongKong } from '@/lib/hko-weather';
@@ -38,7 +38,7 @@ export function useWeatherWithProgress(
     return readLastKnownWeather(cityId)?.data;
   }, [latitude, longitude]);
 
-  const query = useQuery<WeatherData>({
+  const query = useQuery<WeatherData, Error, WeatherData, readonly unknown[]>({
     queryKey: ['weather-unified', language, latitude, longitude],
     queryFn: async () => {
       setLoadProgress({
@@ -57,7 +57,7 @@ export function useWeatherWithProgress(
     enabled: latitude !== undefined && longitude !== undefined,
     refetchInterval: hasFailure ? TIMING.REFETCH_ON_FAILURE_MS : TIMING.REFETCH_INTERVAL_MS,
     staleTime: hasFailure ? TIMING.REFETCH_ON_FAILURE_MS : TIMING.STALE_TIME_MS,
-    placeholderData: 'keepPreviousData',
+    placeholderData: keepPreviousData,
     initialData,
     // Treat cold-start snapshot as immediately stale so the background fetch
     // fires without waiting for `staleTime` to elapse.
