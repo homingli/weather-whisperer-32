@@ -241,11 +241,7 @@ export async function buildHKOWeatherData(
   };
 
   // HKO does not publish hourly data; return empty array
-  // Phase 2: seed the headline from the HKO icon field when it's a finite
-  // integer other than the 9999 sentinel. The WMO `weatherCode` on `current`
-  // stays the lossy mapping (used by daily tiles, chart, etc.); the headline
-  // uses the icon directly so labels are granular. See
-  // handoff/hko-headline-icon-plan.md Phase 2 step 2.
+  // HKO icon, skipping the 9999 no-data sentinel.
   const hkoIconCode = currentHko.icon?.length && Number.isFinite(currentHko.icon[0]) && currentHko.icon[0] !== 9999
     ? currentHko.icon[0]
     : null;
