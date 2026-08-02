@@ -448,10 +448,12 @@ function SunriseSunsetCountdown({
 
   // Theme-tinted countdown value, calibrated to pass 3:1 on cream (large
   // text threshold) and 4.5:1 on the dark editorial bg. Sunrise: amber-600
-  // #d97706; Sunset: blue-700 #1d4ed8. Single hex values intentionally —
+  // #d97706; Sunset: severity-info rgb(14, 90, 129) — matches the umbrella
+  // YES color so the same cue ("blue = night / water attention") is used
+  // for both sunset and umbrella-yes. Single hex values intentionally —
   // same color reads correctly against both bgs. Icon stays muted to keep
   // the row label + icon a quiet caption above the prominent value.
-  const tone = type === 'sunrise' ? '#d97706' : '#1d4ed8';
+  const tone = type === 'sunrise' ? '#d97706' : 'rgb(14, 90, 129)';
 
   return (
     <div className="flex flex-col gap-2">
@@ -512,6 +514,7 @@ function HumidityBar({ pct, label, empty }: { pct: number; label: string; empty:
 function WindCompass({
   deg, speed, label, empty, unitLabel, units,
 }: { deg: number; speed: number; label: string; empty: boolean; unitLabel: string; units: Units }) {
+  const { t } = useLanguage();
   const towardDeg = ((deg ?? 0) + 180) % 360;
   return (
     <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -529,7 +532,7 @@ function WindCompass({
         <div
           className="transition-transform duration-500"
           style={{ transform: `rotate(${towardDeg}deg)` }}
-          aria-label="wind direction (toward)"
+          aria-label={empty ? undefined : formatString(t('weather.windDirAria'), String(Math.round(towardDeg)), windCompass(towardDeg))}
         >
           <svg width="22" height="22" viewBox="0 0 48 48" role="img">
             <line x1="24" y1="40" x2="24" y2="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
@@ -649,9 +652,19 @@ function PrecipBar({
           {t('daily.precip')}
         </span>
         <span
-          className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none"
-          style={{ color: empty || !activeBand ? "currentColor" : activeBand.color }}
+          className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none text-foreground inline-flex items-center gap-2"
         >
+          {/* WCAG 1.4.3 — light band colors (#a0c4ff, #4facfe, #00f2fe, #f6d365)
+              failed 4.5:1 on cream. Convey the active band via a colored
+              swatch and keep the numeric value in the foreground color so it
+              stays readable. Hide the swatch when empty or no band is lit. */}
+          {!empty && activeBand && (
+            <span
+              className="inline-block h-3 w-3 rounded-sm border border-foreground/20"
+              style={{ backgroundColor: activeBand.color }}
+              aria-hidden="true"
+            />
+          )}
           {empty ? '—' : formatPrecipitation(mm, units)}
           <span className="text-xs ml-1 text-muted-foreground/70" style={{ fontFamily: "'Outfit', sans-serif" }}>
             {unitLabel}

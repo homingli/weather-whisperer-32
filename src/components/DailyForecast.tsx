@@ -154,7 +154,7 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
           {t("daily.title")}
         </h3>
         <span className="kicker text-muted-foreground/60 text-sm">
-          A look ahead
+          {t('daily.lookAhead')}
         </span>
       </div>
 
