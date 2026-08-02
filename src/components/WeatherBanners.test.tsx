@@ -6,6 +6,7 @@ import type { WeatherData, SourceState } from '@/lib/weather';
 
 function makeWeather(overrides: Partial<WeatherData> = {}): WeatherData {
   return {
+    headline: { source: 'om' as const },
     current: {
       temperature: 25,
       apparentTemperature: 27,

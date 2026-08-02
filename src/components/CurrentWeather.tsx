@@ -1,7 +1,9 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIconNode, weatherDescriptionKey } from "@/lib/weather";
+import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIconNode, weatherDescriptionKey, getHKOIconNode, hkoDescriptionKey } from "@/lib/weather";
+import type { HeadlineInfo } from "@/lib/weather";
+import type { LucideIcon } from "lucide-react";
 import { SENTINEL_THRESHOLD } from "@/lib/constants";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, Thermometer, AlertTriangle } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
@@ -33,10 +35,53 @@ interface CurrentWeatherProps {
   dailyForecast?: DailyForecast;
   locationName?: string;
   timezone?: string;
+  /**
+   * Headline source discriminator. The `weather-manager` decides whether
+   * the headline icon + label come from HKO's icon taxonomy (HK + both
+   * sources live) or from the WMO 4677 lookup on `weather.weatherCode`
+   * (everywhere else + degraded cases). The field is always present on
+   * the parent `WeatherData`; non-HK and partial paths pass
+   * `{ source: 'om' }`.
+   *
+   * Optional in the prop signature for defensive rendering: the cold-start
+   * `localStorage` seed can hold a snapshot from a previous app version
+   * that didn't carry this field. `weather-manager` always writes it on a
+   * live fetch, and the snapshot schema is bumped to v2 so old snapshots
+   * are dropped on read; this optional + OM-default is a belt-and-braces
+   * guard against future shape drift at this type boundary. See
+   * `handoff/hko-headline-icon-plan.md` Phase 5 + Risk "HKO icon schema drift".
+   */
+  headline?: HeadlineInfo;
   /** Mobile-only swiper layout: tighter padding, centered hero with
    *  icon and apparent-temp side-by-side. */
   compact?: boolean;
 }
+
+/**
+ * Resolve the headline icon + label key from the discriminator. The HKO
+ * path uses the icon's day/night built into the code (50 ↔ 70, etc.), so
+ * callers don't pass `isDay` for HKO; the WMO path falls through to the
+ * existing `getWeatherIconNode(code, isDay)` lookup that already handles
+ * day/night variants.
+ */
+function headlineIconAndLabel(
+  headline: HeadlineInfo,
+  weather: CurrentWeatherType,
+): { Icon: LucideIcon; labelKey: string } {
+  if (headline.source === 'hko' && headline.hkoIconCode != null) {
+    return {
+      Icon: getHKOIconNode(headline.hkoIconCode),
+      labelKey: hkoDescriptionKey(headline.hkoIconCode),
+    };
+  }
+  return {
+    Icon: getWeatherIconNode(weather.weatherCode, weather.isDay),
+    labelKey: weatherDescriptionKey(weather.weatherCode),
+  };
+}
+
+/** Module-scope so the useMemo sees a stable reference. */
+const HEADLINE_DEFAULT_OM: HeadlineInfo = { source: 'om' };
 
 /* ── UV index banding (WHO-aligned colors and exposure levels) ─────── */
 type UvBand = { max: number; bg: string; text: string; border: string; label: string };
@@ -98,7 +143,7 @@ function rainfallBandIndexFor(mm: number, units: Units): number {
   return bands.length - 1;
 }
 
-export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone, compact = false }: CurrentWeatherProps) => {
+export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone, compact = false, headline }: CurrentWeatherProps) => {
   const { language, t } = useLanguage();
   const { units } = useUnits();
   const root = useRef<HTMLDivElement>(null);
@@ -155,6 +200,12 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
   const humidityPct = isEmpty ? 0 : Math.max(0, Math.min(100, weather.humidity));
   const windDeg = isEmpty ? 0 : weather.windDirection;
 
+  const resolvedHeadline: HeadlineInfo = headline ?? HEADLINE_DEFAULT_OM;
+  const headlineRender = useMemo(
+    () => headlineIconAndLabel(resolvedHeadline, weather),
+    [resolvedHeadline, weather],
+  );
+
   return (
     <div
       ref={root}
@@ -189,12 +240,12 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-center gap-6">
             {(() => {
-              const Icon = getWeatherIconNode(weather.weatherCode, weather.isDay);
+              const Icon = headlineRender.Icon;
               return (
                 <span
                   className="inline-flex items-center justify-center text-[72px] sm:text-[110px] leading-none select-none text-foreground"
                   role="img"
-                  aria-label={t(weatherDescriptionKey(weather.weatherCode))}
+                  aria-label={t(headlineRender.labelKey)}
                 >
                   {/* Icon height tracks the h1 floor (72px on narrow viewports
                       so it doesn't dwarf the numeral; 110px on sm+ to match the
@@ -214,7 +265,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
             </div>
           </div>
           <p className="cw-fade text-center font-display italic text-xl text-muted-foreground">
-            {t(weatherDescriptionKey(weather.weatherCode))}
+            {t(headlineRender.labelKey)}
           </p>
         </div>
       ) : (
@@ -228,15 +279,15 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
             <span
               className="inline-flex items-center justify-center text-foreground leading-none select-none"
               role="img"
-              aria-label={t(weatherDescriptionKey(weather.weatherCode))}
+              aria-label={t(headlineRender.labelKey)}
             >
               {(() => {
-                const Icon = getWeatherIconNode(weather.weatherCode, weather.isDay);
+                const Icon = headlineRender.Icon;
                 return <Icon className="h-16 w-16 md:h-20 md:w-20" strokeWidth={1.25} />;
               })()}
             </span>
             <p className="font-display text-2xl md:text-3xl italic font-light leading-tight">
-              {t(weatherDescriptionKey(weather.weatherCode))}
+              {t(headlineRender.labelKey)}
             </p>
           </div>
         </header>

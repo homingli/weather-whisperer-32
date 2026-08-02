@@ -280,6 +280,7 @@ const Index = () => {
                         dailyForecast={weather?.daily?.[0]}
                         locationName={selectedCity?.name}
                         timezone={weather.timezone}
+                        headline={weather.headline}
                       />
                     </SwiperSlide>
 
@@ -329,6 +330,7 @@ const Index = () => {
                       dailyForecast={weather?.daily?.[0]}
                       locationName={selectedCity?.name}
                       timezone={weather.timezone}
+                      headline={weather.headline}
                     />
                   </div>
 
