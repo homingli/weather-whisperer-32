@@ -3,6 +3,7 @@ import { render, screen, act } from '@testing-library/react';
 import { CurrentWeather } from './CurrentWeather';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitsProvider, useUnits } from '@/contexts/UnitsContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { CurrentWeather as CurrentWeatherType, HourlyForecast as HourlyForecastType } from '@/lib/weather';
 
 const mockWeather: CurrentWeatherType = {
@@ -62,6 +63,7 @@ describe('CurrentWeather Component', () => {
         hourlyForecast={mockHourly}
         locationName="London"
         timezone="Europe/London"
+        headline={{ source: 'om' }}
       />
     );
 
@@ -76,6 +78,7 @@ describe('CurrentWeather Component', () => {
         hourlyForecast={mockHourly}
         locationName="London"
         timezone="Europe/London"
+        headline={{ source: 'om' }}
       />
     );
 
@@ -86,7 +89,12 @@ describe('CurrentWeather Component', () => {
     // Hero shows "18°" — the unit context is implicit from the range bar above
     // and the menu selection.
     renderWithLanguage(
-      <CurrentWeather weather={mockWeather} hourlyForecast={mockHourly} timezone="UTC" />
+      <CurrentWeather
+        weather={mockWeather}
+        hourlyForecast={mockHourly}
+        timezone="UTC"
+        headline={{ source: 'om' }}
+      />
     );
     expect(screen.getByText('18°')).toBeInTheDocument();
   });
@@ -102,7 +110,12 @@ describe('CurrentWeather Component', () => {
       <LanguageProvider>
         <UnitsProvider>
           <UnitProbe />
-          <CurrentWeather weather={mockWeather} hourlyForecast={mockHourly} timezone="UTC" />
+          <CurrentWeather
+            weather={mockWeather}
+            hourlyForecast={mockHourly}
+            timezone="UTC"
+            headline={{ source: 'om' }}
+          />
         </UnitsProvider>
       </LanguageProvider>
     );
@@ -116,7 +129,12 @@ describe('CurrentWeather Component', () => {
   it('renders wind speed label in km/h by default and mph in us mode', () => {
     // windSpeed: 10 km/h → "10" with "km/h" label. In us → 10 * 0.621371 ≈ 6 mph.
     const { rerender, container } = renderWithLanguage(
-      <CurrentWeather weather={mockWeather} hourlyForecast={mockHourly} timezone="UTC" />
+      <CurrentWeather
+        weather={mockWeather}
+        hourlyForecast={mockHourly}
+        timezone="UTC"
+        headline={{ source: 'om' }}
+      />
     );
     // Container text contains "km/h" for the wind unit label (and possibly
     // other places, but at minimum the wind speed row).
@@ -130,7 +148,12 @@ describe('CurrentWeather Component', () => {
       <LanguageProvider>
         <UnitsProvider>
           <FlipProbe />
-          <CurrentWeather weather={mockWeather} hourlyForecast={mockHourly} timezone="UTC" />
+          <CurrentWeather
+            weather={mockWeather}
+            hourlyForecast={mockHourly}
+            timezone="UTC"
+            headline={{ source: 'om' }}
+          />
         </UnitsProvider>
       </LanguageProvider>
     );
@@ -144,7 +167,12 @@ describe('CurrentWeather Component', () => {
   it('renders precipitation in mm by default and in inches in us mode', () => {
     const wetWeather = { ...mockWeather, precipitation: 5 }; // 5 mm
     const { rerender, container } = renderWithLanguage(
-      <CurrentWeather weather={wetWeather} hourlyForecast={mockHourly} timezone="UTC" />
+      <CurrentWeather
+        weather={wetWeather}
+        hourlyForecast={mockHourly}
+        timezone="UTC"
+        headline={{ source: 'om' }}
+      />
     );
     // metric: "5.0" + "mm" label
     expect(container.textContent).toContain('5.0');
@@ -158,7 +186,12 @@ describe('CurrentWeather Component', () => {
       <LanguageProvider>
         <UnitsProvider>
           <FlipProbe />
-          <CurrentWeather weather={wetWeather} hourlyForecast={mockHourly} timezone="UTC" />
+          <CurrentWeather
+            weather={wetWeather}
+            hourlyForecast={mockHourly}
+            timezone="UTC"
+            headline={{ source: 'om' }}
+          />
         </UnitsProvider>
       </LanguageProvider>
     );
@@ -184,7 +217,12 @@ describe('CurrentWeather Component', () => {
       <LanguageProvider>
         <UnitsProvider>
           <FlipProbe />
-          <CurrentWeather weather={wetWeather} hourlyForecast={mockHourly} timezone="UTC" />
+          <CurrentWeather
+            weather={wetWeather}
+            hourlyForecast={mockHourly}
+            timezone="UTC"
+            headline={{ source: 'om' }}
+          />
         </UnitsProvider>
       </LanguageProvider>
     );
@@ -194,5 +232,180 @@ describe('CurrentWeather Component', () => {
     // aria-label for the bar includes the band name.
     expect(container.querySelector('[aria-label*="0.08"]')).toBeTruthy();
     expect(container.querySelector('[aria-label*="0.2 – 0.4 in"]')).toBeNull();
+  });
+
+  // ── Phase 3 + 5: HKO headline swap ───────────────────────────────────
+  // handoff/hko-headline-icon-plan.md Phase 5 step 3. The headline icon +
+  // label swap to HKO-native phrasing when the `weather-manager` reports
+  // `headline.source === 'hko'` with a valid `hkoIconCode`. The OM path
+  // is unchanged.
+  describe('HKO headline swap', () => {
+    it('renders "Sunny" for hkoIconCode=50 (headline.source=hko)', () => {
+      const { container } = renderWithLanguage(
+        <CurrentWeather
+          weather={mockWeather}
+          hourlyForecast={mockHourly}
+          timezone="UTC"
+          headline={{ source: 'hko', hkoIconCode: 50 }}
+        />
+      );
+      // Both the visible label and the aria-label on the icon read "Sunny".
+      expect(container.textContent).toContain('Sunny');
+      expect(container.querySelector('[aria-label="Sunny"]')).toBeTruthy();
+    });
+
+    it('renders "Humid" for hkoIconCode=82 (special state, no WMO equivalent)', () => {
+      const { container } = renderWithLanguage(
+        <CurrentWeather
+          weather={mockWeather}
+          hourlyForecast={mockHourly}
+          timezone="UTC"
+          headline={{ source: 'hko', hkoIconCode: 82 }}
+        />
+      );
+      expect(container.textContent).toContain('Humid');
+      expect(container.querySelector('[aria-label="Humid"]')).toBeTruthy();
+    });
+
+    it('renders "Clear" for hkoIconCode=70 (night variant renamed from "Fine")', () => {
+      const { container } = renderWithLanguage(
+        <CurrentWeather
+          weather={mockWeather}
+          hourlyForecast={mockHourly}
+          timezone="UTC"
+          headline={{ source: 'hko', hkoIconCode: 70 }}
+        />
+      );
+      // Plan Decision 8: drop HKO's "Fine" in favour of natural English.
+      expect(container.textContent).toContain('Clear');
+      expect(container.textContent).not.toContain('Fine');
+      expect(container.querySelector('[aria-label="Clear"]')).toBeTruthy();
+    });
+
+    it('renders "Hot" for hkoIconCode=90 (temperature state, no WMO equivalent)', () => {
+      const { container } = renderWithLanguage(
+        <CurrentWeather
+          weather={mockWeather}
+          hourlyForecast={mockHourly}
+          timezone="UTC"
+          headline={{ source: 'hko', hkoIconCode: 90 }}
+        />
+      );
+      expect(container.textContent).toContain('Hot');
+      expect(container.querySelector('[aria-label="Hot"]')).toBeTruthy();
+    });
+
+    it('falls through to the WMO path when headline.source is "om"', () => {
+      // mockWeather.weatherCode = 0 → "Clear sky". Verifies the OM path
+      // still works after the refactor.
+      const { container } = renderWithLanguage(
+        <CurrentWeather
+          weather={mockWeather}
+          hourlyForecast={mockHourly}
+          timezone="UTC"
+          headline={{ source: 'om' }}
+        />
+      );
+      expect(container.textContent).toContain('Clear sky');
+      expect(container.querySelector('[aria-label="Clear sky"]')).toBeTruthy();
+    });
+
+    it('falls through to the WMO path when source is "hko" but hkoIconCode is null (degraded)', () => {
+      // Defensive: weather-manager only writes source=hko when icon[0] is
+      // a finite non-9999 integer, but consumers shouldn't crash if a
+      // malformed payload arrives. Verify the OM path still renders.
+      const { container } = renderWithLanguage(
+        <CurrentWeather
+          weather={mockWeather}
+          hourlyForecast={mockHourly}
+          timezone="UTC"
+          headline={{ source: 'hko', hkoIconCode: null }}
+        />
+      );
+      expect(container.textContent).toContain('Clear sky');
+    });
+  });
+
+  // ── Phase 4: TC locale render parity ────────────────────────────────
+  // The hko.desc.* keys must produce natural HK Traditional Chinese on the
+  // headline. Tests assert the seeded TC values resolve under language='tc'.
+  describe('TC locale render', () => {
+    it('renders "天晴" (sunny) when the HKO headline is active and language is tc', () => {
+      function LangProbe() {
+        const { setLanguage } = useLanguage();
+        return <button data-testid="flip-tc" onClick={() => setLanguage('tc')}>tc</button>;
+      }
+      const { container } = render(
+        <LanguageProvider>
+          <UnitsProvider>
+            <LangProbe />
+            <CurrentWeather
+              weather={mockWeather}
+              hourlyForecast={mockHourly}
+              timezone="UTC"
+              headline={{ source: 'hko', hkoIconCode: 50 }}
+            />
+          </UnitsProvider>
+        </LanguageProvider>
+      );
+      act(() => {
+        screen.getByTestId('flip-tc').click();
+      });
+      expect(container.textContent).toContain('天晴');
+      expect(container.querySelector('[aria-label="天晴"]')).toBeTruthy();
+    });
+
+    it('renders "潮濕" (humid) for the special-state code 82 under tc', () => {
+      function LangProbe() {
+        const { setLanguage } = useLanguage();
+        return <button data-testid="flip-tc-2" onClick={() => setLanguage('tc')}>tc</button>;
+      }
+      const { container } = render(
+        <LanguageProvider>
+          <UnitsProvider>
+            <LangProbe />
+            <CurrentWeather
+              weather={mockWeather}
+              hourlyForecast={mockHourly}
+              timezone="UTC"
+              headline={{ source: 'hko', hkoIconCode: 82 }}
+            />
+          </UnitsProvider>
+        </LanguageProvider>
+      );
+      act(() => {
+        screen.getByTestId('flip-tc-2').click();
+      });
+      expect(container.textContent).toContain('潮濕');
+      expect(container.querySelector('[aria-label="潮濕"]')).toBeTruthy();
+    });
+
+    it('renders the night clear (70) as "天晴" under tc, not the English "Fine" wording', () => {
+      // Plan Decision 8: drop "Fine". Under TC the parallel to "Sunny" is
+      // also 天晴 — HKO uses the same character in both halves; the day/night
+      // distinction is encoded in the lucide icon (Sun ↔ Moon), not in the
+      // Chinese label.
+      function LangProbe() {
+        const { setLanguage } = useLanguage();
+        return <button data-testid="flip-tc-3" onClick={() => setLanguage('tc')}>tc</button>;
+      }
+      const { container } = render(
+        <LanguageProvider>
+          <UnitsProvider>
+            <LangProbe />
+            <CurrentWeather
+              weather={mockWeather}
+              hourlyForecast={mockHourly}
+              timezone="UTC"
+              headline={{ source: 'hko', hkoIconCode: 70 }}
+            />
+          </UnitsProvider>
+        </LanguageProvider>
+      );
+      act(() => {
+        screen.getByTestId('flip-tc-3').click();
+      });
+      expect(container.textContent).toContain('天晴');
+    });
   });
 });

@@ -54,6 +54,7 @@ describe('Location and Time Integration', () => {
               weather={mockWeather}
               hourlyForecast={mockHourly}
               timezone={timezone}
+              headline={{ source: 'om' }}
             />
             <HourlyForecast
               forecast={mockHourly}

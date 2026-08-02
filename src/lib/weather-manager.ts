@@ -1,4 +1,4 @@
-import { getWeather as getOpenMeteoWeather, WeatherData, DailyForecast } from './weather';
+import { getWeather as getOpenMeteoWeather, WeatherData, DailyForecast, HeadlineInfo } from './weather';
 import { isInHongKong, getHKODailyAndWarnings, getHKOCurrentWeather, buildHKOWeatherData, fetchHKOWeatherData } from './hko-weather';
 import type { HKOCurrentWeatherResponse } from './hko-types';
 import { SourceState, SourceId } from './weather/types';
@@ -101,7 +101,26 @@ export async function fetchWeather(
 
   /** Build the sources field for a non-HK or partial result. */
   function attachOmOnly(data: WeatherData): WeatherData {
-    return { ...data, sources: { om: omSource } };
+    // Non-HK paths use the OM headline regardless of the source data's
+    // existing `headline` field. The `data` here is always `omData`, which
+    // doesn't yet carry a headline (Phase 2 added the field requirement
+    // but the OM parser doesn't set it). Forcing source: 'om' keeps the
+    // contract — the headline field is always present, always accurate.
+    return { ...data, headline: { source: 'om' as const }, sources: { om: omSource } };
+  }
+
+  /**
+   * Resolve the headline from the HKO current-weather icon field. Returns
+   * `{ source: 'hko', hkoIconCode }` only when the icon is a finite integer
+   * other than the 9999 sentinel; otherwise the OM headline wins. See
+   * handoff/hko-headline-icon-plan.md Phase 2 step 3.
+   */
+  function headlineFromHkoIcon(icon: number[] | undefined): HeadlineInfo {
+    const code = icon?.[0];
+    if (code != null && Number.isFinite(code) && code !== 9999) {
+      return { source: 'hko', hkoIconCode: code };
+    }
+    return { source: 'om' };
   }
 
   /** Persist the snapshot and return the data unchanged. */
@@ -183,6 +202,7 @@ export async function fetchWeather(
     // the cached side is the correct semantic.
     const result: WeatherData = {
       ...omData!,
+      headline: { source: 'om' as const },
       sources: { om: omSource, hko: hkoSource },
       isFallback: true,
       fallbackSource: 'partial',
@@ -221,6 +241,7 @@ export async function fetchWeather(
 
   const merged: WeatherData = {
     ...omData!,
+    headline: headlineFromHkoIcon(hkoCurrentData?.icon),
     current: hkoCurrentTemperature != null
       ? { ...omData!.current, temperature: hkoCurrentTemperature }
       : omData!.current,
