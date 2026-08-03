@@ -7,6 +7,7 @@ The format is loosely [Keep a Changelog](https://keepachangelog.com/) — date +
 ## Unreleased
 
 ### Fixed
+- **Intermittent blank map on mobile** when clicking "Load Map" for the nowcast rainfall card. Leaflet's constructor reads the container's bounding rect synchronously, so a map mounted against a 0x0 container (common during a Swiper slide transition or iOS Safari URL-bar hide/show) ends up with a 0x0 viewport that never recovers on its own — the basemap renders as `bg-muted/20` and the rainfall cells paint into an invisible canvas. Fix: `map.invalidateSize()` on the next frame after the ref lands, plus a `ResizeObserver` on the map container so subsequent size changes (URL bar toggle, orientation, slide re-entry) re-layout the map.
 - **Cold-start snapshot crash on upgrade.** Snapshot schema bumped to v2 (drops legacy v1 envelopes missing `headline`); `CurrentWeatherProps.headline` made optional with an OM default as a defensive guard.
 
 ### Added

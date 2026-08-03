@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { forwardRef } from 'react';
+import { forwardRef, useImperativeHandle } from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { RainfallMap } from './RainfallMap';
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -17,7 +17,12 @@ const stubMap: Record<string, unknown> = {
   addLayer: () => {},
   removeLayer: () => {},
   getPane: () => document.createElement('div'),
-  getContainer: () => document.body,
+  // Dedicated container element (not document.body) so the blank-on-mobile
+  // ResizeObserver attaches to a real, distinct node — if a future test
+  // upgrades the global ResizeObserver mock to actually fire callbacks,
+  // it'll observe the correct element instead of polluting body-level
+  // resize events across every test.
+  getContainer: () => document.createElement('div'),
   getPanes: () => ({ overlayPane: document.createElement('div') }),
   getSize: () => ({ x: 600, y: 600 }),
   getBounds: () => ({
@@ -28,6 +33,12 @@ const stubMap: Record<string, unknown> = {
   }),
   containerPointToLayerPoint: () => ({ x: 0, y: 0 }),
   latLngToLayerPoint: () => ({ x: 0, y: 0 }),
+  // The blank-on-mobile fix calls invalidateSize() on the next frame after
+  // the ref lands and again whenever a ResizeObserver fires. Previous tests
+  // didn't need this because the inner only read the map's size, but the
+  // ref-callback now actively re-layouts the map. Stub it as a no-op so
+  // the call doesn't throw.
+  invalidateSize: () => {},
   on: () => {},
   off: () => {},
   add: () => stubMap,
@@ -47,13 +58,15 @@ const makeHandler = () => {
   stubMap[k] = makeHandler();
 });
 
-// forwardRef mirrors the real react-leaflet ref forwarding: the parent's
-// ref callback fires with the stub map so the lock/unlock useEffect sees a
-// non-null ref. Previously this was a plain <div> and the lock effect never
-// re-fired in tests, masking the cache-hit bug.
+// forwardRef mirrors the real react-leaflet ref forwarding: useImperativeHandle
+// (not a manual ref call inside render) so React's ref lifecycle fires both
+// directions — ref(stubMap) on mount AND ref(null) on unmount. The latter is
+// what the blank-on-mobile fix's else-branch relies on to disconnect the
+// ResizeObserver; without useImperativeHandle the test would never observe
+// the unmount ref-null call.
 const MapContainerStub = forwardRef<unknown, { children?: React.ReactNode }>(
   function MapContainerStub(props, ref) {
-    if (typeof ref === 'function') ref(stubMap);
+    useImperativeHandle(ref, () => stubMap, []);
     return <div data-testid="map-container">{props.children}</div>;
   }
 );
@@ -337,5 +350,72 @@ describe('RainfallMap Component', () => {
     (['dragging', 'scrollWheelZoom', 'doubleClickZoom', 'touchZoom', 'boxZoom', 'keyboard'] as const).forEach((k) => {
       expect(stubMap[k]).toHaveProperty('enabled', true);
     });
+  });
+
+  it('calls invalidateSize on the next frame after the map ref lands', async () => {
+    // Regression test for the "blank map on mobile" bug: Leaflet reads the
+    // container's bounding rect synchronously in its constructor, so a map
+    // mounted against a 0x0 container (common during a Swiper slide
+    // transition or an iOS Safari URL-bar hide/show) ends up with a 0x0
+    // viewport that never recovers on its own. The fix schedules
+    // map.invalidateSize() via requestAnimationFrame from the ref callback.
+    const invalidateSizeSpy = vi.fn();
+    (stubMap as { invalidateSize: () => void }).invalidateSize = invalidateSizeSpy;
+
+    // Cold-start path (no localStorage cache) so the inner mounts via the
+    // user's click on the Load Map button.
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => null },
+      text: async () => mockCsvData,
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    renderWithLanguage(<RainfallMap />);
+    screen.getByRole('button', { name: /Load Map/i }).click();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('map-container')).toBeInTheDocument();
+    });
+
+    // Run the deferred RAF callback that the ref callback scheduled.
+    await waitFor(() => {
+      expect(invalidateSizeSpy).toHaveBeenCalled();
+    });
+  });
+
+  it('disconnects the ResizeObserver when the inner unmounts', async () => {
+    // Regression test: the ResizeObserver is attached to the map's
+    // container DOM node in handleMapRef. When the inner unmounts,
+    // React fires handleMapRef(null); without an else-branch that
+    // disconnects, the observer keeps a reference to the now-detached
+    // node and leaks across every remount.
+    //
+    // The global ResizeObserver is a no-op mock (src/test/setup.ts).
+    // We spy on its prototype's disconnect() so every observer the inner
+    // creates (and any disconnect call against it) is visible to the spy.
+    const disconnectSpy = vi.spyOn(window.ResizeObserver.prototype, 'disconnect');
+
+    try {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        headers: { get: () => null },
+        text: async () => mockCsvData,
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const { unmount } = renderWithLanguage(<RainfallMap />);
+      screen.getByRole('button', { name: /Load Map/i }).click();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('map-container')).toBeInTheDocument();
+      });
+
+      // handleMapRef(null) runs synchronously during unmount commit.
+      unmount();
+      expect(disconnectSpy).toHaveBeenCalled();
+    } finally {
+      disconnectSpy.mockRestore();
+    }
   });
 });
