@@ -32,14 +32,14 @@ const failedHko: SourceState = { ok: false, cachedAt: 0, ttlMs: 60_000, isExpire
 function renderBanner(weather: WeatherData, props: Partial<{ onRefetch: () => void; isRefetching: boolean }> = {}) {
   return render(
     <LanguageProvider>
-      <WeatherBanners weather={weather} isHKCovered={true} {...props} />
+      <WeatherBanners weather={weather} {...props} />
     </LanguageProvider>
   );
 }
 
 describe('WeatherBanners', () => {
   describe('live data (no flag)', () => {
-    it('renders nothing when neither isFallback nor hkoFailed is set', () => {
+    it('renders nothing when no fallback flag is set', () => {
       const { container } = renderBanner(makeWeather());
       expect(container.firstChild).toBeNull();
     });
@@ -111,16 +111,6 @@ describe('WeatherBanners', () => {
     });
   });
 
-  describe('legacy hkoFailed (no isFallback)', () => {
-    it('renders the legacy amber HKO-failed note', () => {
-      const weather = makeWeather({
-        hkoFailed: true,
-      });
-      renderBanner(weather);
-      expect(screen.getByTestId('banner-hko-failed')).toBeInTheDocument();
-    });
-  });
-
   describe('WCAG 4.1.3 role semantics', () => {
     it('uses role="alert" only for the offline (cache) banner — interrupts screen readers', () => {
       const weather = makeWeather({
@@ -149,18 +139,10 @@ describe('WeatherBanners', () => {
       });
       rerender(
         <LanguageProvider>
-          <WeatherBanners weather={partial} isHKCovered={true} />
+          <WeatherBanners weather={partial} />
         </LanguageProvider>
       );
       expect(screen.getByTestId('banner-partial')).toHaveAttribute('role', 'status');
-
-      const hkoFailed: WeatherData = makeWeather({ hkoFailed: true });
-      rerender(
-        <LanguageProvider>
-          <WeatherBanners weather={hkoFailed} isHKCovered={true} />
-        </LanguageProvider>
-      );
-      expect(screen.getByTestId('banner-hko-failed')).toHaveAttribute('role', 'status');
     });
   });
 });
