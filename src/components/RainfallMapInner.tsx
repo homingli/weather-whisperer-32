@@ -326,12 +326,43 @@ export default function RainfallMapInner({
     }
   }, [data, isLoading]);
 
+  // Tracks the ResizeObserver attached to the map's container so we can
+  // disconnect it when the ref callback re-fires (identity change on
+  // data/isLoading) or the map is torn down — without this, a
+  // detach/reattach cycle would leak observers onto old DOM nodes.
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+
   // useCallback so the ref identity tracks applyMapLockState's identity;
   // React's detach/reattach on identity change fires the new closure.
+  //
+  // Also closes the "blank map on mobile" race: Leaflet's constructor
+  // reads the container's bounding rect synchronously, so a map mounted
+  // against a 0x0 container (Swiper slide transition, iOS Safari URL-bar
+  // mid-transition) is built with a 0x0 viewport that never self-repairs.
+  // invalidateSize() on the next frame re-reads the settled size; the
+  // ResizeObserver covers in-session changes (URL bar toggle, orientation,
+  // slide re-entry).
   const handleMapRef = useCallback(
     (map: L.Map | null) => {
       mapRef.current = map;
-      if (map) applyMapLockState();
+
+      if (map) {
+        applyMapLockState();
+        // RAF so the container has its settled size (mount-time race).
+        requestAnimationFrame(() => {
+          map.invalidateSize();
+        });
+        // Replace any prior observer from a previous identity of this
+        // ref callback — disconnects the old one, observes the new map.
+        resizeObserverRef.current?.disconnect();
+        const observer = new ResizeObserver(() => {
+          requestAnimationFrame(() => {
+            map.invalidateSize();
+          });
+        });
+        observer.observe(map.getContainer());
+        resizeObserverRef.current = observer;
+      }
     },
     [applyMapLockState],
   );
