@@ -149,9 +149,8 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
         onCitySelect(location);
         toast.success(formatString(t('search.locationUpdated'), location.name));
       }
-    } catch (error) {
+    } catch {
       toast.error(t('search.locationError'));
-      console.error('Location error:', error);
     } finally {
       setIsLocating(false);
     }
@@ -164,8 +163,10 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
       try {
         const cities = await searchCities(value);
         setResults(cities);
-      } catch (error) {
-        console.error('Failed to search cities:', error);
+      } catch {
+        // Toast path is not invoked here — search failures are silent so the
+        // menu doesn't pile up toasts while the user is still typing.
+        // The fetch layer logs via logWarn/logFailure.
       } finally {
         setIsSearching(false);
       }
