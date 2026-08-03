@@ -17,7 +17,7 @@ const DESCRIPTION_KEYS: Record<number, string> = {
   55: 'weather.desc.denseDrizzle',
   56: 'weather.desc.freezingDrizzle',
   57: 'weather.desc.denseFreezingDrizzle',
-  61: 'weather.desc.slightRain',
+  61: 'weather.desc.lightRain',
   63: 'weather.desc.moderateRain',
   65: 'weather.desc.heavyRain',
   66: 'weather.desc.freezingRain',
