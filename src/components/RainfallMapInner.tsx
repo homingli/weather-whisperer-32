@@ -362,6 +362,13 @@ export default function RainfallMapInner({
         });
         observer.observe(map.getContainer());
         resizeObserverRef.current = observer;
+      } else {
+        // Unmount or identity-change detach. Disconnect so the observer
+        // doesn't keep the (now-detached) container DOM node + closure
+        // pinned in memory — without this, every remount leaks an
+        // observer onto a dead node.
+        resizeObserverRef.current?.disconnect();
+        resizeObserverRef.current = null;
       }
     },
     [applyMapLockState],
