@@ -434,6 +434,9 @@ describe('RainfallMap Component', () => {
         headers: { get: () => null },
         text: async () => mockCsvData,
       })
+      // Second+ calls (initial + retry) reject. mockRejectedValue is a
+      // permanent fallback so it covers every subsequent call without us
+      // having to enumerate them.
       .mockRejectedValue(new Error('Network Error'));
 
     vi.stubGlobal('fetch', mockFetch);
@@ -448,9 +451,9 @@ describe('RainfallMap Component', () => {
     });
 
     // The refresh-nowcast button lives in the top-right control cluster
-    // inside the map area. Trigger a manual refetch to avoid waiting for
-    // the 15-min refetchInterval.
-    const refreshBtn = screen.getByRole('button', { name: /Refresh gridded nowcast/i });
+    // inside the map area. Match the exact aria-label so locale shifts
+    // don't silently change the string the test is looking for.
+    const refreshBtn = screen.getByRole('button', { name: 'Refresh gridded nowcast' });
     fireEvent.click(refreshBtn);
 
     // React Query retries once (retry: 1, retryDelay: 1000), so allow up
@@ -463,10 +466,12 @@ describe('RainfallMap Component', () => {
       { timeout: 5000 },
     );
 
-    // The full-screen overlay text MUST NOT appear — that would block
-    // the map. (Only the inner copy of nowcast.loadFailed shows, inside
-    // the stale pill's description.)
-    expect(screen.queryByText(/Could not load gridded rainfall data\./)).not.toBeInTheDocument();
+    // The full-screen overlay (with its 3 lines: icon + "Failed to load
+    // data" + "Could not load gridded rainfall data.") MUST NOT appear —
+    // that would block the map. The stale pill uses different copy, so
+    // neither overlay line should match.
+    expect(screen.queryByText('Failed to load data')).not.toBeInTheDocument();
+    expect(screen.queryByText('Could not load gridded rainfall data.')).not.toBeInTheDocument();
   });
 
   it('shows the slow-network chip after the initial fetch lingers past 10s', async () => {
@@ -491,8 +496,10 @@ describe('RainfallMap Component', () => {
       // Confirm the chip is NOT visible during the first 10 s.
       expect(screen.queryByText(/Slow connection/)).not.toBeInTheDocument();
 
-      // Advance past the 10 s threshold. React's setTimeout / requestIdle
-      // timers are mocked by vitest's fake timers, so the effect runs.
+      // Advance past the 10 s threshold. The only 10 s timer in the
+      // component path is the slow-network chip effect; the fetch
+      // timeout is 30 s and the React Query retry is 1 s — neither
+      // overlaps with 10 s, so this advance is safe.
       await vi.advanceTimersByTimeAsync(10_500);
 
       expect(screen.getByText(/Slow connection/)).toBeInTheDocument();
