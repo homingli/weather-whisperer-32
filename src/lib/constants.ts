@@ -19,10 +19,10 @@ export const STORAGE_KEYS = {
   DEFAULT_CITY: 'weather-default-city',
   RECENT_CITIES: 'weather-recent-cities',
   /** Last-known weather snapshot for cold-start first paint. Schema-versioned. */
-  LAST_KNOWN: 'weather-last-known-v1',
+  LAST_KNOWN: 'weather-last-known-v2',
   /** Gridded rainfall nowcast CSV snapshot. Read at mount to skip the
    *  "Load Map" prompt when fresh (≤ NOWCAST_CACHE_TTL_MS). Schema-versioned. */
-  NOWCAST_CACHE: 'weather-nowcast-cache-v1',
+  NOWCAST_CACHE: 'weather-nowcast-cache-v2',
 } as const;
 
 /** Bump when the LastKnownEnvelope shape changes; readers drop on mismatch.

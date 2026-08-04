@@ -18,6 +18,7 @@ import { useLanguage, Language, formatString } from '@/contexts/LanguageContext'
 import { useUnits, Units } from '@/contexts/UnitsContext';
 import { cn } from '@/lib/utils';
 import { searchCities, GeoLocation, getUserLocation, reverseGeocode, setDefaultCity } from '@/lib/weather';
+import { logWarn } from '@/lib/log';
 import { toast } from 'sonner';
 
 const languages: { value: Language; label: string }[] = [
@@ -150,8 +151,10 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
         toast.success(formatString(t('search.locationUpdated'), location.name));
       }
     } catch (error) {
+      // Browser geolocation API failures (permission denied, timeout,
+      // unavailable) don't go through the fetch layer, so log here.
+      logWarn('[settings] getUserLocation failed', error);
       toast.error(t('search.locationError'));
-      console.error('Location error:', error);
     } finally {
       setIsLocating(false);
     }
@@ -164,8 +167,10 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
       try {
         const cities = await searchCities(value);
         setResults(cities);
-      } catch (error) {
-        console.error('Failed to search cities:', error);
+      } catch {
+        // Toast path is not invoked here — search failures are silent so the
+        // menu doesn't pile up toasts while the user is still typing.
+        // The fetch layer logs via logWarn/logFailure.
       } finally {
         setIsSearching(false);
       }

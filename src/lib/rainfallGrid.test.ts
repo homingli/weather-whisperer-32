@@ -82,12 +82,11 @@ describe('buildRainGrid', () => {
     expect(Array.from(grid!.cellLons)).toEqual([114.17, 114.18, 114.19, 114.20]);
 
     // Storage layout: values[step * rows * cols + row * cols + col].
-    // Step 0, row 0 (22.31), col 0 (114.17) should be 1.5.
-    const v0_0_0 = grid!.values[0 * 3 * 4 + 0 * 4 + 0];
-    expect(v0_0_0).toBe(1.5);
-    // Step 1, row 1 (22.32), col 1 (114.18) should be 6.0.
-    const v1_1_1 = grid!.values[1 * 3 * 4 + 1 * 4 + 1];
-    expect(v1_1_1).toBe(6.0);
+    // Step 0, row 0 (22.31), col 0 (114.17) → idx 0.
+    const stride0 = 3 * 4;
+    expect(grid!.values[0]).toBe(1.5);
+    // Step 1, row 1 (22.32), col 1 (114.18) → idx stride0 + 1*4 + 1 = stride0 + 5.
+    expect(grid!.values[stride0 + 5]).toBe(6.0);
   });
 
   it('handles non-uniform cell spacing (HKO mixes 0.017/0.018/0.019 lat steps)', () => {
@@ -173,9 +172,10 @@ describe('buildRainGrid', () => {
     // Lon 114.17 should be col 0. Lon 114.19 should be col 2.
     expect(grid!.cellLons[0]).toBe(114.17);
     expect(grid!.cellLons[2]).toBe(114.19);
-    // (row 0, col 0) is lat=22.31, lon=114.17 → value 0.5.
-    expect(grid!.values[0 * 3 * 3 + 0 * 3 + 0]).toBe(0.5);
-    // (row 2, col 2) is lat=22.33, lon=114.19 → value 2.5.
-    expect(grid!.values[0 * 3 * 3 + 2 * 3 + 2]).toBe(2.5);
+    // Storage layout: values[step * rows * cols + row * cols + col].
+    // step=0, row=0, col=0 → idx 0.
+    expect(grid!.values[0]).toBe(0.5);
+    // step=0, row=2, col=2 → idx 2*3 + 2 = 8.
+    expect(grid!.values[2 * 3 + 2]).toBe(2.5);
   });
 });

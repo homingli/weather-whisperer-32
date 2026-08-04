@@ -487,11 +487,13 @@ function SunriseSunsetCountdown({
   const countdown = useMemo(() => {
     if (empty) return { text: "—", isNow: false };
     const { hours: hrs, minutes: mins, isNow } = diffToSunTime(time, timezone);
-    let text: string;
-    if (isNow) text = t('sun.now');
-    else if (hrs > 0 && mins > 0) text = formatString(t('sun.inHoursMinutes'), String(hrs), String(mins));
-    else if (hrs > 0) text = formatString(t('sun.inHours'), String(hrs));
-    else text = formatString(t('sun.inMinutes'), String(mins));
+    const text = isNow
+      ? t('sun.now')
+      : hrs > 0 && mins > 0
+        ? formatString(t('sun.inHoursMinutes'), String(hrs), String(mins))
+        : hrs > 0
+          ? formatString(t('sun.inHours'), String(hrs))
+          : formatString(t('sun.inMinutes'), String(mins));
     return { text, isNow };
   }, [time, empty, timezone, t]);
 
