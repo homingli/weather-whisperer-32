@@ -133,9 +133,10 @@ export function writeNowcastCache(
  * idle slot so the React commit that releases the rainfall map lock isn't
  * blocked by the ~300-800 ms compress cost on low-end mobile.
  *
- * The csvText is held in a module-scoped slot (not captured in the idle
- * callback's closure) so the GC can reclaim it if the user navigates
- * away before the idle fires — important because the string is ~2.7 MB.
+ * The csvText sits in a module-scoped slot rather than being captured in
+ * the idle callback's closure. This coalesces concurrent schedules: at
+ * most one 2.7 MB CSV is pinned at a time, instead of N concurrent
+ * schedules each pinning their own copy until each idle fires.
  */
 export function scheduleCacheWrite(
   csvText: string,
@@ -144,10 +145,11 @@ export function scheduleCacheWrite(
 ): void {
   if (typeof window === 'undefined') return;
   pendingWrite = { csvText, updateTime, lastModified };
-  const scheduled =
-    window.requestIdleCallback?.(drainPendingWrite, { timeout: 5000 }) ??
+  if (window.requestIdleCallback) {
+    window.requestIdleCallback(drainPendingWrite, { timeout: 5000 });
+  } else {
     setTimeout(drainPendingWrite, 0);
-  void scheduled;
+  }
 }
 
 /** Module-scoped holder for the next pending cache write. Replaces the
