@@ -96,7 +96,13 @@ export function readNowcastCache(): NowcastCacheRead | null {
 
 /** Persist a successful nowcast fetch. The CSV is LZString-compressed
  *  before writing so the on-disk envelope is ~half the raw size. Failures
- *  (quota, private mode) are swallowed so the network path is unaffected. */
+ *  (quota, private mode) are swallowed so the network path is unaffected.
+ *
+ *  Synchronous: blocks the main thread for ~300-800 ms on a 2.7 MB CSV on
+ *  low-end mobile while LZString compresses + JSON.stringify serializes.
+ *  Use only when immediate persistence is required (tests). For the
+ *  production fetch path, use `scheduleCacheWrite` so the heavy work
+ *  happens after the React commit that releases the map lock. */
 export function writeNowcastCache(
   csvText: string,
   updateTime: string,
@@ -120,6 +126,44 @@ export function writeNowcastCache(
     // is comfortable but still tight on Safari) or disabled (private mode).
     // Failure is non-fatal.
   }
+}
+
+/**
+ * Defer the LZString compression + localStorage write to a low-priority
+ * idle slot so the React commit that releases the rainfall map lock isn't
+ * blocked by the ~300-800 ms compress cost on low-end mobile.
+ *
+ * The csvText sits in a module-scoped slot rather than being captured in
+ * the idle callback's closure. This coalesces concurrent schedules: at
+ * most one 2.7 MB CSV is pinned at a time, instead of N concurrent
+ * schedules each pinning their own copy until each idle fires.
+ */
+export function scheduleCacheWrite(
+  csvText: string,
+  updateTime: string,
+  lastModified: number,
+): void {
+  if (typeof window === 'undefined') return;
+  pendingWrite = { csvText, updateTime, lastModified };
+  if (window.requestIdleCallback) {
+    window.requestIdleCallback(drainPendingWrite, { timeout: 5000 });
+  } else {
+    setTimeout(drainPendingWrite, 0);
+  }
+}
+
+/** Module-scoped holder for the next pending cache write. Replaces the
+ *  closure-capture approach so the 2.7 MB CSV doesn't get pinned across
+ *  the idle boundary. */
+let pendingWrite: { csvText: string; updateTime: string; lastModified: number } | null = null;
+
+/** Idle-callback target: pop the slot, release the reference, then run the
+ *  write. If a second scheduleCacheWrite landed while we were idle, it
+ *  overwrites pendingWrite and this drain picks up the latest one. */
+function drainPendingWrite(): void {
+  const item = pendingWrite;
+  pendingWrite = null;
+  if (item) writeNowcastCache(item.csvText, item.updateTime, item.lastModified);
 }
 
 /** Remove the cached CSV. No-op when nothing is stored. */
