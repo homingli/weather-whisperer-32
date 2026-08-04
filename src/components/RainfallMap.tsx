@@ -22,7 +22,7 @@ const RainfallMapInner = lazy(() => import('./RainfallMapInner'));
  * fresh page load so the chunk re-attempts from scratch.
  */
 class RainfallChunkErrorBoundary extends Component<
-  { children: ReactNode; onRetry: () => void },
+  { children: ReactNode },
   { hasError: boolean }
 > {
   state = { hasError: false };
@@ -31,11 +31,10 @@ class RainfallChunkErrorBoundary extends Component<
     return { hasError: true };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo): void {
-    logFailure('RainfallMap chunk load failed', 0, error);
-    // info.componentStack intentionally not logged — it's verbose and the
+  componentDidCatch(error: Error, _info: ErrorInfo): void {
+    // _info.componentStack intentionally not logged — it's verbose and the
     // error itself is enough to point at the chunk import.
-    void info;
+    logFailure('RainfallMap chunk load failed', 0, error);
   }
 
   handleReload = (): void => {
@@ -142,7 +141,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
             </button>
           </div>
         ) : (
-          <RainfallChunkErrorBoundary onRetry={() => window.location.reload()}>
+          <RainfallChunkErrorBoundary>
             <Suspense fallback={<LoadingShell />}>
               <RainfallMapInner userLocation={userLocation} initialCsv={initialCachedCsv} />
             </Suspense>

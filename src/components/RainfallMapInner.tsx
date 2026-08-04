@@ -85,16 +85,19 @@ const fetchRainfallNowcast = async (
   // Forward React Query's signal so a manual refetch / unmount / cache
   // eviction cancels the in-flight read. Without this, a refetchInterval
   // could overlap a previous 30 s fetch and leak bandwidth for the full
-  // timeout window.
-  let forwardExternalAbort: (() => void) | undefined;
-  if (externalSignal) {
+  // timeout window. `detachExternal` returns a cleanup (or null) that
+  // finally-block invokes; it captures the listener reference so add +
+  // remove see the same function identity.
+  const detachExternal = (() => {
+    if (!externalSignal) return null;
     if (externalSignal.aborted) {
       controller.abort(externalSignal.reason);
-    } else {
-      forwardExternalAbort = () => controller.abort(externalSignal.reason);
-      externalSignal.addEventListener('abort', forwardExternalAbort);
+      return null;
     }
-  }
+    const onAbort = () => controller.abort(externalSignal.reason);
+    externalSignal.addEventListener('abort', onAbort);
+    return () => externalSignal.removeEventListener('abort', onAbort);
+  })();
 
   try {
     const response = await fetch('/hko-data/F3/Gridded_rainfall_nowcast.csv', {
@@ -156,9 +159,7 @@ const fetchRainfallNowcast = async (
     return { grid, updateTime: parsed.updateTime, lastModified };
   } finally {
     clearTimeout(timeoutId);
-    if (externalSignal && forwardExternalAbort) {
-      externalSignal.removeEventListener('abort', forwardExternalAbort);
-    }
+    detachExternal?.();
   }
 };
 
@@ -264,11 +265,9 @@ export default function RainfallMapInner({
     initialData: cachedResult ?? undefined,
     initialDataUpdatedAt: cachedResult ? Date.now() : 0,
     // One automatic retry on transient failure (cell-edge blip, Vercel edge
-    // hiccup). The default retryDelay is exponential 1s→2s→… so a single
-    // retry waits 1 s before re-attempting. After the retry fails, the
-    // query settles into error state and the UI shows the stale-data
-    // indicator (we already have the previous successful fetch's grid on
-    // screen) or the full-screen error overlay (no data).
+    // hiccup). After the retry fails, the query settles into error state
+    // and the UI shows the stale-data indicator (previous fetch's grid
+    // still on screen) or the full-screen error overlay (no data).
     retry: 1,
     retryDelay: 1000,
   });
@@ -531,7 +530,13 @@ export default function RainfallMapInner({
               // Slow-network chip above the progress bar. Surfaces after
               // 10 s of isLoading so the spinner doesn't read as stuck on
               // flaky 3G/4G. Cleared the moment isLoading flips false.
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1002] flex items-center gap-2 text-xs bg-background/95 border border-border/60 rounded-full px-3 py-1.5 shadow-sm backdrop-blur-sm">
+              // aria-live="polite" announces the state change to screen
+              // readers without interrupting the loading announcement.
+              <div
+                role="status"
+                aria-live="polite"
+                className="absolute top-3 left-1/2 -translate-x-1/2 z-[1002] flex items-center gap-2 text-xs bg-background/95 border border-border/60 rounded-full px-3 py-1.5 shadow-sm backdrop-blur-sm"
+              >
                 <RefreshCw className="w-3 h-3 animate-spin text-primary" />
                 <span className="text-muted-foreground">{t('nowcast.loadingSlow')}</span>
               </div>
