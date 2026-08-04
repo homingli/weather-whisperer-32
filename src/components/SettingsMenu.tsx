@@ -18,6 +18,7 @@ import { useLanguage, Language, formatString } from '@/contexts/LanguageContext'
 import { useUnits, Units } from '@/contexts/UnitsContext';
 import { cn } from '@/lib/utils';
 import { searchCities, GeoLocation, getUserLocation, reverseGeocode, setDefaultCity } from '@/lib/weather';
+import { logWarn } from '@/lib/log';
 import { toast } from 'sonner';
 
 const languages: { value: Language; label: string }[] = [
@@ -149,7 +150,10 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
         onCitySelect(location);
         toast.success(formatString(t('search.locationUpdated'), location.name));
       }
-    } catch {
+    } catch (error) {
+      // Browser geolocation API failures (permission denied, timeout,
+      // unavailable) don't go through the fetch layer, so log here.
+      logWarn('[settings] getUserLocation failed', error);
       toast.error(t('search.locationError'));
     } finally {
       setIsLocating(false);
