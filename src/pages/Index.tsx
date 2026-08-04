@@ -254,7 +254,6 @@ const Index = () => {
             <>
               <WeatherBanners
                 weather={weather}
-                isHKCovered={isHKCovered}
                 onRefetch={handleForceRefresh}
                 isRefetching={isFetching}
               />
