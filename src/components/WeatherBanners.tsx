@@ -77,7 +77,7 @@ function SeverityBanner({
       role={role}
     >
       <Icon className="h-5 w-5 shrink-0 mt-0.5" />
-      <div className={action ? 'flex-1 min-w-0' : undefined}>
+      <div className={action && 'flex-1 min-w-0'}>
         <h4 className="font-semibold text-sm">{title}</h4>
         <p className="text-xs opacity-90 mt-1">{desc}</p>
       </div>
@@ -91,13 +91,13 @@ function SeverityBanner({
  *   - 'partial' (amber): one source live, one missing — names the working one
  *   - 'cache'   (red)  : both sources failed, showing localStorage snapshot
  *                        with timestamp and a refetch button
- *   - 'HKO'     (amber): legacy — HKO-only fallback path produced the data
+ *   - 'HKO'     (amber): HKO-only fallback — OM unavailable, HKO carries
+ *                        the show (HK path)
  */
 export function WeatherBanners({ weather, onRefetch, isRefetching }: WeatherBannersProps) {
   const { t, language } = useLanguage();
 
-  // Legacy HKO banner (kept for backward compatibility with the existing
-  // 'fallback.hkoTitle' / 'fallback.hkoDesc' copy).
+  // HKO-only fallback: OM unavailable, HKO carries the show (HK path).
   if (weather.fallbackSource === 'HKO' && weather.isFallback) {
     return (
       <SeverityBanner
