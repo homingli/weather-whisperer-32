@@ -241,6 +241,11 @@ const translations: Record<Language, Record<string, string>> = {
     'nowcast.tryAgain': 'Try Again',
     'nowcast.basemapLight': 'light',
     'nowcast.basemapDark': 'dark',
+    // Background refetch failed but the previous grid is still on screen.
+    // Shown as a small pill so the map underneath stays interactive.
+    'nowcast.staleTitle': 'Using last known nowcast',
+    'nowcast.staleDesc': 'Refresh failed. Showing the previous forecast — try again when connection is stable.',
+    'nowcast.loadingSlow': 'Slow connection — fetching nowcast data',
 
     // Wind direction (aria-label on the rotating arrow SVG)
     'weather.windDirAria': 'Wind direction toward {0}° {1}',
@@ -482,6 +487,9 @@ const translations: Record<Language, Record<string, string>> = {
     'nowcast.tryAgain': '重試',
     'nowcast.basemapLight': '淺色',
     'nowcast.basemapDark': '深色',
+    'nowcast.staleTitle': '正在使用上次預報',
+    'nowcast.staleDesc': '刷新失敗，正在顯示先前的雨量預報 — 網絡穩定後請重試。',
+    'nowcast.loadingSlow': '網絡較慢 — 正在下載雨量預報',
 
     // Wind direction (aria-label on the rotating arrow SVG)
     'weather.windDirAria': '風向：{0}° {1}',
@@ -503,7 +511,7 @@ const translations: Record<Language, Record<string, string>> = {
   },
 };
 
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+export const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
