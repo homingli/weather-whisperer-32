@@ -96,7 +96,13 @@ export function readNowcastCache(): NowcastCacheRead | null {
 
 /** Persist a successful nowcast fetch. The CSV is LZString-compressed
  *  before writing so the on-disk envelope is ~half the raw size. Failures
- *  (quota, private mode) are swallowed so the network path is unaffected. */
+ *  (quota, private mode) are swallowed so the network path is unaffected.
+ *
+ *  Synchronous: blocks the main thread for ~300-800 ms on a 2.7 MB CSV on
+ *  low-end mobile while LZString compresses + JSON.stringify serializes.
+ *  Use only when immediate persistence is required (tests). For the
+ *  production fetch path, use `scheduleCacheWrite` so the heavy work
+ *  happens after the React commit that releases the map lock. */
 export function writeNowcastCache(
   csvText: string,
   updateTime: string,
@@ -119,6 +125,37 @@ export function writeNowcastCache(
     // localStorage may be full (1+ MB compressed CSV + 5 MB quota headroom
     // is comfortable but still tight on Safari) or disabled (private mode).
     // Failure is non-fatal.
+  }
+}
+
+/**
+ * Defer the LZString compression + localStorage write to a low-priority
+ * idle slot so the React commit that releases the rainfall map lock isn't
+ * blocked by the ~300-800 ms compress cost on low-end mobile.
+ *
+ * The arguments are captured into the closure now because the caller
+ * (queryFn) returns before this runs — the csvText string must stay alive
+ * across the idle boundary. JS strings are immutable and reference-held,
+ * so this is safe.
+ *
+ * Falls back to setTimeout(0) on browsers without `requestIdleCallback`
+ * (Safari < 17, older Firefox). The `timeout` option bounds the wait so a
+ * busy main thread doesn't starve the write — after 5 s we run it anyway.
+ */
+export function scheduleCacheWrite(
+  csvText: string,
+  updateTime: string,
+  lastModified: number,
+): void {
+  if (typeof window === 'undefined') return;
+  const ric = (window as Window & {
+    requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+  }).requestIdleCallback;
+  const write = () => writeNowcastCache(csvText, updateTime, lastModified);
+  if (typeof ric === 'function') {
+    ric(write, { timeout: 5000 });
+  } else {
+    setTimeout(write, 0);
   }
 }
 

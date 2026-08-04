@@ -9,7 +9,7 @@ import { PRD_BOUNDS } from '@/lib/hko-weather';
 import { TIMING } from '@/lib/constants';
 import { parseRainfallCSVText, buildRainGrid, type RainGrid } from '@/lib/rainfallGrid';
 import { RAINFALL_BANDS } from '@/lib/rainfallBands';
-import { writeNowcastCache } from '@/lib/nowcastCache';
+import { scheduleCacheWrite } from '@/lib/nowcastCache';
 import { RainfallCellsLayer } from './RainfallCellsLayer';
 
 interface UserLocation {
@@ -67,7 +67,10 @@ function gridBounds(grid: RainGrid): { minLat: number; maxLat: number; minLon: n
 // instead of a stuck 0% bar for the entire 2.7 MB download.
 type ProgressCallback = (received: number, total: number | null) => void;
 
-const fetchRainfallNowcast = async (onProgress?: ProgressCallback): Promise<NowcastResult> => {
+const fetchRainfallNowcast = async (
+  onProgress?: ProgressCallback,
+  externalSignal?: AbortSignal,
+): Promise<NowcastResult> => {
   // Manage the timeout here (not via fetchWithTimeout) so the abort stays
   // armed through the body-read loop — headers can arrive in <1s on a warm
   // connection while the body stream still takes 20+ s on slow mobile.
@@ -78,6 +81,20 @@ const fetchRainfallNowcast = async (onProgress?: ProgressCallback): Promise<Nowc
       'TimeoutError'
     ));
   }, TIMING.NOWCAST_TIMEOUT_MS);
+
+  // Forward React Query's signal so a manual refetch / unmount / cache
+  // eviction cancels the in-flight read. Without this, a refetchInterval
+  // could overlap a previous 30 s fetch and leak bandwidth for the full
+  // timeout window.
+  let forwardExternalAbort: (() => void) | undefined;
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort(externalSignal.reason);
+    } else {
+      forwardExternalAbort = () => controller.abort(externalSignal.reason);
+      externalSignal.addEventListener('abort', forwardExternalAbort);
+    }
+  }
 
   try {
     const response = await fetch('/hko-data/F3/Gridded_rainfall_nowcast.csv', {
@@ -119,8 +136,12 @@ const fetchRainfallNowcast = async (onProgress?: ProgressCallback): Promise<Nowc
 
       const csvText = new TextDecoder().decode(allChunks);
       const parsed = parseRainfallCSVText(csvText);
-      // Persist for next mount (15-min TTL). Non-blocking on quota errors.
-      writeNowcastCache(csvText, parsed.updateTime, lastModified);
+      // Persist for next mount (15-min TTL). Defer the LZString compression
+      // + localStorage write to an idle slot so the React commit that
+      // releases the map lock isn't blocked by the ~300-800 ms compress
+      // cost on low-end mobile. writeNowcastCache is still exported for
+      // tests that want immediate persistence.
+      scheduleCacheWrite(csvText, parsed.updateTime, lastModified);
       const grid = buildRainGrid(parsed.rows);
       if (!grid) throw new Error('No rain cells in nowcast payload');
       return { grid, updateTime: parsed.updateTime, lastModified };
@@ -129,12 +150,15 @@ const fetchRainfallNowcast = async (onProgress?: ProgressCallback): Promise<Nowc
     // Fallback: no ReadableStream (very old browsers only — HKO always sends one)
     const csvText = await response.text();
     const parsed = parseRainfallCSVText(csvText);
-    writeNowcastCache(csvText, parsed.updateTime, lastModified);
+    scheduleCacheWrite(csvText, parsed.updateTime, lastModified);
     const grid = buildRainGrid(parsed.rows);
     if (!grid) throw new Error('No rain cells in nowcast payload');
     return { grid, updateTime: parsed.updateTime, lastModified };
   } finally {
     clearTimeout(timeoutId);
+    if (externalSignal && forwardExternalAbort) {
+      externalSignal.removeEventListener('abort', forwardExternalAbort);
+    }
   }
 };
 
@@ -204,7 +228,7 @@ export default function RainfallMapInner({
 
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hkoGriddedRainfallNowcast'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       // Don't pre-seed progress: keep showing the spinner until the first
       // chunk actually arrives. Pre-seeding to 0 races with React 18's
       // auto-batching and produces a stuck-at-0% bar in the indeterminate
@@ -219,7 +243,7 @@ export default function RainfallMapInner({
           setDownloadProgress(null);
           setBytesReceived(received);
         }
-      });
+      }, signal);
     },
     // 15-min TTL aligned with the localStorage cache. Within this window
     // the cached CSV is served as initialData (see below) and React Query
@@ -239,7 +263,14 @@ export default function RainfallMapInner({
     },
     initialData: cachedResult ?? undefined,
     initialDataUpdatedAt: cachedResult ? Date.now() : 0,
-    retry: 0,
+    // One automatic retry on transient failure (cell-edge blip, Vercel edge
+    // hiccup). The default retryDelay is exponential 1s→2s→… so a single
+    // retry waits 1 s before re-attempting. After the retry fails, the
+    // query settles into error state and the UI shows the stale-data
+    // indicator (we already have the previous successful fetch's grid on
+    // screen) or the full-screen error overlay (no data).
+    retry: 1,
+    retryDelay: 1000,
   });
 
   const grid = data?.grid ?? null;
@@ -290,6 +321,20 @@ export default function RainfallMapInner({
       }
     }
   }, [userLocation, dataBounds]);
+
+  // Slow-network chip: when the initial fetch takes >10 s, surface a
+  // "Slow connection" message above the determinate bar so the user knows
+  // the spinner isn't stuck. Cleared when isLoading flips false (success
+  // OR failure → error overlay / stale indicator takes over).
+  const [isSlow, setIsSlow] = useState(false);
+  useEffect(() => {
+    if (!isLoading) {
+      setIsSlow(false);
+      return;
+    }
+    const id = setTimeout(() => setIsSlow(true), 10_000);
+    return () => clearTimeout(id);
+  }, [isLoading]);
 
   // Lock the map while rainfall grid data is still being fetched; unlock once
   // the CSV is parsed and the cells are on screen. This prevents the user from
@@ -482,6 +527,15 @@ export default function RainfallMapInner({
         {/* First load: spinner → determinate bar OR indeterminate animation */}
         {isLoading && (
           <div className="absolute inset-0 z-[1001] flex items-center justify-center bg-background/50 backdrop-blur-sm">
+            {isSlow && (
+              // Slow-network chip above the progress bar. Surfaces after
+              // 10 s of isLoading so the spinner doesn't read as stuck on
+              // flaky 3G/4G. Cleared the moment isLoading flips false.
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1002] flex items-center gap-2 text-xs bg-background/95 border border-border/60 rounded-full px-3 py-1.5 shadow-sm backdrop-blur-sm">
+                <RefreshCw className="w-3 h-3 animate-spin text-primary" />
+                <span className="text-muted-foreground">{t('nowcast.loadingSlow')}</span>
+              </div>
+            )}
             {downloadProgress !== null ? (
               // Determinate: Content-Length was sent; we can show a real %.
               <div className="w-80 flex flex-col gap-1.5">
@@ -530,7 +584,12 @@ export default function RainfallMapInner({
           </div>
         )}
 
-        {error && (
+        {/* Full-screen error overlay ONLY when we have no data to show
+            (initial fetch failed and there's no cache fallback). When we
+            already have a rendered grid — i.e. the background refetch
+            failed — we render a small pill instead so the map stays
+            interactive instead of being trapped behind a blocking modal. */}
+        {error && !data && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm p-6 text-center">
             <AlertCircle className="w-10 h-10 text-destructive mb-2" />
             <p className="text-lg font-medium text-foreground mb-1">{t('nowcast.loadFailed')}</p>
@@ -540,6 +599,32 @@ export default function RainfallMapInner({
               className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
             >
               {t('nowcast.tryAgain')}
+            </button>
+          </div>
+        )}
+
+        {/* Stale-data indicator: previous fetch failed, current data is
+            still on screen. Pinned top-left below the zoom control so it
+            doesn't fight with the basemap/refresh cluster at top-right.
+            z-[600] = above the leaflet pane (400), below dialog content. */}
+        {error && data && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="absolute top-12 left-2 z-[600] flex items-center gap-2 max-w-[min(90%,360px)] text-xs bg-destructive/10 text-destructive border border-destructive/30 rounded-md px-2.5 py-1.5 backdrop-blur-sm shadow-sm"
+          >
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            <div className="flex flex-col leading-tight">
+              <span className="font-semibold">{t('nowcast.staleTitle')}</span>
+              <span className="text-destructive/80">{t('nowcast.staleDesc')}</span>
+            </div>
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="ml-1 inline-flex items-center justify-center min-h-[2rem] min-w-[2rem] p-1 rounded hover:bg-destructive/20 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              aria-label={t('nowcast.tryAgain')}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
             </button>
           </div>
         )}

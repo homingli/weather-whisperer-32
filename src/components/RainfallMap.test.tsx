@@ -234,11 +234,13 @@ describe('RainfallMap Component', () => {
     // Click load button to start fetching
     screen.getByRole('button', { name: /Load Map/i }).click();
 
-    // Wait for error state
+    // Wait for error state. The component now retries once with a 1 s
+    // backoff before settling into error — allow up to 5 s to cover the
+    // retry + the second failure settling into the query's error state.
     await waitFor(() => {
       expect(screen.getByText('Failed to load data')).toBeInTheDocument();
       expect(screen.getByText('Could not load gridded rainfall data.')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 
   it('skips the Load Map prompt and renders directly from cache when fresh', async () => {
@@ -416,6 +418,93 @@ describe('RainfallMap Component', () => {
       expect(disconnectSpy).toHaveBeenCalled();
     } finally {
       disconnectSpy.mockRestore();
+    }
+  });
+
+  it('shows a stale-data pill instead of a blocking overlay when a background refetch fails', async () => {
+    // First fetch: succeeds and renders the grid. Second fetch (triggered
+    // by a manual refetch to avoid waiting for the 15-min refetchInterval):
+    // fails. The grid from the first fetch is still on screen, so the UI
+    // must show a small "Using last known nowcast" pill — NOT the
+    // full-screen error overlay that would trap the map underneath.
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => null },
+        text: async () => mockCsvData,
+      })
+      .mockRejectedValue(new Error('Network Error'));
+
+    vi.stubGlobal('fetch', mockFetch);
+
+    renderWithLanguage(<RainfallMap />);
+    screen.getByRole('button', { name: /Load Map/i }).click();
+
+    // Wait for the first fetch to settle — the grid is on screen AND the
+    // map handlers are enabled by the initial-fetch lock unlock.
+    await waitFor(() => {
+      expect(screen.getByTestId('rain-grid')).toBeInTheDocument();
+    });
+
+    // The refresh-nowcast button lives in the top-right control cluster
+    // inside the map area. Trigger a manual refetch to avoid waiting for
+    // the 15-min refetchInterval.
+    const refreshBtn = screen.getByRole('button', { name: /Refresh gridded nowcast/i });
+    fireEvent.click(refreshBtn);
+
+    // React Query retries once (retry: 1, retryDelay: 1000), so allow up
+    // to 5 s for the second failure to settle into the query's error
+    // state and the stale pill to render.
+    await waitFor(
+      () => {
+        expect(screen.getByText('Using last known nowcast')).toBeInTheDocument();
+      },
+      { timeout: 5000 },
+    );
+
+    // The full-screen overlay text MUST NOT appear — that would block
+    // the map. (Only the inner copy of nowcast.loadFailed shows, inside
+    // the stale pill's description.)
+    expect(screen.queryByText(/Could not load gridded rainfall data\./)).not.toBeInTheDocument();
+  });
+
+  it('shows the slow-network chip after the initial fetch lingers past 10s', async () => {
+    // Use fake timers so the test isn't actually slow. The chip flips on
+    // at 10 s of isLoading, so we need to advance the 10 s setTimeout.
+    vi.useFakeTimers({ shouldAdvanceTime: false });
+
+    // Fetch that hangs until we say so.
+    let resolveFetch: (v: unknown) => void = () => {};
+    const mockFetch = vi.fn().mockImplementation(
+      () =>
+        new Promise(resolve => {
+          resolveFetch = resolve;
+        }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    try {
+      renderWithLanguage(<RainfallMap />);
+      screen.getByRole('button', { name: /Load Map/i }).click();
+
+      // Confirm the chip is NOT visible during the first 10 s.
+      expect(screen.queryByText(/Slow connection/)).not.toBeInTheDocument();
+
+      // Advance past the 10 s threshold. React's setTimeout / requestIdle
+      // timers are mocked by vitest's fake timers, so the effect runs.
+      await vi.advanceTimersByTimeAsync(10_500);
+
+      expect(screen.getByText(/Slow connection/)).toBeInTheDocument();
+    } finally {
+      // Resolve the hanging fetch and restore real timers so the test
+      // suite doesn't leak.
+      resolveFetch({
+        ok: true,
+        headers: { get: () => null },
+        text: async () => mockCsvData,
+      });
+      vi.useRealTimers();
     }
   });
 });
