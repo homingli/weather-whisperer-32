@@ -29,7 +29,7 @@ const queryClient = new QueryClient({
 //
 // Two paths seed the weather-unified query on first paint:
 //   1. `useWeatherWithProgress`'s `readLastKnownWeather(cityId)?.data`
-//      via `initialData` + `initialDataUpdatedAt: 0` \u2014 forces a stale
+//      via `initialData` + `initialDataUpdatedAt: 0` — forces a stale
 //      state so a background fetch fires.
 //   2. `persistQueryClient.restoreClient()` (async, runs at module
 //      init) writing the cached `PersistedClient` back into the same
@@ -38,7 +38,7 @@ const queryClient = new QueryClient({
 // Path 2 wins on reload when localStorage holds a non-stale entry: the
 // cached entry's `dataUpdatedAt` is preserved, the query is treated as
 // fresh against `staleTime`, and TanStack does NOT fire a background
-// refetch until that window passes. That is the intended behavior \u2014
+// refetch until that window passes. That is the intended behavior —
 // only reloads past `maxAge` (or where persisted cache is missing /
 // `buster`-mismatched) fall back to path 1.
 //
@@ -47,15 +47,18 @@ const queryClient = new QueryClient({
 persistQueryClient({
   queryClient,
   persister,
-  // 30 min \u2014 comfortably past the healthy 5-min refetch cadence, so even
+  // 30 min — comfortably past the healthy 5-min refetch cadence, so even
   // a user who reloads mid-session gets instant data with a single silent
   // background refresh on mount.
   maxAge: 30 * 60_000,
   buster: PERSIST_SCHEMA_VERSION,
   dehydrateOptions: {
-    // Persist any query that has non-null data; covers the success path
-    // while skipping idle (data is undefined) and error states (no
-    // cacheable payload).
+    // Persist any query that holds a usable payload. Covers successful
+    // queries AND TanStack v5's "error with retained previous data"
+    // (the query's last-known-good data survives a transient refetch
+    // failure, so we want the persister to survive the same transition).
+    // Skips genuinely-empty states: idle, pending, and hard errors
+    // with no prior data.
     shouldDehydrateQuery: (query) => query.state.data != null,
   },
 });
