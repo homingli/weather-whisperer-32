@@ -21,24 +21,42 @@ const queryClient = new QueryClient({
 });
 
 // Persist query cache to localStorage so a tab refresh within
-// `MAX_AGE_MS` skips the cold-fetch spinner (the cold-start last-known
-// snapshot still seeds the first paint). Stale-while-revalidate: cached
-// queries are returned immediately; React Query will refetch in the
-// background if they're stale.
+// `maxAge` below skips the cold-fetch spinner. Stale-while-revalidate:
+// cached queries are returned immediately; React Query will refetch
+// in the background if stale.
+//
+// === Race with the cold-start snapshot (see useWeatherWithProgress) ===
+//
+// Two paths seed the weather-unified query on first paint:
+//   1. `useWeatherWithProgress`'s `readLastKnownWeather(cityId)?.data`
+//      via `initialData` + `initialDataUpdatedAt: 0` \u2014 forces a stale
+//      state so a background fetch fires.
+//   2. `persistQueryClient.restoreClient()` (async, runs at module
+//      init) writing the cached `PersistedClient` back into the same
+//      queryKey with its real `dataUpdatedAt`.
+//
+// Path 2 wins on reload when localStorage holds a non-stale entry: the
+// cached entry's `dataUpdatedAt` is preserved, the query is treated as
+// fresh against `staleTime`, and TanStack does NOT fire a background
+// refetch until that window passes. That is the intended behavior \u2014
+// only reloads past `maxAge` (or where persisted cache is missing /
+// `buster`-mismatched) fall back to path 1.
+//
+// `refetch()` on the user-action refresh button bypasses this gate
+// unconditionally; no separate plumbing needed here.
 persistQueryClient({
   queryClient,
   persister,
-  // 30 min — comfortably past the healthy 5-min refetch cadence, so even
+  // 30 min \u2014 comfortably past the healthy 5-min refetch cadence, so even
   // a user who reloads mid-session gets instant data with a single silent
   // background refresh on mount.
   maxAge: 30 * 60_000,
   buster: PERSIST_SCHEMA_VERSION,
   dehydrateOptions: {
-    // Only persist successful query data; errors would still show the
-    // offline banner on reload but without dragging error objects into
-    // the serialized blob.
-    shouldDehydrateQuery: (query) =>
-      query.state.status === 'success' && !!query.state.data,
+    // Persist any query that has non-null data; covers the success path
+    // while skipping idle (data is undefined) and error states (no
+    // cacheable payload).
+    shouldDehydrateQuery: (query) => query.state.data != null,
   },
 });
 
