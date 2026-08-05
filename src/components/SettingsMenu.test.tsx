@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import userEvent, { PointerEventsCheckLevel, type UserEvent } from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SettingsMenu } from './SettingsMenu';
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -32,8 +32,20 @@ function TestProviders({ children }: { children: React.ReactNode }) {
 }
 
 describe('SettingsMenu units + language pill toggles', () => {
+  let user: UserEvent;
+
   beforeEach(() => {
     localStorage.clear();
+    // Fresh user-event instance per test. `pointerEventsCheck: Never`
+    // skips the post-pointer-event `screen.getByRole` walk that verifies
+    // CSS `pointer-events` — the check re-walks the DOM tree computing
+    // ARIA roles, which is expensive in jsdom (~120ms+ per call) and
+    // pushes simple click sequences past CI timeouts under cold loads.
+    // We don't rely on the check here: every click target is a real
+    // <button> with no `pointer-events: none` overrides, and the
+    // assertions verify localStorage state which the pointer-events
+    // check is supposed to protect.
+    user = userEvent.setup({ pointerEventsCheck: PointerEventsCheckLevel.Never });
   });
 
   const renderMenu = () =>
@@ -55,7 +67,7 @@ describe('SettingsMenu units + language pill toggles', () => {
 
   it('renders the units pill toggle with both options', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('button', { name: /settings/i }));
     const unitsGroup = screen.getByRole('radiogroup', { name: /units/i });
     expect(unitsGroup).toBeInTheDocument();
     expect(within(unitsGroup).getByRole('radio', { name: 'Metric' })).toBeInTheDocument();
@@ -64,29 +76,29 @@ describe('SettingsMenu units + language pill toggles', () => {
 
   it('marks Metric as checked by default', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('button', { name: /settings/i }));
     expect(screen.getByRole('radio', { name: 'Metric' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: 'US' })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('persists US selection to localStorage when clicked', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
-    await userEvent.click(screen.getByRole('radio', { name: 'US' }));
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('radio', { name: 'US' }));
     expect(localStorage.getItem('weather-units')).toBe('us');
   });
 
   it('persists metric selection when clicked after US was active', async () => {
     localStorage.setItem('weather-units', 'us');
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
-    await userEvent.click(screen.getByRole('radio', { name: 'Metric' }));
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('radio', { name: 'Metric' }));
     expect(localStorage.getItem('weather-units')).toBe('metric');
   });
 
   it('renders the language pill toggle with both options', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('button', { name: /settings/i }));
     const langGroup = screen.getByRole('radiogroup', { name: /language/i });
     expect(langGroup).toBeInTheDocument();
     expect(within(langGroup).getByRole('radio', { name: 'English' })).toBeInTheDocument();
@@ -95,33 +107,36 @@ describe('SettingsMenu units + language pill toggles', () => {
 
   it('marks English as checked by default', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('button', { name: /settings/i }));
     expect(screen.getByRole('radio', { name: 'English' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: '繁體中文' })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('persists 繁體中文 selection to localStorage when clicked', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
-    await userEvent.click(screen.getByRole('radio', { name: '繁體中文' }));
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('radio', { name: '繁體中文' }));
     expect(localStorage.getItem('weather-language')).toBe('tc');
   });
 
   it('arrow keys cycle through options in the units pill', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('button', { name: /settings/i }));
     const metricRadio = screen.getByRole('radio', { name: 'Metric' });
     metricRadio.focus();
-    await userEvent.keyboard('{ArrowRight}');
+    await user.keyboard('{ArrowRight}');
     expect(screen.getByRole('radio', { name: 'US' })).toHaveAttribute('aria-checked', 'true');
-    await userEvent.keyboard('{ArrowRight}');
+    await user.keyboard('{ArrowRight}');
     expect(screen.getByRole('radio', { name: 'Metric' })).toHaveAttribute('aria-checked', 'true');
   });
 });
 
 describe('SettingsMenu theme radio group (WCAG 4.1.2)', () => {
+  let user: UserEvent;
+
   beforeEach(() => {
     localStorage.clear();
+    user = userEvent.setup({ pointerEventsCheck: PointerEventsCheckLevel.Never });
   });
 
   const renderMenu = () =>
@@ -139,7 +154,7 @@ describe('SettingsMenu theme radio group (WCAG 4.1.2)', () => {
 
   it('renders the theme picker as menuitemradio entries with 3 options', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('button', { name: /settings/i }));
     // Radix DropdownMenu items render as role="menuitemradio" inside a
     // menu, not bare role="radio" inside a radiogroup. The semantic
     // purpose is the same (exclusive 1-of-N choice) — what matters for
@@ -151,7 +166,7 @@ describe('SettingsMenu theme radio group (WCAG 4.1.2)', () => {
 
   it('marks Auto as the default checked theme', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('button', { name: /settings/i }));
     expect(screen.getByRole('menuitemradio', { name: /auto/i })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('menuitemradio', { name: /light/i })).toHaveAttribute('aria-checked', 'false');
     expect(screen.getByRole('menuitemradio', { name: /dark/i })).toHaveAttribute('aria-checked', 'false');
@@ -159,12 +174,12 @@ describe('SettingsMenu theme radio group (WCAG 4.1.2)', () => {
 
   it('persists Dark selection to localStorage when clicked', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
-    await userEvent.click(screen.getByRole('menuitemradio', { name: /dark/i }));
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('menuitemradio', { name: /dark/i }));
     // Radix closes the menu after a radio item is chosen, so re-open to
     // verify the aria-checked state reflects the persisted selection.
     expect(localStorage.getItem('theme-mode')).toBe('dark');
-    await userEvent.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('button', { name: /settings/i }));
     expect(screen.getByRole('menuitemradio', { name: /dark/i })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('menuitemradio', { name: /auto/i })).toHaveAttribute('aria-checked', 'false');
   });
