@@ -231,16 +231,22 @@ describe('RainfallMap Component', () => {
 
     renderWithLanguage(<RainfallMap />);
 
-    // Click load button to start fetching
-    screen.getByRole('button', { name: /Load Map/i }).click();
+    // Click load button to start fetching. findByRole retries the
+    // getByRole DOM walk on its own (the walk is expensive in jsdom —
+    // ~120ms+ on cold loads) instead of failing synchronously like
+    // getByRole does.
+    fireEvent.click((await screen.findByRole('button', { name: /Load Map/i }))!);
 
-    // Wait for error state. The component now retries once with a 1 s
-    // backoff before settling into error — allow up to 5 s to cover the
-    // retry + the second failure settling into the query's error state.
+    // Wait for error state. The component retries once with a 1 s
+    // backoff before settling into error — allow up to 10 s to cover
+    // the retry + the second failure settling into the query's error
+    // state on slow CI. (Was 5 s — bumped because the getByText walks
+    // in this branch add ~150ms each on cold jsdom loads and CI's
+    // shared runners occasionally spike above 5 s end-to-end.)
     await waitFor(() => {
       expect(screen.getByText('Failed to load data')).toBeInTheDocument();
       expect(screen.getByText('Could not load gridded rainfall data.')).toBeInTheDocument();
-    }, { timeout: 5000 });
+    }, { timeout: 10000 });
   });
 
   it('skips the Load Map prompt and renders directly from cache when fresh', async () => {
@@ -457,13 +463,17 @@ describe('RainfallMap Component', () => {
     fireEvent.click(refreshBtn);
 
     // React Query retries once (retry: 1, retryDelay: 1000), so allow up
-    // to 5 s for the second failure to settle into the query's error
-    // state and the stale pill to render.
+    // to 10 s for the second failure to settle into the query's error
+    // state and the stale pill to render. (Was 5 s — bumped because
+    // the getByText DOM walk is ~150ms on cold jsdom loads, and CI's
+    // shared runners occasionally spike above 5 s end-to-end for this
+    // multi-step path: load map → first fetch → rain-grid → click
+    // refresh → retry → stale pill.)
     await waitFor(
       () => {
         expect(screen.getByText('Using last known nowcast')).toBeInTheDocument();
       },
-      { timeout: 5000 },
+      { timeout: 10000 },
     );
 
     // The full-screen overlay (with its 3 lines: icon + "Failed to load
