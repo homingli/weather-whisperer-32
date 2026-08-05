@@ -2,11 +2,8 @@ import { useMemo, useCallback, lazy, Suspense, useEffect, useState, useRef } fro
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination } from 'swiper/modules';
 import { CurrentWeather } from '@/components/CurrentWeather';
-import { DailyForecast } from '@/components/DailyForecast';
 import { WeatherAlerts } from '@/components/WeatherAlerts';
-import { SettingsMenu } from '@/components/SettingsMenu';
 import { FetchingStatus } from '@/components/FetchingStatus';
-import { WeatherBanners } from '@/components/WeatherBanners';
 import { LocalClock } from '@/components/LocalClock';
 import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
@@ -23,9 +20,18 @@ import { usePwaInstall } from '@/hooks/usePwaInstall';
 import { toast } from 'sonner';
 import { CloudRain, MapPin, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 
-// Lazy load heavy components
+// Lazy load heavy components. DailyForecast pulls recharts (~120 kB) and is
+// below the fold on both mobile (Swiper slide 2) and desktop (split row);
+// deferring it lets recharts come out of the main chunk.
+const DailyForecast = lazy(() => import('@/components/DailyForecast').then(module => ({ default: module.DailyForecast })));
 const HourlyForecast = lazy(() => import('@/components/HourlyForecast').then(module => ({ default: module.HourlyForecast })));
 const RainfallMap = lazy(() => import('@/components/RainfallMap').then(module => ({ default: module.RainfallMap })));
+// SettingsMenu (dropdown) and WeatherBanners (error/partial banners) only
+// render behind a user action or a degraded-data state respectively;
+// deferring them keeps Dialog/Input primitives and the geocoding helpers
+// out of the initial chunk.
+const SettingsMenu = lazy(() => import('@/components/SettingsMenu').then(module => ({ default: module.SettingsMenu })));
+const WeatherBanners = lazy(() => import('@/components/WeatherBanners').then(module => ({ default: module.WeatherBanners })));
 
 // Placeholder used when weather.current is null during transitions
 // All display values set to PLACEHOLDER_SENTINEL so CurrentWeather shows `-` instead of 0
@@ -169,7 +175,9 @@ const Index = () => {
                 onConsumed={handleConsumedSelectedWarning}
               />
             )}
-            <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} onRefresh={handleForceRefresh} />
+            <Suspense fallback={<div tabIndex={-1} className="h-12 w-12" aria-hidden="true" />}>
+              <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} onRefresh={handleForceRefresh} />
+            </Suspense>
             {deferredPrompt && !isInstalled && (
               <button
                 onClick={install}
@@ -252,11 +260,13 @@ const Index = () => {
             </div>
           ) : weather ? (
             <>
-              <WeatherBanners
-                weather={weather}
-                onRefetch={handleForceRefresh}
-                isRefetching={isFetching}
-              />
+              <Suspense fallback={null}>
+                <WeatherBanners
+                  weather={weather}
+                  onRefetch={handleForceRefresh}
+                  isRefetching={isFetching}
+                />
+              </Suspense>
 
               {/* ── Mobile: horizontal swipe card deck ── */}
               {isMobile && (
@@ -292,7 +302,9 @@ const Index = () => {
                           </Suspense>
                         </div>
                         <div className="flex-1 min-h-0">
-                          <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
+                          <Suspense fallback={<div className="h-full animate-pulse bg-muted/20 rounded-xl" />}>
+                            <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
+                          </Suspense>
                         </div>
                       </div>
                     </SwiperSlide>
@@ -339,7 +351,9 @@ const Index = () => {
                       <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} />
                     </Suspense>
 
-                    <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
+                    <Suspense fallback={<div className="h-[300px] animate-pulse bg-muted/20 rounded-xl" />}>
+                      <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
+                    </Suspense>
                   </div>
 
                   {/* Bottom Row: Optional Map */}

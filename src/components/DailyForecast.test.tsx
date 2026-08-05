@@ -1,24 +1,34 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ReactNode } from 'react';
 import { render, screen, act } from '@testing-library/react';
 import { DailyForecast } from './DailyForecast';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitsProvider, useUnits } from '@/contexts/UnitsContext';
 import { DailyForecast as DailyForecastType } from '@/lib/weather';
+import { MockChartProps } from '@/test/mockChartProps';
 
 // Mock Recharts so the test doesn't depend on jsdom SVG layout — we're only
 // checking that the LabelList formatters receive the right values.
 vi.mock('recharts', async () => {
-  const ActualModule = await vi.importActual('recharts') as any;
+  const ActualModule = (await vi.importActual('recharts')) as typeof import('recharts');
   return {
     ...ActualModule,
-    ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
-    BarChart: ({ children: _children }: any) => <div data-testid="bar-chart">{_children}</div>,
-    Bar: ({ children: _children, ...props }: any) => <div data-testid="bar" data-shape={JSON.stringify(props)}>{_children}</div>,
+    ResponsiveContainer: ({ children }: MockChartProps) => <div>{children}</div>,
+    BarChart: ({ children: _children }: MockChartProps) => <div data-testid="bar-chart">{_children}</div>,
+    Bar: ({ children: _children, ...props }: MockChartProps) => <div data-testid="bar" data-shape={JSON.stringify(props)}>{_children}</div>,
     XAxis: () => <div data-testid="x-axis" />,
     YAxis: () => <div data-testid="y-axis" />,
-    Tooltip: ({ content }: any) => <div data-testid="tooltip">{typeof content === 'function' ? content({ active: false, payload: [] }) : content}</div>,
+    Tooltip: ({ content }: { content?: unknown }) => {
+      const rendered = typeof content === 'function'
+        // The Tooltip's `content` render-prop signature is wider than we need
+        // to test — the formatter mock only consumes simple values, so widen
+        // the call site with unknown[] instead of `any`.
+        ? (content as (...args: unknown[]) => ReactNode)({ active: false, payload: [] })
+        : content;
+      return <div data-testid="tooltip">{rendered}</div>;
+    },
     Cell: () => <div data-testid="cell" />,
-    LabelList: ({ children: _children, dataKey, formatter }: any) => {
+    LabelList: ({ children: _children, dataKey, formatter }: MockChartProps & { dataKey?: string; formatter?: (v: unknown) => unknown }) => {
       // Render the formatter output for each datum so we can assert on it.
       // The BarChart mock below passes rows as data; we mirror that here by
       // accepting a static placeholder sample.

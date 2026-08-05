@@ -62,6 +62,9 @@ export default defineConfig(({ mode }) => ({
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60 * 24, // 1 day
+                // ~5 MB cap per bucket; nowcast CSV (~2.7 MB) is large so the
+                // 50-entry × 2.7 MB worst-case (~135 MB) was unbounded before.
+                purgeOnQuotaError: true,
               },
               cacheableResponse: {
                 statuses: [0, 200]
@@ -71,15 +74,30 @@ export default defineConfig(({ mode }) => ({
           // HKO data is proxied via the local origin in dev (Vite proxy) and
           // via Vercel rewrites in prod, so the browser-visible URL is the
           // local origin. A separate cache entry keeps dev/prod offline
-          // behavior aligned.
+          // behavior aligned. The nowcast CSV (up to ~2.7 MB with 30 s
+          // timeout) benefits from StaleWhileRevalidate so the user sees
+          // the cached map instantly while a fresh fetch refreshes the
+          // background copy — NetworkFirst would block page paint for the
+          // full timeout on every cold load.
+          //
+          // Time-sensitivity tradeoff: SWR serves whatever's in the cache
+          // (up to `maxAgeSeconds` old) while revalidating in the background.
+          // A stale nowcast shown while the background fetch fails = wrong
+          // forecast forever. We pin `maxAgeSeconds` to the HKO generation
+          // cadence (`NOWCAST_REFETCH_INTERVAL_MS = 30 min`) so the SW
+          // evicts and forces a fresh fetch before stale data accumulates.
+          // If you loosen this, weigh the offline UX against forecast
+          // correctness — a longer cap = snappier offline, more likely to
+          // show outdated rain.
           {
             urlPattern: /\/hko-data\/.*/i,
-            handler: 'NetworkFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'hko-proxy-cache',
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24, // 1 day
+                maxAgeSeconds: 30 * 60, // 30 min, matches NOWCAST_REFETCH_INTERVAL_MS
+                purgeOnQuotaError: true,
               },
               cacheableResponse: {
                 statuses: [0, 200]

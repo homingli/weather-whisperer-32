@@ -307,10 +307,59 @@
 }
 
 /* ── Reduced-motion overrides (WCAG 2.3.3) ────────────────────────── */
-/* GSAP entrance animations are already media-gated per-component (see
-   CurrentWeather / HourlyForecast / DailyForecast). This catches Tailwind
-   utility classes and the indeterminate progress bar keyframe for users
-   with prefers-reduced-motion: reduce. */
+/* @keyframes for entrance animations live in the @media block below so
+   they only animate when the user has not requested reduced motion (the
+   replacement for the per-component GSAP matchMedia() the previous version
+   used). This block also neutralizes Tailwind utility animations and the
+   indeterminate progress keyframe for reduce-motion users. */
+@media (prefers-reduced-motion: no-preference) {
+  /* NOTE: Class selectors in this block are intentionally global — the
+     components using them (CurrentWeather, HourlyForecast, DailyForecast)
+     are the only consumers in the app, and the `cw-` / `hf-` / `df-`
+     prefixes are the namespace. If you reuse one of these class names
+     elsewhere (e.g. a Storybook story, a test wrapper), the animation
+     will fire there too. To scope, prefix with a parent selector
+     (e.g. `.editorial-card .cw-rule`). */
+
+  /* Hairline rules: scaleX from 0, transform-origin left center so they
+     draw out left-to-right (matches the previous gsap.from(..., {scaleX:0,
+     transformOrigin:'left center'}) call). One shared @keyframes applied
+     by each component's class with per-component duration + delay. */
+  @keyframes rule-in {
+    from { transform: scaleX(0); transform-origin: left center; }
+    to   { transform: scaleX(1); transform-origin: left center; }
+  }
+  .cw-rule { animation: rule-in 1s cubic-bezier(0.65, 0, 0.35, 1) both; }
+  .hf-rule { animation: rule-in 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.2s both; }
+  .df-rule { animation: rule-in 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.25s both; }
+
+  /* Numeral/heading rise: translateY(100%) → 0. REQUIRES an
+     `overflow-hidden` parent (verified in CurrentWeather.tsx at the
+     hero numeral wrappers) so the starting position isn't visible
+     during the entrance. Replaces gsap.from(..., {yPercent:100}). */
+  @keyframes cw-rise-in {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  .cw-rise { animation: cw-rise-in 0.9s cubic-bezier(0.21, 0.71, 0.4, 1) 0.15s both; }
+
+  /* Block-level fade-in. Replaces gsap.from(..., {autoAlpha: 0}). */
+  @keyframes cw-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .cw-fade { animation: cw-fade-in 0.7s cubic-bezier(0.31, 0.74, 0.58, 1) 0.3s both; }
+
+  /* Chart containers: fade + lift 16px. Shared between Hourly and Daily
+     (one keyframes for both; identical visual spec). */
+  @keyframes chart-in {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hf-chart { animation: chart-in 0.7s cubic-bezier(0.31, 0.74, 0.58, 1) 0.4s both; }
+  .df-chart { animation: chart-in 0.7s cubic-bezier(0.31, 0.74, 0.58, 1) 0.45s both; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse,
   .animate-ping,
