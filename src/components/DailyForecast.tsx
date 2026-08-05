@@ -7,8 +7,6 @@ import { formatTemperature, formatWindSpeed, windSpeedUnitLabel } from "@/lib/un
 import { translatePsr } from "@/lib/hko-weather";
 import { getDateTimeFormatter, formatInTimezone, appLocale } from "@/lib/utils";
 import { useMemo, useCallback, memo, useRef } from "react";
-import gsap from "gsap";
-import { useGSAP } from "@gsap/react";
 import {
   Bar,
   BarChart,
@@ -133,19 +131,8 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
     return { chartData: rows, yDomainMin: yMin, yDomainMax: yMax };
   }, [forecast, formatDayLine1, formatDayLine2]);
 
-  // GSAP entrance: rows rise + numerals fade in
-  useGSAP(() => {
-    const mm = gsap.matchMedia();
-    mm.add("(prefers-reduced-motion: no-preference)", () => {
-      gsap.from(root.current?.querySelectorAll(".df-rule") ?? [], {
-        scaleX: 0, transformOrigin: "left center", duration: 0.9, ease: "power3.inOut", stagger: 0.1, delay: 0.25,
-      });
-      gsap.from(root.current?.querySelector(".df-chart") ?? null, {
-        autoAlpha: 0, y: 16, duration: 0.7, ease: "power2.out", delay: 0.45,
-      });
-    });
-    return () => mm.revert();
-  }, { scope: root });
+  // Entrance animation handled by @keyframes in src/index.css
+  // (.df-rule, .df-chart) under @media (prefers-reduced-motion: no-preference).
 
   return (
     <div ref={root} className="editorial-card p-6 md:p-8 flex flex-col h-[420px]">

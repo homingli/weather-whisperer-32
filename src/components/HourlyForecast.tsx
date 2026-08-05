@@ -12,8 +12,6 @@ import {
 } from "@/lib/units";
 import { formatInTimezone, appLocale } from "@/lib/utils";
 import { useMemo, useCallback, memo, useRef } from "react";
-import gsap from "gsap";
-import { useGSAP } from "@gsap/react";
 
 interface HourlyForecastProps {
   forecast: HourlyForecastType[];
@@ -156,19 +154,8 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
     });
   }, [timezone, locale]);
 
-  // GSAP entrance: hairline rule reveal + chart fade in
-  useGSAP(() => {
-    const mm = gsap.matchMedia();
-    mm.add("(prefers-reduced-motion: no-preference)", () => {
-      gsap.from(root.current?.querySelectorAll(".hf-rule") ?? [], {
-        scaleX: 0, transformOrigin: "left center", duration: 0.9, ease: "power3.inOut", stagger: 0.1, delay: 0.2,
-      });
-      gsap.from(root.current?.querySelector(".hf-chart") ?? null, {
-        autoAlpha: 0, y: 16, duration: 0.7, ease: "power2.out", delay: 0.4,
-      });
-    });
-    return () => mm.revert();
-  }, { scope: root });
+  // Entrance animation handled by @keyframes in src/index.css
+  // (.hf-rule, .hf-chart) under @media (prefers-reduced-motion: no-preference).
 
   return (
     <div ref={root} className="editorial-card p-6 md:p-8 flex flex-col h-[420px]">

@@ -1,6 +1,4 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import gsap from "gsap";
-import { useGSAP } from "@gsap/react";
 import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIconNode, weatherDescriptionKey, getHKOIconNode, hkoDescriptionKey } from "@/lib/weather";
 import type { HeadlineInfo } from "@/lib/weather";
 import type { LucideIcon } from "lucide-react";
@@ -156,22 +154,6 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
     const firstRainyHour = next6Hours.find(hour => hour.precipitationProbability >= 25);
     return isCurrentlyRaining || !!firstRainyHour;
   }, [weather, hourlyForecast]);
-
-  useGSAP(() => {
-    const mm = gsap.matchMedia();
-    mm.add("(prefers-reduced-motion: no-preference)", () => {
-      gsap.from(".cw-rule", {
-        scaleX: 0, transformOrigin: "left center", duration: 1.0, ease: "power3.inOut", stagger: 0.08,
-      });
-      gsap.from(".cw-rise", {
-        yPercent: 100, duration: 0.9, ease: "power3.out", stagger: 0.08, delay: 0.15,
-      });
-      gsap.from(".cw-fade", {
-        autoAlpha: 0, duration: 0.7, ease: "power2.out", stagger: 0.06, delay: 0.3,
-      });
-    });
-    return () => mm.revert();
-  }, { scope: root });
 
   const locale = appLocale(language);
   const hour12 = language !== 'tc';

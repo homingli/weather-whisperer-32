@@ -1,25 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ReactNode } from 'react';
 import { render, screen, act } from '@testing-library/react';
 import { HourlyForecast } from './HourlyForecast';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitsProvider, useUnits } from '@/contexts/UnitsContext';
 import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from '@/lib/weather';
+import { MockChartProps } from '@/test/mockChartProps';
 
 // Track chart renders so we can assert on the data passed to Recharts.
 type ChartCapture = Record<string, unknown>;
 const renderedChartData: ChartCapture[] = [];
+
 vi.mock('recharts', async () => {
-  const React = await import('react') as any;
-  const OriginalModule = await vi.importActual('recharts') as any;
+  const React = (await import('react')) as typeof import('react');
+  const OriginalModule = (await vi.importActual('recharts')) as typeof import('recharts');
   return {
     ...OriginalModule,
-    ResponsiveContainer: ({ children }: any) => <div data-testid="chart-container">{children}</div>,
-    LineChart: ({ data, children, ticks }: any) => {
-      renderedChartData.push(...(data ?? []));
+    ResponsiveContainer: ({ children }: MockChartProps) => <div data-testid="chart-container">{children}</div>,
+    LineChart: ({ data, children, ticks }: MockChartProps) => {
+      renderedChartData.push(...((data ?? []) as ChartCapture[]));
       if (ticks) renderedChartData.push({ ticks });
       // Use React.Children to properly render all child elements.
-      const renderedChildren: React.ReactNode[] = [];
-      React.Children.forEach(children, (child: any) => {
+      const renderedChildren: ReactNode[] = [];
+      React.Children.forEach(children, (child) => {
         renderedChildren.push(child);
       });
       return <div data-testid="line-chart">{renderedChildren}</div>;
@@ -29,7 +32,7 @@ vi.mock('recharts', async () => {
     YAxis: () => <div data-testid="y-axis" />,
     Tooltip: () => null,
     ReferenceArea: () => <div data-testid="ref-area" />,
-    ReferenceLine: ({ label }: any) => {
+    ReferenceLine: ({ label }: { label?: { value: unknown } }) => {
       if (label) renderedChartData.push({ refLineLabel: label.value });
       return <svg data-testid="ref-line" />;
     },
