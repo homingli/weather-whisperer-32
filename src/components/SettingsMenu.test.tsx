@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SettingsMenu } from './SettingsMenu';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -10,6 +11,16 @@ import { GeoLocation } from '@/lib/weather';
 const noCity: GeoLocation | null = null;
 const noRecent: GeoLocation[] = [];
 
+// Fresh QueryClient per test — useCitySearch uses useQuery, so the
+// component must be wrapped in a provider, and the client must be clean
+// (otherwise a previous test's geocode cache leaks into the next).
+function TestProviders({ children }: { children: React.ReactNode }) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
+
 describe('SettingsMenu units + language pill toggles', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -17,17 +28,19 @@ describe('SettingsMenu units + language pill toggles', () => {
 
   const renderMenu = () =>
     render(
-      <ThemeProvider>
-        <LanguageProvider>
-          <UnitsProvider>
-            <SettingsMenu
-              currentCity={noCity}
-              recentCities={noRecent}
-              onCitySelect={() => {}}
-            />
-          </UnitsProvider>
-        </LanguageProvider>
-      </ThemeProvider>,
+      <TestProviders>
+        <ThemeProvider>
+          <LanguageProvider>
+            <UnitsProvider>
+              <SettingsMenu
+                currentCity={noCity}
+                recentCities={noRecent}
+                onCitySelect={() => {}}
+              />
+            </UnitsProvider>
+          </LanguageProvider>
+        </ThemeProvider>
+      </TestProviders>,
     );
 
   it('renders the units pill toggle with both options', async () => {
@@ -103,13 +116,15 @@ describe('SettingsMenu theme radio group (WCAG 4.1.2)', () => {
 
   const renderMenu = () =>
     render(
-      <ThemeProvider>
-        <LanguageProvider>
-          <UnitsProvider>
-            <SettingsMenu currentCity={noCity} recentCities={noRecent} onCitySelect={() => {}} />
-          </UnitsProvider>
-        </LanguageProvider>
-      </ThemeProvider>,
+      <TestProviders>
+        <ThemeProvider>
+          <LanguageProvider>
+            <UnitsProvider>
+              <SettingsMenu currentCity={noCity} recentCities={noRecent} onCitySelect={() => {}} />
+            </UnitsProvider>
+          </LanguageProvider>
+        </ThemeProvider>
+      </TestProviders>,
     );
 
   it('renders the theme picker as menuitemradio entries with 3 options', async () => {

@@ -62,6 +62,9 @@ export default defineConfig(({ mode }) => ({
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60 * 24, // 1 day
+                // ~5 MB cap per bucket; nowcast CSV (~2.7 MB) is large so the
+                // 50-entry × 2.7 MB worst-case (~135 MB) was unbounded before.
+                purgeOnQuotaError: true,
               },
               cacheableResponse: {
                 statuses: [0, 200]
@@ -71,15 +74,20 @@ export default defineConfig(({ mode }) => ({
           // HKO data is proxied via the local origin in dev (Vite proxy) and
           // via Vercel rewrites in prod, so the browser-visible URL is the
           // local origin. A separate cache entry keeps dev/prod offline
-          // behavior aligned.
+          // behavior aligned. The nowcast CSV (up to ~2.7 MB with 30 s
+          // timeout) benefits from StaleWhileRevalidate so the user sees
+          // the cached map instantly while a fresh fetch refreshes the
+          // background copy — NetworkFirst would block page paint for the
+          // full timeout on every cold load.
           {
             urlPattern: /\/hko-data\/.*/i,
-            handler: 'NetworkFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'hko-proxy-cache',
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60 * 24, // 1 day
+                purgeOnQuotaError: true,
               },
               cacheableResponse: {
                 statuses: [0, 200]
