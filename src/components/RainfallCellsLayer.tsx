@@ -9,7 +9,7 @@
 //   (it sets the same CSS scale + translate that GridLayer uses for tiles).
 //   The renderer container has class `leaflet-zoom-animated` and lives
 //   in `mapPane`, so the overlay scales smoothly with the basemap during
-//   pinch / wheel / button zoom \u2014 no manual transform management.
+//   pinch / wheel / button zoom — no manual transform management.
 // - Pan already worked via the overlayPane transform; that still works.
 // - `L.canvas()` renderer batches every path into a single canvas, so
 //   ~10k cells = 1 canvas element + 10k lightweight path objects (no

@@ -28,7 +28,7 @@ const MAX_BYTES = 512 * 1024;
 
 // Append here when bumping PERSIST_SCHEMA_VERSION so the prior key gets
 // swept on next page load and doesn't orphan in localStorage forever.
-// Currently empty \u2014 PERSIST_SCHEMA_VERSION is v1, the first public
+// Currently empty — PERSIST_SCHEMA_VERSION is v1, the first public
 // schema. On the next bump (e.g. v1 -> v2), prepend
 // `weather-rq-cache-v1` here.
 const LEGACY_STORAGE_KEYS: readonly string[] = [];
@@ -41,7 +41,7 @@ try {
     localStorage.removeItem(key);
   }
 } catch {
-  // localStorage unavailable \u2014 ignore.
+  // localStorage unavailable — ignore.
 }
 
 export const persister: Persister = {

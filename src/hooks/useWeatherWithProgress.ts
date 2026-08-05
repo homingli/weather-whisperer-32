@@ -31,7 +31,7 @@ export function useWeatherWithProgress(
 
   // Cold-start seed: read the last-known snapshot synchronously on first
   // render and whenever the city changes. PersistQueryClient restoration
-  // races this on reload \u2014 see the race note near `persistQueryClient`
+  // races this on reload — see the race note near `persistQueryClient`
   // in App.tsx for the precedence order between this snapshot and the
   // persisted query cache.
   const initialData = useMemo<WeatherData | undefined>(() => {
