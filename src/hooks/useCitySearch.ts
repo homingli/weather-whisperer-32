@@ -32,12 +32,16 @@ export function useCitySearch(query: string): {
     placeholderData: keepPreviousData,
   });
 
+  // `data` is only surfaced when the query is enabled. Cached results
+  // survive in React Query's internal cache for `gcTime` (default 5 min)
+  // even when `enabled` flips false — e.g. user types "Lon" then
+  // backspaces to "L", the cache still holds "London" but the consumer
+  // should not see it under a 1-char query. Gate by `enabled` so the
+  // dropdown clears on every disable transition; keepPreviousData still
+  // works within active queries because that path stays enabled.
   return {
-    data: data ?? [],
+    data: enabled ? (data ?? []) : [],
     isFetching,
-    // True while keepPreviousData is showing the previous query's results
-    // (the user's `query` changed but the new fetch is still in flight).
-    // Used by the caller to skip the loading spinner during the transition.
     isPlaceholderData,
   };
 }

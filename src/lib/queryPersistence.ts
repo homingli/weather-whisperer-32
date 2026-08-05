@@ -12,9 +12,9 @@
  *  - Bump `PERSIST_SCHEMA_VERSION` whenever the cached client's shape
  *    changes; TanStack compares it against `buster` in App.tsx and drops
  *    the cache on mismatch (one-line upgrade, no manual purge).
- *  - localStorage isn't a great place for multi-megabyte blobs; cap any
- *    single payload we attempt to persist and skip silently if it would
- *    overflow.
+ *  - localStorage isn't a great place for multi-megabyte blobs; estimate
+ *    size per-query before issuing the full serialize so we don't allocate
+ *    a multi-MB string we'd then drop on the floor.
  */
 
 import {
@@ -29,14 +29,27 @@ const MAX_BYTES = 512 * 1024;
 export const persister: Persister = {
   persistClient: async (client: PersistedClient) => {
     try {
-      const json = JSON.stringify(client);
-      if (json.length > MAX_BYTES) {
-        // Drop quietly rather than risk a QuotaExceededError.
-        return;
+      // Estimate before serialize. The bulk of PersistedClient is each
+      // query's `state.data`; summing those individually caps per-call
+      // allocation at MAX_BYTES and short-circuits before the final
+      // concatenated stringify. A small fixed overhead per query accounts
+      // for queryKey + queryHash + state metadata.
+      let bytes = 64; // buster + timestamp + clientState overhead
+      for (const q of client.queries) {
+        bytes += JSON.stringify(q.queryKey).length + 128;
+        if (q.state.data !== undefined) {
+          bytes += JSON.stringify(q.state.data).length;
+        }
+        if (bytes > MAX_BYTES) {
+          // Bail before final serialize — we already know we're over budget.
+          return;
+        }
       }
+      const json = JSON.stringify(client);
       localStorage.setItem(STORAGE_KEY, json);
     } catch {
-      // Storage quota / disabled storage — swallow.
+      // Storage quota / disabled storage — swallow (dev logging handled in
+      // restoreClient below; persist failures are mostly benign).
     }
   },
   restoreClient: async () => {
@@ -44,7 +57,12 @@ export const persister: Persister = {
       const json = localStorage.getItem(STORAGE_KEY);
       if (!json) return undefined;
       return JSON.parse(json) as PersistedClient;
-    } catch {
+    } catch (err) {
+      // Disabled storage / parse error / stale schema. Log in dev only so
+      // prod stays quiet but a CI re-run or local repro can inspect.
+      if (import.meta.env.DEV) {
+        console.debug('[queryPersist] restore failed', err);
+      }
       return undefined;
     }
   },

@@ -16,7 +16,17 @@ const noRecent: GeoLocation[] = [];
 // (otherwise a previous test's geocode cache leaks into the next).
 function TestProviders({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    // `retry: false` so a failed query surfaces an error state instead of
+    // hanging the test. `refetchOnWindowFocus: false` /
+    // `refetchOnReconnect: false` avoid flakiness on CI agents that steal
+    // focus or shift network state mid-run.
+    defaultOptions: {
+      queries: {
+        retry: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+      },
+    },
   });
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
