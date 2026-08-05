@@ -30,8 +30,11 @@ export function useWeatherWithProgress(
   const [hasFailure, setHasFailure] = useState(false);
 
   // Cold-start seed: read the last-known snapshot synchronously on first
-  // render and whenever the city changes. Forced stale so the background
-  // fetch fires immediately.
+  // render and whenever the city changes. On reloads within
+  // persistQueryClient's `maxAge` (30 min), the persisted query cache
+  // takes precedence and this snapshot path only kicks in once the
+  // persisted cache is stale or missing. See App.tsx for the race
+  // note covering both paths.
   const initialData = useMemo<WeatherData | undefined>(() => {
     if (latitude === undefined || longitude === undefined) return undefined;
     const cityId = makeCityId(latitude, longitude);

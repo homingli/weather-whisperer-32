@@ -171,6 +171,10 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
     c => !(currentCity && c.latitude === currentCity.latitude && c.longitude === currentCity.longitude)
   ).slice(0, 3);
 
+  // Used by both the spinner show-if and the empty-state show-if below;
+  // one string trim per render instead of two.
+  const trimmedLen = query.trim().length;
+
   // Pill options for units — short labels (the menu had verbose "(°C, km/h, mm)"
   // suffixes that don't fit in a pill; the active unit is unambiguous from
   // the rest of the UI).
@@ -292,9 +296,9 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
                 prior data). When keepPreviousData is supplying placeholder
                 results during a query-key change, the prior results stay
                 visible — no spinner blink. */}
-            {isFetching && !isPlaceholderData && query.trim().length >= 2 ? (
-              <div className="p-4 text-center text-muted-foreground">{t('search.searching')}</div>
-            ) : results.length > 0 ? (
+            {isFetching && !isPlaceholderData && trimmedLen >= 2 ? (
+                <div className="p-4 text-center text-muted-foreground">{t('search.searching')}</div>
+              ) : results.length > 0 ? (
               <ul className="divide-y divide-border/30">
                 {results.map((city, index) => (
                   <li key={`${city.name}-${city.latitude}-${city.longitude}-${index}`}>
@@ -313,9 +317,9 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
                   </li>
                 ))}
               </ul>
-            ) : query.trim().length >= 2 ? (
-              <div className="p-4 text-center text-muted-foreground">{t('search.noResults')}</div>
-            ) : null}
+              ) : trimmedLen >= 2 ? (
+                <div className="p-4 text-center text-muted-foreground">{t('search.noResults')}</div>
+              ) : null}
           </div>
         </DialogContent>
       </Dialog>

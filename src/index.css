@@ -313,6 +313,14 @@
    used). This block also neutralizes Tailwind utility animations and the
    indeterminate progress keyframe for reduce-motion users. */
 @media (prefers-reduced-motion: no-preference) {
+  /* NOTE: Class selectors in this block are intentionally global — the
+     components using them (CurrentWeather, HourlyForecast, DailyForecast)
+     are the only consumers in the app, and the `cw-` / `hf-` / `df-`
+     prefixes are the namespace. If you reuse one of these class names
+     elsewhere (e.g. a Storybook story, a test wrapper), the animation
+     will fire there too. To scope, prefix with a parent selector
+     (e.g. `.editorial-card .cw-rule`). */
+
   /* Hairline rules: scaleX from 0, transform-origin left center so they
      draw out left-to-right (matches the previous gsap.from(..., {scaleX:0,
      transformOrigin:'left center'}) call). One shared @keyframes applied
@@ -325,8 +333,10 @@
   .hf-rule { animation: rule-in 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.2s both; }
   .df-rule { animation: rule-in 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.25s both; }
 
-  /* Numeral/heading rise: translateY(100%) → 0 with overflow-hidden
-     parent. Replaces gsap.from(..., {yPercent:100}). */
+  /* Numeral/heading rise: translateY(100%) → 0. REQUIRES an
+     `overflow-hidden` parent (verified in CurrentWeather.tsx at the
+     hero numeral wrappers) so the starting position isn't visible
+     during the entrance. Replaces gsap.from(..., {yPercent:100}). */
   @keyframes cw-rise-in {
     from { transform: translateY(100%); }
     to   { transform: translateY(0); }
