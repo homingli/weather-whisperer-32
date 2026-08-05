@@ -16,8 +16,9 @@ import { Input } from '@/components/ui/input';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage, Language, formatString } from '@/contexts/LanguageContext';
 import { useUnits, Units } from '@/contexts/UnitsContext';
+import { useCitySearch } from '@/hooks/useCitySearch';
 import { cn } from '@/lib/utils';
-import { searchCities, GeoLocation, getUserLocation, reverseGeocode, setDefaultCity } from '@/lib/weather';
+import { GeoLocation, getUserLocation, reverseGeocode, setDefaultCity } from '@/lib/weather';
 import { logWarn } from '@/lib/log';
 import { toast } from 'sonner';
 
@@ -115,8 +116,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
   const { units, setUnits } = useUnits();
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<GeoLocation[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const { data: results, isFetching, isPlaceholderData } = useCitySearch(query);
   const [isLocating, setIsLocating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -160,31 +160,11 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
     }
   };
 
-  const handleSearchChange = async (value: string) => {
-    setQuery(value);
-    if (value.length >= 2) {
-      setIsSearching(true);
-      try {
-        const cities = await searchCities(value);
-        setResults(cities);
-      } catch {
-        // Toast path is not invoked here — search failures are silent so the
-        // menu doesn't pile up toasts while the user is still typing.
-        // The fetch layer logs via logWarn/logFailure.
-      } finally {
-        setIsSearching(false);
-      }
-    } else {
-      setResults([]);
-    }
-  };
-
   const handleSelectCity = (city: GeoLocation) => {
     setDefaultCity(city);
     onCitySelect(city);
     setSearchOpen(false);
     setQuery('');
-    setResults([]);
   };
 
   const filteredRecent = recentCities.filter(
@@ -301,14 +281,18 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
               type="text"
               placeholder={t('search.placeholder')}
               value={query}
-              onChange={(e) => handleSearchChange(e.target.value)}
+              onChange={(e) => setQuery(e.target.value)}
               aria-label={t('search.placeholder')}
               className="border-0 bg-transparent p-0 h-auto text-foreground placeholder:text-muted-foreground"
               autoFocus
             />
           </div>
           <div className="max-h-[300px] overflow-y-auto">
-            {isSearching ? (
+            {/* Only show the spinner on a true first-load (isFetching && no
+                prior data). When keepPreviousData is supplying placeholder
+                results during a query-key change, the prior results stay
+                visible — no spinner blink. */}
+            {isFetching && !isPlaceholderData && query.trim().length >= 2 ? (
               <div className="p-4 text-center text-muted-foreground">{t('search.searching')}</div>
             ) : results.length > 0 ? (
               <ul className="divide-y divide-border/30">
@@ -329,7 +313,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
                   </li>
                 ))}
               </ul>
-            ) : query.length >= 2 ? (
+            ) : query.trim().length >= 2 ? (
               <div className="p-4 text-center text-muted-foreground">{t('search.noResults')}</div>
             ) : null}
           </div>
