@@ -247,6 +247,15 @@ const translations: Record<Language, Record<string, string>> = {
     'nowcast.staleDesc': 'Refresh failed. Showing the previous forecast — try again when connection is stable.',
     'nowcast.loadingSlow': 'Slow connection — fetching nowcast data',
 
+    // MSC (Vancouver) nowcast — GeoMet WMS. Step controls / loading / error
+    // states reuse nowcast.*; these keys are MSC-specific (D-006).
+    'msc.legendTitle': 'Precipitation intensity',
+    'msc.intensityLow': 'Low',
+    'msc.intensityModerate': 'Moderate',
+    'msc.intensityHigh': 'High',
+    'msc.noPrecipitation': 'No precipitation in forecast',
+    'msc.usingLastAnalysis': 'Using last analysis at {0}',
+
     // Wind direction (aria-label on the rotating arrow SVG)
     'weather.windDirAria': 'Wind direction toward {0}° {1}',
 
@@ -490,6 +499,14 @@ const translations: Record<Language, Record<string, string>> = {
     'nowcast.staleTitle': '正在使用上次預報',
     'nowcast.staleDesc': '刷新失敗，正在顯示先前的雨量預報 — 網絡穩定後請重試。',
     'nowcast.loadingSlow': '網絡較慢 — 正在下載雨量預報',
+
+    // MSC（溫哥華）預報 — GeoMet WMS。步驟控制／載入／錯誤狀態沿用 nowcast.*，以下為 MSC 專用鍵（D-006）。
+    'msc.legendTitle': '降水強度',
+    'msc.intensityLow': '低',
+    'msc.intensityModerate': '中等',
+    'msc.intensityHigh': '高',
+    'msc.noPrecipitation': '預報中沒有降水',
+    'msc.usingLastAnalysis': '正在使用最近一次分析（{0}）',
 
     // Wind direction (aria-label on the rotating arrow SVG)
     'weather.windDirAria': '風向：{0}° {1}',

@@ -89,6 +89,27 @@ export default defineConfig(({ mode }) => ({
           // If you loosen this, weigh the offline UX against forecast
           // correctness — a longer cap = snappier offline, more likely to
           // show outdated rain.
+          // MSC nowcast tiles come from GeoMet (geo.weather.gc.ca). GeoMet
+          // already sends Cache-Control: max-age=3600, but the SW rule keeps
+          // tiles available offline / instantly on revisit and bounds the
+          // cache (small PNGs; 200 entries ≈ ~1 MB worst case). Tiles are
+          // time-stamped, so keep the cap at the 1h GeoMet freshness window
+          // to avoid serving an outdated forecast.
+          {
+            urlPattern: /^https:\/\/geo\.weather\.gc\.ca\/.*/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'msc-tile-cache',
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 60 * 60, // 1h, matches GeoMet max-age
+                purgeOnQuotaError: true,
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            },
+          },
           {
             urlPattern: /\/hko-data\/.*/i,
             handler: 'StaleWhileRevalidate',
