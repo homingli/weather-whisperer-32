@@ -84,4 +84,11 @@ export const persister: Persister = {
       return undefined;
     }
   },
+  removeClient: async () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Disabled storage — ignore.
+    }
+  },
 };

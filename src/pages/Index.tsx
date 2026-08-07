@@ -13,7 +13,7 @@ import {
   useDevBaselineNonce,
 } from '@/lib/devWarningSimulator';
 import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName, getWarningIcon } from '@/lib/hko-weather';
-import { PLACEHOLDER_SENTINEL } from '@/lib/constants';
+import { PLACEHOLDER_SENTINEL, isInVancouverBox } from '@/lib/constants';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
@@ -26,6 +26,7 @@ import { CloudRain, MapPin, Download, ChevronLeft, ChevronRight } from 'lucide-r
 const DailyForecast = lazy(() => import('@/components/DailyForecast').then(module => ({ default: module.DailyForecast })));
 const HourlyForecast = lazy(() => import('@/components/HourlyForecast').then(module => ({ default: module.HourlyForecast })));
 const RainfallMap = lazy(() => import('@/components/RainfallMap').then(module => ({ default: module.RainfallMap })));
+const MSCRainfallMap = lazy(() => import('@/components/MSCRainfallMap').then(module => ({ default: module.MSCRainfallMap })));
 // SettingsMenu (dropdown) and WeatherBanners (error/partial banners) only
 // render behind a user action or a degraded-data state respectively;
 // deferring them keeps Dialog/Input primitives and the geocoding helpers
@@ -87,6 +88,13 @@ const Index = () => {
 
   // Determine if selected city is in Hong Kong coverage area
   const isHKCovered = selectedCity ? isInHongKong(selectedCity.latitude, selectedCity.longitude) : false;
+  // Nowcast map region: PRD (HKO) or Vancouver (MSC). Vancouver wins the
+  // split when both are true (the boxes don't overlap).
+  const nowcastVisible = !!selectedCity &&
+    (isInRainfallRegion(selectedCity.latitude, selectedCity.longitude) ||
+      isInVancouverBox(selectedCity.latitude, selectedCity.longitude));
+  const useMSCNowcast = !!selectedCity &&
+    isInVancouverBox(selectedCity.latitude, selectedCity.longitude);
 
   // Warning change detection: emit toast + pulse on newly added warnings,
   // toast only on cancellations (badge disappears on its own).
@@ -310,10 +318,14 @@ const Index = () => {
                     </SwiperSlide>
 
                     {/* Slide 3: Rainfall map (PRD only) */}
-                    {selectedCity && isInRainfallRegion(selectedCity.latitude, selectedCity.longitude) && (
+                    {nowcastVisible && (
                       <SwiperSlide>
                         <Suspense fallback={<div className="h-full animate-pulse bg-muted/20 rounded-xl glass-card" />}>
-                          <RainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
+                          {useMSCNowcast ? (
+                            <MSCRainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
+                          ) : (
+                            <RainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
+                          )}
                         </Suspense>
                       </SwiperSlide>
                     )}
@@ -357,9 +369,13 @@ const Index = () => {
                   </div>
 
                   {/* Bottom Row: Optional Map */}
-                  {selectedCity && isInRainfallRegion(selectedCity.latitude, selectedCity.longitude) && (
+                  {nowcastVisible && (
                     <Suspense fallback={<div className="h-[400px] animate-pulse bg-muted/20 rounded-xl" />}>
-                      <RainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
+                      {useMSCNowcast ? (
+                        <MSCRainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
+                      ) : (
+                        <RainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
+                      )}
                     </Suspense>
                   )}
                 </div>
