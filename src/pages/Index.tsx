@@ -2,7 +2,7 @@ import { useMemo, useCallback, lazy, Suspense, useEffect, useState, useRef } fro
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination } from 'swiper/modules';
 import { CurrentWeather } from '@/components/CurrentWeather';
-import { WeatherAlerts } from '@/components/WeatherAlerts';
+
 import { FetchingStatus } from '@/components/FetchingStatus';
 import { LocalClock } from '@/components/LocalClock';
 import { useSelectedCity } from '@/hooks/useSelectedCity';
@@ -33,6 +33,7 @@ const MSCRainfallMap = lazy(() => import('@/components/MSCRainfallMap').then(mod
 // out of the initial chunk.
 const SettingsMenu = lazy(() => import('@/components/SettingsMenu').then(module => ({ default: module.SettingsMenu })));
 const WeatherBanners = lazy(() => import('@/components/WeatherBanners').then(module => ({ default: module.WeatherBanners })));
+const WeatherAlerts = lazy(() => import('@/components/WeatherAlerts').then(module => ({ default: module.WeatherAlerts })));
 
 // Placeholder used when weather.current is null during transitions
 // All display values set to PLACEHOLDER_SENTINEL so CurrentWeather shows `-` instead of 0
@@ -175,13 +176,15 @@ const Index = () => {
           </div>
           <div className="row-span-2 flex items-center justify-end gap-2">
             {effectiveWarnings.length > 0 && (
-              <WeatherAlerts
-                warnings={effectiveWarnings}
-                pulseTrigger={pulseTrigger}
-                pulseCodes={new Set(warningDiff.added.map(w => w.code))}
-                selectedWarningCode={selectedWarningCode}
-                onConsumed={handleConsumedSelectedWarning}
-              />
+              <Suspense fallback={null}>
+                <WeatherAlerts
+                  warnings={effectiveWarnings}
+                  pulseTrigger={pulseTrigger}
+                  pulseCodes={new Set(warningDiff.added.map(w => w.code))}
+                  selectedWarningCode={selectedWarningCode}
+                  onConsumed={handleConsumedSelectedWarning}
+                />
+              </Suspense>
             )}
             <Suspense fallback={<div tabIndex={-1} className="h-12 w-12" aria-hidden="true" />}>
               <SettingsMenu currentCity={selectedCity} recentCities={recentCities} onCitySelect={handleCitySelect} onRefresh={handleForceRefresh} />
