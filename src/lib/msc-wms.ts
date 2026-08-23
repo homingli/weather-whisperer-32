@@ -192,3 +192,20 @@ export function vancouverBboxMercator(): { minX: number; minY: number; maxX: num
   const maxY = latToMercatorY(VANCOUVER_BBOX.north);
   return { minX, minY, maxX, maxY };
 }
+
+/**
+ * Build the GeoMet GetMap URL for a single 256×256 tile covering the whole
+ * Vancouver bbox — the no-precipitation probe target (map) and the idle
+ * prefetch target (`msc-prefetch`). Shared so the two never diverge in bbox
+ * or request params. Pure + testable.
+ */
+export function buildProbeUrl(stepIso: string): string {
+  const { minX, minY, maxX, maxY } = vancouverBboxMercator();
+  const bbox = [minX, minY, maxX, maxY].map((v) => v.toFixed(2)).join(',');
+  return (
+    `${MSC.WMS_URL}?service=WMS&request=GetMap&version=1.3.0` +
+    `&crs=EPSG:3857&bbox=${bbox}&width=256&height=256` +
+    `&layers=${MSC.LAYER}&styles=${MSC.STYLE}` +
+    `&transparent=true&format=image/png&time=${encodeURIComponent(stepIso)}`
+  );
+}

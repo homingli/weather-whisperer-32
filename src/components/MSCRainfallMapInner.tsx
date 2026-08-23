@@ -5,7 +5,7 @@ import { AlertCircle, RefreshCw, Play, Pause, Layers, CloudRain } from 'lucide-r
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { MSC, TIMING, VANCOUVER_BBOX, VANCOUVER_CENTER } from '@/lib/constants';
-import { buildMscStepTimes, formatStepTime, formatObservationTime, vancouverTimeZoneAbbr, vancouverBboxMercator } from '@/lib/msc-wms';
+import { buildMscStepTimes, formatStepTime, formatObservationTime, vancouverTimeZoneAbbr, buildProbeUrl } from '@/lib/msc-wms';
 import { logWarn } from '@/lib/log';
 
 interface UserLocation {
@@ -45,27 +45,15 @@ const MSC_INTENSITY_BANDS = [
 ] as const;
 
 /**
- * Build the GeoMet GetMap URL for a single 256×256 tile covering the whole
- * Vancouver bbox — used as the no-precipitation probe. Returns null if the
- * URL can't be constructed.
- */
-function buildProbeUrl(stepIso: string): string {
-  const { minX, minY, maxX, maxY } = vancouverBboxMercator();
-  const bbox = [minX, minY, maxX, maxY].map((v) => v.toFixed(2)).join(',');
-  return (
-    `${MSC.WMS_URL}?service=WMS&request=GetMap&version=1.3.0` +
-    `&crs=EPSG:3857&bbox=${bbox}&width=256&height=256` +
-    `&layers=${MSC.LAYER}&styles=${MSC.STYLE}` +
-    `&transparent=true&format=image/png&time=${encodeURIComponent(stepIso)}`
-  );
-}
-
-/**
  * Probe whether any precipitation is present in the Vancouver bbox at the
  * given step. GeoMet renders transparent pixels where there is no rain, so a
  * fully transparent probe tile means "no precipitation in forecast". Returns
  * true (rain), false (no rain), or null when the probe can't be evaluated
  * (network error, canvas unavailable) — callers should treat null as unknown.
+ *
+ * The probe URL comes from the shared `buildProbeUrl` (also used by the idle
+ * prefetch in `msc-prefetch`), so a warmed HTTP cache serves the map's probe
+ * without hitting the network.
  */
 async function probeStepHasRain(stepIso: string): Promise<boolean | null> {
   try {

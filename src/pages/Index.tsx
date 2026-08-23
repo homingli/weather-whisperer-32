@@ -14,6 +14,7 @@ import {
 } from '@/lib/devWarningSimulator';
 import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName, getWarningIcon } from '@/lib/hko-weather';
 import { PLACEHOLDER_SENTINEL, isInVancouverBox } from '@/lib/constants';
+import { prefetchMscNowcast } from '@/lib/msc-prefetch';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
@@ -96,6 +97,14 @@ const Index = () => {
       isInVancouverBox(selectedCity.latitude, selectedCity.longitude));
   const useMSCNowcast = !!selectedCity &&
     isInVancouverBox(selectedCity.latitude, selectedCity.longitude);
+
+  // MSC prefetch: once the selected city is in the Vancouver box, warm the
+  // nowcast map's lazy chunk + probe tiles at idle so the map's first render
+  // doesn't stall on a ~150 kB chunk fetch. Network-gated inside the helper
+  // (skips on saveData / 2G) and one-shot per session.
+  useEffect(() => {
+    if (useMSCNowcast) prefetchMscNowcast();
+  }, [useMSCNowcast]);
 
   // Warning change detection: emit toast + pulse on newly added warnings,
   // toast only on cancellations (badge disappears on its own).
