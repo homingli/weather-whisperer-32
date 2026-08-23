@@ -1,7 +1,8 @@
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { persistQueryClient } from "@tanstack/query-persist-client-core";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { UnitsProvider } from "@/contexts/UnitsContext";
@@ -63,6 +64,14 @@ persistQueryClient({
   },
 });
 
+// SpeedInsights must sit inside the router and receive the current route,
+// otherwise all SPA Core Web Vitals (LCP/INP/CLS) are attributed to the
+// initial route (`/`) regardless of where the user actually is.
+const RouteAwareSpeedInsights = () => {
+  const location = useLocation();
+  return <SpeedInsights route={location.pathname} />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
@@ -71,6 +80,7 @@ const App = () => (
           <StatusRegionProvider>
             <Sonner />
             <BrowserRouter>
+              <RouteAwareSpeedInsights />
               <Routes>
                 <Route path="/" element={<Index />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
