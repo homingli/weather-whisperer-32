@@ -23,8 +23,8 @@
 //   - 'full'    (desktop / fine pointer): the chunk + all 6 per-step probes.
 //               Desktop has the bandwidth and the map is in active use.
 //   - 'reduced' (mobile / coarse pointer, ANY engine): the chunk + the active
-//               step's probe only. A phone is one swipe away from the map and
-//               may never open it, so 5 more speculative probes are unused
+//               step's probe only. The map is a couple of swipes away and may
+//               never be opened, so 5 more speculative probes are unused
 //               data. `pointer: coarse` is reported by every engine — Safari
 //               has no navigator.connection, so this is the cross-engine
 //               mobile signal (Chromium's effectiveType alone would let
@@ -37,11 +37,14 @@
 //     is harmless because the map refetches what it needs on mount and
 //     GeoMet's Cache-Control: max-age=3600 bounds how long a warmed entry
 //     lives.
-//   - Offline check: warming while offline would only fail.
+//   - Offline check (schedule time AND fire time): warming while offline
+//     would only fail.
 //   - Idle-scheduled (requestIdleCallback) so it yields to input/rendering.
 //   - Race guard: once the map mounts it fetches its own tiles, so the
-//     warm-up skips probe warming when `markMscMapMounted` was called — no
-//     duplicate requests for the same URLs.
+//     warm-up skips probe warming when `markMscMapMounted` was called. The
+//     window where the map mounts mid-warm-up is sub-tick and browsers/SW
+//     coalesce identical in-flight requests, so duplicates are practically
+//     impossible rather than absolutely guaranteed absent.
 
 import { buildMscStepTimes, buildProbeUrl } from './msc-wms';
 
@@ -120,6 +123,10 @@ export function prefetchMscNowcast(): void {
 }
 
 function warmNowcastAssets(tier: MscPrefetchTier): void {
+  // Re-check offline at fire time: the connection can drop between scheduling
+  // and the idle callback (a failed warm-up is harmless, but pointless).
+  if (!navigator.onLine) return;
+
   // 1. The map's lazy chunk — the single largest first-render fetch. Vite
   //    dedupes an in-flight dynamic import, so this is safe even if the map
   //    is already loading.
@@ -132,8 +139,8 @@ function warmNowcastAssets(tier: MscPrefetchTier): void {
   // 'reduced' warms only the active step (the tile the map shows first);
   // 'full' warms all 6 per-step probe tiles.
   const count = tier === 'full' ? steps.length : 1;
-  for (let i = 0; i < Math.min(count, steps.length); i++) {
-    warmImage(buildProbeUrl(steps[i]));
+  for (const step of steps.slice(0, count)) {
+    warmImage(buildProbeUrl(step));
   }
 }
 

@@ -10,7 +10,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Keep the dynamic-import warm target hermetic — no leaflet/react-leaflet in
 // the prefetch tests (MSCRainfallMap.test.tsx mocks react-leaflet itself).
-vi.mock('@/components/MSCRainfallMapInner', () => ({ default: {} }));
+// The factory increments a counter so tests can assert the chunk is NOT
+// fetched on the no-warm paths. (Vitest caches the mocked module per file, so
+// "was fetched" can only be asserted on the first warm test, not per test.)
+const chunkImportSpy = vi.hoisted(() => ({ calls: 0 }));
+vi.mock('@/components/MSCRainfallMapInner', () => {
+  chunkImportSpy.calls += 1;
+  return { default: {} };
+});
 
 import { shouldSkipPrefetch, planMscPrefetch } from './msc-prefetch';
 
@@ -74,16 +81,21 @@ describe('prefetchMscNowcast', () => {
 
   beforeEach(() => {
     vi.resetModules();
+    vi.useRealTimers();
     warmUrls = [];
+    chunkImportSpy.calls = 0;
     vi.stubGlobal('Image', MockImage);
   });
 
   afterEach(() => {
     restoreMatchMedia?.();
     restoreMatchMedia = null;
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     // jsdom's navigator has no `connection`; remove it when a test added it.
     delete (navigator as unknown as Record<string, unknown>).connection;
+    // Restore the prototype getter when a test shadowed onLine with an own prop.
+    delete (navigator as unknown as Record<string, unknown>).onLine;
   });
 
   /** Re-import the module (fresh one-shot flag) and flush the idle callback. */
@@ -142,6 +154,22 @@ describe('prefetchMscNowcast', () => {
     expect(warmUrls).toHaveLength(1);
   });
 
+  it('pins the reduced-tier probe to the map\'s first forecast step (steps[0])', async () => {
+    // Freeze the clock so the warm-up's buildMscStepTimes is deterministic:
+    // at 08:30Z the first step is the next full hour, 09:00Z.
+    vi.useFakeTimers({ shouldAdvanceTime: true, now: new Date('2026-08-06T08:30:00Z') });
+    try {
+      stubCoarsePointer();
+      const mod = await import('./msc-prefetch');
+      mod.prefetchMscNowcast();
+      await vi.advanceTimersByTimeAsync(0); // flush the setTimeout(0) fallback
+      expect(warmUrls).toHaveLength(1);
+      expect(warmUrls[0]).toContain('time=2026-08-06T09%3A00%3A00Z');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('warms only the active step on coarse pointer even with a good connection (Chromium mobile)', async () => {
     stubCoarsePointer();
     Object.defineProperty(navigator, 'connection', {
@@ -168,6 +196,38 @@ describe('prefetchMscNowcast', () => {
     });
     await runPrefetch();
     expect(warmUrls).toHaveLength(0);
+    expect(chunkImportSpy.calls).toBe(0);
+  });
+
+  it('retries when the connection improves after a 2g skip (one-shot flag not set on none)', async () => {
+    const mod = await import('./msc-prefetch');
+    Object.defineProperty(navigator, 'connection', {
+      value: { saveData: false, effectiveType: '2g' },
+      configurable: true,
+    });
+    mod.prefetchMscNowcast();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(warmUrls).toHaveLength(0);
+
+    // Connection improves → a later call still warms (the 'none' tier does
+    // NOT set the one-shot flag, deliberately).
+    Object.defineProperty(navigator, 'connection', {
+      value: { saveData: false, effectiveType: '4g' },
+      configurable: true,
+    });
+    mod.prefetchMscNowcast();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(warmUrls).toHaveLength(6);
+  });
+
+  it('skips the warm-up when offline (no chunk, no probes)', async () => {
+    Object.defineProperty(navigator, 'onLine', {
+      value: false,
+      configurable: true,
+    });
+    await runPrefetch();
+    expect(warmUrls).toHaveLength(0);
+    expect(chunkImportSpy.calls).toBe(0);
   });
 
   it('does not duplicate probe fetches once the map has mounted', async () => {
