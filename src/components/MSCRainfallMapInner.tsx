@@ -520,7 +520,18 @@ export default function MSCRainfallMapInner({
             key={`wms-${retryNonce}`}
             url={MSC.WMS_URL}
             params={wmsParams}
-            opacity={0.7}
+            // Color overlay at 0.5 so basemap labels/streets stay readable
+            // (was 0.7 — user request 2026-08-22).
+            opacity={0.5}
+            // zIndex ABOVE the basemap's default 1: Leaflet stacks tilePane
+            // children by DOM order at equal z-index, and the basemap
+            // remounts on theme/basemap toggle (key change → removeLayer +
+            // addLayer appends it last), which would otherwise paint the
+            // basemap OVER the precipitation overlay, hiding it. An explicit
+            // zIndex pins the overlay above regardless of DOM order
+            // (verified 2026-08-22). Markers/controls are in higher panes
+            // (600/800) and stay on top.
+            zIndex={500}
             eventHandlers={tileEventHandlers}
           />
           {userLocation && (
