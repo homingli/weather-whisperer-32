@@ -371,6 +371,28 @@ The project uses **Vitest** with jsdom. Coverage is split across layers (**260 t
 
 Test infra: `matchMedia` is stubbed in `src/test/setup.ts`; `vi.stubGlobal('matchMedia', ...)` is used in component tests that need viewport-specific branches (LocalClock narrow mode, etc.).
 
+## Observability
+
+Client-side only (static SPA; no server code). No third-party APM.
+
+- **Vercel Analytics + Speed Insights** — `@vercel/analytics` (`<Analytics/>` in
+  `main.tsx`) and `@vercel/speed-insights` (`<SpeedInsights/>` inside the router
+  in `App.tsx`, fed the current route so per-route vitals are attributed
+  correctly). First-party visitor counts + LCP/INP/CLS/TTFB in the Vercel
+  dashboard, correlated with deploys.
+- **SW lifecycle events** — `src/lib/sw-observability.ts` (`initSwObservability()`
+  in `main.tsx`, before render) reports: `sw.unsupported`, `sw.registered`
+  (sw.ready settled), `sw.register-error` (sw.ready rejected, or not settled
+  within 30 s), `sw.update-available` (registration `updatefound`),
+  `sw.controller-changed` (`controllerchange`; fires on first visit and on
+  autoUpdate cutover). Dev → console via `logEvent`; prod → Vercel Analytics
+  custom events via `track` (v2 API; v1 was `trackEvent`). The ready-watch is
+  prod-only (no SW is registered in dev) and armed on `window.load` — that is
+  when the injected `registerSW.js` calls `register()`, and the injected script
+  is fire-and-forget, so the 30 s timer is the only registration-failure signal.
+- **Stuck-update detection** — high `sw.update-available` with low
+  `sw.controller-changed` means autoUpdate is not applying to users.
+
 ## State Management & Styling
 - **React Context API** handles user preferences with localStorage persistence (Theme + Language).
 - **Tailwind CSS** drives responsive layouts (multi-column grids for desktop, vertical stacks for mobile) while adhering to a premium glass-morphism aesthetic. Micro-animations prevent static UIs (staggered fade-ins, hover elevations).

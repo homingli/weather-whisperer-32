@@ -56,3 +56,13 @@ export function logError(message: string, err?: unknown): void {
   if (isProd) return;
   console.error(err ? `${message}: ${formatErr(err)}` : message);
 }
+
+/**
+ * Log a structured event (name + flat properties). No-op in production —
+ * prod reporting is the caller's job (e.g. Vercel Analytics `track`),
+ * so this stays dev-console-only.
+ */
+export function logEvent(name: string, props?: Record<string, unknown>): void {
+  if (isProd) return;
+  console.log(`[event] ${name}${props ? ` ${JSON.stringify(props)}` : ''}`);
+}
