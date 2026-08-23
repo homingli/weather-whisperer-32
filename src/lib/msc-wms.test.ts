@@ -13,6 +13,7 @@ import {
   formatObservationTime,
   vancouverTimeZoneAbbr,
   vancouverBboxMercator,
+  buildProbeUrl,
 } from './msc-wms';
 import { MSC } from './constants';
 
@@ -146,5 +147,38 @@ describe('vancouverBboxMercator', () => {
     expect(minY).toBeLessThan(6_300_000);
     expect(maxY).toBeGreaterThan(6_300_000);
     expect(maxY).toBeLessThan(6_400_000);
+  });
+});
+
+describe('buildProbeUrl', () => {
+  it('builds a 256×256 EPSG:3857 GetMap request for a step time', () => {
+    const url = buildProbeUrl('2026-08-06T09:00:00Z');
+    expect(url.startsWith('https://geo.weather.gc.ca/geomet?')).toBe(true);
+    expect(url).toContain('service=WMS');
+    expect(url).toContain('request=GetMap');
+    expect(url).toContain('version=1.3.0');
+    expect(url).toContain('crs=EPSG:3857');
+    expect(url).toContain('width=256&height=256');
+    expect(url).toContain(`layers=${MSC.LAYER}`);
+    expect(url).toContain(`styles=${MSC.STYLE}`);
+    expect(url).toContain('transparent=true&format=image/png');
+    // The step time is URL-encoded (the WMS `time` param is a strict
+    // MapServer instant "YYYY-MM-DDTHH:00:00Z").
+    expect(url).toContain(`time=${encodeURIComponent('2026-08-06T09:00:00Z')}`);
+  });
+
+  it('encodes the bbox to 2 decimals and keeps it ordered', () => {
+    const url = buildProbeUrl('2026-08-06T09:00:00Z');
+    const bbox = url.match(/bbox=([^&]+)/)?.[1];
+    expect(bbox).toBeDefined();
+    const parts = (bbox as string).split(',').map(Number);
+    expect(parts).toHaveLength(4);
+    // Every value is fixed to 2 decimals (matches the live-verified bbox
+    // -13805433.9,6261721.4,-13613282.6,6342203.8).
+    for (const p of parts) {
+      expect(String(p)).toMatch(/^-?\d+\.\d{2}$/);
+    }
+    expect(parts[0]).toBeLessThan(parts[2]); // minX < maxX
+    expect(parts[1]).toBeLessThan(parts[3]); // minY < maxY
   });
 });

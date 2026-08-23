@@ -110,6 +110,26 @@ export default defineConfig(({ mode }) => ({
               }
             },
           },
+          // Carto basemap tiles (used by both nowcast maps, light + dark) are
+          // effectively immutable per style — Carto versions them on the CDN
+          // path, so there is no freshness need. CacheFirst + 7d so revisits
+          // don't re-fetch the whole basemap (the largest repeat-visit cost),
+          // while maxEntries + purgeOnQuotaError bound the quota on mobile.
+          {
+            urlPattern: /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'carto-basemap-cache',
+              expiration: {
+                maxEntries: 300,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7d — versioned/immutable
+                purgeOnQuotaError: true,
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            },
+          },
           {
             urlPattern: /\/hko-data\/.*/i,
             handler: 'StaleWhileRevalidate',
