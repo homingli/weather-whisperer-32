@@ -1,41 +1,41 @@
-# Weather Forecast Application
+# Weather Whisperer
 
-A modern, responsive weather application built with React and TypeScript. Features real-time weather data from multiple sources including the Hong Kong Observatory (HKO) and Open-Meteo, with support for multiple languages, a gridded rainfall nowcast map, and a sleek glass-morphism design.
+A weather app built with React and TypeScript. It pulls data from the Hong Kong Observatory (HKO) and Open-Meteo, supports English and Traditional Chinese, and renders a gridded rainfall nowcast map with a glass-morphism design.
 
 ## Features
 
-- **Dual Weather Sources**: Automatically switches between Hong Kong Observatory (HKO) and Open-Meteo based on location; Open-Meteo is primary, HKO enhances HK areas
-- **Resilient Gateway**: Parallel fetching with per-source status badges; HKO failure degrades gracefully to Open-Meteo without blocking the UI
-- **Fetching Status Screen**: Animated loading overlay with per-source status badges (Open-Meteo / HKO) during initial data fetch; `FetchingStatus` + `StatusBadge` components
-- **Local Clock**: High-frequency (1s) time display extracted into a memoized component for referential stability of the parent card
-- **Warning Change Detector**: Detects when HKO warnings are newly issued or cancelled between polls, with baseline reset on city switches
-- **Consolidated Settings**: Manage location search, current location detection, theme, language, unit system (Metric ↔ US), and manual data refresh from a single menu
-- **Multi-Language Support**: English and Traditional Chinese interface
-- **Location Services**: Auto-detect user location or search for any city worldwide with recent cities history (last 3)
-- **Weather Data**: Current conditions, hourly forecasts (6 hours), and daily forecasts (7 days)
-- **Local Timezone Display**: Shows date and time in the selected location's timezone
-- **High/Low Temperatures**: Daily minimum and maximum temperatures displayed in the hero section
-- **Sun Events**: Displays sunset or sunrise times based on current day/night status
-- **Hourly Charts**: Interactive line charts showing temperature and precipitation probability with PSR (Probability of Significant Rain) labels
-- **Gridded Rainfall Nowcast Map**: Interactive Leaflet map with timeline slider showing HKO gridded rainfall data for Hong Kong and the Pearl River Delta (including Guangdong, China)
-- **Forecast Step Above Map**: Time-step play/pause controls and the formatted-time label sit directly above the map so the active window is visible before the user sees the visualization
-- **User Location Marker**: Blue pin marker on the rainfall map showing the user's current position
-- **Weather Alerts**: Real-time HKO warnings rendered as compact icons in the top bar; clicking opens a modal with full safety details
-- **Data-Driven Map Zoom**: Rainfall map auto-fits viewport to actual data extent; default fallback is `PRD_BOUNDS` from `hko-weather.ts`
-- **Per-Source Loading Indicators**: Live status badges for Open-Meteo and HKO fetch states (fetching / success / error)
-- **Responsive Design**: Optimized for mobile, tablet, and desktop devices
-- **Adaptive Cache Cadence**: React Query refetches every 5 minutes under normal conditions, drops to 1 minute when any source has failed so the app self-heals once the source recovers
-- **Three-Tier Offline Support**: A `localStorage` last-known snapshot seeds instant first paint; React Query handles in-memory freshness; the Workbox service worker replays the last successful API response when fully offline. Amber banners indicate partial data (one source missing); red banners indicate cached data only, with a refetch button.
-- **PWA**: Service worker uses a NetworkFirst policy with two cache buckets (`api-cache` for direct API hosts, `hko-proxy-cache` for the dev Vite proxy / prod Vercel rewrite) so dev and prod offline behavior match
-- **Accessibility (WCAG 2.1 AA)**: Skip link, sr-only data tables for the hourly/daily charts, `<html lang>` synced to the active UI language, semantic severity color tokens (≥5.5:1 on cream), `role="alert"` on the offline + partial-data banners, `aria-current` on the rainfall nowcast time-step buttons, and `aria-label`s on icon-only controls — see `handoff/ada-compliance-plan.md`
+- **Dual weather sources.** Switches between Hong Kong Observatory (HKO) and Open-Meteo based on location. Open-Meteo is primary; HKO enhances coverage in Hong Kong.
+- **Resilient gateway.** Fetches run in parallel with per-source status badges. An HKO failure falls back to Open-Meteo without blocking the UI.
+- **Fetching status screen.** Animated loading overlay with per-source status badges (Open-Meteo / HKO) during the initial fetch; `FetchingStatus` + `StatusBadge` components.
+- **Local clock.** Time display in a memoized component so a 1s tick does not re-render the parent card.
+- **Warning change detector.** Detects warnings newly issued or cancelled between polls; the baseline resets on city switches.
+- **Consolidated settings.** Location search, current location, theme, language, unit system (metric ↔ US), and manual refresh in one menu.
+- **Two languages.** English and Traditional Chinese.
+- **Location services.** Auto-detect the user's position or search any city worldwide; the last 3 cities stay in a recent-cities list.
+- **Weather data.** Current conditions, 6-hour forecasts, 7-day forecasts.
+- **Local timezone.** Date and time in the selected location's timezone.
+- **High/low temperatures.** Daily min and max in the hero section.
+- **Sun events.** Next sunset during the day, next sunrise at night.
+- **Hourly charts.** Interactive line charts for temperature and precipitation probability, with PSR (Probability of Significant Rain) labels.
+- **Gridded rainfall nowcast map.** Interactive Leaflet map with a timeline slider, showing HKO gridded rainfall for Hong Kong and the Pearl River Delta (including Guangdong, China).
+- **Timestep controls above the map.** Play/pause and the formatted-time label sit above the map, so the active window is visible before the visualization.
+- **User location marker.** Blue pin on the rainfall map for the user's position.
+- **Weather alerts.** HKO warnings as compact icons in the top bar; clicking opens a modal with the full safety text.
+- **Data-driven map zoom.** The rainfall map fits its viewport to the data extent; the fallback is `PRD_BOUNDS` from `hko-weather.ts`.
+- **Per-source loading indicators.** Status badges for Open-Meteo and HKO fetch state (fetching / success / error).
+- **Responsive layout.** Works on mobile, tablet, and desktop.
+- **Adaptive refetch cadence.** React Query refetches every 5 minutes, dropping to 1 minute when any source has failed so the app self-heals once it recovers.
+- **Three-tier offline support.** A `localStorage` last-known snapshot seeds the first paint; React Query handles in-memory freshness; the Workbox service worker replays the last successful API response when fully offline. Amber banners mark partial data (one source missing); red banners mark cached data only, with a refetch button.
+- **PWA.** The service worker uses NetworkFirst with two cache buckets (`api-cache` for direct API hosts, `hko-proxy-cache` for the dev Vite proxy / prod Vercel rewrite), so dev and prod offline behavior match.
+- **Accessibility (WCAG 2.1 AA).** Skip link, sr-only data tables for the hourly/daily charts, `<html lang>` synced to the active UI language, semantic severity color tokens (≥5.5:1 on cream), `role="alert"` on the offline and partial-data banners, `aria-current` on the rainfall nowcast timestep buttons, `aria-label`s on icon-only controls. Full audit in `handoff/ada-compliance-plan.md`.
 
-## Technology Stack
+## Technology stack
 
 - **Frontend Framework**: React 18 with TypeScript 5
 - **Build Tool**: Vite 5
 - **UI Components**: shadcn-ui with Radix UI 1.x
 - **Styling**: Tailwind CSS 3 with custom animations
-- **Data Fetching**: TanStack React Query 5 (sole TTL owner — no separate cache layer)
+- **Data Fetching**: TanStack React Query 5 (sole TTL owner; no separate cache layer)
 - **Routing**: React Router 7
 - **Map**: Leaflet 1.9 + react-leaflet 4
 - **Icons**: Lucide React
@@ -44,7 +44,7 @@ A modern, responsive weather application built with React and TypeScript. Featur
 - **PWA**: vite-plugin-pwa with workbox `NetworkFirst`
 - **Testing**: Vitest 2 with Testing Library + jsdom (260 tests, 22 files)
 
-## Project Structure
+## Project structure
 
 ```
 src/
@@ -106,7 +106,7 @@ src/
 └── main.tsx            # Application entry point
 ```
 
-## Getting Started
+## Getting started
 
 ### Prerequisites
 
@@ -136,7 +136,7 @@ npm run dev
 
 The application will open at `http://localhost:5173` (Vite default; check terminal output if it differs) with hot module replacement enabled.
 
-### Build & Preview
+### Build and preview
 
 ```bash
 npm run build       # Production build
@@ -146,92 +146,92 @@ npm run lint        # ESLint
 npm test            # Vitest (single run: add --run)
 ```
 
-## API Sources
+## API sources
 
 ### Open-Meteo (primary)
 - Free, open-source weather API
 - Global coverage
 - Provides current weather, hourly, and daily forecasts
 
-### Hong Kong Observatory (HKO) (HK-only secondary)
+### HKO (HK-only secondary)
 - Official Hong Kong weather data (automatically activated for HK locations)
 - Includes weather warnings and alerts
 - Probability of Significant Rain (PSR) data
 - Station-based observations
 - Gridded rainfall nowcast (CSV, served via `/hko-data/...` proxy in `vite.config.ts` and `vercel.json`)
 
-## Features Breakdown
+## Features breakdown
 
-### Current Weather
+### Current weather
 The hero section displays:
-- **Location & Time**: Current city name and local time formatted for that timezone
-- **Weather Icon**: Large weather icon indicating current conditions
-- **Temperature**: Current apparent temperature with "feels like" label
-- **Daily Range**: High and low temperatures for the day with visual indicators
-- **Weather Condition**: Current precipitation and humidity data
-- **Umbrella Indicator**: Shows whether an umbrella is recommended based on current rain or upcoming precipitation
-- **Sun Events**: Displays the next sunset (during day) or sunrise (during night) with exact time
+- **Location and time.** City name and local time formatted for that timezone
+- **Icon.** Large weather icon for current conditions
+- **Temperature.** Current apparent temperature with a "feels like" label
+- **Daily range.** High and low temperatures for the day with visual indicators
+- **Condition.** Current precipitation and humidity data
+- **Umbrella indicator.** Whether an umbrella is recommended, based on current rain or upcoming precipitation
+- **Sun events.** Next sunset during the day, next sunrise at night, with exact time
 
-### Hourly Forecast
-6-hour forecast with interactive line chart showing:
+### Hourly forecast
+6-hour forecast with an interactive line chart:
 - Temperature trend (left Y-axis)
 - Precipitation probability with PSR labels (right Y-axis)
 - Hourly time slots
 
-### Daily Forecast
+### Daily forecast
 7-day forecast with:
 - Min/max temperatures
 - Weather conditions
 - Precipitation probability
 - Weather icons
 
-### Settings & Navigation
-The consolidated hamburger menu provides access to:
-- **Global City Search**: Autocomplete search for any location (Open-Meteo Geocoding API)
-- **Recent Locations**: Quick access to the last 3 visited cities
-- **Current Location**: One-tap detection of the user's current position
-- **Theme Toggle**: Switch between Light, Dark, and Auto (sun-synced) modes
-- **Language Toggle**: Switch between English and Traditional Chinese
-- **Manual Data Refresh**: Fetch fresh data from source on-demand; falls back to the last cached snapshot if the source is unreachable
+### Settings and navigation
+The hamburger menu covers:
+- **Global city search.** Autocomplete over the Open-Meteo Geocoding API
+- **Recent locations.** The last 3 visited cities
+- **Current location.** One-tap geolocation
+- **Theme toggle.** Light, dark, and auto (sun-synced) modes
+- **Language toggle.** English and Traditional Chinese
+- **Manual refresh.** Fetches fresh data on demand; falls back to the last cached snapshot if the source is unreachable
 
-### Weather Alerts
-Real-time weather warnings rendered as compact icons in the top bar; clicking opens a modal with the full safety text. Coverage:
+### Weather alerts
+HKO warnings render as compact icons in the top bar; clicking opens a modal with the full safety text. Coverage:
 - Typhoon signals (TC1, TC3, TC8, TC8B-D, TC9, TC10)
 - Rainstorm warnings (Red, Amber)
 - Special weather advisories (Hot Weather, Cold Weather, Frost, etc.)
 - Tsunami and landslip warnings
 - 20 locally-hosted animated warning GIFs (no CDN dependencies)
-- Cancelled warnings are filtered via `actionCode.toUpperCase() !== 'CANCEL'` (case-insensitive — HKO returns uppercase `CANCEL`). Locked against live fixture in `src/lib/__fixtures__/`
+- Cancelled warnings are filtered with `actionCode.toUpperCase() !== 'CANCEL'` (case-insensitive; HKO returns uppercase `CANCEL`). The filter is locked against the live fixture in `src/lib/__fixtures__/`
 
-### Gridded Rainfall Nowcast
+### Gridded rainfall nowcast
 - HKO gridded rainfall data visualized on an interactive Leaflet map
-- Covers Hong Kong and the Pearl River Delta (Shenzhen, Guangzhou, Macau, Zhuhai — extends into Guangdong, China)
-- **Forecast step controls sit directly above the map**: Play/Pause button, the active `Forecast Step` label (formatted HH:MM), the timeline slider, and clickable per-step buttons. Layout is `flex-col` on mobile and `flex-row` on `md+` so the slider can stretch the full width.
+- Covers Hong Kong and the Pearl River Delta (Shenzhen, Guangzhou, Macau, Zhuhai; extends into Guangdong, China)
+- Forecast step controls sit directly above the map: Play/Pause button, the active `Forecast Step` label (formatted HH:MM), the timeline slider, and clickable per-step buttons. Layout is `flex-col` on mobile and `flex-row` on `md+` so the slider can stretch the full width.
 - Map follows underneath with the active timestep's color-bucketed GeoJSON overlay
 - Precise ending timestamps are derived from raw CSV `endTime` values
 - User location blue pin marker with automatic map zoom to data extent
 - Scroll wheel zoom, double-click zoom, and zoom controls
 - Legend overlay bottom-right with seven color buckets from `< 0.5 mm` to `> 30 mm`
 
-## Local Storage
+## Local storage
 
 The application persists the following to `localStorage`:
-- `weather-default-city` — the last selected GeoLocation
-- `weather-recent-cities` — up to 3 recent cities (capped, MRU)
-- `weather-language` — user language preference (`'en' | 'tc'`)
-- `theme-mode` — user theme preference (`'light' | 'dark' | 'auto'`)
-- `weather-last-known-v1` — schema-versioned envelope of the last successful weather fetch. Read synchronously at mount as the cold-start seed for instant first paint; cleared on city switch; overwritten on every successful fetch.
-- `weather-units` — user's preferred unit system: `'metric'` (default — °C / km/h / mm) or `'us'` (°F / mph / in). Read at provider mount, written on toggle.
+- `weather-default-city`: the last selected GeoLocation
+- `weather-recent-cities`: up to 3 recent cities (capped, MRU)
+- `weather-language`: user language preference (`'en' | 'tc'`)
+- `theme-mode`: user theme preference (`'light' | 'dark' | 'auto'`)
+- `weather-last-known-v1`: schema-versioned envelope of the last successful weather fetch. Read synchronously at mount as the cold-start seed for instant first paint; cleared on city switch; overwritten on every successful fetch.
+- `weather-units`: preferred unit system, `'metric'` (default: °C / km/h / mm) or `'us'` (°F / mph / in). Read at provider mount, written on toggle.
 
 Cache strategy is a three-tier design:
 
-1. **`localStorage` last-known snapshot** — synchronous read at mount, schema-versioned, cleared on city switch
-2. **React Query** — per-tab in-memory, single source of truth at runtime. Per-source TTLs (OM 5min current, OM 30min daily, HKO 1min warnings, geocoding 7d) collapse to 1 min when any source has failed
-3. **Workbox Service Worker** — cross-session `NetworkFirst` cache, 50 entries / 24h per bucket, replayed when fully offline
+1. **`localStorage` last-known snapshot.** Synchronous read at mount, schema-versioned, cleared on city switch
+2. **React Query.** Per-tab in-memory, the single source of truth at runtime. Per-source TTLs (OM 5min current, OM 30min daily, HKO 1min warnings, geocoding 7d) collapse to 1 min when any source has failed
+3. **Workbox service worker.** Cross-session `NetworkFirst` cache, 50 entries / 24h per bucket, replayed when fully offline
 
-All icon assets (Leaflet markers, 20 HKO warning GIFs) are locally hosted under `public/icons/` — no external CDN dependencies.
+All icon assets (Leaflet markers, 20 HKO warning GIFs) are locally hosted under `public/icons/`. No external CDN dependencies.
 
-## Browser Support
+## Browser support
 
 - Chrome/Edge (latest)
 - Firefox (latest)
@@ -242,28 +242,28 @@ All icon assets (Leaflet markers, 20 HKO warning GIFs) are locally hosted under 
 
 - Automatic data refetch every 5 minutes (falls back to 1 minute when any source has failed)
 - Three-tier cache: `localStorage` last-known snapshot for cold-start paint, React Query for in-memory freshness with per-source TTLs, Workbox for cross-session offline replay
-- Optimized animations with Tailwind CSS
+- Custom CSS animations in `index.css`, layered on Tailwind utilities
 - Lazy-loaded heavy modules (`HourlyForecast`, `RainfallMap` via `React.lazy` + `Suspense`)
-- Production-optimized build with Vite
+- Minified production build via Vite
 - Preconnect/dns-prefetch hints for external APIs and basemap tiles
 - Shared `Intl.DateTimeFormat` cache (`src/lib/utils.ts`) avoids per-render formatter construction
-- `LocalClock` isolates the per-tick re-render so the rest of the current-weather card stays referentially stable; the tick interval itself adapts to the displayed precision (1s when seconds are visible on `sm+`, 60s when they're dropped below `sm` — re-binds on viewport changes via `matchMedia`)
-- All diagnostic logging is gated behind `import.meta.env.PROD` (no-op in production builds)
+- `LocalClock` isolates the per-tick re-render so the rest of the current-weather card stays referentially stable. The tick interval adapts to the displayed precision: 1s while seconds are visible on `sm+`, 60s when dropped below `sm`; it re-binds on viewport changes via `matchMedia`
+- All diagnostic logging no-ops in production builds (gated on `import.meta.env.PROD`)
 
 ## Accessibility
 
-Conformance target is **WCAG 2.1 Level AA** (the de facto ADA Title III web standard after *Robles v. Domino's*, 2019). See `handoff/ada-compliance-plan.md` for the full audit and remediation roadmap.
+Conformance target is WCAG 2.1 Level AA, the standard at issue in *Robles v. Domino's*, where the Ninth Circuit held a website can be a place of public accommodation under the ADA. See `handoff/ada-compliance-plan.md` for the full audit and remediation roadmap.
 
 What's in place today:
 
-- **Document language** — `<html lang>` is synced to `zh-Hant-HK` / `en` synchronously inside the `LanguageProvider` initializer, so screen readers never see a flash of English on a Chinese-filled page
-- **Skip link** — "Skip to main content" link is the first focusable element
-- **Landmarks** — `<main id="main-content">`, `<nav aria-label>`, `<footer aria-label>`, plus an `sr-only <h1>Weather Forecast</h1>`
-- **Live regions** — `role="alert"` on the offline / partial-data banners; `role="status" aria-live="polite"` on the refresh indicator
-- **Forms** — the city search input has an `aria-label`; the search dialog uses a Radix `Dialog` with `sr-only DialogTitle`
-- **Charts** — each Recharts SVG has an `aria-label` and an accompanying `sr-only <table>` exposing the same data points to screen readers
-- **Color contrast** — semantic severity tokens (`--severity-warning-fg`, `--severity-success-fg`, `--severity-error-fg`, `--severity-info-fg`) at ≥5.5:1 on cream, and a deeper `--muted-foreground` (28% light / 52% dark) so `/50`, `/60`, `/70` subdivisions clear 4.5:1
-- **Keyboard** — visible `focus-visible:ring-2` ring on every interactive element; explicit `aria-current` on the RainfallMap time-step buttons; `<h1>` in `NotFound.tsx` programmatically focuses on mount
+- **Document language.** `<html lang>` is synced to `zh-Hant-HK` / `en` synchronously inside the `LanguageProvider` initializer, so screen readers never see a flash of English on a Chinese-filled page
+- **Skip link.** "Skip to main content" link is the first focusable element
+- **Landmarks.** `<main id="main-content">`, `<nav aria-label>`, `<footer aria-label>`, plus an `sr-only <h1>Weather Forecast</h1>`
+- **Live regions.** `role="alert"` on the offline / partial-data banners; `role="status" aria-live="polite"` on the refresh indicator
+- **Forms.** the city search input has an `aria-label`; the search dialog uses a Radix `Dialog` with `sr-only DialogTitle`
+- **Charts.** each Recharts SVG has an `aria-label` and an accompanying `sr-only <table>` exposing the same data points to screen readers
+- **Color contrast.** semantic severity tokens (`--severity-warning-fg`, `--severity-success-fg`, `--severity-error-fg`, `--severity-info-fg`) at ≥5.5:1 on cream, and a deeper `--muted-foreground` (28% light / 52% dark) so `/50`, `/60`, `/70` subdivisions clear 4.5:1
+- **Keyboard.** visible `focus-visible:ring-2` ring on every interactive element; explicit `aria-current` on the RainfallMap time-step buttons; `<h1>` in `NotFound.tsx` programmatically focuses on mount
 
 Remaining work (Phase 3-6 of the plan): non-color cues inside the visualization widgets, `prefers-reduced-motion` guards on all animations, Leaflet `role="application"` removal + keyboard pan/zoom, `DropdownMenuRadioGroup` for the theme/language picker, and Playwright + `@axe-core` e2e coverage.
 
