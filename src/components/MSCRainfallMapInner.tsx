@@ -6,6 +6,7 @@ import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { MSC, TIMING, VANCOUVER_BBOX, VANCOUVER_CENTER } from '@/lib/constants';
 import { buildMscStepTimes, formatStepTime, formatObservationTime, vancouverTimeZoneAbbr, buildProbeUrl } from '@/lib/msc-wms';
+import { markMscMapMounted } from '@/lib/msc-prefetch';
 import { logWarn } from '@/lib/log';
 
 interface UserLocation {
@@ -104,6 +105,12 @@ export default function MSCRainfallMapInner({
   // steps dry (chip shown), null = probe inconclusive (no chip). See the
   // effect below (needs `steps`, so it lives after the run/step derivation).
   const [hasRain, setHasRain] = useState<boolean | null>(null);
+
+  // Tell the prefetch module the map is live: a pending idle warm-up must
+  // not duplicate the probe fetches the map is about to make itself.
+  useEffect(() => {
+    markMscMapMounted();
+  }, []);
 
   // Steps/run are derived from the UTC clock and kept in state (not memoized)
   // so the map can refresh to the newest HRDPS run: the refresh button
