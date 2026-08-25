@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import { CurrentWeather } from './CurrentWeather';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitsProvider, useUnits } from '@/contexts/UnitsContext';
@@ -406,6 +406,123 @@ describe('CurrentWeather Component', () => {
         screen.getByTestId('flip-tc-3').click();
       });
       expect(container.textContent).toContain('天晴');
+    });
+  });
+
+  // ── Quiet shelf: below-threshold metrics collapse to icon chips ──────
+  // Thresholds live in QUIET (src/lib/constants.ts). mockWeather defaults:
+  // precip 0 → quiet, humidity 60 → quiet (inclusive band edge), uv 5 →
+  // full widget, wind 10 → full widget.
+  describe('quiet shelf', () => {
+    const renderWeather = (weather: CurrentWeatherType) =>
+      renderWithLanguage(
+        <CurrentWeather
+          weather={weather}
+          hourlyForecast={mockHourly}
+          timezone="UTC"
+          headline={{ source: 'om' }}
+        />
+      );
+
+    it('collapses only below-threshold metrics into chips; the rest stay full widgets', () => {
+      const { container } = renderWeather(mockWeather);
+      expect(screen.getByTestId('quiet-precip')).toBeInTheDocument();
+      expect(screen.getByTestId('quiet-humidity')).toBeInTheDocument();
+      expect(screen.queryByTestId('quiet-uv')).toBeNull();
+      expect(screen.queryByTestId('quiet-wind')).toBeNull();
+      // Full UvChip still renders (uv 5 → "Moderate" band label).
+      expect(container.textContent).toContain('Moderate');
+      // Collapsed values stay in the a11y tree via the chip aria-labels.
+      expect(screen.getByTestId('quiet-precip')).toHaveAttribute('aria-label', 'Precipitation: 0.0 mm');
+      expect(screen.getByTestId('quiet-humidity')).toHaveAttribute('aria-label', 'Humidity: 60%');
+    });
+
+    it('renders the shelf alone when every metric is quiet (grid hidden)', () => {
+      const calm = { ...mockWeather, uvIndex: 2, humidity: 45, windSpeed: 2 };
+      const { container } = renderWeather(calm);
+      expect(screen.getByTestId('quiet-precip')).toBeInTheDocument();
+      expect(screen.getByTestId('quiet-uv')).toBeInTheDocument();
+      expect(screen.getByTestId('quiet-humidity')).toBeInTheDocument();
+      expect(screen.getByTestId('quiet-wind')).toBeInTheDocument();
+      expect(screen.getByTestId('quiet-uv')).toHaveAttribute('aria-label', 'UV Index: 2.0');
+      expect(screen.getByTestId('quiet-wind')).toHaveAttribute('aria-label', 'Wind: 2 km/h');
+      // No full widgets: the WindCompass arrow (aria-labelled "Wind direction
+      // toward …") is the most distinctive full-widget marker.
+      expect(container.querySelector('[aria-label^="Wind direction toward"]')).toBeNull();
+    });
+
+    it('treats boundary values as needing attention (uv 3, wind 5, humidity outside 30–60)', () => {
+      const boundary = { ...mockWeather, uvIndex: 3, humidity: 29, windSpeed: 5 };
+      renderWeather(boundary);
+      expect(screen.queryByTestId('quiet-uv')).toBeNull();
+      expect(screen.queryByTestId('quiet-humidity')).toBeNull();
+      expect(screen.queryByTestId('quiet-wind')).toBeNull();
+      // precip 0 is still quiet.
+      expect(screen.getByTestId('quiet-precip')).toBeInTheDocument();
+    });
+
+    it('empty data keeps the legacy 4-widget grid with dashes and no shelf', () => {
+      const empty: CurrentWeatherType = {
+        temperature: -999,
+        apparentTemperature: -999,
+        humidity: -999,
+        uvIndex: null,
+        weatherCode: 0,
+        windSpeed: -999,
+        windDirection: 0,
+        precipitation: -999,
+        precipitationProbability: -999,
+        isDay: true,
+      };
+      const { container } = renderWeather(empty);
+      expect(screen.queryByTestId('quiet-precip')).toBeNull();
+      expect(screen.queryByTestId('quiet-uv')).toBeNull();
+      expect(screen.queryByTestId('quiet-humidity')).toBeNull();
+      expect(screen.queryByTestId('quiet-wind')).toBeNull();
+      expect(container.textContent).toContain('—');
+    });
+
+    it('reveals on hover after 150ms, hides 350ms after the pointer leaves', () => {
+      renderWeather(mockWeather);
+      const chip = screen.getByTestId('quiet-precip');
+      expect(chip).toHaveAttribute('aria-expanded', 'false');
+      act(() => { fireEvent.mouseEnter(chip); });
+      // Debounced: not revealed before 150ms.
+      act(() => { vi.advanceTimersByTime(149); });
+      expect(chip).toHaveAttribute('aria-expanded', 'false');
+      act(() => { vi.advanceTimersByTime(1); });
+      expect(chip).toHaveAttribute('aria-expanded', 'true');
+      act(() => { fireEvent.mouseLeave(chip); });
+      act(() => { vi.advanceTimersByTime(349); });
+      expect(chip).toHaveAttribute('aria-expanded', 'true');
+      act(() => { vi.advanceTimersByTime(1); });
+      expect(chip).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('tap pins the value for touch users; a second tap unpins', () => {
+      renderWeather(mockWeather);
+      const chip = screen.getByTestId('quiet-precip');
+      // jsdom click fires no mouse/focus events — a clean tap simulation.
+      act(() => { fireEvent.click(chip); });
+      act(() => { vi.advanceTimersByTime(150); });
+      expect(chip).toHaveAttribute('aria-expanded', 'true');
+      // Pinned state survives indefinitely (no auto-hide).
+      act(() => { vi.advanceTimersByTime(10_000); });
+      expect(chip).toHaveAttribute('aria-expanded', 'true');
+      act(() => { fireEvent.click(chip); });
+      act(() => { vi.advanceTimersByTime(350); });
+      expect(chip).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('keyboard focus reveals the value (WCAG 1.4.13) and blur hides it', () => {
+      renderWeather(mockWeather);
+      const chip = screen.getByTestId('quiet-humidity');
+      act(() => { fireEvent.focus(chip); });
+      act(() => { vi.advanceTimersByTime(150); });
+      expect(chip).toHaveAttribute('aria-expanded', 'true');
+      act(() => { fireEvent.blur(chip); });
+      act(() => { vi.advanceTimersByTime(350); });
+      expect(chip).toHaveAttribute('aria-expanded', 'false');
     });
   });
 });
