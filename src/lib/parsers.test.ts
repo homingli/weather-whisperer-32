@@ -160,6 +160,28 @@ describe('parseNominatimSearch', () => {
     expect(r.data).toHaveLength(1);
     expect(r.warnings.length).toBeGreaterThan(0);
   });
+
+  it('keeps rows that only have country_code (Open-Meteo omits country for HK)', () => {
+    const r = parseNominatimSearch({
+      results: [
+        { name: 'Kowloon', latitude: 22.31667, longitude: 114.18333, country_code: 'HK', feature_code: 'PPLX' },
+        { name: 'Tokyo', latitude: 35.6895, longitude: 139.69171, country: 'Japan', country_code: 'JP' },
+      ],
+    });
+    expect(r.data).toEqual([
+      { name: 'Kowloon', latitude: 22.31667, longitude: 114.18333, country: 'HK' },
+      { name: 'Tokyo', latitude: 35.6895, longitude: 139.69171, country: 'Japan' },
+    ]);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it('drops rows with neither country nor country_code', () => {
+    const r = parseNominatimSearch({
+      results: [{ name: 'Nowhere', latitude: 0, longitude: 0 }],
+    });
+    expect(r.data).toEqual([]);
+    expect(r.warnings).toEqual(['results[0] missing country and country_code — dropped']);
+  });
 });
 
 describe('parseNominatimReverse', () => {
