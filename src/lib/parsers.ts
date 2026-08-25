@@ -371,6 +371,10 @@ function readOptionalNumber(obj: Record<string, unknown>, path: string): number 
 
 // ── Nominatim search (Open-Meteo geocoding) ───────────────────────────
 
+/** Parse an Open-Meteo geocoding search response into typed rows.
+ *  Open-Meteo omits the localized `country` name for some territories
+ *  (notably Hong Kong) and returns only `country_code`; fall back to the
+ *  ISO code so those rows are kept instead of dropped. */
 export function parseNominatimSearch(input: unknown): ParseResult<GeoLocation[]> {
   const warnings: string[] = [];
   if (!isObject(input)) return { data: [], warnings: ['root (object)'] };
@@ -385,15 +389,20 @@ export function parseNominatimSearch(input: unknown): ParseResult<GeoLocation[]>
       warnings.push(`results[${i}] (object)`);
       continue;
     }
-    if (!isString(r.name) || !isNumber(r.latitude) || !isNumber(r.longitude) || !isString(r.country)) {
+    if (!isString(r.name) || !isNumber(r.latitude) || !isNumber(r.longitude)) {
       warnings.push(`results[${i}] missing required fields — dropped`);
+      continue;
+    }
+    const country = isString(r.country) ? r.country : isString(r.country_code) ? r.country_code : '';
+    if (!country) {
+      warnings.push(`results[${i}] missing country and country_code — dropped`);
       continue;
     }
     out.push({
       name: r.name,
       latitude: r.latitude,
       longitude: r.longitude,
-      country: r.country,
+      country,
       admin1: isString(r.admin1) ? r.admin1 : undefined,
     });
   }
