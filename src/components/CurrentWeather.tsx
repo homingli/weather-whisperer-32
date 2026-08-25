@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIconNode, weatherDescriptionKey, getHKOIconNode, hkoDescriptionKey } from "@/lib/weather";
 import type { HeadlineInfo } from "@/lib/weather";
 import type { LucideIcon } from "lucide-react";
-import { SENTINEL_THRESHOLD } from "@/lib/constants";
+import { SENTINEL_THRESHOLD, QUIET } from "@/lib/constants";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, Thermometer, AlertTriangle } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
@@ -182,6 +182,30 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
   const humidityPct = isEmpty ? 0 : Math.max(0, Math.min(100, weather.humidity));
   const windDeg = isEmpty ? 0 : weather.windDirection;
 
+  /* Quiet shelf — metrics below their attention thresholds (QUIET in
+     lib/constants) collapse to icon-only chips; hover/tap/focus reveals the
+     value. Empty data is a separate state (legacy grid with dashes). */
+  const quietItems = useMemo<QuietItem[]>(() => {
+    if (isEmpty) return [];
+    const mm = weather.precipitation ?? 0;
+    const windUnit = units === 'us' ? t('unit.mph', 'mph') : t('unit.kmh', 'km/h');
+    const items: QuietItem[] = [];
+    if (mm < QUIET.PRECIP_MM) {
+      items.push({ id: 'precip', Icon: Droplets, label: t('daily.precip'), value: `${formatPrecipitation(mm, units)} ${precipitationUnitLabel(units)}` });
+    }
+    if (weather.uvIndex == null || weather.uvIndex < QUIET.UV_MAX) {
+      items.push({ id: 'uv', Icon: Sun, label: t('weather.uvIndex'), value: weather.uvIndex == null ? '—' : weather.uvIndex.toFixed(1) });
+    }
+    if (humidityPct >= QUIET.HUMIDITY_MIN && humidityPct <= QUIET.HUMIDITY_MAX) {
+      items.push({ id: 'humidity', Icon: Droplet, label: t('weather.humidity'), value: `${Math.round(humidityPct)}%` });
+    }
+    if (weather.windSpeed < QUIET.WIND_KMH) {
+      items.push({ id: 'wind', Icon: Wind, label: t('weather.wind'), value: `${formatWindSpeed(weather.windSpeed, units)} ${windUnit}` });
+    }
+    return items;
+  }, [isEmpty, weather, humidityPct, units, t]);
+  const quietKeys = useMemo(() => new Set(quietItems.map((i) => i.id)), [quietItems]);
+
   const resolvedHeadline: HeadlineInfo = headline ?? HEADLINE_DEFAULT_OM;
   const headlineRender = useMemo(
     () => headlineIconAndLabel(resolvedHeadline, weather),
@@ -296,24 +320,51 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
 
       <div className="cw-rule h-px editorial-rule my-6" />
 
-      {/* Bottom section — creative visualizations */}
-      <div className={`grid gap-x-10 gap-y-6 cw-fade ${compact ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
-        <PrecipBar
-          mm={weather.precipitation ?? 0}
-          empty={isEmpty}
-          units={units}
-        />
-        <UvChip uv={weather.uvIndex} band={uvBand} label={t('weather.uvIndex')} empty={isEmpty} />
-        <HumidityBar pct={humidityPct} label={t('weather.humidity')} empty={isEmpty} />
-        <WindCompass
-          deg={windDeg}
-          speed={weather.windSpeed}
-          label={t('weather.wind')}
-          empty={isEmpty}
-          unitLabel={units === 'us' ? t('unit.mph', 'mph') : t('unit.kmh', 'km/h')}
-          units={units}
-        />
-      </div>
+      {/* Bottom section — full widgets for metrics that need attention.
+          Quiet metrics (below QUIET thresholds) are distilled to the
+          icon-only shelf below: data present, nothing to act on. Empty
+          data keeps the legacy 4-widget grid with dashes. */}
+      {isEmpty ? (
+        <div className={`grid gap-x-10 gap-y-6 cw-fade ${compact ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
+          <PrecipBar mm={weather.precipitation ?? 0} empty={isEmpty} units={units} />
+          <UvChip uv={weather.uvIndex} band={uvBand} label={t('weather.uvIndex')} empty={isEmpty} />
+          <HumidityBar pct={humidityPct} label={t('weather.humidity')} empty={isEmpty} />
+          <WindCompass
+            deg={windDeg}
+            speed={weather.windSpeed}
+            label={t('weather.wind')}
+            empty={isEmpty}
+            unitLabel={units === 'us' ? t('unit.mph', 'mph') : t('unit.kmh', 'km/h')}
+            units={units}
+          />
+        </div>
+      ) : (
+        <>
+          {quietItems.length < 4 && (
+            <div className={`grid gap-x-10 gap-y-6 cw-fade ${compact ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
+              {!quietKeys.has('precip') && <PrecipBar mm={weather.precipitation ?? 0} empty={false} units={units} />}
+              {!quietKeys.has('uv') && <UvChip uv={weather.uvIndex} band={uvBand} label={t('weather.uvIndex')} empty={false} />}
+              {!quietKeys.has('humidity') && <HumidityBar pct={humidityPct} label={t('weather.humidity')} empty={false} />}
+              {!quietKeys.has('wind') && (
+                <WindCompass
+                  deg={windDeg}
+                  speed={weather.windSpeed}
+                  label={t('weather.wind')}
+                  empty={false}
+                  unitLabel={units === 'us' ? t('unit.mph', 'mph') : t('unit.kmh', 'km/h')}
+                  units={units}
+                />
+              )}
+            </div>
+          )}
+          {quietItems.length > 0 && (
+            <div className="mt-6">
+              <div className="cw-rule h-px editorial-rule mb-4" />
+              <QuietShelf items={quietItems} groupLabel={t('quiet.shelfLabel')} />
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 });
@@ -748,5 +799,104 @@ function PrecipBar({
         <span>{units === 'us' ? '1.2+' : '30+'}</span>
       </div>
     </div>
+  );
+}
+
+/* ── Quiet shelf: icon-only chips for metrics below attention thresholds ─
+ * At rest the shelf is a row of small muted icons — "we have the data, but
+ * nothing to act on". The value is revealed inline next to the icon on:
+ *   - pointer hover (150ms in / 350ms out, so a sweeping cursor doesn't
+ *     strobe the row),
+ *   - tap (pins/unpins — touch has no hover),
+ *   - keyboard focus (WCAG 1.4.13 — content on hover must also appear on
+ *     focus and stay until blur).
+ * The chip's aria-label always carries the full reading, so the collapsed
+ * value is never missing from the accessibility tree.
+ */
+type QuietKey = 'precip' | 'uv' | 'humidity' | 'wind';
+
+interface QuietItem {
+  /** Metric identity, also the `quiet-${id}` data-testid. (Not `key` —
+   *  that's a React reserved prop stripped from the component. */
+  id: QuietKey;
+  Icon: LucideIcon;
+  /** Localized metric name, e.g. "Wind" / "風". */
+  label: string;
+  /** Localized, unit-formatted value, e.g. "2 km/h" / "0.2 mm". */
+  value: string;
+}
+
+const QUIET_REVEAL_IN_MS = 150;
+const QUIET_REVEAL_OUT_MS = 350;
+
+function QuietShelf({ items, groupLabel }: { items: QuietItem[]; groupLabel: string }) {
+  return (
+    <div
+      className="flex flex-wrap items-center gap-x-6 gap-y-3"
+      role="group"
+      aria-label={groupLabel}
+    >
+      {items.map((item) => (
+        <QuietChip key={item.id} {...item} />
+      ))}
+    </div>
+  );
+}
+
+function QuietChip({ id, Icon, label, value }: QuietItem) {
+  const [engaged, setEngaged] = useState(false); // pointer hover or keyboard focus
+  const [pinned, setPinned] = useState(false); // tap-to-pin (touch)
+  const [showing, setShowing] = useState(false);
+  const timer = useRef<number | null>(null);
+  const want = engaged || pinned;
+
+  // Reveal with enter/exit delay. `showing` in the deps means the effect
+  // re-arms when the reveal completes; the cleanup clears any pending
+  // timer so rapid enter/leave sequences collapse to one settle.
+  useEffect(() => {
+    if (timer.current != null) {
+      window.clearTimeout(timer.current);
+      timer.current = null;
+    }
+    if (want && !showing) {
+      timer.current = window.setTimeout(() => setShowing(true), QUIET_REVEAL_IN_MS);
+    } else if (!want && showing) {
+      timer.current = window.setTimeout(() => setShowing(false), QUIET_REVEAL_OUT_MS);
+    }
+    return () => {
+      if (timer.current != null) {
+        window.clearTimeout(timer.current);
+        timer.current = null;
+      }
+    };
+  }, [want, showing]);
+
+  return (
+    <button
+      type="button"
+      data-testid={`quiet-${id}`}
+      aria-label={`${label}: ${value}`}
+      aria-expanded={showing}
+      onMouseEnter={() => setEngaged(true)}
+      onMouseLeave={() => setEngaged(false)}
+      onFocus={() => setEngaged(true)}
+      onBlur={() => setEngaged(false)}
+      onClick={() => setPinned((p) => !p)}
+      className="group inline-flex items-center rounded-full outline-none focus-visible:ring-1 focus-visible:ring-foreground/40"
+    >
+      <Icon className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
+      {/* aria-hidden: the button's aria-label already reads label + value.
+          max-w animates 0 → 240px so the row reflow is smooth; the text is
+          in the DOM (and aria tree) at rest but clipped — screen readers
+          use the aria-label instead. */}
+      <span
+        aria-hidden="true"
+        className={`overflow-hidden whitespace-nowrap text-[11px] uppercase tracking-[0.18em] tabular-nums text-muted-foreground transition-all duration-200 ease-out motion-reduce:transition-none ${
+          showing ? 'max-w-[240px] pl-1.5 opacity-100' : 'max-w-0 pl-0 opacity-0'
+        }`}
+      >
+        {label} {value}
+      </span>
+    </button>
   );
 }

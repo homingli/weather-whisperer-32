@@ -9,6 +9,25 @@ export const PLACEHOLDER_SENTINEL = -999;
 export const SENTINEL_THRESHOLD = -100;
 
 // ---------------------------------------------------------------------------
+// Quiet-metric thresholds (CurrentWeather "quiet shelf")
+// ---------------------------------------------------------------------------
+// A metric at or below its threshold is "nothing to act on" and collapses
+// to an icon-only chip in the quiet shelf; the value is revealed on hover,
+// tap, or keyboard focus. High values always render the full widget.
+// Empty data (SENTINEL_THRESHOLD) is a separate state and never goes quiet.
+export const QUIET = {
+  /** Below the nowcast "trace" cutoff (0.5 mm) — no measurable rain. */
+  PRECIP_MM: 0.5,
+  /** UV below 3 is WHO "Low" (0–2): no sun protection needed. */
+  UV_MAX: 3,
+  /** Comfortable humidity band (inclusive) — below is dry, above is muggy. */
+  HUMIDITY_MIN: 30,
+  HUMIDITY_MAX: 60,
+  /** Calm wind (raw value is always km/h) — compass direction is noise below this. */
+  WIND_KMH: 5,
+} as const;
+
+// ---------------------------------------------------------------------------
 // localStorage keys
 // ---------------------------------------------------------------------------
 export const STORAGE_KEYS = {
