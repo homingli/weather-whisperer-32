@@ -218,6 +218,8 @@ const translations: Record<Language, Record<string, string>> = {
     'weather.humidity': 'Humidity',
     'weather.uvIndex': 'UV Index',
     'unit.kmh': 'km/h',
+    // Quiet shelf — aria-label on the icon row holding distilled metrics.
+    'quiet.shelfLabel': 'Metrics needing no attention',
     
     // Nowcast Map
     'nowcast.title': 'Rain Cloud Nowcast',
@@ -473,6 +475,8 @@ const translations: Record<Language, Record<string, string>> = {
     'weather.humidity': '濕度',
     'weather.uvIndex': '紫外線指數',
     'unit.kmh': '公里/小時',
+    // Quiet shelf — aria-label on the icon row holding distilled metrics.
+    'quiet.shelfLabel': '無需關注的指標',
     
     // Nowcast Map
     'nowcast.title': '雨雲即時預報',
