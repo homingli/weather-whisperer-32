@@ -10,6 +10,7 @@ import { TIMING } from '@/lib/constants';
 import { parseRainfallCSVText, buildRainGrid, type RainGrid } from '@/lib/rainfallGrid';
 import { RAINFALL_BANDS } from '@/lib/rainfallBands';
 import { scheduleCacheWrite } from '@/lib/nowcastCache';
+import { cartoRasterUrl } from '@/lib/carto';
 import { RainfallCellsLayer } from './RainfallCellsLayer';
 
 interface UserLocation {
@@ -37,8 +38,8 @@ interface NowcastResult {
 // it independently. Tile keys are stable across the theme switch so the
 // layer component remounts and fetches the new tile set on each toggle.
 const TILE_URLS = {
-  light: 'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png',
-  dark: 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png',
+  light: cartoRasterUrl('light_all'),
+  dark: cartoRasterUrl('dark_all'),
 };
 const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
