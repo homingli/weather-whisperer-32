@@ -5,7 +5,10 @@ if (!CARTO_API_KEY) {
 }
 
 /** Build Carto raster URL, adding API key when configured. */
-export function cartoRasterUrl(style: 'light_all' | 'dark_all' | 'voyager'): string {
-  const key = CARTO_API_KEY ? `?key=${encodeURIComponent(CARTO_API_KEY)}` : '';
+export function cartoRasterUrl(
+  style: 'light_all' | 'dark_all' | 'voyager',
+  apiKey = CARTO_API_KEY,
+): string {
+  const key = apiKey?.trim() ? `?key=${encodeURIComponent(apiKey.trim())}` : '';
   return `https://{s}.basemaps.cartocdn.com/rastertiles/${style}/{z}/{x}/{y}{r}.png${key}`;
 }
