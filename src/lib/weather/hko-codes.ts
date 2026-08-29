@@ -15,7 +15,7 @@
  * adding parallel `hko.desc.*` keys for identical phrasing.
  *
  * Source for HKO wording: https://www.hko.gov.hk/textonly/v2/explain/wxicon_e.htm
- * Reference also captured in `handoff/hko-wmo-code-mapping.md`.
+ * Keep this mapping aligned with the HKO wording reference above.
  *
  * Day vs. night (`isHKODayTime`): codes 50–69 and 80–93 are day; codes 70–77
  * are night. Special-state codes (80–85) are time-agnostic in HKO's data and

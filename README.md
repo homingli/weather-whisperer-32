@@ -27,7 +27,7 @@ A weather app built with React and TypeScript. It pulls data from the Hong Kong 
 - **Adaptive refetch cadence.** React Query refetches every 5 minutes, dropping to 1 minute when any source has failed so the app self-heals once it recovers.
 - **Three-tier offline support.** A `localStorage` last-known snapshot seeds the first paint; React Query handles in-memory freshness; the Workbox service worker replays the last successful API response when fully offline. Amber banners mark partial data (one source missing); red banners mark cached data only, with a refetch button.
 - **PWA.** The service worker uses NetworkFirst with two cache buckets (`api-cache` for direct API hosts, `hko-proxy-cache` for the dev Vite proxy / prod Vercel rewrite), so dev and prod offline behavior match.
-- **Accessibility (WCAG 2.1 AA).** Skip link, sr-only data tables for the hourly/daily charts, `<html lang>` synced to the active UI language, semantic severity color tokens (≥5.5:1 on cream), `role="alert"` on the offline and partial-data banners, `aria-current` on the rainfall nowcast timestep buttons, `aria-label`s on icon-only controls. Full audit in `handoff/ada-compliance-plan.md`.
+- **Accessibility (WCAG 2.1 AA).** Skip link, sr-only data tables for the hourly/daily charts, `<html lang>` synced to the active UI language, semantic severity color tokens (≥5.5:1 on cream), `role="alert"` on the offline and partial-data banners, `aria-current` on the rainfall nowcast timestep buttons, `aria-label`s on icon-only controls.
 
 ## Technology stack
 
@@ -42,7 +42,7 @@ A weather app built with React and TypeScript. It pulls data from the Hong Kong 
 - **Charts**: Recharts 2
 - **Date Handling**: date-fns 3
 - **PWA**: vite-plugin-pwa with workbox `NetworkFirst`
-- **Testing**: Vitest 2 with Testing Library + jsdom (260 tests, 22 files)
+- **Testing**: Vitest 3 with Testing Library + jsdom (397 tests, 30 files)
 
 ## Project structure
 
@@ -258,7 +258,7 @@ All icon assets (Leaflet markers, 20 HKO warning GIFs) are locally hosted under 
 
 ## Accessibility
 
-Conformance target is WCAG 2.1 Level AA, the standard at issue in *Robles v. Domino's*, where the Ninth Circuit held a website can be a place of public accommodation under the ADA. See `handoff/ada-compliance-plan.md` for the full audit and remediation roadmap.
+Conformance target is WCAG 2.1 Level AA. Accessibility work is tracked with the implementation and test suite in `src/`.
 
 What's in place today:
 

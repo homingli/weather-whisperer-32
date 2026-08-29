@@ -46,8 +46,7 @@ interface CurrentWeatherProps {
    * that didn't carry this field. `weather-manager` always writes it on a
    * live fetch, and the snapshot schema is bumped to v2 so old snapshots
    * are dropped on read; this optional + OM-default is a belt-and-braces
-   * guard against future shape drift at this type boundary. See
-   * `handoff/hko-headline-icon-plan.md` Phase 5 + Risk "HKO icon schema drift".
+   * guard against future shape drift at this type boundary.
    */
   headline?: HeadlineInfo;
   /** Mobile-only swiper layout: tighter padding, centered hero with
