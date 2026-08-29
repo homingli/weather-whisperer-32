@@ -8,6 +8,7 @@ import { MSC, TIMING, VANCOUVER_BBOX, VANCOUVER_CENTER } from '@/lib/constants';
 import { buildMscStepTimes, formatStepTime, formatObservationTime, vancouverTimeZoneAbbr, buildProbeUrl } from '@/lib/msc-wms';
 import { markMscMapMounted } from '@/lib/msc-prefetch';
 import { logWarn } from '@/lib/log';
+import { cartoRasterUrl } from '@/lib/carto';
 
 interface UserLocation {
   latitude: number;
@@ -24,8 +25,8 @@ const locationIcon = new L.Icon({
 
 // Same basemaps as the HKO map: Carto Positron (light) / Dark Matter (dark).
 const TILE_URLS = {
-  light: 'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png',
-  dark: 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png',
+  light: cartoRasterUrl('light_all'),
+  dark: cartoRasterUrl('dark_all'),
 };
 const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';

@@ -148,6 +148,12 @@ npm test            # Vitest (single run: add --run)
 
 ## API sources
 
+### Carto basemap
+
+Set `VITE_CARTO_API_KEY` in the deployment environment to authenticate Carto
+raster basemap requests. The app logs a console warning when the variable is
+missing and falls back to the unauthenticated URL.
+
 ### Open-Meteo (primary)
 - Free, open-source weather API
 - Global coverage
