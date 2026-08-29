@@ -123,7 +123,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // HKO icon descriptions (50-65, 70-77, 80-93). Codes 60/61/62/64 and
     // 75/76/77 reuse weather.desc.* keys (wording matches WMO); see
-    // handoff/hko-headline-icon-plan.md for the full mapping.
+    // Keep the mapping aligned with the HKO icon taxonomy.
     'hko.desc.sunny': 'Sunny',
     'hko.desc.sunnyPeriods': 'Sunny periods',
     'hko.desc.sunnyIntervals': 'Sunny intervals',
@@ -377,7 +377,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // HKO icon descriptions (50-65, 70-77, 80-93). Codes that share
     // wording with WMO use the weather.desc.* keys; see
-    // handoff/hko-headline-icon-plan.md. TC phrasing follows HK conventions
+    // TC phrasing follows HK conventions
     // (天晴 / 多雲 / 密雲 / 轉雨 etc.) so the headline reads naturally to HK
     // users. Day/night parallels mirror each other (50 ↔ 70, 51 ↔ 71, etc.)
     // so the nighttime wording reuses the daytime vocabulary.
