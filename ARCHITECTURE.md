@@ -127,7 +127,7 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
 - **Styling**: Tailwind CSS 3, custom CSS animations (`index.css`), `clsx` + `tailwind-merge`
 - **UI Components**: shadcn-ui (Radix UI primitives)
 - **Charts**: Recharts 2 (Hourly and Daily visualizations)
-- **Map**: Leaflet 1.9 + react-leaflet 4 (HKO gridded rainfall nowcast)
+- **Map**: MapLibre GL JS (CARTO vector basemap, HKO GeoJSON rainfall layer, MSC WMS raster layer)
 - **Routing**: React Router 7
 - **Date and time**: `date-fns` 3
 - **Icons**: Lucide React
@@ -139,7 +139,7 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `CurrentWeather.tsx`: Hero section displaying real-time conditions
   - `HourlyForecast.tsx`: Interactive 6-hour line chart (temperature & precipitation); day/night `ReferenceArea` bands and sun-event `ReferenceLine` markers when `daily` prop is provided
   - `DailyForecast.tsx`: 7-day forecast with min/max bounds
-  - `RainfallMap.tsx`: Interactive Leaflet map visualizing HKO's gridded rainfall nowcast for HK + Pearl River Delta (Guangdong, China). Time-slider controls are rendered **above** the map so users see the active timestep before viewing the visualization. Data-driven viewport fit. Renders `GeoJSON` layers per color bucket via `polygonStyle()` (RGBA fill + stroke).
+  - `RainfallMap.tsx`: Interactive MapLibre map visualizing HKO's gridded rainfall nowcast. CSV is parsed into `RainGrid`, then converted client-side to GeoJSON using `[longitude, latitude]` coordinates. Time-slider controls render above map.
   - `SettingsMenu.tsx`: Global settings controls (Language, Theme, Location, manual refresh)
   - `WeatherAlerts.tsx`: HKO warning icons in the top bar; tapping opens a modal with the full safety text. Tap targets are **44×44 CSS px on mobile (WCAG 2.5.5 AAA)** with 28px icons, and 48×48 with 32px icons on `sm+`. Cancellation filter is case-insensitive on `actionCode` against `"CANCEL"`. HKO returns uppercase; a previous mixed-case compare silently let a cancelled amber rainstorm stay visible until 2026-07-31.
 - `src/contexts/`: Global application state
