@@ -17,7 +17,7 @@ A weather app built with React and TypeScript. It pulls data from the Hong Kong 
 - **High/low temperatures.** Daily min and max in the hero section.
 - **Sun events.** Next sunset during the day, next sunrise at night.
 - **Hourly charts.** Interactive line charts for temperature and precipitation probability, with PSR (Probability of Significant Rain) labels.
-- **Gridded rainfall nowcast map.** Interactive Leaflet map with a timeline slider, showing HKO gridded rainfall for Hong Kong and the Pearl River Delta (including Guangdong, China).
+- **Gridded rainfall nowcast map.** Interactive MapLibre map with a timeline slider, showing HKO gridded rainfall for Hong Kong and the Pearl River Delta (including Guangdong, China).
 - **Timestep controls above the map.** Play/pause and the formatted-time label sit above the map, so the active window is visible before the visualization.
 - **User location marker.** Blue pin on the rainfall map for the user's position.
 - **Weather alerts.** HKO warnings as compact icons in the top bar; clicking opens a modal with the full safety text.
@@ -37,7 +37,7 @@ A weather app built with React and TypeScript. It pulls data from the Hong Kong 
 - **Styling**: Tailwind CSS 3 with custom animations
 - **Data Fetching**: TanStack React Query 5 (sole TTL owner; no separate cache layer)
 - **Routing**: React Router 7
-- **Map**: Leaflet 1.9 + react-leaflet 4
+- **Map**: MapLibre GL JS
 - **Icons**: Lucide React
 - **Charts**: Recharts 2
 - **Date Handling**: date-fns 3
@@ -55,7 +55,7 @@ src/
 │   ├── CurrentWeather.tsx     # Hero section with conditions, temp range, umbrella
 │   ├── HourlyForecast.tsx     # 6-hour line chart with day/night bands + sun markers
 │   ├── DailyForecast.tsx      # 7-day forecast with min/max bounds
-│   ├── RainfallMap.tsx        # Leaflet map + HKO gridded nowcast, GeoJSON layers
+│   ├── RainfallMap.tsx        # MapLibre map + HKO gridded nowcast, GeoJSON layer
 │   ├── FetchingStatus.tsx     # Per-source loading screen (Open-Meteo + HKO status badges)
 │   ├── LocalClock.tsx         # Adaptive-interval clock: 1s when seconds shown (>= sm), 60s when dropped (< sm)
 │   ├── StatusBadge.tsx        # Pill-shaped status indicator (fetching/success/error/waiting)
@@ -210,7 +210,7 @@ HKO warnings render as compact icons in the top bar; clicking opens a modal with
 - Cancelled warnings are filtered with `actionCode.toUpperCase() !== 'CANCEL'` (case-insensitive; HKO returns uppercase `CANCEL`). The filter is locked against the live fixture in `src/lib/__fixtures__/`
 
 ### Gridded rainfall nowcast
-- HKO gridded rainfall data visualized on an interactive Leaflet map
+- HKO gridded rainfall data visualized on an interactive MapLibre map
 - Covers Hong Kong and the Pearl River Delta (Shenzhen, Guangzhou, Macau, Zhuhai; extends into Guangdong, China)
 - Forecast step controls sit directly above the map: Play/Pause button, the active `Forecast Step` label (formatted HH:MM), the timeline slider, and clickable per-step buttons. Layout is `flex-col` on mobile and `flex-row` on `md+` so the slider can stretch the full width.
 - Map follows underneath with the active timestep's color-bucketed GeoJSON overlay
@@ -235,7 +235,7 @@ Cache strategy is a three-tier design:
 2. **React Query.** Per-tab in-memory, the single source of truth at runtime. Per-source TTLs (OM 5min current, OM 30min daily, HKO 1min warnings, geocoding 7d) collapse to 1 min when any source has failed
 3. **Workbox service worker.** Cross-session `NetworkFirst` cache, 50 entries / 24h per bucket, replayed when fully offline
 
-All icon assets (Leaflet markers, 20 HKO warning GIFs) are locally hosted under `public/icons/`. No external CDN dependencies.
+All icon assets (map marker, 20 HKO warning GIFs) are locally hosted under `public/icons/`. No external CDN dependencies.
 
 ## Browser support
 
@@ -269,9 +269,9 @@ What's in place today:
 - **Forms.** the city search input has an `aria-label`; the search dialog uses a Radix `Dialog` with `sr-only DialogTitle`
 - **Charts.** each Recharts SVG has an `aria-label` and an accompanying `sr-only <table>` exposing the same data points to screen readers
 - **Color contrast.** semantic severity tokens (`--severity-warning-fg`, `--severity-success-fg`, `--severity-error-fg`, `--severity-info-fg`) at ≥5.5:1 on cream, and a deeper `--muted-foreground` (28% light / 52% dark) so `/50`, `/60`, `/70` subdivisions clear 4.5:1
-- **Keyboard.** visible `focus-visible:ring-2` ring on every interactive element; explicit `aria-current` on the RainfallMap time-step buttons; `<h1>` in `NotFound.tsx` programmatically focuses on mount
+- **Keyboard.** visible `focus-visible:ring-2` ring on every interactive element; explicit `aria-current` on RainfallMap time-step buttons; `<h1>` in `NotFound.tsx` programmatically focuses on mount
 
-Remaining work (Phase 3-6 of the plan): non-color cues inside the visualization widgets, `prefers-reduced-motion` guards on all animations, Leaflet `role="application"` removal + keyboard pan/zoom, `DropdownMenuRadioGroup` for the theme/language picker, and Playwright + `@axe-core` e2e coverage.
+Remaining work (Phase 3-6 of the plan): non-color cues inside visualization widgets, `prefers-reduced-motion` guards on all animations, `DropdownMenuRadioGroup` for theme/language picker, and Playwright + `@axe-core` e2e coverage.
 
 ## License
 

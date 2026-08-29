@@ -122,7 +122,7 @@ export default defineConfig(({ mode }) => {
           // don't re-fetch the whole basemap (the largest repeat-visit cost),
           // while maxEntries + purgeOnQuotaError bound the quota on mobile.
           {
-            urlPattern: /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/.*/i,
+            urlPattern: /^https:\/\/(?:[a-d]\.)?basemaps\.cartocdn\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'carto-basemap-cache',

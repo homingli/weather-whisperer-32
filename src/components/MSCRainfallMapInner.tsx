@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, ZoomControl, WMSTileLayer } from 'react-leaflet';
-import L from 'leaflet';
+import type { Map } from 'maplibre-gl';
 import { AlertCircle, RefreshCw, Play, Pause, Layers, CloudRain } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -8,28 +7,13 @@ import { MSC, TIMING, VANCOUVER_BBOX, VANCOUVER_CENTER } from '@/lib/constants';
 import { buildMscStepTimes, formatStepTime, formatObservationTime, vancouverTimeZoneAbbr, buildProbeUrl } from '@/lib/msc-wms';
 import { markMscMapMounted } from '@/lib/msc-prefetch';
 import { logWarn } from '@/lib/log';
-import { cartoRasterUrl } from '@/lib/carto';
+import { MapLibreMap } from './MapLibreMap';
 
 interface UserLocation {
   latitude: number;
   longitude: number;
 }
 
-const locationIcon = new L.Icon({
-  iconUrl: '/icons/marker-icon-2x-blue.png',
-  shadowUrl: '/icons/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  shadowSize: [41, 41],
-});
-
-// Same basemaps as the HKO map: Carto Positron (light) / Dark Matter (dark).
-const TILE_URLS = {
-  light: cartoRasterUrl('light_all'),
-  dark: cartoRasterUrl('dark_all'),
-};
-const TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
 // HRDPS run cycle length and the boundary offset for the run-refresh timer
 // (selection flips at cycle start + publish lag, every 6h).
@@ -88,7 +72,7 @@ export default function MSCRainfallMapInner({
 }: {
   userLocation?: UserLocation;
 }) {
-  const mapRef = useRef<L.Map | null>(null);
+  const mapRef = useRef<Map | null>(null);
   const viewportInit = useRef(false);
   const prevUserLoc = useRef<string | null>(null);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
@@ -182,26 +166,33 @@ export default function MSCRainfallMapInner({
   const showUsingLastAnalysis = analysisAgeHours > 6;
 
   // WMS layer params — the `time` value drives which forecast step renders.
-  // A new object identity on step change makes react-leaflet call setParams
-  // → redraw → new tiles for the new time (HTTP-cached after the first pass).
+  // A new object identity on step change makes MapLibre replace its raster
+  // source → redraw → new tiles for the new time (HTTP-cached after first pass).
   const wmsParams = useMemo(
     () => ({
       layers: MSC.LAYER,
       styles: MSC.STYLE,
       transparent: true,
       format: 'image/png',
-      // version=1.3.0 makes Leaflet's TileLayer.WMS.onAdd send the CRS/SRS
-      // param itself (crs=EPSG:3857). Do NOT pass `crs` here: Leaflet treats
-      // it as a CRS OBJECT option (not a request param) — a string like
-      // 'EPSG:3857' crashes getTileUrl with "crs.project is not a function"
-      // (verified 2026-08-07).
+      // MapLibre WMS template supplies EPSG:3857 through bbox placeholder.
       version: '1.3.0',
       time: steps[activeStepIndex],
     }),
     [steps, activeStepIndex],
   );
+  const mapWms = useMemo(
+    () => ({
+      url: MSC.WMS_URL,
+      layer: wmsParams.layers,
+      style: wmsParams.styles,
+      time: wmsParams.time,
+      opacity: 0.5,
+      nonce: retryNonce,
+    }),
+    [wmsParams, retryNonce],
+  );
 
-  // Errors are counted per tile batch. Leaflet fires 'load' even when every
+  // Errors are counted per tile batch. MapLibre can fire 'idle' after every
   // tile errored (errored tiles are marked as loaded), so a fully-failed
   // first batch would otherwise render a blank map with no error overlay —
   // the FR-008 failure mode. We count tileerror events per batch (reset on
@@ -280,7 +271,8 @@ export default function MSCRainfallMapInner({
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
-  const minZoom = isMobile ? 8 : 9;
+  // Keep map a few steps wider than Leaflet-era bounds; mobile gets one extra.
+  const minZoom = isMobile ? 6 : 7;
 
   // Fit the viewport to the Vancouver bbox once (or on user-location change),
   // mirroring the HKO map's viewport-init behavior.
@@ -291,13 +283,11 @@ export default function MSCRainfallMapInner({
     const userChanged = locKey && locKey !== prevUserLoc.current;
     if (!viewportInit.current || userChanged) {
       if (userLocation) {
-        map.setView([userLocation.latitude, userLocation.longitude], 12, { animate: true });
+        map.setCenter([userLocation.longitude, userLocation.latitude]);
+        map.setZoom(12);
         prevUserLoc.current = locKey;
       } else {
-        map.fitBounds(
-          [[VANCOUVER_BBOX.south, VANCOUVER_BBOX.west], [VANCOUVER_BBOX.north, VANCOUVER_BBOX.east]],
-          { padding: [50, 50] },
-        );
+        map.fitBounds([[VANCOUVER_BBOX.west, VANCOUVER_BBOX.south], [VANCOUVER_BBOX.east, VANCOUVER_BBOX.north]], { padding: 50 });
       }
       viewportInit.current = true;
     }
@@ -312,7 +302,7 @@ export default function MSCRainfallMapInner({
   const applyMapLockState = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
-    for (const fn of ['dragging', 'scrollWheelZoom', 'doubleClickZoom', 'touchZoom', 'boxZoom', 'keyboard'] as const) {
+    for (const fn of ['dragPan', 'scrollZoom', 'doubleClickZoom', 'boxZoom', 'keyboard'] as const) {
       if (hasLoadedOnce) map[fn].enable();
       else map[fn].disable();
     }
@@ -321,19 +311,15 @@ export default function MSCRainfallMapInner({
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   const handleMapRef = useCallback(
-    (map: L.Map | null) => {
+    (map: Map | null) => {
       mapRef.current = map;
       if (map) {
         applyMapLockState();
         requestAnimationFrame(() => {
-          map.invalidateSize();
+        map.resize();
         });
         resizeObserverRef.current?.disconnect();
-        const observer = new ResizeObserver(() => {
-          requestAnimationFrame(() => {
-            map.invalidateSize();
-          });
-        });
+        const observer = new ResizeObserver(() => map.resize());
         observer.observe(map.getContainer());
         resizeObserverRef.current = observer;
       } else {
@@ -493,51 +479,21 @@ export default function MSCRainfallMapInner({
           </div>
         )}
 
-        <MapContainer
-          center={[...VANCOUVER_CENTER]}
+        <MapLibreMap
+          center={[VANCOUVER_CENTER[1], VANCOUVER_CENTER[0]]}
           zoom={9}
           minZoom={minZoom}
           maxZoom={17}
-          scrollWheelZoom={false}
-          doubleClickZoom={false}
-          dragging={false}
-          zoomControl={false}
-          className="w-full h-full"
-          ref={handleMapRef}
-          aria-label={t('nowcast.mapLabel')}
-        >
-          <ZoomControl position="topleft" />
-          <TileLayer
-            key={basemapIsDark ? 'dark' : 'light'}
-            attribution={TILE_ATTRIBUTION}
-            url={basemapIsDark ? TILE_URLS.dark : TILE_URLS.light}
-          />
-          <WMSTileLayer
-            key={`wms-${retryNonce}`}
-            url={MSC.WMS_URL}
-            params={wmsParams}
-            // Color overlay at 0.5 so basemap labels/streets stay readable
-            // (was 0.7 — user request 2026-08-22).
-            opacity={0.5}
-            // zIndex ABOVE the basemap's default 1: Leaflet stacks tilePane
-            // children by DOM order at equal z-index, and the basemap
-            // remounts on theme/basemap toggle (key change → removeLayer +
-            // addLayer appends it last), which would otherwise paint the
-            // basemap OVER the precipitation overlay, hiding it. An explicit
-            // zIndex pins the overlay above regardless of DOM order
-            // (verified 2026-08-22). Markers/controls are in higher panes
-            // (600/800) and stay on top.
-            zIndex={500}
-            eventHandlers={tileEventHandlers}
-          />
-          {userLocation && (
-            <Marker
-              position={[userLocation.latitude, userLocation.longitude]}
-              icon={locationIcon}
-              zIndexOffset={1000}
-            />
-          )}
-        </MapContainer>
+          dark={basemapIsDark}
+          interactive={hasLoadedOnce}
+          ariaLabel={t('nowcast.mapLabel')}
+          marker={userLocation ? [userLocation.longitude, userLocation.latitude] : undefined}
+          wms={mapWms}
+          onMap={handleMapRef}
+          onOverlayLoading={tileEventHandlers.loading}
+          onOverlayLoaded={tileEventHandlers.load}
+          onOverlayError={tileEventHandlers.tileerror}
+        />
 
         {/* Legend: GeoMet's discrete intensity classes as compact swatches.
             Replaces the tall GetLegendGraphic image (217×482) — colors and

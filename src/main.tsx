@@ -1,7 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { Analytics } from "@vercel/analytics/react";
 import App from "./App.tsx";
-import "leaflet/dist/leaflet.css";
 import "./index.css";
 import { initSwObservability } from "@/lib/sw-observability";
 
