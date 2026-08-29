@@ -8,8 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Keep the dynamic-import warm target hermetic — no leaflet/react-leaflet in
-// the prefetch tests (MSCRainfallMap.test.tsx mocks react-leaflet itself).
+// Keep dynamic-import warm target hermetic in prefetch tests.
 // The factory increments a counter so tests can assert the chunk is NOT
 // fetched on the no-warm paths. (Vitest caches the mocked module per file, so
 // "was fetched" can only be asserted on the first warm test, not per test.)
