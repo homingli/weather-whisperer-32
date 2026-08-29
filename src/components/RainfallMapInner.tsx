@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MapContainer, TileLayer, Marker, ZoomControl } from 'react-leaflet';
-import L from 'leaflet';
+import type { Map } from 'maplibre-gl';
 import { AlertCircle, RefreshCw, Play, Pause, Layers } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -10,21 +9,13 @@ import { TIMING } from '@/lib/constants';
 import { parseRainfallCSVText, buildRainGrid, type RainGrid } from '@/lib/rainfallGrid';
 import { RAINFALL_BANDS } from '@/lib/rainfallBands';
 import { scheduleCacheWrite } from '@/lib/nowcastCache';
-import { cartoRasterUrl } from '@/lib/carto';
-import { RainfallCellsLayer } from './RainfallCellsLayer';
+import { MapLibreMap } from './MapLibreMap';
+import { rainfallGridToGeoJson } from '@/lib/rainfallGeoJson';
 
 interface UserLocation {
   latitude: number;
   longitude: number;
 }
-
-const locationIcon = new L.Icon({
-  iconUrl: '/icons/marker-icon-2x-blue.png',
-  shadowUrl: '/icons/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  shadowSize: [41, 41],
-});
 
 interface NowcastResult {
   grid: RainGrid;
@@ -37,12 +28,6 @@ interface NowcastResult {
 // useEffect on resolvedTheme) but the switch button lets the user flip
 // it independently. Tile keys are stable across the theme switch so the
 // layer component remounts and fetches the new tile set on each toggle.
-const TILE_URLS = {
-  light: cartoRasterUrl('light_all'),
-  dark: cartoRasterUrl('dark_all'),
-};
-const TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
 // Convert a grid extent into a {minLat, maxLat, minLon, maxLon} bounds object
 // for the viewport-fit effect. The grid is bounded by the first/last observed
@@ -175,7 +160,7 @@ export default function RainfallMapInner({
    *  round-trip and no loading state. */
   initialCsv?: string | null;
 }) {
-  const mapRef = useRef<L.Map | null>(null);
+  const mapRef = useRef<Map | null>(null);
   const viewportInit = useRef(false);
   const prevUserLoc = useRef<string | null>(null);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
@@ -214,8 +199,8 @@ export default function RainfallMapInner({
     setBasemapIsDark(resolvedTheme === 'dark');
   }, [resolvedTheme]);
 
-  // Zoom bounds differ by viewport: mobile keeps minZoom 8 (slightly wider
-  // context), desktop tightens to 9 (less empty ocean). maxZoom 17 is shared.
+  // Keep two extra zoom-out steps versus current default, with mobile one step
+  // wider still. maxZoom 17 is shared.
   // Same 1080px breakpoint as the rest of the app.
   const [isMobile, setIsMobile] = useState(
     () => window.matchMedia('(max-width: 1080px)').matches
@@ -226,7 +211,7 @@ export default function RainfallMapInner({
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
-  const minZoom = isMobile ? 8 : 9;
+  const minZoom = isMobile ? 6 : 7;
 
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hkoGriddedRainfallNowcast'],
@@ -278,6 +263,10 @@ export default function RainfallMapInner({
   const stepTimes = grid?.stepTimes ?? [];
   const updateTime = data?.updateTime || '';
   const dataBounds = grid ? gridBounds(grid) : null;
+  const rainfallGeoJson = useMemo(
+    () => grid ? rainfallGridToGeoJson(grid, activeStepIndex) : undefined,
+    [grid, activeStepIndex],
+  );
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -303,20 +292,15 @@ export default function RainfallMapInner({
 
     if (!viewportInit.current || userChanged) {
       if (userLocation) {
-        map.setView([userLocation.latitude, userLocation.longitude], 12, { animate: true });
+      map.setCenter([userLocation.longitude, userLocation.latitude]);
+      map.setZoom(12);
         prevUserLoc.current = locKey;
         viewportInit.current = true;
       } else if (dataBounds) {
-        map.fitBounds(
-          [[dataBounds.minLat, dataBounds.minLon], [dataBounds.maxLat, dataBounds.maxLon]],
-          { padding: [50, 50] }
-        );
+        map.fitBounds([[dataBounds.minLon, dataBounds.minLat], [dataBounds.maxLon, dataBounds.maxLat]], { padding: 50 });
         viewportInit.current = true;
       } else {
-        map.fitBounds(
-          [[PRD_BOUNDS.minLat, PRD_BOUNDS.minLon], [PRD_BOUNDS.maxLat, PRD_BOUNDS.maxLon]],
-          { padding: [50, 50] }
-        );
+        map.fitBounds([[PRD_BOUNDS.minLon, PRD_BOUNDS.minLat], [PRD_BOUNDS.maxLon, PRD_BOUNDS.maxLat]], { padding: 50 });
         viewportInit.current = true;
       }
     }
@@ -340,11 +324,10 @@ export default function RainfallMapInner({
   // the CSV is parsed and the cells are on screen. This prevents the user from
   // panning/zooming a blank basemap that would mislead them about coverage.
   //
-  // Invoked from the MapContainer ref callback below (NOT a useEffect). With
+  // Invoked from the MapLibre map callback below (NOT a useEffect). With
   // initialData, [data, isLoading] don't change after mount, so the only way
   // to apply the lock state on the cache path is via the ref callback —
-  // react-leaflet's useImperativeHandle fires after our useEffect would have
-  // run with mapRef.current = null.
+  // the map callback fires after our useEffect would have run with mapRef.current = null.
   //
   // Subsequent state changes are handled by React's ref detach/reattach:
   // when applyMapLockState's identity changes (deps [data, isLoading]),
@@ -355,19 +338,9 @@ export default function RainfallMapInner({
     if (!map) return;
     const ready = !!data && !isLoading;
     if (ready) {
-      map.dragging.enable();
-      map.scrollWheelZoom.enable();
-      map.doubleClickZoom.enable();
-      map.touchZoom.enable();
-      map.boxZoom.enable();
-      map.keyboard.enable();
+      map.dragPan.enable(); map.scrollZoom.enable(); map.doubleClickZoom.enable(); map.boxZoom.enable(); map.keyboard.enable();
     } else {
-      map.dragging.disable();
-      map.scrollWheelZoom.disable();
-      map.doubleClickZoom.disable();
-      map.touchZoom.disable();
-      map.boxZoom.disable();
-      map.keyboard.disable();
+      map.dragPan.disable(); map.scrollZoom.disable(); map.doubleClickZoom.disable(); map.boxZoom.disable(); map.keyboard.disable();
     }
   }, [data, isLoading]);
 
@@ -380,7 +353,7 @@ export default function RainfallMapInner({
   // useCallback so the ref identity tracks applyMapLockState's identity;
   // React's detach/reattach on identity change fires the new closure.
   //
-  // Also closes the "blank map on mobile" race: Leaflet's constructor
+  // Also closes the "blank map on mobile" race: MapLibre's constructor
   // reads the container's bounding rect synchronously, so a map mounted
   // against a 0x0 container (Swiper slide transition, iOS Safari URL-bar
   // mid-transition) is built with a 0x0 viewport that never self-repairs.
@@ -388,23 +361,19 @@ export default function RainfallMapInner({
   // ResizeObserver covers in-session changes (URL bar toggle, orientation,
   // slide re-entry).
   const handleMapRef = useCallback(
-    (map: L.Map | null) => {
+    (map: Map | null) => {
       mapRef.current = map;
 
       if (map) {
         applyMapLockState();
         // RAF so the container has its settled size (mount-time race).
         requestAnimationFrame(() => {
-          map.invalidateSize();
+        map.resize();
         });
         // Replace any prior observer from a previous identity of this
         // ref callback — disconnects the old one, observes the new map.
         resizeObserverRef.current?.disconnect();
-        const observer = new ResizeObserver(() => {
-          requestAnimationFrame(() => {
-            map.invalidateSize();
-          });
-        });
+        const observer = new ResizeObserver(() => map.resize());
         observer.observe(map.getContainer());
         resizeObserverRef.current = observer;
       } else {
@@ -473,7 +442,7 @@ export default function RainfallMapInner({
       )}
 
       {/* Hidden test affordance: lets unit tests verify the grid shape flowing
-          into the canvas layer without mounting a real Leaflet map. The shape
+          into the canvas layer without mounting a real MapLibre map. The shape
           here is the source of truth for the layer's data. */}
       {grid && (
         <div
@@ -493,12 +462,12 @@ export default function RainfallMapInner({
       {/* flex-1 = fills the remaining height after step controls; the parent
           uses absolute inset-0 to anchor to the outer rain-map-area in
           RainfallMap.tsx, which has explicit height (h-[min(70vh,800px)]
-          min-h-[400px]). no-swipe yields touch events to Leaflet. */}
+          min-h-[400px]). no-swipe yields touch events to MapLibre. */}
       <div className="rainfall-map-area no-swipe relative flex-1 min-h-0 w-full bg-muted/20">
         {/* Top-right control cluster: updated time + basemap switcher + refresh.
             Bottom-left is reserved for the swiper pagination dots on mobile, so
             these buttons live at the top-right where nothing else competes.
-            z-[600] = above the leaflet pane (400), below dialog content. */}
+            z-[600] = above the map canvas, below dialog content. */}
         <div className="absolute top-2 right-2 z-[600] flex items-center gap-2 text-xs text-muted-foreground bg-background/90 backdrop-blur-sm p-1.5 rounded-md border border-border/50 shadow-sm">
           {updateTime && (
             <span className="px-1 tabular-nums">{formatString(t('nowcast.updated'), updateTime)}</span>
@@ -612,7 +581,7 @@ export default function RainfallMapInner({
         {/* Stale-data indicator: previous fetch failed, current data is
             still on screen. Pinned top-left below the zoom control so it
             doesn't fight with the basemap/refresh cluster at top-right.
-            z-[600] = above the leaflet pane (400), below dialog content. */}
+            z-[600] = above the MapLibre canvas, below dialog content. */}
         {error && data && (
           <div
             role="status"
@@ -635,52 +604,18 @@ export default function RainfallMapInner({
           </div>
         )}
 
-        <MapContainer
-          center={[22.40, 114.10]}
+        <MapLibreMap
+          center={[114.10, 22.40]}
           zoom={9}
           minZoom={minZoom}
           maxZoom={17}
-          scrollWheelZoom={false}
-          doubleClickZoom={false}
-          dragging={false}
-          zoomControl={false}
-          // preferCanvas routes all L.Path instances (Rectangles, Polygons)
-          // through L.canvas() instead of L.svg(). The canvas renderer
-          // handles zoom animation natively via its own zoom-animated
-          // container, which scales smoothly with the basemap. With svg()
-          // every path becomes a DOM element and the 121×121 grid balloons
-          // past React's reconciliation budget.
-          preferCanvas={true}
-          className="w-full h-full"
-          // Callback ref (not the useRef object) so we can apply the lock
-          // state the moment react-leaflet's useImperativeHandle lands the
-          // map instance — fires after our lock useEffect runs and handles
-          // the initialData case where [data, isLoading] never change.
-          // The ref identity tracks applyMapLockState's identity (deps
-          // [data, isLoading]) so React's detach/reattach handles state
-          // transitions too — no separate useEffect needed.
-          ref={handleMapRef}
-          aria-label={t('nowcast.mapLabel')}
-        >
-          <ZoomControl position="topleft" />
-          <TileLayer
-            key={basemapIsDark ? 'dark' : 'light'}
-            attribution={TILE_ATTRIBUTION}
-            url={basemapIsDark ? TILE_URLS.dark : TILE_URLS.light}
-          />
-
-          {grid && (
-            <RainfallCellsLayer grid={grid} activeStep={activeStepIndex} />
-          )}
-
-          {userLocation && (
-            <Marker
-              position={[userLocation.latitude, userLocation.longitude]}
-              icon={locationIcon}
-              zIndexOffset={1000}
-            />
-          )}
-        </MapContainer>
+          dark={basemapIsDark}
+          interactive={!!data && !isLoading}
+          ariaLabel={t('nowcast.mapLabel')}
+          marker={userLocation ? [userLocation.longitude, userLocation.latitude] : undefined}
+          rainfall={rainfallGeoJson}
+          onMap={handleMapRef}
+        />
 
         {!isLoading && (
           <div className="absolute bottom-4 right-4 z-[400] bg-background/90 backdrop-blur-sm p-3 rounded-lg border border-border shadow-lg text-xs">

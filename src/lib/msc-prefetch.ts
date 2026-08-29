@@ -1,7 +1,7 @@
 // Idle-time prefetch for the MSC (Vancouver) nowcast map.
 //
 // The map's first render pays three cold costs once the user swipes to the
-// nowcast slide: the lazy leaflet chunk (~150 kB gz), the Carto basemap
+// nowcast slide: the lazy MapLibre chunk, the Carto basemap
 // tiles, and the GeoMet WMS overlay/probe tiles. The basemap is handled by
 // the SW runtime cache (CacheFirst, see vite.config.ts); this module warms
 // the warmable pieces as soon as the selected city is in the Vancouver box —
@@ -9,14 +9,14 @@
 // of the network.
 //
 // What it prefetches:
-//   1. The map's lazy chunk (leaflet + react-leaflet + MSCRainfallMapInner).
+//   1. The map's lazy chunk (MapLibre + MSCRainfallMapInner).
 //      Vite dedupes this dynamic import with the MSCRainfallMap lazy() chunk,
 //      so it lands under the same URL the map will request.
 //   2. Per-step bbox probe tiles (256×256 GetMap via the shared
 //      `buildProbeUrl`) — exactly the URLs the map's no-precipitation probe
 //      fetches after first render, so the probe resolves from cache. The
 //      map's viewport-zoom overlay tiles can't be prefetched without
-//      replicating Leaflet's tile math, so they ride the HTTP/SW cache after
+//      replicating MapLibre's tile lifecycle, so they ride the HTTP/SW cache after
 //      the first pass.
 //
 // How much it warms (data budget — the point of the tiers):

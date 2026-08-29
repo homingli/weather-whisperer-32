@@ -262,7 +262,7 @@
   min-height: 0;
 }
 
-.swiper-mobile-deck .rainfall-map-area .leaflet-container {
+.swiper-mobile-deck .rainfall-map-area .maplibregl-map {
   height: 100% !important;
 }
 

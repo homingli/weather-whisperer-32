@@ -5,13 +5,13 @@ import { LanguageContext, useLanguage } from '@/contexts/LanguageContext';
 import { readNowcastCache } from '@/lib/nowcastCache';
 import { logFailure } from '@/lib/log';
 
-// Leaflet + react-leaflet + the entire rainfall parsing pipeline are split
-// into a separate chunk so the ~150 kB gz of leaflet bundle is only fetched
+// MapLibre + the entire rainfall parsing pipeline are split
+// into a separate chunk so the map bundle is only fetched
 // once the user explicitly opts into viewing the nowcast map.
 const RainfallMapInner = lazy(() => import('./RainfallMapInner'));
 
 /**
- * Catches lazy-chunk load failures (network error fetching the leaflet
+ * Catches lazy-chunk load failures (network error fetching the MapLibre
  * bundle, Vercel edge hiccup) so the user sees a reloadable error instead
  * of a spinning LoadingShell forever. React's Suspense + lazy does NOT
  * catch these — the import promise rejection propagates up to the nearest

@@ -4,15 +4,14 @@ import { CloudRain } from 'lucide-react';
 import { LanguageContext, useLanguage } from '@/contexts/LanguageContext';
 import { logFailure } from '@/lib/log';
 
-// The MSC map pulls react-leaflet + leaflet into the lazy chunk (same split
-// as the HKO RainfallMap) so the ~150 kB gz of leaflet bundle is only fetched
+// The MSC map pulls MapLibre into the lazy chunk so the map bundle is only fetched
 // when the nowcast map renders. Unlike the HKO map there is NO "Load Map"
 // prompt: MSC serves small cached WMS tiles (not a 2.7 MB CSV), so the map
 // auto-loads when the section renders (user decision 2026-08-07, FR-001).
 const MSCRainfallMapInner = lazy(() => import('./MSCRainfallMapInner'));
 
 /**
- * Catches lazy-chunk load failures (network error fetching the leaflet
+ * Catches lazy-chunk load failures (network error fetching the MapLibre
  * bundle, Vercel edge hiccup) so the user sees a reloadable error instead
  * of a spinning LoadingShell forever. Class component because Error
  * Boundaries are not yet supported by hooks.
