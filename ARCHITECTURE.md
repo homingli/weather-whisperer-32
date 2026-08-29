@@ -11,7 +11,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │         localStorage last-known snapshot (synchronous cold-start seed)       │
 │                                                                             │
-│   Key: 'weather-last-known-v1' (schema-versioned)                          │
+│   Key: 'weather-last-known-v2' (schema-versioned)                          │
 │   Envelope: { v, cityId, lang, fetchedAt, data }                           │
 │   Cleared on city switch; overwritten on every successful fetch.           │
 └───────────────────────────────┬─────────────────────────────────────────────┘
@@ -110,24 +110,26 @@
 ```
 
 **Key caching layers (innermost → outermost, read top-down on cold load):**
-1. **localStorage last-known snapshot.** Schema-versioned envelope at `weather-last-known-v1`. Read synchronously at mount, used as React Query `initialData` with `initialDataUpdatedAt: 0` so the background fetch fires immediately. Cleared on city switch; overwritten on every successful fetch.
-2. **React Query.** Per-tab in-memory, the single source of truth at runtime. `staleTime` and `refetchInterval` collapse to 1 min when any source has failed. The hook augments cached-but-failed data with `fallbackSource: 'cache'`.
-3. **Service worker.** Workbox `NetworkFirst` for 5 host patterns across two cache buckets, 50 entries / 24h each. Survives tab close; not a service worker update.
-4. **Browser cache.** HTTP-level `Cache-Control`, where the origin sends it.
-5. **localStorage user prefs.** Language, theme, default city, recent cities.
+1. **localStorage last-known snapshot.** Schema-versioned envelope at `weather-last-known-v2`. Read synchronously at mount, used as React Query `initialData` with `initialDataUpdatedAt: 0` so the background fetch fires immediately. Cleared on city switch; overwritten on every successful fetch.
+2. **React Query persister.** Full QueryClient serialized to localStorage via `@tanstack/query-persist-client-core` (key: `weather-rq-cache-v1`, 512 KB cap). Kicks in on tab reload to avoid the post-reload FetchingStatus flash.
+3. **React Query.** Per-tab in-memory, the single source of truth at runtime. `staleTime` and `refetchInterval` collapse to 1 min when any source has failed. The hook augments cached-but-failed data with `fallbackSource: 'cache'`.
+4. **Service worker.** Workbox `NetworkFirst` for 5 host patterns across two cache buckets, 50 entries / 24h each. Survives tab close; not a service worker update.
+5. **Browser cache.** HTTP-level `Cache-Control`, where the origin sends it.
+6. **localStorage user prefs.** Language, theme, default city, recent cities.
 
 ## Overview
 Weather Whisperer is a weather dashboard built with React and TypeScript. It uses two data sources: Open-Meteo for global coverage, and the Hong Kong Observatory (HKO) API for granular local data when the location is in Hong Kong or the Pearl River Delta.
 
 ## Technology stack
 - **Framework**: React 18
-- **Build Tool**: Vite 5
+- **Build Tool**: Vite 6
 - **Language**: TypeScript 5
 - **Data fetching and caching**: TanStack React Query 5 (sole owner of TTL, dedup, and refetch intervals; no app-level API cache layer)
 - **Styling**: Tailwind CSS 3, custom CSS animations (`index.css`), `clsx` + `tailwind-merge`
 - **UI Components**: shadcn-ui (Radix UI primitives)
 - **Charts**: Recharts 2 (Hourly and Daily visualizations)
-- **Map**: MapLibre GL JS (CARTO vector basemap, HKO GeoJSON rainfall layer, MSC WMS raster layer)
+- **Map**: MapLibre GL JS (CARTO vector/raster basemap, HKO GeoJSON rainfall layer, MSC WMS raster layer)
+- **Swiper**: Swiper 14 (horizontal carousels for forecast cards and quiet-shelf chips)
 - **Routing**: React Router 7
 - **Date and time**: `date-fns` 3
 - **Icons**: Lucide React
@@ -139,7 +141,11 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `CurrentWeather.tsx`: Hero section displaying real-time conditions
   - `HourlyForecast.tsx`: Interactive 6-hour line chart (temperature & precipitation); day/night `ReferenceArea` bands and sun-event `ReferenceLine` markers when `daily` prop is provided
   - `DailyForecast.tsx`: 7-day forecast with min/max bounds
-  - `RainfallMap.tsx`: Interactive MapLibre map visualizing HKO's gridded rainfall nowcast. CSV is parsed into `RainGrid`, then converted client-side to GeoJSON using `[longitude, latitude]` coordinates. Time-slider controls render above map.
+  - `RainfallMap.tsx`: Thin wrapper → delegates to `MSCRainfallMap` or `RainfallMapInner` via lazy loading. Shows "Load Map" prompt for HKO nowcast; MSC loads automatically. Error boundary catches lazy-chunk load failures.
+  - `RainfallMapInner.tsx`: HKO gridded nowcast (CSV parsed → GeoJSON, time-slider, timeline step buttons). Fetches CSV into `RainGrid`, converts client-side to GeoJSON using `[longitude, latitude]` coordinates. Query with `staleTime: NOWCAST_CACHE_TTL_MS`, `refetchInterval: NOWCAST_REFETCH_INTERVAL_MS (30 min)`, `retry: 1`.
+  - `MSCRainfallMap.tsx`: MSC (Macau) rainfall WMS tile layer. Error boundary catches lazy-chunk load failures. Auto-loads when the section renders (no prompt).
+  - `MSCRainfallMapInner.tsx`: MSC WMS tile rendering with batch error tracking, tile load hang guard (20s), and retry nonce. Shows stale-data indicator when tiles fail to load.
+  - `MapLibreMap.tsx`: MapLibre basemap wrapper (CARTO vector/raster tiles). Handles user location marker.
   - `SettingsMenu.tsx`: Global settings controls (Language, Theme, Location, manual refresh)
   - `WeatherAlerts.tsx`: HKO warning icons in the top bar; tapping opens a modal with the full safety text. Tap targets are **44×44 CSS px on mobile (WCAG 2.5.5 AAA)** with 28px icons, and 48×48 with 32px icons on `sm+`. Cancellation filter is case-insensitive on `actionCode` against `"CANCEL"`. HKO returns uppercase; a previous mixed-case compare silently let a cancelled amber rainstorm stay visible until 2026-07-31.
 - `src/contexts/`: Global application state
@@ -147,10 +153,12 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `ThemeContext.tsx`: Manages active theme (Light, Dark, and Sun-synced Auto)
   - `UnitsContext.tsx`: Manages unit preference (metric/US), persisted to localStorage
 - `src/hooks/`: React hooks
-  - `usePwaInstall.ts`: Tracks `beforeinstallprompt` and provides an `install()` helper
+  - `useCitySearch.ts`: Open-Meteo Geocoding API autocomplete
   - `useOnlineStatus.ts`: Returns `online`/`offline` boolean
+  - `usePwaInstall.ts`: Tracks `beforeinstallprompt` and provides an `install()` helper
   - `useSelectedCity.ts`: City init, geo-swap, persistence wrapper
   - `useWeatherWithProgress.ts`: `useQuery` wrapper with `loadProgress` per-source status, faster retry on failure
+  - `useWarningChangeDetector.ts`: HKO warning set changes between polls (detects added/removed warnings)
 - `src/lib/`: Core business logic and integrations
   - `weather.ts` (barrel): re-exports from sub-modules
   - `weather/open-meteo.ts`: Open-Meteo API client + parameter assembly
@@ -167,22 +175,25 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `hko-fetch.ts`: `hkoFetch<T>` base fetcher (8s timeout), plus data builders
   - `hko-icons.ts`: HKO icon → WMO code mapping, warning colors/icons
   - `weather-manager.ts`: Unified orchestrator and the single entry point; merges Open-Meteo + HKO with parallel fetching, fault tolerance, and progress callbacks
-  - `constants.ts`: `STORAGE_KEYS` and `TIMING` maps (centralized)
+  - `constants.ts`: `STORAGE_KEYS` and `TIMING` maps (centralized), `QUIET` thresholds for quiet-shelf chips
   - `fetch-utils.ts`: Shared `fetchWithTimeout`
   - `utils.ts`: Generic `cn()` and formatting helpers
   - `log.ts`: Conditional `console.*` logger (strips in production)
   - `devWarningSimulator.ts`: Dev-only simulated warnings store on `useSyncExternalStore` (`devAddWarning`, `devRemoveWarning`, `devClearWarnings`, `devResetBaseline`). Production returns empty arrays and zero nonce.
+  - `carto.ts`: Carto basemap URL helpers (`cartoStyleUrl`, `cartoRasterUrl`, `cartoMapLibreRasterUrl`), validates `VITE_CARTO_API_KEY`
+  - `nowcastCache.ts`: Rainfall nowcast localStorage cache (15-min TTL, LZ-string compressed)
+  - `parsers.ts`: Generic data parsing utilities
+  - `msc-wms.ts`: MSC WMS tile fetching (macau.weather.gov.mo)
+  - `msc-prefetch.ts`: MSC data prefetching strategy (tiered by connection type)
+  - `rainfallBands.ts`: Rainfall color band definitions
+  - `units.ts`: Unit conversion (`°C→°F`, `km/h→mph`, `mm→in`)
+  - `queryPersistence.ts`: React Query localStorage persistence via `@tanstack/query-persist-client-core` (512 KB cap, schema-versioned)
 - `src/pages/`: Application routing layers
   - `Index.tsx`: Main dashboard layout with grid/flex responsiveness
   - `NotFound.tsx`: 404 handler
 - `src/test/`: Vitest setup
-  - `setup.ts`: Global test setup (jest-dom matchers, mocks)
+  - `setup.ts`: Global test setup (jest-dom matchers, mocks, `vi.stubGlobal` for matchMedia)
   - `Integration.test.tsx`: Cross-component integration coverage for `CurrentWeather` + `HourlyForecast`
-- `src/contexts/` (tests):
-  - `LanguageContext.test.tsx`: language toggle, localStorage persistence, translation lookup.
-  - `ThemeContext.test.tsx`: light/dark/auto modes, sun-synced auto, localStorage persistence.
-- `src/hooks/` (tests):
-  - `useWarningChangeDetector.test.ts`: diff logic for added/removed warnings, baseline reset on key change, empty state handling.
 - Entry points: `src/main.tsx` (root render) and `src/App.tsx` (providers, router, error boundary)
 
 ## Key logic concepts
@@ -196,19 +207,26 @@ The orchestrator at `src/lib/weather-manager.ts` is the single point of entry fo
 
 ### Caching and retry strategy
 
-#### Three-tier cache (read top-down on cold load)
+#### Multi-tier cache (read top-down on cold load)
 
-1. **localStorage last-known snapshot** (`weather-last-known-v1`).
+1. **localStorage last-known snapshot** (`weather-last-known-v2`).
    Schema-versioned envelope: `{ v, cityId, lang, fetchedAt, data }`. Read
    synchronously at mount; used as React Query `initialData` with
    `initialDataUpdatedAt: 0` so the background fetch fires immediately.
    Cleared on city switch; overwritten on every successful fetch.
 
-2. **React Query** (in-memory, per-tab). Single source of truth at runtime.
+2. **React Query persister** (`weather-rq-cache-v1`). Serializes the full
+   QueryClient to localStorage via `@tanstack/query-persist-client-core`.
+   Guarded by `MAX_BYTES` (512 KB) to avoid quota overflows. Schema version
+   (`PERSIST_SCHEMA_VERSION = 'v1'`) is compared against a `buster` field on
+   restore; mismatch drops the cache. App.tsx passes the persister to
+   `QueryClientProvider`'s `defaultOptions.queries.persist`.
+
+3. **React Query** (in-memory, per-tab). Single source of truth at runtime.
    Per-source `sources: { om, hko }` field on every return drives the UI's
    banner tone (none / amber / red).
 
-3. **Workbox Service Worker** (Cache Storage API, cross-session). Two
+4. **Service worker** (Workbox Cache Storage API, cross-session). Two
    `NetworkFirst` buckets, both 50 entries / 24h.
 
 The hook augments cached-but-failed data with `fallbackSource: 'cache'`
@@ -216,7 +234,7 @@ when `query.error && query.data`, so the red offline banner can render
 without the orchestrator having to handle that path itself.
 
 #### React Query (in-memory, per-tab)
-Two `useQuery` consumers in `src/hooks/useWeatherWithProgress.ts` and `src/components/RainfallMap.tsx`. Global `QueryClient` default `retry: 1` set in `src/App.tsx`.
+Two `useQuery` consumers in `src/hooks/useWeatherWithProgress.ts` and `src/components/RainfallMapInner.tsx`. Global `QueryClient` default `retry: 1` set in `src/App.tsx`.
 
 **Query 1: `weather-unified`**
 ```ts
@@ -247,17 +265,36 @@ Geocoding and Nominatim reverse geocoding are direct fetches today (not React Qu
 `hasFailure` is derived from `weather.sources` (`om.ok && hko.ok`) and
 relaxes back to healthy cadence on next success.
 
-**Query 2: `hkoGriddedRainfallNowcast`**
+**Query 2: `hkoGriddedRainfallNowcast`** (in `RainfallMapInner.tsx`)
 ```ts
 useQuery({
   queryKey: ['hkoGriddedRainfallNowcast'],
   queryFn: fetchRainfallNowcast,
-  staleTime: 5 * 60_000,
-  refetchInterval: 5 * 60_000,
-  enabled: isLoaded,
+  staleTime: TIMING.NOWCAST_CACHE_TTL_MS,
+  refetchInterval: (query) => {
+    // Schedule next refetch for when cache TTL expires
+    // Anchored on dataUpdatedAt for precision
+    const ttl = TIMING.NOWCAST_REFETCH_INTERVAL_MS;
+    const lastUpdate = query.state.dataUpdatedAt || 0;
+    return Math.max(ttl - (Date.now() - lastUpdate), 0);
+  },
+  retry: 1,
+  retryDelay: 1000,
 });
 ```
-Single global key, shared across all users. Failure-mode shortening not implemented.
+Single global key. Uses a dynamic `refetchInterval` anchored on `dataUpdatedAt` so stale-time and refetch cadence stay in sync. `NOWCAST_REFETCH_INTERVAL_MS` is 30 minutes (HKO ~6 min generation cadence).
+
+**Query 3: city search** (in `useCitySearch.ts`)
+```ts
+useQuery({
+  queryKey: ['citySearch', input],
+  queryFn: () => openMeteoGeocoding(input),
+  enabled: input.length >= 2,
+  staleTime: 5 * 60_000,
+  retry: 0,
+});
+```
+Directly wraps the Open-Meteo Geocoding API. Debounced by the component at 300ms to limit requests.
 
 #### Per-source state
 
@@ -285,7 +322,7 @@ export type SourceState = {
 #### Retry mechanism
 - Global default `retry: 1` in `src/App.tsx` → **2 total attempts** (1 initial + 1 retry) per error
 - `retryDelay`: React Query v5 default `(attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)` → exponential backoff: 1s → 2s → 4s, capped at 30s
-- RainfallMap explicitly sets `retry: 0` (nowcast has its own cadence; retrying immediately is wasteful)
+- RainfallMapInner sets `retry: 1` (one automatic retry on transient failure). After retry failure the query settles into error state and the UI shows the stale-data indicator or a full-screen error overlay with manual refetch button.
 
 Retries are **coarse-grained**: each one re-runs the entire `queryFn`, including all parallel fetches and fallback logic. No per-leg retry, no circuit breaker, no `retryOnError` predicate.
 
@@ -341,34 +378,36 @@ Timeouts throw → trigger React Query retry. No `Cache-Control` headers set or 
 | `weather-recent-cities` | Recent cities (max 3, MRU) for settings menu |
 | `weather-language` | User language preference (`'en' \| 'tc'`) |
 | `theme-mode` | User theme preference (`'light' \| 'dark' \| 'auto'`) |
-| `weather-last-known-v1` | Schema-versioned envelope of the last successful weather fetch. Cold-start seed for instant first paint |
+| `weather-last-known-v2` | Schema-versioned envelope of the last successful weather fetch. Cold-start seed for instant first paint |
 
-`weather-last-known-v1` is the new persistence layer. The app reads it synchronously on mount, clears it on city switch, and overwrites it on every successful `fetchWeather` call. The envelope's `cityId` (lat/lon rounded to 2 decimal places) prevents cross-city paint. A schema version mismatch or parse error causes a silent drop rather than a crash.
+`weather-last-known-v2` is the new persistence layer. The app reads it synchronously on mount, clears it on city switch, and overwrites it on every successful `fetchWeather` call. The envelope's `cityId` (lat/lon rounded to 2 decimal places) prevents cross-city paint. A schema version mismatch or parse error causes a silent drop rather than a crash.
 
 ## Testing strategy
-The project uses **Vitest** with jsdom. Coverage is split across layers (**260 tests**, 22 files):
+The project uses **Vitest** with jsdom. Coverage is split across layers (**312 tests**, 28 files):
 - **Unit tests** (lib/):
   - `src/lib/weather.test.ts` (2): Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
+  - `src/lib/weather/hko-codes.test.ts` (15): WMO weather-code descriptions and icons.
   - `src/lib/hko-weather.test.ts` (47): PSR normalization/percentage/umbrella, PSR translation, station/district lookup, bounds checks, HKO icon mapping, warning display helpers.
-  - `src/lib/weather-manager.test.ts` (14): all `fetchWeather` orchestration branches: HK/non-HK routing, parallel fetch + merge, HKO fallback, both-fail, progress callbacks, `lang` propagation.
+  - `src/lib/weather-manager.test.ts` (21): all `fetchWeather` orchestration branches: HK/non-HK routing, parallel fetch + merge, HKO fallback, both-fail, progress callbacks, `lang` propagation.
   - `src/lib/devWarningSimulator.test.ts` (14): simulated warnings CRUD, baseline nonce bumping, dev-only environment isolation.
-  - `src/lib/units.test.ts` (29), `src/lib/rainfallGrid.test.ts` (8), `src/lib/nowcastCache.test.ts` (20), `src/lib/weather/storage.test.ts` (12).
+  - `src/lib/units.test.ts` (29), `src/lib/parsers.test.ts` (20), `src/lib/rainfallGrid.test.ts` (8), `src/lib/rainfallGeoJson.test.ts` (1), `src/lib/nowcastCache.test.ts` (20), `src/lib/msc-wms.test.ts` (21), `src/lib/msc-prefetch.test.ts` (16), `src/lib/sw-observability.test.ts` (13), `src/lib/carto.test.ts` (3), `src/lib/weather/storage.test.ts` (13).
   - `src/lib/__fixtures__/`: live HKO `warnsum` response snapshots (EN + TC, captured 2026-07-31). Used by `WeatherAlerts.test.tsx` to lock the uppercase `CANCEL` regression against the real API shape.
 - **Hook tests** (hooks/):
   - `src/hooks/useWarningChangeDetector.test.ts` (18): diff semantics, baseline reset on `resetKey`, case-insensitive `CANCEL` filtering, `Reissue` no-diff.
 - **Context tests** (contexts/):
   - `src/contexts/LanguageContext.test.tsx` (12), `src/contexts/ThemeContext.test.tsx` (8), `src/contexts/UnitsContext.test.tsx` (6).
 - **Component tests** (components/):
-  - `src/components/CurrentWeather.test.tsx` (7): fixture-data render, umbrella indicator, sun event display.
-  - `src/components/HourlyForecast.test.tsx` (7): empty forecast, chartData shape validation (mock capture), day/night `ReferenceArea` bands, sun-event `ReferenceLine` label capture, timezone propagation. Recharts is mocked because jsdom lacks ResizeObserver.
-  - `src/components/RainfallMap.test.tsx` (7), `src/components/RainfallCellsLayer.test.tsx` (12): CSV fetch + bucket color assertions (RGBA stroke/fill), timeline-step transition (`fireEvent.click`), fetch error handling. `vi.stubGlobal('fetch')` with `vi.unstubAllGlobals()` in `beforeEach`.
+  - `src/components/CurrentWeather.test.tsx` (23): fixture-data render, umbrella indicator, sun event display, quiet-shelf behavior.
+  - `src/components/HourlyForecast.test.tsx` (8): empty forecast, chartData shape validation (mock capture), day/night `ReferenceArea` bands, sun-event `ReferenceLine` label capture, timezone propagation. Recharts is mocked because jsdom lacks ResizeObserver.
+  - `src/components/DailyForecast.test.tsx` (4): Swiper carousel rendering, forecast cards, precipitation probability.
   - `src/components/LocalClock.test.tsx` (6): wide-viewport renders HH:MM:SS with 1s interval; narrow-viewport (via `matchMedia` stub) drops seconds, uses 60s interval aligned to the next minute boundary.
   - `src/components/WeatherAlerts.test.tsx` (12): HKO warning rendering, modal open/close, warning detail display, cancellation filter (mixed-case + uppercase `CANCEL`), live-fixture replay of the 2026-07-31 cancelled amber rainstorm regression (EN + TC), TC/rainstorm signal icons, pulse animation.
-  - `src/components/DailyForecast.test.tsx` (3), `src/components/WeatherBanners.test.tsx` (7), `src/components/SettingsMenu.test.tsx` (8).
+  - `src/components/WeatherBanners.test.tsx` (8), `src/components/SettingsMenu.test.tsx` (11).
+  - `src/pages/NotFound.test.tsx` (6): 404 page rendering, programmatic focus on h1.
 - **Integration test**:
   - `src/test/Integration.test.tsx` (1): composes `CurrentWeather` + `HourlyForecast` with providers and fake timers; validates locale-agnostic time formatting (bounded `/09:00:00\s*PM/` pattern).
 
-Test infra: `matchMedia` is stubbed in `src/test/setup.ts`; `vi.stubGlobal('matchMedia', ...)` is used in component tests that need viewport-specific branches (LocalClock narrow mode, etc.).
+Test infra: `matchMedia` stubbed globally in `src/test/setup.ts` via `vi.stubGlobal`. Component tests that need viewport-specific branches (LocalClock narrow mode) use `vi.stubGlobal('matchMedia', ...)`; globals are un-stubbed in `beforeEach`. Fetch mocking: `vi.stubGlobal('fetch')` with `vi.unstubAllGlobals()` in setup for tests that need custom fetch responses.
 
 ## Observability
 
