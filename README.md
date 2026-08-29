@@ -1,76 +1,80 @@
 # Weather Whisperer
 
-A weather app built with React and TypeScript. It pulls data from the Hong Kong Observatory (HKO) and Open-Meteo, supports English and Traditional Chinese, and renders a gridded rainfall nowcast map with a glass-morphism design.
+A weather app built with React and TypeScript. It pulls data from the Hong Kong Observatory (HKO) and Open-Meteo, supports English and Traditional Chinese, and renders interactive rainfall nowcast maps with a glass-morphism design.
 
 ## Features
 
 - **Dual weather sources.** Switches between Hong Kong Observatory (HKO) and Open-Meteo based on location. Open-Meteo is primary; HKO enhances coverage in Hong Kong.
-- **Resilient gateway.** Fetches run in parallel with per-source status badges. An HKO failure falls back to Open-Meteo without blocking the UI.
-- **Fetching status screen.** Animated loading overlay with per-source status badges (Open-Meteo / HKO) during the initial fetch; `FetchingStatus` + `StatusBadge` components.
-- **Local clock.** Time display in a memoized component so a 1s tick does not re-render the parent card.
-- **Warning change detector.** Detects warnings newly issued or cancelled between polls; the baseline resets on city switches.
-- **Consolidated settings.** Location search, current location, theme, language, unit system (metric ↔ US), and manual refresh in one menu.
-- **Two languages.** English and Traditional Chinese.
+- **Resilient gateway.** Parallel fetches with per-source status badges. An HKO failure falls back to Open-Meteo without blocking the UI.
+- **Fetching status screen.** Animated loading overlay with per-source status badges (`FetchingStatus` + `StatusBadge` components).
+- **Two languages. English and Traditional Chinese with `<html lang>` synced synchronously on language switch.
 - **Location services.** Auto-detect the user's position or search any city worldwide; the last 3 cities stay in a recent-cities list.
 - **Weather data.** Current conditions, 6-hour forecasts, 7-day forecasts.
 - **Local timezone.** Date and time in the selected location's timezone.
 - **High/low temperatures.** Daily min and max in the hero section.
 - **Sun events.** Next sunset during the day, next sunrise at night.
 - **Hourly charts.** Interactive line charts for temperature and precipitation probability, with PSR (Probability of Significant Rain) labels.
-- **Gridded rainfall nowcast map.** Interactive MapLibre map with a timeline slider, showing HKO gridded rainfall for Hong Kong and the Pearl River Delta (including Guangdong, China).
-- **Timestep controls above the map.** Play/pause and the formatted-time label sit above the map, so the active window is visible before the visualization.
+- **7-day forecast cards.** Horizontal Swiper carousel with min/max temps, weather icons, and precipitation probability.
+- **Gridded rainfall nowcast map.** Interactive MapLibre map with MapLibre basemap and HKO gridded rainfall for Hong Kong and the Pearl River Delta.
+- **MSC rainfall tile layer.** Macau Meteorological Services WMS tiles rendered via the `MSCRainfallMap` component.
+- **Carto basemap.** Optional vector basemap via Carto API key (`VITE_CARTO_API_KEY`); falls back to unauthenticated tiles.
 - **User location marker.** Blue pin on the rainfall map for the user's position.
 - **Weather alerts.** HKO warnings as compact icons in the top bar; clicking opens a modal with the full safety text.
-- **Data-driven map zoom.** The rainfall map fits its viewport to the data extent; the fallback is `PRD_BOUNDS` from `hko-weather.ts`.
 - **Per-source loading indicators.** Status badges for Open-Meteo and HKO fetch state (fetching / success / error).
 - **Responsive layout.** Works on mobile, tablet, and desktop.
-- **Adaptive refetch cadence.** React Query refetches every 5 minutes, dropping to 1 minute when any source has failed so the app self-heals once it recovers.
-- **Three-tier offline support.** A `localStorage` last-known snapshot seeds the first paint; React Query handles in-memory freshness; the Workbox service worker replays the last successful API response when fully offline. Amber banners mark partial data (one source missing); red banners mark cached data only, with a refetch button.
+- **Adaptive refetch cadence.** React Query refetches every 5 minutes, dropping to 1 minute when any source has failed.
+- **Three-tier offline support.** `localStorage` last-known snapshot (lz-string compressed) seeds the first paint; React Query handles in-memory freshness; the Workbox service worker replays the last successful API response when fully offline. Amber banners mark partial data (one source missing); red banners mark cached data only, with a refetch button.
 - **PWA.** The service worker uses NetworkFirst with two cache buckets (`api-cache` for direct API hosts, `hko-proxy-cache` for the dev Vite proxy / prod Vercel rewrite), so dev and prod offline behavior match.
 - **Accessibility (WCAG 2.1 AA).** Skip link, sr-only data tables for the hourly/daily charts, `<html lang>` synced to the active UI language, semantic severity color tokens (≥5.5:1 on cream), `role="alert"` on the offline and partial-data banners, `aria-current` on the rainfall nowcast timestep buttons, `aria-label`s on icon-only controls.
 
 ## Technology stack
 
-- **Frontend Framework**: React 18 with TypeScript 5
-- **Build Tool**: Vite 5
-- **UI Components**: shadcn-ui with Radix UI 1.x
+- **Frontend Framework**: React 18 with TypeScript
+- **Build Tool**: Vite 6
+- **UI Components**: shadcn-ui with Radix UI 2
 - **Styling**: Tailwind CSS 3 with custom animations
-- **Data Fetching**: TanStack React Query 5 (sole TTL owner; no separate cache layer)
+- **Data Fetching**: TanStack React Query 5 (with persistence via `@tanstack/query-persist-client-core`)
 - **Routing**: React Router 7
-- **Map**: MapLibre GL JS
+- **Map**: MapLibre GL JS 5
+- **Swiper**: Swiper 14 (horizontal carousels for forecast cards and metric chips)
 - **Icons**: Lucide React
 - **Charts**: Recharts 2
 - **Date Handling**: date-fns 3
 - **PWA**: vite-plugin-pwa with workbox `NetworkFirst`
-- **Testing**: Vitest 3 with Testing Library + jsdom (397 tests, 30 files)
+- **Testing**: Vitest 3 with Testing Library + jsdom
 
 ## Project structure
 
 ```
 src/
 ├── components/         # Reusable UI components
-│   ├── ui/            # shadcn-ui primitives in use: button, card, dialog,
-│   │                 # dropdown-menu, input, label, separator, sheet, skeleton,
+│   ├── ui/            # shadcn-ui primitives: button, card, dialog,
+│   │                 # dropdown-menu, input, label, separator, skeleton,
 │   │                 # sonner
-│   ├── CurrentWeather.tsx     # Hero section with conditions, temp range, umbrella
+│   ├── CurrentWeather.tsx     # Hero section: conditions, temp range, umbrella
 │   ├── HourlyForecast.tsx     # 6-hour line chart with day/night bands + sun markers
-│   ├── DailyForecast.tsx      # 7-day forecast with min/max bounds
-│   ├── RainfallMap.tsx        # MapLibre map + HKO gridded nowcast, GeoJSON layer
-│   ├── FetchingStatus.tsx     # Per-source loading screen (Open-Meteo + HKO status badges)
-│   ├── LocalClock.tsx         # Adaptive-interval clock: 1s when seconds shown (>= sm), 60s when dropped (< sm)
-│   ├── StatusBadge.tsx        # Pill-shaped status indicator (fetching/success/error/waiting)
-│   ├── WeatherBanners.tsx     # Warning banners for fallback mode and HKO failures
-│   ├── SettingsMenu.tsx       # Language, theme, location, manual refresh
+│   ├── DailyForecast.tsx      # 7-day forecast in Swiper carousel
+│   ├── RainfallMap.tsx        # Thin wrapper → delegates to MSCRainfallMap
+│   ├── MSCRainfallMap.tsx     # MSC (Macau) rainfall WMS tile layer
+│   ├── RainfallMapInner.tsx   # HKO gridded nowcast (GeoJSON + timeline slider)
+│   ├── MapLibreMap.tsx        # MapLibre basemap wrapper (Carto tiles)
+│   ├── FetchingStatus.tsx     # Per-source loading screen
+│   ├── LocalClock.tsx         # Adaptive-interval clock (1s / 60s)
+│   ├── StatusBadge.tsx        # Pill-shaped status indicator
+│   ├── WeatherBanners.tsx     # Offline / partial-data banners
+│   ├── SettingsMenu.tsx       # Language, theme, location, refresh
 │   └── WeatherAlerts.tsx      # HKO warning icons + modal
 ├── contexts/          # React Context providers
-│   ├── LanguageContext.tsx
-│   └── ThemeContext.tsx
+│   ├── LanguageContext.tsx    # en / zh-Hant-HK, synced to <html lang>
+│   ├── ThemeContext.tsx       # light / dark / auto
+│   └── UnitsContext.tsx       # metric (°C) / us (°F)
 ├── hooks/             # Shared React hooks
+│   ├── useCitySearch.ts       # Open-Meteo Geocoding autocomplete
+│   ├── useOnlineStatus.ts     # online/offline boolean
 │   ├── usePwaInstall.ts
-│   ├── useOnlineStatus.ts    # online/offline boolean
-│   ├── useSelectedCity.ts    # city init, geo-swap, persistence
+│   ├── useSelectedCity.ts     # city init, geo-swap, persistence
 │   ├── useWeatherWithProgress.ts  # useQuery wrapper with per-source loadProgress
-│   └── useWarningChangeDetector.ts  # Detects HKO warning set changes between polls
+│   └── useWarningChangeDetector.ts  # HKO warning set changes between polls
 ├── lib/               # API clients, gateway, constants, helpers
 │   ├── weather/               # Open-Meteo sub-modules
 │   │   ├── open-meteo.ts     # API client + WMO code mapping
@@ -79,29 +83,42 @@ src/
 │   │   ├── codes.ts          # WMO weather-code → description/icon
 │   │   └── types.ts          # GeoLocation, WeatherData, etc.
 │   ├── hko-types.ts           # HKO API response interfaces
-│   ├── hko-bounds.ts          # HK_BOUNDS, PRD_BOUNDS, isInHongKong
+│   ├── hko-bounds.ts          # HK_BOUNDS, PRD_BOUNDS
 │   ├── hko-stations.ts        # Station/district lookups + coordinates
 │   ├── hko-translations.ts    # Station/district name translation (en↔tc)
-│   ├── hko-psr.ts             # PSR ladder + normalize/psrToPercentage/umbrella
-│   ├── hko-fetch.ts           # hkoFetch<T> base fetcher + data builders
-│   ├── hko-icons.ts           # HKO icon → WMO code, warning colors/icons
+│   ├── hko-psr.ts             # PSR ladder + umbrella recommendation
+│   ├── hko-fetch.ts           # hkoFetch<T> base fetcher
+│   ├── hko-icons.ts           # HKO icon → WMO code, warning colors
 │   ├── hko-weather.ts         # Barrel re-export
-│   ├── devWarningSimulator.ts # Dev-only simulated warnings store (useSyncExternalStore)
+│   ├── msc-wms.ts             # MSC WMS tile fetching
+│   ├── msc-prefetch.ts        # MSC data prefetching
+│   ├── rainfallGrid.ts        # HKO gridded rainfall CSV parsing
+│   ├── rainfallGeoJson.ts     # GeoJSON generation for map layers
+│   ├── rainfallBands.ts       # Color band definitions
+│   ├── carto.ts               # Carto basemap API key validation
+│   ├── nowcastCache.ts        # Rainfall nowcast cache layer
+│   ├── devWarningSimulator.ts # Dev-only simulated warnings (useSyncExternalStore)
 │   ├── weather-manager.ts     # Unified gateway (parallel fetch, merge, fallback)
-│   ├── constants.ts           # STORAGE_KEYS and TIMING maps
+│   ├── queryPersistence.ts    # React Query localStorage persistence
+│   ├── units.ts               # Unit conversion (°C→°F, km/h→mph, mm→in)
+│   ├── constants.ts           # STORAGE_KEYS, QUIET thresholds, TIMING
 │   ├── fetch-utils.ts         # fetchWithTimeout
+│   ├── parsers.ts             # Generic data parsing utilities
+│   ├── log.ts                 # Diagnostic logging abstraction
+│   ├── sw-observability.ts    # Service worker metrics
 │   └── utils.ts               # cn(), formatting helpers
 ├── pages/             # Route components
-│   ├── Index.tsx               # Main dashboard (297 LOC)
+│   ├── Index.tsx               # Main dashboard
 │   └── NotFound.tsx            # 404
 ├── test/              # Vitest setup + integration suite
 │   ├── setup.ts
 │   └── Integration.test.tsx
-├── lib/__fixtures__/          # Live HKO warnsum snapshots for regression tests (README inside)
-├── components/*.test.tsx        # Component unit tests (11 files)
-├── lib/*.test.ts                # API/parsing unit tests (8 files)
-├── contexts/*.test.tsx          # Context tests (3 files)
-├── hooks/*.test.ts              # Hook tests (1 file)
+├── lib/__fixtures__/          # Live HKO warnsum snapshots for regression tests
+├── components/*.test.tsx        # Component unit tests
+├── lib/*.test.ts                # API/parsing unit tests
+├── contexts/*.test.tsx          # Context tests
+├── hooks/*.test.ts              # Hook tests
+├── pages/*.test.tsx             # Page tests
 ├── App.tsx             # Providers, router, error boundary
 └── main.tsx            # Application entry point
 ```
@@ -110,7 +127,7 @@ src/
 
 ### Prerequisites
 
-- Node.js 18+ (Vite 5 requirement)
+- Node.js 20+
 - npm or pnpm
 
 ### Installation
@@ -151,8 +168,8 @@ npm test            # Vitest (single run: add --run)
 ### Carto basemap
 
 Set `VITE_CARTO_API_KEY` in the deployment environment to authenticate Carto
-raster basemap requests. The app logs a console warning when the variable is
-missing and falls back to the unauthenticated URL.
+vector basemap requests. The app logs a console warning when the variable is
+missing and falls back to unauthenticated OSM tiles.
 
 ### Open-Meteo (primary)
 - Free, open-source weather API
@@ -212,8 +229,10 @@ HKO warnings render as compact icons in the top bar; clicking opens a modal with
 ### Gridded rainfall nowcast
 - HKO gridded rainfall data visualized on an interactive MapLibre map
 - Covers Hong Kong and the Pearl River Delta (Shenzhen, Guangzhou, Macau, Zhuhai; extends into Guangdong, China)
-- Forecast step controls sit directly above the map: Play/Pause button, the active `Forecast Step` label (formatted HH:MM), the timeline slider, and clickable per-step buttons. Layout is `flex-col` on mobile and `flex-row` on `md+` so the slider can stretch the full width.
+- Forecast step controls sit directly above the map: Play/Pause button, the active `Forecast Step` label (formatted HH:MM), the timeline slider, and clickable per-step buttons.
 - Map follows underneath with the active timestep's color-bucketed GeoJSON overlay
+- MSC (Macau) rainfall tile layer via WMS, rendered through `MSCRainfallMap`
+- Carto basemap support for vector tiles when `VITE_CARTO_API_KEY` is set
 - Precise ending timestamps are derived from raw CSV `endTime` values
 - User location blue pin marker with automatic map zoom to data extent
 - Scroll wheel zoom, double-click zoom, and zoom controls
@@ -226,13 +245,13 @@ The application persists the following to `localStorage`:
 - `weather-recent-cities`: up to 3 recent cities (capped, MRU)
 - `weather-language`: user language preference (`'en' | 'tc'`)
 - `theme-mode`: user theme preference (`'light' | 'dark' | 'auto'`)
-- `weather-last-known-v1`: schema-versioned envelope of the last successful weather fetch. Read synchronously at mount as the cold-start seed for instant first paint; cleared on city switch; overwritten on every successful fetch.
-- `weather-units`: preferred unit system, `'metric'` (default: °C / km/h / mm) or `'us'` (°F / mph / in). Read at provider mount, written on toggle.
+- `weather-last-known-v1`: schema-versioned, lz-string compressed envelope of the last successful weather fetch. Read synchronously at mount as the cold-start seed; cleared on city switch; overwritten on every successful fetch.
+- `weather-units`: preferred unit system, `'metric'` (default: °C / km/h / mm) or `'us'` (°F / mph / in). Read at `UnitsContext` mount, written on toggle.
 
 Cache strategy is a three-tier design:
 
-1. **`localStorage` last-known snapshot.** Synchronous read at mount, schema-versioned, cleared on city switch
-2. **React Query.** Per-tab in-memory, the single source of truth at runtime. Per-source TTLs (OM 5min current, OM 30min daily, HKO 1min warnings, geocoding 7d) collapse to 1 min when any source has failed
+1. **`localStorage` last-known snapshot.** Synchronous read at mount, lz-string compressed, cleared on city switch
+2. **React Query.** Per-tab in-memory, the single source of truth at runtime. Per-source TTLs (OM 5min current, OM 30min daily, HKO 1min warnings, geocoding 7d) collapse to 1 min when any source has failed. Persistence via `@tanstack/query-sync-storage-persister` bridges page reloads.
 3. **Workbox service worker.** Cross-session `NetworkFirst` cache, 50 entries / 24h per bucket, replayed when fully offline
 
 All icon assets (map marker, 20 HKO warning GIFs) are locally hosted under `public/icons/`. No external CDN dependencies.
@@ -270,13 +289,8 @@ What's in place today:
 - **Charts.** each Recharts SVG has an `aria-label` and an accompanying `sr-only <table>` exposing the same data points to screen readers
 - **Color contrast.** semantic severity tokens (`--severity-warning-fg`, `--severity-success-fg`, `--severity-error-fg`, `--severity-info-fg`) at ≥5.5:1 on cream, and a deeper `--muted-foreground` (28% light / 52% dark) so `/50`, `/60`, `/70` subdivisions clear 4.5:1
 - **Keyboard.** visible `focus-visible:ring-2` ring on every interactive element; explicit `aria-current` on RainfallMap time-step buttons; `<h1>` in `NotFound.tsx` programmatically focuses on mount
+- **Quiet shelf.** Below-threshold metric chips (precip, humidity, UV, wind) use `aria-label` to carry full values; tap/toggle reveals detail on focus (WCAG 1.4.13)
 
-Remaining work (Phase 3-6 of the plan): non-color cues inside visualization widgets, `prefers-reduced-motion` guards on all animations, `DropdownMenuRadioGroup` for theme/language picker, and Playwright + `@axe-core` e2e coverage.
+Remaining work: non-color cues inside visualization widgets, `prefers-reduced-motion` guards on all animations, and Playwright + `@axe-core` e2e coverage.
 
-## License
 
-This project is built with Lovable and uses open-source libraries. Please refer to individual package licenses.
-
-## Support
-
-For issues and feature requests, please contact through the Lovable platform or your project repository.
