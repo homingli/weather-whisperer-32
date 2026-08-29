@@ -384,7 +384,7 @@ describe('fetchWeather orchestration', () => {
   });
 
   // ── Phase 2: headline propagation ───────────────────────────────
-  // See handoff/hko-headline-icon-plan.md Phase 2 step 3. The headline
+  // The headline
   // field is always present on the merged record. source is 'hko' only
   // when the HKO current fetch succeeded AND its icon field is a finite
   // integer other than the 9999 sentinel.
