@@ -12,6 +12,7 @@ import { MSCRainfallMap } from './MSCRainfallMap';
 import MSCRainfallMapInner from './MSCRainfallMapInner';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { formatStepTime } from '@/lib/msc-wms';
+import { cartoRasterUrl } from '@/lib/carto';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
 // Controls whether the mocked WMS tile batch simulates a fully-failed load
@@ -216,8 +217,8 @@ describe('MSCRainfallMapInner', () => {
     renderWithProviders(<MSCRainfallMapInner />);
     await stepButtons();
 
-    const lightUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png';
-    const darkUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png';
+    const lightUrl = cartoRasterUrl('light_all');
+    const darkUrl = cartoRasterUrl('dark_all');
     expect(screen.getByTestId('tile-layer').getAttribute('data-url')).toBe(lightUrl);
 
     fireEvent.click(screen.getByRole('button', { name: /Switch basemap/i }));
