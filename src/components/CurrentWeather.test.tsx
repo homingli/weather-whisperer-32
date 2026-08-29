@@ -235,7 +235,7 @@ describe('CurrentWeather Component', () => {
   });
 
   // ── Phase 3 + 5: HKO headline swap ───────────────────────────────────
-  // handoff/hko-headline-icon-plan.md Phase 5 step 3. The headline icon +
+  // The headline icon +
   // label swap to HKO-native phrasing when the `weather-manager` reports
   // `headline.source === 'hko'` with a valid `hkoIconCode`. The OM path
   // is unchanged.

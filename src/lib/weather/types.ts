@@ -133,7 +133,7 @@ export type SourceId = 'om' | 'hko';
 /**
  * Polymorphic headline carrier. `source` discriminates which code set the
  * `CurrentWeather` hero should read; `hkoIconCode` is meaningful only when
- * `source === 'hko'`. See `handoff/hko-headline-icon-plan.md` Decision 5.
+ * `source === 'hko'`.
  */
 export interface HeadlineInfo {
   source: 'hko' | 'om';
