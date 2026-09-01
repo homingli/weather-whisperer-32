@@ -307,6 +307,7 @@ const Index = () => {
                         weather={weather.current ?? PLACEHOLDER_CURRENT}
                         hourlyForecast={weather.hourly || []}
                         dailyForecast={weather?.daily?.[0]}
+                        tomorrowSunrise={weather?.daily?.[1]?.sunrise}
                         locationName={selectedCity?.name}
                         timezone={weather.timezone}
                         headline={weather.headline}
@@ -363,6 +364,7 @@ const Index = () => {
                       weather={weather.current ?? PLACEHOLDER_CURRENT}
                       hourlyForecast={weather.hourly || []}
                       dailyForecast={weather?.daily?.[0]}
+                      tomorrowSunrise={weather?.daily?.[1]?.sunrise}
                       locationName={selectedCity?.name}
                       timezone={weather.timezone}
                       headline={weather.headline}
