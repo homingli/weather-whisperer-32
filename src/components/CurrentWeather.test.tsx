@@ -4,7 +4,7 @@ import { CurrentWeather } from './CurrentWeather';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitsProvider, useUnits } from '@/contexts/UnitsContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { CurrentWeather as CurrentWeatherType, HourlyForecast as HourlyForecastType } from '@/lib/weather';
+import { CurrentWeather as CurrentWeatherType, HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from '@/lib/weather';
 
 const mockWeather: CurrentWeatherType = {
   temperature: 20,
@@ -232,6 +232,54 @@ describe('CurrentWeather Component', () => {
     // aria-label for the bar includes the band name.
     expect(container.querySelector('[aria-label*="0.08"]')).toBeTruthy();
     expect(container.querySelector('[aria-label*="0.2 – 0.4 in"]')).toBeNull();
+  });
+
+  it('uses exact sun timestamps after sunrise and when switching timezone/location', () => {
+    vi.setSystemTime(new Date('2024-01-08T06:10:00Z'));
+    const daily = (sunrise: Date | string, sunset: Date | string): DailyForecastType => ({
+      date: new Date('2024-01-08T00:00:00Z'),
+      temperatureMax: 20,
+      temperatureMin: 10,
+      weatherCode: 0,
+      windSpeedMax: 10,
+      windDirectionDominant: 180,
+      precipitationProbabilityMax: 0,
+      sunrise: sunrise as Date,
+      sunset: sunset as Date,
+    });
+    const staleDay = { ...mockWeather, isDay: false };
+    const { container, rerender } = renderWithLanguage(
+      <CurrentWeather
+        weather={staleDay}
+        hourlyForecast={mockHourly}
+        dailyForecast={daily(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z'))}
+        timezone="UTC"
+        headline={{ source: 'om' }}
+      />
+    );
+
+    expect(container.textContent).toContain('Sunset');
+    expect(container.textContent).toContain('in 11h 50m');
+    expect(container.textContent).toContain('06:00 PM');
+
+    rerender(
+      <LanguageProvider>
+        <UnitsProvider>
+          <CurrentWeather
+            weather={staleDay}
+            hourlyForecast={mockHourly}
+            dailyForecast={daily('2024-01-07T14:00:00Z', '2024-01-08T02:00:00Z')}
+            tomorrowSunrise="2024-01-08T14:00:00Z"
+            timezone="America/Los_Angeles"
+            headline={{ source: 'om' }}
+          />
+        </UnitsProvider>
+      </LanguageProvider>
+    );
+
+    expect(container.textContent).toContain('Sunrise');
+    expect(container.textContent).toContain('in 7h 50m');
+    expect(container.textContent).toContain('06:00 AM');
   });
 
   // ── Phase 3 + 5: HKO headline swap ───────────────────────────────────
