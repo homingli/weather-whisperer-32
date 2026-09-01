@@ -52,6 +52,10 @@ interface CurrentWeatherProps {
   /** Mobile-only swiper layout: tighter padding, centered hero with
    *  icon and apparent-temp side-by-side. */
   compact?: boolean;
+  /** Tomorrow's sunrise (daily[1]). Once today's sunset has passed, the
+   *  countdown points at this instead of approximating with today's
+   *  sunrise + 24h. */
+  tomorrowSunrise?: Date | string | number;
 }
 
 /**
@@ -140,8 +144,8 @@ function rainfallBandIndexFor(mm: number, units: Units): number {
   return bands.length - 1;
 }
 
-export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone, compact = false, headline }: CurrentWeatherProps) => {
-  const { language, t } = useLanguage();
+export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone, compact = false, headline, tomorrowSunrise }: CurrentWeatherProps) => {
+  const { t } = useLanguage();
   const { units } = useUnits();
   const root = useRef<HTMLDivElement>(null);
 
@@ -153,29 +157,6 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
     const firstRainyHour = next6Hours.find(hour => hour.precipitationProbability >= 25);
     return isCurrentlyRaining || !!firstRainyHour;
   }, [weather, hourlyForecast]);
-
-  const locale = appLocale(language);
-  const hour12 = language !== 'tc';
-
-  const sunEvent = useMemo(() => {
-    if (!dailyForecast || !dailyForecast.sunrise || !dailyForecast.sunset) return null;
-    if (weather.isDay) {
-      return {
-        type: 'sunset' as const,
-        time: formatInTimezone(new Date(dailyForecast.sunset), locale, {
-          timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12,
-        }),
-        icon: Sunset,
-      };
-    }
-    return {
-      type: 'sunrise' as const,
-      time: formatInTimezone(new Date(dailyForecast.sunrise), locale, {
-        timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12,
-      }),
-      icon: Sunrise,
-    };
-  }, [dailyForecast, weather.isDay, locale, timezone, hour12]);
 
   const uvBand = useMemo(() => uvBandFor(weather.uvIndex), [weather.uvIndex]);
   const humidityPct = isEmpty ? 0 : Math.max(0, Math.min(100, weather.humidity));
@@ -309,10 +290,9 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           valueTone={needsUmbrella ? 'text-severity-info' : 'text-muted-foreground/80'}
         />
         <SunriseSunsetCountdown
-          type={sunEvent?.type ?? 'sunset'}
-          time={sunEvent?.time ?? '—:—'}
-          icon={sunEvent?.icon ?? Sunset}
-          empty={!sunEvent}
+          sunrise={dailyForecast?.sunrise}
+          sunset={dailyForecast?.sunset}
+          nextSunrise={tomorrowSunrise}
           timezone={timezone}
         />
       </div>
@@ -448,87 +428,103 @@ function RangeBar({
 
 /* ── Sunrise / sunset countdown: "in 4h 32m" with HH:MM subtext ─────── */
 
+/** HKO-only fallback seeds sun times with epoch-0 sentinels; anything at or
+ *  before the epoch is no-data, not an event. JSON-persisted weather data
+ *  carries these values as ISO strings, so normalize at this boundary. */
+function toValidSunDate(value: Date | string | number | undefined | null): Date | undefined {
+  const date = value instanceof Date ? value : value == null ? undefined : new Date(value);
+  return date && Number.isFinite(date.getTime()) && date.getTime() > 0 ? date : undefined;
+}
+
 /**
- * Compute hours/minutes remaining until `timeStr` (HH:MM, optional AM/PM)
- * in the location's `timezone`. Falls back to browser local time when no
- * timezone is supplied.
- *
- * The Intl.DateTimeFormat path lets us compare clock times in a timezone
- * other than the user's browser, which is necessary when the displayed
- * sunrise is for a remote city.
+ * Pick the next sun event from the exact sunrise/sunset timestamps and the
+ * client clock — NOT from the API's `is_day` flag. Open-Meteo anchors
+ * `current` (including `is_day`) to a 15-minute grid, so just after a
+ * 06:06 sunrise the flag can still say night until the 06:15 slot; the
+ * widget then pointed at a sunrise that had already happened and wrapped
+ * the countdown +24h ("sunrise in 23h 55m"). The daily timestamps are
+ * minute-exact, and the caller re-evaluates on a minute tick so the
+ * indicator flips on time even between data refreshes.
  */
-function diffToSunTime(
-  timeStr: string,
-  timezone: string | undefined,
-): { hours: number; minutes: number; isNow: boolean } {
-  const m = /^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i.exec(timeStr);
-  if (!m) return { hours: 0, minutes: 0, isNow: false };
-
-  let targetH = Number(m[1]);
-  const targetM = Number(m[2]);
-  const ampm = m[3]?.toUpperCase();
-  if (ampm === 'PM' && targetH < 12) targetH += 12;
-  if (ampm === 'AM' && targetH === 12) targetH = 0;
-
-  let nowH: number;
-  let nowM: number;
-  if (timezone) {
-    const fmt = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: false,
-    });
-    const parts = fmt.formatToParts(new Date());
-    nowH = Number(parts.find((p) => p.type === 'hour')?.value) % 24;
-    nowM = Number(parts.find((p) => p.type === 'minute')?.value);
-  } else {
-    const now = new Date();
-    nowH = now.getHours();
-    nowM = now.getMinutes();
-  }
-
-  let diffMin = targetH * 60 + targetM - (nowH * 60 + nowM);
-  if (diffMin <= 0) diffMin += 24 * 60;
-
-  return {
-    hours: Math.floor(diffMin / 60),
-    minutes: diffMin % 60,
-    isNow: diffMin <= 1,
-  };
+function nextSunEvent(
+  now: number,
+  sunrise: Date,
+  sunset: Date,
+  nextSunrise: Date | undefined,
+): { type: 'sunrise' | 'sunset'; at: Date } {
+  if (now < sunrise.getTime()) return { type: 'sunrise', at: sunrise };
+  if (now < sunset.getTime()) return { type: 'sunset', at: sunset };
+  // Past today's sunset: prefer tomorrow's sunrise from the forecast;
+  // without it, today's + 24h stays approximately right (sunrise drifts
+  // ~1 min/day).
+  const fallbackDays = Math.max(1, Math.floor((now - sunrise.getTime()) / (24 * 3600_000)) + 1);
+  const next = nextSunrise && nextSunrise.getTime() > now
+    ? nextSunrise
+    : new Date(sunrise.getTime() + fallbackDays * 24 * 3600_000);
+  return { type: 'sunrise', at: next };
 }
 
 function SunriseSunsetCountdown({
-  type, time, icon: Icon, empty, timezone,
+  sunrise, sunset, nextSunrise, timezone,
 }: {
-  type: 'sunrise' | 'sunset';
-  time: string;
-  icon: React.ComponentType<{ className?: string }>;
-  empty: boolean;
+  sunrise?: Date | string | number;
+  sunset?: Date | string | number;
+  nextSunrise?: Date | string | number;
   timezone?: string;
 }) {
-  const { t } = useLanguage();
-  const [, setNow] = useState(() => Date.now());
+  const { language, t } = useLanguage();
+  const [now, setNow] = useState(() => Date.now());
 
-  // Re-tick every minute so the countdown stays current.
+  // Re-tick every minute so both the event choice and the countdown stay
+  // current — the widget must flip at sunrise/sunset even when the last
+  // data refresh predates the flip.
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
 
-  const countdown = useMemo(() => {
-    if (empty) return { text: "—", isNow: false };
-    const { hours: hrs, minutes: mins, isNow } = diffToSunTime(time, timezone);
-    const text = isNow
+  // Rebase immediately when new location data arrives. This avoids using
+  // the previous location's last minute tick during a city/timezone switch.
+  useEffect(() => {
+    setNow(Date.now());
+  }, [sunrise, sunset, nextSunrise, timezone]);
+
+  const locale = appLocale(language);
+  const hour12 = language !== 'tc';
+  const sunriseDate = toValidSunDate(sunrise);
+  const sunsetDate = toValidSunDate(sunset);
+  const nextSunriseDate = toValidSunDate(nextSunrise);
+  const empty = !sunriseDate || !sunsetDate;
+
+  const { type, time, text } = useMemo(() => {
+    if (empty || !sunriseDate || !sunsetDate) {
+      return { type: 'sunset' as const, time: '—:—', text: '—' };
+    }
+    const event = nextSunEvent(
+      now,
+      sunriseDate,
+      sunsetDate,
+      nextSunriseDate,
+    );
+    const time = formatInTimezone(event.at, locale, {
+      timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12,
+    });
+    // Exact-ms diff to the chosen event; selection guarantees it is ahead
+    // of `now`, so no wraparound is needed.
+    const diffMin = Math.floor((event.at.getTime() - now) / 60_000);
+    const hrs = Math.floor(diffMin / 60);
+    const mins = diffMin % 60;
+    const text = diffMin < 1
       ? t('sun.now')
       : hrs > 0 && mins > 0
         ? formatString(t('sun.inHoursMinutes'), String(hrs), String(mins))
         : hrs > 0
           ? formatString(t('sun.inHours'), String(hrs))
           : formatString(t('sun.inMinutes'), String(mins));
-    return { text, isNow };
-  }, [time, empty, timezone, t]);
+    return { type: event.type, time, text };
+  }, [empty, sunriseDate, sunsetDate, nextSunriseDate, now, locale, timezone, hour12, t]);
 
+  const Icon = type === 'sunrise' ? Sunrise : Sunset;
   const label = t(type === 'sunrise' ? 'daily.sunrise' : 'daily.sunset');
 
   // Theme-tinted countdown value, calibrated to pass 3:1 on cream (large
@@ -550,7 +546,7 @@ function SunriseSunsetCountdown({
         className="font-display text-2xl md:text-3xl font-light tabular-nums leading-tight"
         style={{ color: empty ? undefined : tone }}
       >
-        {empty ? '—' : countdown.text}
+        {empty ? '—' : text}
       </div>
       <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
         {empty ? '—' : time}
