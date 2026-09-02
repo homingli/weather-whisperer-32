@@ -111,11 +111,9 @@ export const WeatherAlerts = memo(function WeatherAlerts({
               onClick={() => setSelectedWarning(warning)}
               className={cn(
                 /* WCAG 2.5.5 Level AAA: 44×44 CSS pixel tap target. Mobile 44×44
-                   (w-11 h-11) with 28px icons (w-7 h-7) keeps the header row
-                   compact on 360px viewports while meeting AAA. Desktop sm+
-                   reverts to 48×48 with 32px icons for visual breathing room
-                   (also AAA). */
-                'min-h-[2.75rem] w-11 h-11 sm:min-h-[3rem] sm:w-12 sm:h-12 flex items-center justify-center rounded-md transition-colors hover:bg-red-500/10',
+                   (w-11 h-11) keeps the header row compact on 360px viewports;
+                   desktop matches the 56×56 hamburger button. */
+                'min-h-[2.75rem] w-11 h-11 sm:min-h-[3.5rem] sm:w-14 sm:h-14 flex items-center justify-center rounded-md transition-colors hover:bg-red-500/10',
                 shouldPulse && 'animate-warning-pulse',
               )}
               title={t(`warnings.${warning.code}`, warning.name)}

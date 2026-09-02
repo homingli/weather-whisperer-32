@@ -163,8 +163,8 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
   const windDeg = isEmpty ? 0 : weather.windDirection;
 
   /* Quiet shelf — metrics below their attention thresholds (QUIET in
-     lib/constants) collapse to icon-only chips; hover/tap/focus reveals the
-     value. Empty data is a separate state (legacy grid with dashes). */
+     lib/constants) stay visible as compact, expanded rows. Empty data is a
+     separate state (legacy grid with dashes). */
   const quietItems = useMemo<QuietItem[]>(() => {
     if (isEmpty) return [];
     const mm = weather.precipitation ?? 0;
@@ -197,14 +197,8 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
       ref={root}
       className={`editorial-card ${compact ? 'overflow-x-hidden overflow-y-auto p-6 overscroll-contain' : 'overflow-hidden p-6 md:p-8 lg:p-10'}`}
     >
-      <div className={`flex items-baseline justify-between gap-4 cw-fade ${compact ? '' : 'mb-4'}`}>
-        <span className="kicker text-muted-foreground">{t('header.dailyEdition')}</span>
-      </div>
-
-      <div className="cw-rule h-px editorial-rule mb-5" />
-
-      {/* Today's temperature range sits above the hero so the day's low/high context is set before the headline number. */}
-      <div className="mb-5 cw-fade">
+      {/* Temperature range leads the hero, setting the day's context first. */}
+      <div className="mb-6 cw-fade">
         <RangeBar
           low={dailyForecast?.temperatureMin}
           high={dailyForecast?.temperatureMax}
@@ -212,18 +206,21 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           label={t('label.temperature')}
           empty={isEmpty}
           units={units}
+          umbrellaIcon={needsUmbrella ? Umbrella : UmbrellaOff}
         />
       </div>
 
-      {/* Feels-like kicker above the hero so the big number is read as apparent temperature. */}
-      <p className={`cw-fade kicker text-muted-foreground mb-2 ${compact ? 'text-center' : 'md:text-left'}`}>
-        {t('weather.feelsLike')}
-      </p>
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(16rem,auto)] md:items-center md:gap-x-10">
+        <div>
+          {/* Feels-like kicker above the hero so the big number is read as apparent temperature. */}
+          <p className={`cw-fade kicker text-muted-foreground mb-2 ${compact ? 'text-center' : 'md:text-left'}`}>
+            {t('weather.feelsLike')}
+          </p>
 
-      {/* Hero — compact mode: icon + apparent-temp side-by-side, centered (mobile swiper).
-          Desktop mode: 2-col with temp on the left, icon + conditions on the right. */}
-      {compact ? (
-        <div className="flex flex-col gap-6">
+          {/* Hero — compact mode: icon + apparent-temp side-by-side, centered (mobile swiper).
+              Desktop mode: 2-col with temp on the left, icon + conditions on the right. */}
+          {compact ? (
+            <div className="flex flex-col gap-6">
           <div className="flex items-center justify-center gap-6">
             {(() => {
               const Icon = headlineRender.Icon;
@@ -253,9 +250,9 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           <p className="cw-fade text-center font-display italic text-xl text-muted-foreground">
             {t(headlineRender.labelKey)}
           </p>
-        </div>
-      ) : (
-        <header className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
+            </div>
+          ) : (
+            <header className="grid gap-6 md:grid-cols-[auto_auto] md:items-end md:justify-start">
           <div className="overflow-hidden min-w-0">
             <h1 className="cw-rise block font-display text-[clamp(80px,14vw,160px)] leading-[0.85] font-light tracking-[-0.04em]">
               {formatHeroTemperature(weather.apparentTemperature, units, SENTINEL_THRESHOLD)}
@@ -276,32 +273,27 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
               {t(headlineRender.labelKey)}
             </p>
           </div>
-        </header>
-      )}
+            </header>
+          )}
+        </div>
 
-      <div className="cw-rule h-px editorial-rule my-6" />
+        <div className="order-2 mt-6 md:order-none md:mt-0 md:justify-self-end">
+          <SunriseSunsetCountdown
+            sunrise={dailyForecast?.sunrise}
+            sunset={dailyForecast?.sunset}
+            nextSunrise={tomorrowSunrise}
+            timezone={timezone}
+          />
+        </div>
 
-      {/* Mid section — umbrella + sunrise/sunset */}
-      <div className={`grid gap-x-10 gap-y-4 cw-fade ${compact ? 'grid-cols-2' : 'md:grid-cols-2'}`}>
-        <FactBlock
-          icon={needsUmbrella ? Umbrella : UmbrellaOff}
-          label={t('umbrella.label')}
-          value={needsUmbrella ? t('umbrella.yes') : t('umbrella.no')}
-          valueTone={needsUmbrella ? 'text-severity-info' : 'text-muted-foreground/80'}
-        />
-        <SunriseSunsetCountdown
-          sunrise={dailyForecast?.sunrise}
-          sunset={dailyForecast?.sunset}
-          nextSunrise={tomorrowSunrise}
-          timezone={timezone}
-        />
+        <div className="order-1 cw-rule h-px editorial-rule my-6 md:order-none md:col-span-2" />
       </div>
 
-      <div className="cw-rule h-px editorial-rule my-6" />
+      <div className="cw-rule h-px editorial-rule my-6 md:hidden" />
 
       {/* Bottom section — full widgets for metrics that need attention.
-          Quiet metrics (below QUIET thresholds) are distilled to the
-          icon-only shelf below: data present, nothing to act on. Empty
+          Quiet metrics (below QUIET thresholds) stay in the
+          expanded shelf below: data present, nothing to act on. Empty
           data keeps the legacy 4-widget grid with dashes. */}
       {isEmpty ? (
         <div className={`grid gap-x-10 gap-y-6 cw-fade ${compact ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
@@ -350,39 +342,10 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
 
 CurrentWeather.displayName = 'CurrentWeather';
 
-/* ── Fact block (icon + label + value) ──────────────────────────────── */
-interface FactBlockProps {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  rotation?: number;
-  iconClass?: string;
-  valueTone?: string;
-}
-
-function FactBlock({ icon: Icon, label, value, rotation, iconClass, valueTone }: FactBlockProps) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2 kicker text-muted-foreground">
-        <span
-          className={iconClass ?? 'text-foreground'}
-          style={rotation != null ? { transform: `rotate(${rotation}deg)`, display: 'inline-block' } : undefined}
-        >
-          <Icon className="h-3.5 w-3.5" />
-        </span>
-        <span>{label}</span>
-      </div>
-      <div className={`font-display text-2xl md:text-3xl font-light tabular-nums leading-tight ${valueTone ?? ''}`}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
 /* ── Temperature range bar: low ── current ── high ──────────────────── */
 function RangeBar({
-  low, high, current, label, empty, units,
-}: { low?: number; high?: number; current: number; label: string; empty: boolean; units: Units }) {
+  low, high, current, label, empty, units, umbrellaIcon: UmbrellaIcon,
+}: { low?: number; high?: number; current: number; label: string; empty: boolean; units: Units; umbrellaIcon: LucideIcon }) {
   const lo = low ?? current;
   const hi = high ?? current;
   const range = Math.max(hi - lo, 0.1);
@@ -413,10 +376,12 @@ function RangeBar({
         background: "linear-gradient(90deg, #3b82f6 0%, #06b6d4 35%, #eab308 65%, #ef4444 100%)",
       }} aria-hidden="true">
         <div
-          className="absolute -top-1.5 -translate-x-1/2 h-5 w-5 rotate-45 border border-foreground bg-background"
+          className="absolute -top-3 -translate-x-1/2 h-6 w-6 text-foreground"
           style={{ left: `${currentPct}%` }}
           aria-hidden
-        />
+        >
+          <UmbrellaIcon className="h-6 w-6 border border-foreground bg-background p-0.5" strokeWidth={1.75} />
+        </div>
       </div>
       <div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
         <span>{loStr}</span>
@@ -797,17 +762,7 @@ function PrecipBar({
   );
 }
 
-/* ── Quiet shelf: icon-only chips for metrics below attention thresholds ─
- * At rest the shelf is a row of small muted icons — "we have the data, but
- * nothing to act on". The value is revealed inline next to the icon on:
- *   - pointer hover (150ms in / 350ms out, so a sweeping cursor doesn't
- *     strobe the row),
- *   - tap (pins/unpins — touch has no hover),
- *   - keyboard focus (WCAG 1.4.13 — content on hover must also appear on
- *     focus and stay until blur).
- * The chip's aria-label always carries the full reading, so the collapsed
- * value is never missing from the accessibility tree.
- */
+/* ── Quiet shelf: expanded compact metrics below attention thresholds ── */
 type QuietKey = 'precip' | 'uv' | 'humidity' | 'wind';
 
 interface QuietItem {
@@ -820,9 +775,6 @@ interface QuietItem {
   /** Localized, unit-formatted value, e.g. "2 km/h" / "0.2 mm". */
   value: string;
 }
-
-const QUIET_REVEAL_IN_MS = 150;
-const QUIET_REVEAL_OUT_MS = 350;
 
 function QuietShelf({ items, groupLabel }: { items: QuietItem[]; groupLabel: string }) {
   return (
@@ -839,59 +791,16 @@ function QuietShelf({ items, groupLabel }: { items: QuietItem[]; groupLabel: str
 }
 
 function QuietChip({ id, Icon, label, value }: QuietItem) {
-  const [engaged, setEngaged] = useState(false); // pointer hover or keyboard focus
-  const [pinned, setPinned] = useState(false); // tap-to-pin (touch)
-  const [showing, setShowing] = useState(false);
-  const timer = useRef<number | null>(null);
-  const want = engaged || pinned;
-
-  // Reveal with enter/exit delay. `showing` in the deps means the effect
-  // re-arms when the reveal completes; the cleanup clears any pending
-  // timer so rapid enter/leave sequences collapse to one settle.
-  useEffect(() => {
-    if (timer.current != null) {
-      window.clearTimeout(timer.current);
-      timer.current = null;
-    }
-    if (want && !showing) {
-      timer.current = window.setTimeout(() => setShowing(true), QUIET_REVEAL_IN_MS);
-    } else if (!want && showing) {
-      timer.current = window.setTimeout(() => setShowing(false), QUIET_REVEAL_OUT_MS);
-    }
-    return () => {
-      if (timer.current != null) {
-        window.clearTimeout(timer.current);
-        timer.current = null;
-      }
-    };
-  }, [want, showing]);
-
   return (
-    <button
-      type="button"
+    <div
       data-testid={`quiet-${id}`}
       aria-label={`${label}: ${value}`}
-      aria-expanded={showing}
-      onMouseEnter={() => setEngaged(true)}
-      onMouseLeave={() => setEngaged(false)}
-      onFocus={() => setEngaged(true)}
-      onBlur={() => setEngaged(false)}
-      onClick={() => setPinned((p) => !p)}
-      className="group inline-flex items-center rounded-full outline-none focus-visible:ring-1 focus-visible:ring-foreground/40"
+      className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] tabular-nums text-muted-foreground"
     >
       <Icon className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
-      {/* aria-hidden: the button's aria-label already reads label + value.
-          max-w animates 0 → 240px so the row reflow is smooth; the text is
-          in the DOM (and aria tree) at rest but clipped — screen readers
-          use the aria-label instead. */}
-      <span
-        aria-hidden="true"
-        className={`overflow-hidden whitespace-nowrap text-[11px] uppercase tracking-[0.18em] tabular-nums text-muted-foreground transition-all duration-200 ease-out motion-reduce:transition-none ${
-          showing ? 'max-w-[240px] pl-1.5 opacity-100' : 'max-w-0 pl-0 opacity-0'
-        }`}
-      >
+      <span>
         {label} {value}
       </span>
-    </button>
+    </div>
   );
 }
