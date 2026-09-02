@@ -1,5 +1,5 @@
 import { useState, KeyboardEvent } from 'react';
-import { Menu, Sun, Moon, SunMoon, Search, LocateFixed, MapPin, RefreshCw } from 'lucide-react';
+import { Menu, Sun, Moon, SunMoon, Search, LocateFixed, MapPin, RefreshCw, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -7,9 +7,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -34,11 +31,19 @@ interface SettingsMenuProps {
   onRefresh?: () => Promise<void>;
 }
 
+interface PillOption<T extends string> {
+  value: T;
+  label: string;
+  /** Optional leading icon (e.g. theme Sun/Moon/SunMoon) — hidden from AT. */
+  icon?: LucideIcon;
+}
+
 /**
- * Segmented pill toggle. Used for both Units and Language — any 2- or 3-way
- * exclusive choice. Implemented as a radio group for a11y (role=radiogroup /
- * role=radio + aria-checked) instead of using DropdownMenuItem, because the
- * two states are mutually exclusive and the active option is always visible.
+ * Segmented pill toggle. Used for Theme, Units and Language — any 2- or
+ * 3-way exclusive choice. Implemented as a radio group for a11y (role=
+ * radiogroup / role=radio + aria-checked) instead of using DropdownMenuItem,
+ * because the states are mutually exclusive and the active option is always
+ * visible.
  */
 function PillToggle<T extends string>({
   label,
@@ -48,7 +53,7 @@ function PillToggle<T extends string>({
 }: {
   label: string;
   value: T;
-  options: { value: T; label: string }[];
+  options: PillOption<T>[];
   onChange: (next: T) => void;
 }) {
   // Arrow-key navigation between radio buttons (a11y: standard radiogroup UX).
@@ -72,8 +77,7 @@ function PillToggle<T extends string>({
   };
 
   return (
-    <div className="flex flex-col gap-2 px-2 py-2">
-      <span className="text-sm text-muted-foreground font-normal">{label}</span>
+    <div className="px-2 py-1.5">
       <div
         role="radiogroup"
         aria-label={label}
@@ -82,6 +86,7 @@ function PillToggle<T extends string>({
       >
         {options.map((opt, i) => {
           const active = opt.value === value;
+          const Icon = opt.icon;
           return (
             <button
               key={opt.value}
@@ -93,14 +98,15 @@ function PillToggle<T extends string>({
               className={cn(
                 // WCAG 2.5.5 Level AAA: 44×44 CSS pixel tap target. min-h-[2.75rem]
                 // (44px) keeps the toggle on a phone hit-zone; the icon-only
-                // icons above get the same treatment.
-                'flex-1 min-h-[2.75rem] px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                // actions get the same treatment.
+                'inline-flex flex-1 min-h-[2.75rem] items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 i > 0 && 'border-l border-border',
                 active
                   ? 'bg-foreground text-background'
                   : 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/60',
               )}
             >
+              {Icon && <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />}
               {opt.label}
             </button>
           );
@@ -134,9 +140,11 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
     }
   };
 
+  // Short labels — full names (淺色模式 / 深色模式) overflow the pill cells,
+  // and the leading icon makes each option scannable regardless.
   const themeLabels = {
-    light: language === 'tc' ? '淺色模式' : 'Light',
-    dark: language === 'tc' ? '深色模式' : 'Dark',
+    light: language === 'tc' ? '淺色' : 'Light',
+    dark: language === 'tc' ? '深色' : 'Dark',
     auto: language === 'tc' ? '自動' : 'Auto',
   };
 
@@ -193,36 +201,43 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-[280px] text-lg p-2">
-          {/* Location section */}
-          <DropdownMenuLabel className="text-sm text-muted-foreground font-normal px-2 py-2.5">
-            {language === 'tc' ? '位置' : 'Location'}
-          </DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => setSearchOpen(true)} className="gap-2.5 py-3">
-            <Search className="h-5 w-5" />
-            {t('search.city')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleRefreshLocation} disabled={isLocating} className="gap-2.5 py-3">
-            <LocateFixed className={`h-5 w-5 ${isLocating ? 'animate-spin' : ''}`} />
-            {t('search.useLocation')}
-          </DropdownMenuItem>
-          {filteredRecent.length > 0 && (
-            <>
-              {filteredRecent.map((city) => (
-                <DropdownMenuItem key={`${city.latitude}-${city.longitude}`} onClick={() => handleSelectCity(city)} className="gap-2.5 py-3">
-                  <MapPin className="h-5 w-5" />
-                  {city.name}
-                </DropdownMenuItem>
-              ))}
-            </>
-          )}
-
-          <DropdownMenuSeparator />
-
-          {/* Refresh section */}
-          <DropdownMenuItem onClick={handleRefreshData} disabled={isRefreshing} className="gap-2.5 py-3">
-            <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {t('data.refresh')}
-          </DropdownMenuItem>
+          {/* Primary actions — Current location / Search / Refresh data as
+              one segmented icon pill (same border styling as the Theme/
+              Units/Language pills below). */}
+          <div className="mx-2 mb-1 flex overflow-hidden rounded-md border border-border bg-background">
+            <DropdownMenuItem
+              onClick={handleRefreshLocation}
+              disabled={isLocating}
+              aria-label={t('search.useLocation')}
+              title={t('search.useLocation')}
+              className="flex-1 min-h-[2.75rem] justify-center rounded-none px-0 text-muted-foreground focus:bg-muted/60 focus:text-foreground data-[highlighted]:bg-muted/60 data-[highlighted]:text-foreground"
+            >
+              <LocateFixed aria-hidden="true" className={`h-5 w-5 ${isLocating ? 'animate-spin' : ''}`} />
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setSearchOpen(true)}
+              aria-label={t('search.city')}
+              title={t('search.city')}
+              className="flex-1 min-h-[2.75rem] justify-center rounded-none border-l border-border px-0 text-muted-foreground focus:bg-muted/60 focus:text-foreground data-[highlighted]:bg-muted/60 data-[highlighted]:text-foreground"
+            >
+              <Search aria-hidden="true" className="h-5 w-5" />
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleRefreshData}
+              disabled={isRefreshing}
+              aria-label={t('data.refresh')}
+              title={t('data.refresh')}
+              className="flex-1 min-h-[2.75rem] justify-center rounded-none border-l border-border px-0 text-muted-foreground focus:bg-muted/60 focus:text-foreground data-[highlighted]:bg-muted/60 data-[highlighted]:text-foreground"
+            >
+              <RefreshCw aria-hidden="true" className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </DropdownMenuItem>
+          </div>
+          {filteredRecent.map((city) => (
+            <DropdownMenuItem key={`${city.latitude}-${city.longitude}`} onClick={() => handleSelectCity(city)} className="gap-2.5 py-3">
+              <MapPin className="h-5 w-5" />
+              {city.name}
+            </DropdownMenuItem>
+          ))}
 
           <DropdownMenuSeparator />
 
@@ -236,33 +251,18 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
 
           <DropdownMenuSeparator />
 
-          {/* Theme section (3-way radio group — WCAG 4.1.2).
-              Previously three DropdownMenuItems with a Check icon for the
-              active one. Screen-reader users heard three unlabeled
-              checkboxes instead of a 1-of-3 radio group. The Radix
-              RadioGroup sets role="radiogroup" + role="radio" +
-              aria-checked, and the ItemIndicator dot replaces the
-              hand-managed Check icon. */}
-          <DropdownMenuLabel className="text-sm text-muted-foreground font-normal px-2 py-2.5">
-            {language === 'tc' ? '主題' : 'Theme'}
-          </DropdownMenuLabel>
-          <DropdownMenuRadioGroup
+          {/* Theme — same segmented pill as Units/Language. Icons keep the
+              3-way Auto/Light/Dark choice scannable with short labels. */}
+          <PillToggle
+            label={language === 'tc' ? '主題' : 'Theme'}
             value={mode}
-            onValueChange={(v) => setMode(v as 'light' | 'dark' | 'auto')}
-          >
-            <DropdownMenuRadioItem value="light" className="gap-2.5 py-3">
-              <Sun className="h-5 w-5" />
-              {themeLabels.light}
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="dark" className="gap-2.5 py-3">
-              <Moon className="h-5 w-5" />
-              {themeLabels.dark}
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="auto" className="gap-2.5 py-3">
-              <SunMoon className="h-5 w-5" />
-              {themeLabels.auto}
-            </DropdownMenuRadioItem>
-          </DropdownMenuRadioGroup>
+            options={[
+              { value: 'auto', label: themeLabels.auto, icon: SunMoon },
+              { value: 'light', label: themeLabels.light, icon: Sun },
+              { value: 'dark', label: themeLabels.dark, icon: Moon },
+            ]}
+            onChange={setMode}
+          />
 
           <DropdownMenuSeparator />
 

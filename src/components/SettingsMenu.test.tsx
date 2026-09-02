@@ -131,7 +131,7 @@ describe('SettingsMenu units + language pill toggles', () => {
   });
 });
 
-describe('SettingsMenu theme radio group (WCAG 4.1.2)', () => {
+describe('SettingsMenu theme pill toggle', () => {
   let user: UserEvent;
 
   beforeEach(() => {
@@ -152,36 +152,93 @@ describe('SettingsMenu theme radio group (WCAG 4.1.2)', () => {
       </TestProviders>,
     );
 
-  it('renders the theme picker as menuitemradio entries with 3 options', async () => {
+  it('renders the theme pill toggle with 3 options in Auto/Light/Dark order', async () => {
     renderMenu();
     await user.click(screen.getByRole('button', { name: /settings/i }));
-    // Radix DropdownMenu items render as role="menuitemradio" inside a
-    // menu, not bare role="radio" inside a radiogroup. The semantic
-    // purpose is the same (exclusive 1-of-N choice) — what matters for
-    // WCAG 4.1.2 is that the active option is marked with aria-checked.
-    expect(screen.getByRole('menuitemradio', { name: /light/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitemradio', { name: /dark/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitemradio', { name: /auto/i })).toBeInTheDocument();
+    const themeGroup = screen.getByRole('radiogroup', { name: /theme/i });
+    expect(themeGroup).toBeInTheDocument();
+    const radios = within(themeGroup).getAllByRole('radio');
+    expect(radios.map((r) => r.textContent)).toEqual(['Auto', 'Light', 'Dark']);
+    expect(within(themeGroup).getByRole('radio', { name: 'Auto' })).toBeInTheDocument();
+    expect(within(themeGroup).getByRole('radio', { name: 'Light' })).toBeInTheDocument();
+    expect(within(themeGroup).getByRole('radio', { name: 'Dark' })).toBeInTheDocument();
   });
 
   it('marks Auto as the default checked theme', async () => {
     renderMenu();
     await user.click(screen.getByRole('button', { name: /settings/i }));
-    expect(screen.getByRole('menuitemradio', { name: /auto/i })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('menuitemradio', { name: /light/i })).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByRole('menuitemradio', { name: /dark/i })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('radio', { name: 'Auto' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Light' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('persists Dark selection to localStorage when clicked', async () => {
     renderMenu();
     await user.click(screen.getByRole('button', { name: /settings/i }));
-    await user.click(screen.getByRole('menuitemradio', { name: /dark/i }));
-    // Radix closes the menu after a radio item is chosen, so re-open to
-    // verify the aria-checked state reflects the persisted selection.
+    await user.click(screen.getByRole('radio', { name: 'Dark' }));
+    // Pills are plain buttons (not Radix items), so the menu stays open —
+    // assert the persisted state and the live aria-checked in one pass.
     expect(localStorage.getItem('theme-mode')).toBe('dark');
+    expect(screen.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Auto' })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('arrow keys cycle through theme options', async () => {
+    renderMenu();
     await user.click(screen.getByRole('button', { name: /settings/i }));
-    expect(screen.getByRole('menuitemradio', { name: /dark/i })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('menuitemradio', { name: /auto/i })).toHaveAttribute('aria-checked', 'false');
+    const autoRadio = screen.getByRole('radio', { name: 'Auto' });
+    autoRadio.focus();
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('radio', { name: 'Light' })).toHaveAttribute('aria-checked', 'true');
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true');
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('radio', { name: 'Auto' })).toHaveAttribute('aria-checked', 'true');
+  });
+});
+
+describe('SettingsMenu primary action pill', () => {
+  let user: UserEvent;
+
+  beforeEach(() => {
+    localStorage.clear();
+    user = userEvent.setup({ pointerEventsCheck: PointerEventsCheckLevel.Never });
+  });
+
+  const renderMenu = () =>
+    render(
+      <TestProviders>
+        <ThemeProvider>
+          <LanguageProvider>
+            <UnitsProvider>
+              <SettingsMenu currentCity={noCity} recentCities={noRecent} onCitySelect={() => {}} />
+            </UnitsProvider>
+          </LanguageProvider>
+        </ThemeProvider>
+      </TestProviders>,
+    );
+
+  it('renders Current location, Search and Refresh as one 3-button pill', async () => {
+    renderMenu();
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    expect(screen.getByRole('menuitem', { name: /current location/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /search city/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /refresh data/i })).toBeInTheDocument();
+    // Pill order follows the menu layout: Current location, Search, Refresh.
+    const firstThree = screen.getAllByRole('menuitem').slice(0, 3);
+    expect(firstThree.map((m) => m.getAttribute('aria-label'))).toEqual([
+      'Use current location',
+      'Search city',
+      'Refresh Data',
+    ]);
+  });
+
+  it('opens the search dialog from the search action', async () => {
+    renderMenu();
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('menuitem', { name: /search city/i }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /search for a city/i })).toBeInTheDocument();
   });
 });
 
