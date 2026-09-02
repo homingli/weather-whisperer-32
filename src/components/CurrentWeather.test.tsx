@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act, fireEvent } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { CurrentWeather } from './CurrentWeather';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitsProvider, useUnits } from '@/contexts/UnitsContext';
@@ -55,38 +55,8 @@ describe('CurrentWeather Component', () => {
     );
   };
 
-  it('displays "Needs Umbrella" when raining', () => {
-    const rainyWeather = { ...mockWeather, precipitation: 5 };
-    renderWithLanguage(
-      <CurrentWeather
-        weather={rainyWeather}
-        hourlyForecast={mockHourly}
-        locationName="London"
-        timezone="Europe/London"
-        headline={{ source: 'om' }}
-      />
-    );
-
-    // Using "YES" as the text for umbrella needed in English
-    expect(screen.getByText(/YES/i)).toBeInTheDocument();
-  });
-
-  it('displays "No Umbrella" when clear', () => {
-    renderWithLanguage(
-      <CurrentWeather
-        weather={mockWeather}
-        hourlyForecast={mockHourly}
-        locationName="London"
-        timezone="Europe/London"
-        headline={{ source: 'om' }}
-      />
-    );
-
-    expect(screen.getByText(/NO/i)).toBeInTheDocument();
-  });
-
   it('renders hero temperature with bare ° by default (metric)', () => {
-    // Hero shows "18°" — the unit context is implicit from the range bar above
+    // Hero shows "18°" — the unit context is implicit from the range bar below
     // and the menu selection.
     renderWithLanguage(
       <CurrentWeather
@@ -457,7 +427,7 @@ describe('CurrentWeather Component', () => {
     });
   });
 
-  // ── Quiet shelf: below-threshold metrics collapse to icon chips ──────
+  // ── Quiet shelf: below-threshold metrics stay expanded ───────────────
   // Thresholds live in QUIET (src/lib/constants.ts). mockWeather defaults:
   // precip 0 → quiet, humidity 60 → quiet (inclusive band edge), uv 5 →
   // full widget, wind 10 → full widget.
@@ -472,7 +442,7 @@ describe('CurrentWeather Component', () => {
         />
       );
 
-    it('collapses only below-threshold metrics into chips; the rest stay full widgets', () => {
+    it('shows below-threshold metrics expanded; the rest stay full widgets', () => {
       const { container } = renderWeather(mockWeather);
       expect(screen.getByTestId('quiet-precip')).toBeInTheDocument();
       expect(screen.getByTestId('quiet-humidity')).toBeInTheDocument();
@@ -480,9 +450,10 @@ describe('CurrentWeather Component', () => {
       expect(screen.queryByTestId('quiet-wind')).toBeNull();
       // Full UvChip still renders (uv 5 → "Moderate" band label).
       expect(container.textContent).toContain('Moderate');
-      // Collapsed values stay in the a11y tree via the chip aria-labels.
-      expect(screen.getByTestId('quiet-precip')).toHaveAttribute('aria-label', 'Precipitation: 0.0 mm');
+      // Expanded values are visible and remain labelled for assistive tech.
+      expect(screen.getByTestId('quiet-precip')).toHaveAttribute('aria-label', 'Precip.: 0.0 mm');
       expect(screen.getByTestId('quiet-humidity')).toHaveAttribute('aria-label', 'Humidity: 60%');
+      expect(screen.getByTestId('quiet-precip')).toHaveTextContent('Precip. 0.0 mm');
     });
 
     it('renders the shelf alone when every metric is quiet (grid hidden)', () => {
@@ -530,47 +501,11 @@ describe('CurrentWeather Component', () => {
       expect(container.textContent).toContain('—');
     });
 
-    it('reveals on hover after 150ms, hides 350ms after the pointer leaves', () => {
+    it('keeps quiet values visible without hover state', () => {
       renderWeather(mockWeather);
-      const chip = screen.getByTestId('quiet-precip');
-      expect(chip).toHaveAttribute('aria-expanded', 'false');
-      act(() => { fireEvent.mouseEnter(chip); });
-      // Debounced: not revealed before 150ms.
-      act(() => { vi.advanceTimersByTime(149); });
-      expect(chip).toHaveAttribute('aria-expanded', 'false');
-      act(() => { vi.advanceTimersByTime(1); });
-      expect(chip).toHaveAttribute('aria-expanded', 'true');
-      act(() => { fireEvent.mouseLeave(chip); });
-      act(() => { vi.advanceTimersByTime(349); });
-      expect(chip).toHaveAttribute('aria-expanded', 'true');
-      act(() => { vi.advanceTimersByTime(1); });
-      expect(chip).toHaveAttribute('aria-expanded', 'false');
-    });
-
-    it('tap pins the value for touch users; a second tap unpins', () => {
-      renderWeather(mockWeather);
-      const chip = screen.getByTestId('quiet-precip');
-      // jsdom click fires no mouse/focus events — a clean tap simulation.
-      act(() => { fireEvent.click(chip); });
-      act(() => { vi.advanceTimersByTime(150); });
-      expect(chip).toHaveAttribute('aria-expanded', 'true');
-      // Pinned state survives indefinitely (no auto-hide).
-      act(() => { vi.advanceTimersByTime(10_000); });
-      expect(chip).toHaveAttribute('aria-expanded', 'true');
-      act(() => { fireEvent.click(chip); });
-      act(() => { vi.advanceTimersByTime(350); });
-      expect(chip).toHaveAttribute('aria-expanded', 'false');
-    });
-
-    it('keyboard focus reveals the value (WCAG 1.4.13) and blur hides it', () => {
-      renderWeather(mockWeather);
-      const chip = screen.getByTestId('quiet-humidity');
-      act(() => { fireEvent.focus(chip); });
-      act(() => { vi.advanceTimersByTime(150); });
-      expect(chip).toHaveAttribute('aria-expanded', 'true');
-      act(() => { fireEvent.blur(chip); });
-      act(() => { vi.advanceTimersByTime(350); });
-      expect(chip).toHaveAttribute('aria-expanded', 'false');
+      const precip = screen.getByTestId('quiet-precip');
+      expect(precip).toHaveTextContent('Precip. 0.0 mm');
+      expect(precip).not.toHaveAttribute('aria-expanded');
     });
   });
 });
