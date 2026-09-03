@@ -3,7 +3,7 @@ import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, ge
 import type { HeadlineInfo } from "@/lib/weather";
 import type { LucideIcon } from "lucide-react";
 import { SENTINEL_THRESHOLD, QUIET } from "@/lib/constants";
-import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, Thermometer, AlertTriangle } from "lucide-react";
+import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, Thermometer, AlertTriangle, Moon } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
 import type { Units } from "@/lib/units";
@@ -291,6 +291,18 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
 
       <div className="cw-rule h-px editorial-rule my-6 md:hidden" />
 
+      {/* Sun-cycle progress strip — how far through the current daylight or
+          night phase we are (see SunCycleProgress below). The countdown
+          widget in the hero already reports time left to the next sun event;
+          this strip answers "what fraction of the phase has passed?". Sits
+          above the stat widgets and spans the same content width. */}
+      <SunCycleProgress
+        sunrise={dailyForecast?.sunrise}
+        sunset={dailyForecast?.sunset}
+        nextSunrise={tomorrowSunrise}
+        timezone={timezone}
+      />
+
       {/* Bottom section — full widgets for metrics that need attention.
           Quiet metrics (below QUIET thresholds) stay in the
           expanded shelf below: data present, nothing to act on. Empty
@@ -515,6 +527,174 @@ function SunriseSunsetCountdown({
       </div>
       <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
         {empty ? '—' : time}
+      </div>
+    </div>
+  );
+}
+
+/* ── Sun-cycle progress strip: fraction of daylight / night elapsed ── */
+
+type SunCycle = {
+  kind: 'day' | 'night';
+  /** Phase start: sunrise (day) or sunset (night). */
+  start: Date;
+  /** Phase end: sunset (day) or the next sunrise (night). */
+  end: Date;
+};
+
+/**
+ * Resolve the sun phase that contains `now` from the minute-exact daily
+ * timestamps (same source as SunriseSunsetCountdown — never the API's
+ * 15-minute `is_day` grid).
+ *
+ * - Day: [sunrise, sunset) — progress = daylight elapsed.
+ * - Evening night: [sunset, next sunrise). `nextSunrise` (tomorrow's,
+ *   daily[1]) is preferred; without it today's sunrise + 24h stays
+ *   approximately right (sunrise drifts ~1 min/day).
+ * - Pre-dawn night: the current night began at YESTERDAY's sunset, which is
+ *   not in the forecast; today's sunset − 24h is a close approximation
+ *   (sunset also drifts ~1 min/day).
+ *
+ * Returns null when either boundary is missing or the span is inverted
+ * (polar day/night edge cases: sunrise ≥ sunset) — callers hide the strip.
+ */
+function sunCycleFor(
+  now: number,
+  sunrise: Date,
+  sunset: Date,
+  nextSunrise: Date | undefined,
+): SunCycle | null {
+  const sr = sunrise.getTime();
+  const ss = sunset.getTime();
+  if (ss <= sr) return null; // No real daylight span — polar edge case.
+
+  if (now < sr) {
+    const start = new Date(ss - 24 * 3600_000); // ≈ yesterday's sunset
+    if (start.getTime() >= sr) return null;
+    return { kind: 'night', start, end: sunrise };
+  }
+  if (now < ss) {
+    return { kind: 'day', start: sunrise, end: sunset };
+  }
+  const next = nextSunrise && nextSunrise.getTime() > ss
+    ? nextSunrise
+    : new Date(sr + 24 * 3600_000);
+  if (next.getTime() <= ss) return null;
+  return { kind: 'night', start: sunset, end: next };
+}
+
+/* Theme-tinted fills for the elapsed portion of the phase. Day runs warm
+   (sunrise amber → afternoon orange); night runs dusk blue → deep indigo.
+   Chosen to read against both the cream card and the dark editorial bg. */
+const DAY_FILL_GRADIENT = 'linear-gradient(90deg, #fcd34d 0%, #f59e0b 55%, #ea580c 100%)';
+const NIGHT_FILL_GRADIENT = 'linear-gradient(90deg, #38bdf8 0%, #2563eb 60%, #1e40af 100%)';
+
+function SunCycleProgress({
+  sunrise, sunset, nextSunrise, timezone,
+}: {
+  sunrise?: Date | string | number;
+  sunset?: Date | string | number;
+  nextSunrise?: Date | string | number;
+  timezone?: string;
+}) {
+  const { language, t } = useLanguage();
+  const [now, setNow] = useState(() => Date.now());
+
+  // Re-tick every minute so the marker stays current — same cadence as the
+  // countdown so the pair flips together at sunrise/sunset.
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Rebase immediately when new location data arrives.
+  useEffect(() => {
+    setNow(Date.now());
+  }, [sunrise, sunset, nextSunrise, timezone]);
+
+  const sunriseDate = toValidSunDate(sunrise);
+  const sunsetDate = toValidSunDate(sunset);
+  const nextSunriseDate = toValidSunDate(nextSunrise);
+  const cycle = useMemo(() => {
+    if (!sunriseDate || !sunsetDate) return null;
+    return sunCycleFor(now, sunriseDate, sunsetDate, nextSunriseDate);
+  }, [now, sunriseDate, sunsetDate, nextSunriseDate]);
+
+  if (!cycle) return null;
+
+  const isDay = cycle.kind === 'day';
+  const spanMs = cycle.end.getTime() - cycle.start.getTime();
+  const pct = Math.min(1, Math.max(0, (now - cycle.start.getTime()) / spanMs));
+  const locale = appLocale(language);
+  const hour12 = language !== 'tc';
+  const timeOptions: Intl.DateTimeFormatOptions = {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12,
+  };
+  const startTime = formatInTimezone(cycle.start, locale, timeOptions);
+  const endTime = formatInTimezone(cycle.end, locale, timeOptions);
+
+  // Day reads left→right sunrise → sunset; night reads sunset → next sunrise.
+  const PhaseIcon = isDay ? Sun : Moon;
+  const StartIcon = isDay ? Sunrise : Sunset;
+  const EndIcon = isDay ? Sunset : Sunrise;
+  const phaseLabel = t(isDay ? 'sun.daylight' : 'sun.night');
+  const startLabel = t(isDay ? 'daily.sunrise' : 'daily.sunset');
+  const endLabel = t(isDay ? 'daily.sunset' : 'daily.sunrise');
+  const pctLabel = `${Math.round(pct * 100)}%`;
+
+  return (
+    <div
+      data-testid="sun-progress"
+      data-phase={cycle.kind}
+      role="group"
+      className="cw-fade flex flex-col gap-3 mb-6"
+      aria-label={`${phaseLabel}: ${pctLabel} elapsed; ${startLabel} ${startTime} to ${endLabel} ${endTime}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="kicker text-muted-foreground inline-flex items-center gap-2">
+          <PhaseIcon className="h-3.5 w-3.5" aria-hidden="true" />
+          {phaseLabel}
+        </span>
+        <span className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none">
+          {pctLabel}
+        </span>
+      </div>
+      <div className="relative h-2 border border-foreground/15" aria-hidden="true">
+        {/* Elapsed portion of the phase, coloured by day/night. */}
+        <div
+          className="absolute inset-y-0 left-0 transition-[width] duration-700 ease-out"
+          style={{
+            width: `${pct * 100}%`,
+            background: isDay ? DAY_FILL_GRADIENT : NIGHT_FILL_GRADIENT,
+          }}
+        />
+        {/* Marker at the current time — ring in the card colour so it reads
+            as a cutout whether it sits over the fill or the empty track. */}
+        <span
+          className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{
+            left: `${pct * 100}%`,
+            backgroundColor: 'hsl(var(--foreground))',
+            boxShadow: '0 0 0 2px hsl(var(--card))',
+          }}
+        />
+      </div>
+      <div className="flex justify-between gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
+        <span className="inline-flex items-center gap-1.5">
+          <StartIcon className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="whitespace-nowrap">
+            <span className="hidden sm:inline">{startLabel} </span>{startTime}
+          </span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <EndIcon className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="whitespace-nowrap">
+            <span className="hidden sm:inline">{endLabel} </span>{endTime}
+          </span>
+        </span>
       </div>
     </div>
   );
