@@ -204,7 +204,7 @@ describe('CurrentWeather Component', () => {
     expect(container.querySelector('[aria-label*="0.2 – 0.4 in"]')).toBeNull();
   });
 
-  it('uses exact sun timestamps after sunrise and when switching timezone/location', () => {
+  it('uses exact sun timestamps in the sun strip after sunrise and when switching timezone/location', () => {
     vi.setSystemTime(new Date('2024-01-08T06:10:00Z'));
     const daily = (sunrise: Date | string, sunset: Date | string): DailyForecastType => ({
       date: new Date('2024-01-08T00:00:00Z'),
@@ -510,9 +510,9 @@ describe('CurrentWeather Component', () => {
   });
 
   // ── Sun-cycle progress strip (issue #97) ─────────────────────────────
-  // The strip shows what fraction of the current phase (daylight or night)
-  // has elapsed. The hero countdown above it keeps reporting time left to
-  // the next sunrise/sunset, so the two widgets coexist.
+  // The strip shows the active sun phase (daylight or night) as a bar, the
+  // time left until it ends, and the boundary times. It replaced the old
+  // standalone Sunrise/Sunset countdown stat.
   describe('sun cycle progress strip', () => {
     const daily = (sunrise: Date | string, sunset: Date | string): DailyForecastType => ({
       date: new Date('2024-01-08T00:00:00Z'),
@@ -548,7 +548,8 @@ describe('CurrentWeather Component', () => {
       expect(strip).toHaveTextContent('in 6h');
       expect(strip).toHaveTextContent('Sunrise 06:00 AM');
       expect(strip).toHaveTextContent('Sunset 06:00 PM');
-      // The hero countdown reports the same lead time; both stay visible.
+      // The old standalone countdown stat was removed — the strip is now the
+      // single place that reports the lead time alongside the sun bar.
       expect(container.textContent).toContain('in 6h');
     });
 
