@@ -12,7 +12,7 @@ const mockWeather: CurrentWeatherType = {
   humidity: 60,
   uvIndex: 5,
   weatherCode: 0,
-  windSpeed: 10,
+  windSpeed: 25,
   windDirection: 180,
   precipitation: 0,
   precipitationProbability: 0,
@@ -23,7 +23,7 @@ const mockHourly: HourlyForecastType[] = Array(24).fill(0).map((_, i) => ({
   time: new Date(2024, 0, 8, i),
   temperature: 20,
   weatherCode: 0,
-  windSpeed: 10,
+  windSpeed: 25,
   windDirection: 180,
   precipitationProbability: 0,
   precipitation: 0,
@@ -470,8 +470,8 @@ describe('CurrentWeather Component', () => {
       expect(container.querySelector('[aria-label^="Wind direction toward"]')).toBeNull();
     });
 
-    it('treats boundary values as needing attention (uv 3, wind 5, humidity outside 30–60)', () => {
-      const boundary = { ...mockWeather, uvIndex: 3, humidity: 29, windSpeed: 5 };
+    it('treats boundary values as needing attention (uv 3, wind 20, humidity outside 30–60)', () => {
+      const boundary = { ...mockWeather, uvIndex: 3, humidity: 29, windSpeed: 20 };
       renderWeather(boundary);
       expect(screen.queryByTestId('quiet-uv')).toBeNull();
       expect(screen.queryByTestId('quiet-humidity')).toBeNull();
