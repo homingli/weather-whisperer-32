@@ -197,22 +197,20 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
       ref={root}
       className={`editorial-card ${compact ? 'overflow-x-hidden overflow-y-auto p-6 overscroll-contain' : 'overflow-hidden p-6 md:p-8 lg:p-10'}`}
     >
-      {/* Temperature range leads the hero, setting the day's context first. */}
-      <div className="mb-6 cw-fade">
-        <RangeBar
-          low={dailyForecast?.temperatureMin}
-          high={dailyForecast?.temperatureMax}
-          current={weather.temperature}
-          label={t('label.temperature')}
-          empty={isEmpty}
-          units={units}
-          umbrellaIcon={needsUmbrella ? Umbrella : UmbrellaOff}
-        />
-      </div>
+      {/* Sun-cycle progress strip — the active phase bar with time left
+          until it ends. Sits above the hero so users see the daylight context
+          before the temperature and conditions. */}
+      <SunCycleProgress
+        sunrise={dailyForecast?.sunrise}
+        sunset={dailyForecast?.sunset}
+        nextSunrise={tomorrowSunrise}
+        timezone={timezone}
+        needsUmbrella={needsUmbrella}
+      />
 
       <div>
         {/* Feels-like kicker above the hero so the big number is read as apparent temperature. */}
-          <p className={`cw-fade kicker text-muted-foreground mb-2 ${compact ? 'text-center' : 'md:text-left'}`}>
+          <p className={`cw-fade kicker text-muted-foreground mb-2 text-center`}>
             {t('weather.feelsLike')}
           </p>
 
@@ -251,7 +249,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           </p>
             </div>
           ) : (
-            <header className="grid gap-6 md:grid-cols-[auto_auto] md:items-end md:justify-start">
+            <header className="grid gap-6 md:grid-cols-[auto_auto] md:items-center md:justify-center md:text-center">
           <div className="overflow-hidden min-w-0">
             <h1 className="cw-rise block font-display text-[clamp(80px,14vw,160px)] leading-[0.85] font-light tracking-[-0.04em]">
               {formatHeroTemperature(weather.apparentTemperature, units, SENTINEL_THRESHOLD)}
@@ -276,18 +274,20 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           )}
       </div>
 
-      {/* Sun-cycle progress strip — the active phase bar with time left
-          until it ends (see SunCycleProgress below). This replaced the old
-          standalone Sunrise/Sunset countdown stat: the strip carries both
-          the time-left readout and the sunrise/sunset boundary times. Sits
-          above the hairline rule that separates the hero from the stat
-          widgets. */}
-      <SunCycleProgress
-        sunrise={dailyForecast?.sunrise}
-        sunset={dailyForecast?.sunset}
-        nextSunrise={tomorrowSunrise}
-        timezone={timezone}
-      />
+      {/* Temperature range — the day's min/max with current position.
+          Sits above the hairline rule that separates the hero from the
+          stat widgets. */}
+      <div className="cw-fade">
+        <RangeBar
+          low={dailyForecast?.temperatureMin}
+          high={dailyForecast?.temperatureMax}
+          current={weather.temperature}
+          label={t('label.temperature')}
+          empty={isEmpty}
+          units={units}
+          umbrellaIcon={needsUmbrella ? Umbrella : UmbrellaOff}
+        />
+      </div>
 
       <div className="cw-rule h-px editorial-rule my-6" />
 
@@ -470,12 +470,13 @@ const DAY_GRADIENT = 'linear-gradient(90deg, #fde047 0%, #fbbf24 35%, #fb923c 65
 const NIGHT_GRADIENT = 'linear-gradient(90deg, #60a5fa 0%, #3b82f6 55%, #f59e0b 88%, #fde047 100%)';
 
 function SunCycleProgress({
-  sunrise, sunset, nextSunrise, timezone,
+  sunrise, sunset, nextSunrise, timezone, needsUmbrella,
 }: {
   sunrise?: Date | string | number;
   sunset?: Date | string | number;
   nextSunrise?: Date | string | number;
   timezone?: string;
+  needsUmbrella?: boolean;
 }) {
   const { language, t } = useLanguage();
   const [now, setNow] = useState(() => Date.now());
@@ -532,7 +533,7 @@ function SunCycleProgress({
       data-testid="sun-progress"
       data-phase={cycle.kind}
       role="group"
-      className="cw-fade flex flex-col gap-3 mt-6"
+      className="cw-fade flex flex-col gap-3"
       aria-label={`${phaseLabel}: ${leftText}`}
     >
       <div className="flex items-center justify-between gap-2">
@@ -549,16 +550,18 @@ function SunCycleProgress({
         style={{ background: isDay ? DAY_GRADIENT : NIGHT_GRADIENT }}
         aria-hidden="true"
       >
-        {/* Marker at the current time — ring in the card colour so it reads
-            as a cutout against the gradient at either end. */}
+        {/* Marker at the current time — umbrella icon, same as the temperature bar. */}
         <span
-          className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{
-            left: `${pct * 100}%`,
-            backgroundColor: 'hsl(var(--foreground))',
-            boxShadow: '0 0 0 2px hsl(var(--card))',
-          }}
-        />
+          className="absolute top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 text-foreground"
+          style={{ left: `${pct * 100}%` }}
+          aria-hidden
+        >
+          {needsUmbrella ? (
+            <Umbrella className="h-6 w-6 border border-foreground bg-background p-0.5" strokeWidth={1.75} />
+          ) : (
+            <UmbrellaOff className="h-6 w-6 border border-foreground bg-background p-0.5" strokeWidth={1.75} />
+          )}
+        </span>
       </div>
       <div className="flex justify-between gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
         <span className="inline-flex items-center gap-1.5">
