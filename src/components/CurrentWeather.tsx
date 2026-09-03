@@ -52,9 +52,9 @@ interface CurrentWeatherProps {
   /** Mobile-only swiper layout: tighter padding, centered hero with
    *  icon and apparent-temp side-by-side. */
   compact?: boolean;
-  /** Tomorrow's sunrise (daily[1]). Once today's sunset has passed, the
-   *  countdown points at this instead of approximating with today's
-   *  sunrise + 24h. */
+  /** Tomorrow's sunrise (daily[1]). Used as the night-span end on the
+   *  sun-cycle strip once today's sunset has passed — without it the strip
+   *  approximates with today's sunrise + 24h. */
   tomorrowSunrise?: Date | string | number;
 }
 
@@ -210,9 +210,8 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(16rem,auto)] md:items-center md:gap-x-10">
-        <div>
-          {/* Feels-like kicker above the hero so the big number is read as apparent temperature. */}
+      <div>
+        {/* Feels-like kicker above the hero so the big number is read as apparent temperature. */}
           <p className={`cw-fade kicker text-muted-foreground mb-2 ${compact ? 'text-center' : 'md:text-left'}`}>
             {t('weather.feelsLike')}
           </p>
@@ -275,23 +274,13 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           </div>
             </header>
           )}
-        </div>
-
-        <div className="mt-6 md:mt-0 md:justify-self-end">
-          <SunriseSunsetCountdown
-            sunrise={dailyForecast?.sunrise}
-            sunset={dailyForecast?.sunset}
-            nextSunrise={tomorrowSunrise}
-            timezone={timezone}
-          />
-        </div>
       </div>
 
-      {/* Sun-cycle progress strip — how far through the current daylight or
-          night phase we are, with time left until the phase ends (see
-          SunCycleProgress below). The countdown widget beside the hero keeps
-          reporting the same event; the strip adds the bar + boundary times.
-          Sits above the hairline rule that separates the hero from the stat
+      {/* Sun-cycle progress strip — the active phase bar with time left
+          until it ends (see SunCycleProgress below). This replaced the old
+          standalone Sunrise/Sunset countdown stat: the strip carries both
+          the time-left readout and the sunrise/sunset boundary times. Sits
+          above the hairline rule that separates the hero from the stat
           widgets. */}
       <SunCycleProgress
         sunrise={dailyForecast?.sunrise}
@@ -402,7 +391,7 @@ function RangeBar({
   );
 }
 
-/* ── Sunrise / sunset countdown: "in 4h 32m" with HH:MM subtext ─────── */
+/* ── Sun-time helpers shared by the sun-cycle strip ────────────────── */
 
 /** HKO-only fallback seeds sun times with epoch-0 sentinels; anything at or
  *  before the epoch is no-data, not an event. JSON-persisted weather data
@@ -412,35 +401,7 @@ function toValidSunDate(value: Date | string | number | undefined | null): Date 
   return date && Number.isFinite(date.getTime()) && date.getTime() > 0 ? date : undefined;
 }
 
-/**
- * Pick the next sun event from the exact sunrise/sunset timestamps and the
- * client clock — NOT from the API's `is_day` flag. Open-Meteo anchors
- * `current` (including `is_day`) to a 15-minute grid, so just after a
- * 06:06 sunrise the flag can still say night until the 06:15 slot; the
- * widget then pointed at a sunrise that had already happened and wrapped
- * the countdown +24h ("sunrise in 23h 55m"). The daily timestamps are
- * minute-exact, and the caller re-evaluates on a minute tick so the
- * indicator flips on time even between data refreshes.
- */
-function nextSunEvent(
-  now: number,
-  sunrise: Date,
-  sunset: Date,
-  nextSunrise: Date | undefined,
-): { type: 'sunrise' | 'sunset'; at: Date } {
-  if (now < sunrise.getTime()) return { type: 'sunrise', at: sunrise };
-  if (now < sunset.getTime()) return { type: 'sunset', at: sunset };
-  // Past today's sunset: prefer tomorrow's sunrise from the forecast;
-  // without it, today's + 24h stays approximately right (sunrise drifts
-  // ~1 min/day).
-  const fallbackDays = Math.max(1, Math.floor((now - sunrise.getTime()) / (24 * 3600_000)) + 1);
-  const next = nextSunrise && nextSunrise.getTime() > now
-    ? nextSunrise
-    : new Date(sunrise.getTime() + fallbackDays * 24 * 3600_000);
-  return { type: 'sunrise', at: next };
-}
-
-/** Format a whole-minute lead time the way the sun widgets show it:
+/** Format a whole-minute lead time the way the sun strip shows it:
  *  "in 3h 12m" / "in 3h" / "in 12m", or "now" under a minute. */
 function formatSunCountdown(diffMin: number, t: (key: string, fallback?: string) => string): string {
   const hrs = Math.floor(diffMin / 60);
@@ -449,89 +410,6 @@ function formatSunCountdown(diffMin: number, t: (key: string, fallback?: string)
   if (hrs > 0 && mins > 0) return formatString(t('sun.inHoursMinutes'), String(hrs), String(mins));
   if (hrs > 0) return formatString(t('sun.inHours'), String(hrs));
   return formatString(t('sun.inMinutes'), String(mins));
-}
-
-function SunriseSunsetCountdown({
-  sunrise, sunset, nextSunrise, timezone,
-}: {
-  sunrise?: Date | string | number;
-  sunset?: Date | string | number;
-  nextSunrise?: Date | string | number;
-  timezone?: string;
-}) {
-  const { language, t } = useLanguage();
-  const [now, setNow] = useState(() => Date.now());
-
-  // Re-tick every minute so both the event choice and the countdown stay
-  // current — the widget must flip at sunrise/sunset even when the last
-  // data refresh predates the flip.
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Rebase immediately when new location data arrives. This avoids using
-  // the previous location's last minute tick during a city/timezone switch.
-  useEffect(() => {
-    setNow(Date.now());
-  }, [sunrise, sunset, nextSunrise, timezone]);
-
-  const locale = appLocale(language);
-  const hour12 = language !== 'tc';
-  const sunriseDate = toValidSunDate(sunrise);
-  const sunsetDate = toValidSunDate(sunset);
-  const nextSunriseDate = toValidSunDate(nextSunrise);
-  const empty = !sunriseDate || !sunsetDate;
-
-  const { type, time, text } = useMemo(() => {
-    if (empty || !sunriseDate || !sunsetDate) {
-      return { type: 'sunset' as const, time: '—:—', text: '—' };
-    }
-    const event = nextSunEvent(
-      now,
-      sunriseDate,
-      sunsetDate,
-      nextSunriseDate,
-    );
-    const time = formatInTimezone(event.at, locale, {
-      timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12,
-    });
-    // Exact-ms diff to the chosen event; selection guarantees it is ahead
-    // of `now`, so no wraparound is needed.
-    const diffMin = Math.floor((event.at.getTime() - now) / 60_000);
-    const text = formatSunCountdown(diffMin, t);
-    return { type: event.type, time, text };
-  }, [empty, sunriseDate, sunsetDate, nextSunriseDate, now, locale, timezone, hour12, t]);
-
-  const Icon = type === 'sunrise' ? Sunrise : Sunset;
-  const label = t(type === 'sunrise' ? 'daily.sunrise' : 'daily.sunset');
-
-  // Theme-tinted countdown value, calibrated to pass 3:1 on cream (large
-  // text threshold) and 4.5:1 on the dark editorial bg. Sunrise: amber-600
-  // #d97706; Sunset: severity-info rgb(14, 90, 129) — matches the umbrella
-  // YES color so the same cue ("blue = night / water attention") is used
-  // for both sunset and umbrella-yes. Single hex values intentionally —
-  // same color reads correctly against both bgs. Icon stays muted to keep
-  // the row label + icon a quiet caption above the prominent value.
-  const tone = type === 'sunrise' ? '#d97706' : 'rgb(14, 90, 129)';
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2 kicker text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        <span>{label}</span>
-      </div>
-      <div
-        className="font-display text-2xl md:text-3xl font-light tabular-nums leading-tight"
-        style={{ color: empty ? undefined : tone }}
-      >
-        {empty ? '—' : text}
-      </div>
-      <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
-        {empty ? '—' : time}
-      </div>
-    </div>
-  );
 }
 
 /* ── Sun-cycle progress strip: daylight / night bar with time left ── */
@@ -546,8 +424,7 @@ type SunCycle = {
 
 /**
  * Resolve the sun phase that contains `now` from the minute-exact daily
- * timestamps (same source as SunriseSunsetCountdown — never the API's
- * 15-minute `is_day` grid).
+ * timestamps — never the API's 15-minute `is_day` grid.
  *
  * - Day: [sunrise, sunset) — progress = daylight elapsed.
  * - Evening night: [sunset, next sunrise). `nextSunrise` (tomorrow's,
@@ -585,11 +462,12 @@ function sunCycleFor(
   return { kind: 'night', start: sunset, end: next };
 }
 
-/* Whole-bar gradients encode the sun's position across the phase.
-   Day runs sunrise (yellow, left) → sunset (navy, right); night is the
-   reverse, sunset → next sunrise. The marker dot sits at "now". */
-const DAY_GRADIENT = 'linear-gradient(90deg, #facc15 0%, #1e3a8a 100%)';
-const NIGHT_GRADIENT = 'linear-gradient(90deg, #1e3a8a 0%, #facc15 100%)';
+/* Whole-bar gradients trace the sun's course so each bar reads left → right:
+   the day bar goes warm daylight yellow (sunrise) through afternoon gold and
+   orange into a light dusk blue (sunset); the night bar reverses it from
+   dusk blue back through deep blue to a pale dawn gold (next sunrise). */
+const DAY_GRADIENT = 'linear-gradient(90deg, #fde047 0%, #fbbf24 35%, #fb923c 65%, #60a5fa 100%)';
+const NIGHT_GRADIENT = 'linear-gradient(90deg, #60a5fa 0%, #3b82f6 55%, #f59e0b 88%, #fde047 100%)';
 
 function SunCycleProgress({
   sunrise, sunset, nextSunrise, timezone,
@@ -602,8 +480,8 @@ function SunCycleProgress({
   const { language, t } = useLanguage();
   const [now, setNow] = useState(() => Date.now());
 
-  // Re-tick every minute so the marker stays current — same cadence as the
-  // countdown so the pair flips together at sunrise/sunset.
+  // Re-tick every minute so the marker stays current — the strip must flip
+  // from day to night exactly at sunrise/sunset even between data refreshes.
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(id);
@@ -637,8 +515,7 @@ function SunCycleProgress({
   };
   const startTime = formatInTimezone(cycle.start, locale, timeOptions);
   const endTime = formatInTimezone(cycle.end, locale, timeOptions);
-  // Time left until the phase ends (sunset by day, sunrise by night) —
-  // same formatting as the hero countdown.
+  // Time left until the phase ends (sunset by day, sunrise by night).
   const diffMin = Math.max(0, Math.floor((cycle.end.getTime() - now) / 60_000));
   const leftText = formatSunCountdown(diffMin, t);
 
