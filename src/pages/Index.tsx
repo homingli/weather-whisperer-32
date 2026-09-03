@@ -20,6 +20,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
 import { toast } from 'sonner';
 import { CloudRain, MapPin, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Lazy load heavy components. DailyForecast pulls recharts (~120 kB) and is
 // below the fold on both mobile (Swiper slide 2) and desktop (split row);
@@ -53,12 +54,14 @@ const PLACEHOLDER_CURRENT = {
 
 const Index = () => {
   const { language, t } = useLanguage();
+  // API/content lang is 'tc' for Traditional Chinese, 'en' for everything else.
+  const lang = language === 'tc' ? 'tc' : 'en';
   const { setSunTimes } = useTheme();
   const { selectedCity, recentCities, isLocating, handleCitySelect } = useSelectedCity();
   const { data: weather, isLoading, error, refetch, isFetching, loadProgress } = useWeatherWithProgress(
     selectedCity?.latitude,
     selectedCity?.longitude,
-    language === 'tc' ? 'tc' : 'en',
+    lang,
   );
 
   const handleForceRefresh = useCallback(async () => {
@@ -217,7 +220,7 @@ const Index = () => {
                 {isHKCovered ? (
                   weather?.nearestStation && (
                     <span className="text-base font-medium text-foreground">
-                      {translateStationName(weather.nearestStation, language === 'tc' ? 'tc' : 'en')}
+                      {translateStationName(weather.nearestStation, lang)}
                     </span>
                   )
                 ) : (
@@ -227,7 +230,7 @@ const Index = () => {
                 )}
                 {weather?.nearestDistrict && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                    {translateDistrictName(weather.nearestDistrict, language === 'tc' ? 'tc' : 'en')}
+                    {translateDistrictName(weather.nearestDistrict, lang)}
                   </span>
                 )}
               </div>
@@ -318,12 +321,12 @@ const Index = () => {
                     <SwiperSlide>
                       <div className="flex flex-col gap-3 h-full">
                         <div className="flex-1 min-h-0">
-                          <Suspense fallback={<div className="h-full animate-pulse bg-muted/20 rounded-xl glass-card" />}>
+                          <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 glass-card" />}>
                             <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} />
                           </Suspense>
                         </div>
                         <div className="flex-1 min-h-0">
-                          <Suspense fallback={<div className="h-full animate-pulse bg-muted/20 rounded-xl" />}>
+                          <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20" />}>
                             <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
                           </Suspense>
                         </div>
@@ -333,7 +336,7 @@ const Index = () => {
                     {/* Slide 3: Rainfall map (PRD only) */}
                     {nowcastVisible && (
                       <SwiperSlide>
-                        <Suspense fallback={<div className="h-full animate-pulse bg-muted/20 rounded-xl glass-card" />}>
+                        <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 glass-card" />}>
                           {useMSCNowcast ? (
                             <MSCRainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
                           ) : (
@@ -373,18 +376,18 @@ const Index = () => {
 
                   {/* Secondary Row: Split Forecasts */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
-                    <Suspense fallback={<div className="h-[300px] animate-pulse bg-muted/20 rounded-xl" />}>
+                    <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
                       <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} />
                     </Suspense>
 
-                    <Suspense fallback={<div className="h-[300px] animate-pulse bg-muted/20 rounded-xl" />}>
+                    <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
                       <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
                     </Suspense>
                   </div>
 
                   {/* Bottom Row: Optional Map */}
                   {nowcastVisible && (
-                    <Suspense fallback={<div className="h-[400px] animate-pulse bg-muted/20 rounded-xl" />}>
+                    <Suspense fallback={<Skeleton className="h-[400px] rounded-xl bg-muted/20" />}>
                       {useMSCNowcast ? (
                         <MSCRainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
                       ) : (
