@@ -6,6 +6,46 @@ import { cartoApiKey, cartoMapLibreRasterUrl, cartoStyleUrl } from '@/lib/carto'
 
 const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
+/**
+ * Run `install` once the map's style is safe to add sources/layers to.
+ *
+ * MapLibre's `style.load` fires as soon as the style JSON is applied, but
+ * `isStyleLoaded()` only turns true once the style's sources/tiles settle.
+ * An effect that runs in that gap — overlay data arrived after
+ * `style.load` fired but before the map finished loading — and waits on
+ * `once('style.load')` is listening for an event that already passed, so
+ * the install never runs and the overlay stays blank even though the
+ * basemap renders. The map-level `load` event fires exactly once when the
+ * map is fully loaded (`map.loaded()` first true) and therefore cannot be
+ * missed while the map is still coming up; `style.load` is kept armed too
+ * so a style swap (e.g. the raster error fallback) that happens while
+ * waiting still installs as soon as the replacement style is ready.
+ *
+ * Returns a cleanup that cancels the pending listeners.
+ */
+function installWhenStyleReady(map: Map, install: () => void): () => void {
+  if (map.isStyleLoaded()) {
+    install();
+    return () => {};
+  }
+  let cancelled = false;
+  const onMapLoad = () => {
+    if (!cancelled) install();
+  };
+  const onStyleLoad = () => {
+    // style.load fires when the JSON applies; tiles may still be loading,
+    // so defer to the map-level 'load' unless the style is fully settled.
+    if (!cancelled && map.isStyleLoaded()) install();
+  };
+  map.once('load', onMapLoad);
+  map.once('style.load', onStyleLoad);
+  return () => {
+    cancelled = true;
+    map.off('load', onMapLoad);
+    map.off('style.load', onStyleLoad);
+  };
+}
+
 export interface MapLibreMapProps {
   center: [number, number];
   zoom: number;
@@ -102,7 +142,7 @@ export function MapLibreMap({ center, zoom, minZoom, maxZoom, dark, ariaLabel, i
         map.addLayer({ id: 'hko-rainfall', type: 'fill', source: 'hko-rainfall', paint: { 'fill-color': ['case', ['<=', ['get', 'value'], 0.5], '#a0c4ff', ['<=', ['get', 'value'], 2], '#4facfe', ['<=', ['get', 'value'], 5], '#00f2fe', ['<=', ['get', 'value'], 10], '#43e97b', ['<=', ['get', 'value'], 20], '#f6d365', ['<=', ['get', 'value'], 30], '#ff0844', '#9d0b0b'], 'fill-opacity': ['case', ['>', ['get', 'value'], 0], 0.5, 0] } });
       }
     };
-    if (map.isStyleLoaded()) install(); else map.once('style.load', install);
+    return installWhenStyleReady(map, install);
   }, [rainfall, dark]);
 
   useEffect(() => {
@@ -126,10 +166,10 @@ export function MapLibreMap({ center, zoom, minZoom, maxZoom, dark, ariaLabel, i
       map.on('error', sourceError);
       const done = () => { onOverlayLoaded?.(); map.off('idle', done); };
       map.once('idle', done);
-      return () => map.off('error', sourceError);
     };
-    if (map.isStyleLoaded()) install(); else map.once('style.load', install);
+    const cancelWait = installWhenStyleReady(map, install);
     return () => {
+      cancelWait();
       if (wmsErrorHandlerRef.current) {
         map.off('error', wmsErrorHandlerRef.current);
         wmsErrorHandlerRef.current = null;
