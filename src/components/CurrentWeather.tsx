@@ -3,7 +3,7 @@ import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, ge
 import type { HeadlineInfo } from "@/lib/weather";
 import type { LucideIcon } from "lucide-react";
 import { SENTINEL_THRESHOLD, QUIET } from "@/lib/constants";
-import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, Thermometer, AlertTriangle } from "lucide-react";
+import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, Thermometer, AlertTriangle, Moon } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
 import type { Units } from "@/lib/units";
@@ -52,9 +52,9 @@ interface CurrentWeatherProps {
   /** Mobile-only swiper layout: tighter padding, centered hero with
    *  icon and apparent-temp side-by-side. */
   compact?: boolean;
-  /** Tomorrow's sunrise (daily[1]). Once today's sunset has passed, the
-   *  countdown points at this instead of approximating with today's
-   *  sunrise + 24h. */
+  /** Tomorrow's sunrise (daily[1]). Used as the night-span end on the
+   *  sun-cycle strip once today's sunset has passed — without it the strip
+   *  approximates with today's sunrise + 24h. */
   tomorrowSunrise?: Date | string | number;
 }
 
@@ -210,9 +210,8 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(16rem,auto)] md:items-center md:gap-x-10">
-        <div>
-          {/* Feels-like kicker above the hero so the big number is read as apparent temperature. */}
+      <div>
+        {/* Feels-like kicker above the hero so the big number is read as apparent temperature. */}
           <p className={`cw-fade kicker text-muted-foreground mb-2 ${compact ? 'text-center' : 'md:text-left'}`}>
             {t('weather.feelsLike')}
           </p>
@@ -275,21 +274,22 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           </div>
             </header>
           )}
-        </div>
-
-        <div className="order-2 mt-6 md:order-none md:mt-0 md:justify-self-end">
-          <SunriseSunsetCountdown
-            sunrise={dailyForecast?.sunrise}
-            sunset={dailyForecast?.sunset}
-            nextSunrise={tomorrowSunrise}
-            timezone={timezone}
-          />
-        </div>
-
-        <div className="order-1 cw-rule h-px editorial-rule my-6 md:order-none md:col-span-2" />
       </div>
 
-      <div className="cw-rule h-px editorial-rule my-6 md:hidden" />
+      {/* Sun-cycle progress strip — the active phase bar with time left
+          until it ends (see SunCycleProgress below). This replaced the old
+          standalone Sunrise/Sunset countdown stat: the strip carries both
+          the time-left readout and the sunrise/sunset boundary times. Sits
+          above the hairline rule that separates the hero from the stat
+          widgets. */}
+      <SunCycleProgress
+        sunrise={dailyForecast?.sunrise}
+        sunset={dailyForecast?.sunset}
+        nextSunrise={tomorrowSunrise}
+        timezone={timezone}
+      />
+
+      <div className="cw-rule h-px editorial-rule my-6" />
 
       {/* Bottom section — full widgets for metrics that need attention.
           Quiet metrics (below QUIET thresholds) stay in the
@@ -391,7 +391,7 @@ function RangeBar({
   );
 }
 
-/* ── Sunrise / sunset countdown: "in 4h 32m" with HH:MM subtext ─────── */
+/* ── Sun-time helpers shared by the sun-cycle strip ────────────────── */
 
 /** HKO-only fallback seeds sun times with epoch-0 sentinels; anything at or
  *  before the epoch is no-data, not an event. JSON-persisted weather data
@@ -401,35 +401,75 @@ function toValidSunDate(value: Date | string | number | undefined | null): Date 
   return date && Number.isFinite(date.getTime()) && date.getTime() > 0 ? date : undefined;
 }
 
+/** Format a whole-minute lead time the way the sun strip shows it:
+ *  "in 3h 12m" / "in 3h" / "in 12m", or "now" under a minute. */
+function formatSunCountdown(diffMin: number, t: (key: string, fallback?: string) => string): string {
+  const hrs = Math.floor(diffMin / 60);
+  const mins = diffMin % 60;
+  if (diffMin < 1) return t('sun.now');
+  if (hrs > 0 && mins > 0) return formatString(t('sun.inHoursMinutes'), String(hrs), String(mins));
+  if (hrs > 0) return formatString(t('sun.inHours'), String(hrs));
+  return formatString(t('sun.inMinutes'), String(mins));
+}
+
+/* ── Sun-cycle progress strip: daylight / night bar with time left ── */
+
+type SunCycle = {
+  kind: 'day' | 'night';
+  /** Phase start: sunrise (day) or sunset (night). */
+  start: Date;
+  /** Phase end: sunset (day) or the next sunrise (night). */
+  end: Date;
+};
+
 /**
- * Pick the next sun event from the exact sunrise/sunset timestamps and the
- * client clock — NOT from the API's `is_day` flag. Open-Meteo anchors
- * `current` (including `is_day`) to a 15-minute grid, so just after a
- * 06:06 sunrise the flag can still say night until the 06:15 slot; the
- * widget then pointed at a sunrise that had already happened and wrapped
- * the countdown +24h ("sunrise in 23h 55m"). The daily timestamps are
- * minute-exact, and the caller re-evaluates on a minute tick so the
- * indicator flips on time even between data refreshes.
+ * Resolve the sun phase that contains `now` from the minute-exact daily
+ * timestamps — never the API's 15-minute `is_day` grid.
+ *
+ * - Day: [sunrise, sunset) — progress = daylight elapsed.
+ * - Evening night: [sunset, next sunrise). `nextSunrise` (tomorrow's,
+ *   daily[1]) is preferred; without it today's sunrise + 24h stays
+ *   approximately right (sunrise drifts ~1 min/day).
+ * - Pre-dawn night: the current night began at YESTERDAY's sunset, which is
+ *   not in the forecast; today's sunset − 24h is a close approximation
+ *   (sunset also drifts ~1 min/day).
+ *
+ * Returns null when either boundary is missing or the span is inverted
+ * (polar day/night edge cases: sunrise ≥ sunset) — callers hide the strip.
  */
-function nextSunEvent(
+function sunCycleFor(
   now: number,
   sunrise: Date,
   sunset: Date,
   nextSunrise: Date | undefined,
-): { type: 'sunrise' | 'sunset'; at: Date } {
-  if (now < sunrise.getTime()) return { type: 'sunrise', at: sunrise };
-  if (now < sunset.getTime()) return { type: 'sunset', at: sunset };
-  // Past today's sunset: prefer tomorrow's sunrise from the forecast;
-  // without it, today's + 24h stays approximately right (sunrise drifts
-  // ~1 min/day).
-  const fallbackDays = Math.max(1, Math.floor((now - sunrise.getTime()) / (24 * 3600_000)) + 1);
-  const next = nextSunrise && nextSunrise.getTime() > now
+): SunCycle | null {
+  const sr = sunrise.getTime();
+  const ss = sunset.getTime();
+  if (ss <= sr) return null; // No real daylight span — polar edge case.
+
+  if (now < sr) {
+    const start = new Date(ss - 24 * 3600_000); // ≈ yesterday's sunset
+    if (start.getTime() >= sr) return null;
+    return { kind: 'night', start, end: sunrise };
+  }
+  if (now < ss) {
+    return { kind: 'day', start: sunrise, end: sunset };
+  }
+  const next = nextSunrise && nextSunrise.getTime() > ss
     ? nextSunrise
-    : new Date(sunrise.getTime() + fallbackDays * 24 * 3600_000);
-  return { type: 'sunrise', at: next };
+    : new Date(sr + 24 * 3600_000);
+  if (next.getTime() <= ss) return null;
+  return { kind: 'night', start: sunset, end: next };
 }
 
-function SunriseSunsetCountdown({
+/* Whole-bar gradients trace the sun's course so each bar reads left → right:
+   the day bar goes warm daylight yellow (sunrise) through afternoon gold and
+   orange into a light dusk blue (sunset); the night bar reverses it from
+   dusk blue back through deep blue to a pale dawn gold (next sunrise). */
+const DAY_GRADIENT = 'linear-gradient(90deg, #fde047 0%, #fbbf24 35%, #fb923c 65%, #60a5fa 100%)';
+const NIGHT_GRADIENT = 'linear-gradient(90deg, #60a5fa 0%, #3b82f6 55%, #f59e0b 88%, #fde047 100%)';
+
+function SunCycleProgress({
   sunrise, sunset, nextSunrise, timezone,
 }: {
   sunrise?: Date | string | number;
@@ -440,81 +480,99 @@ function SunriseSunsetCountdown({
   const { language, t } = useLanguage();
   const [now, setNow] = useState(() => Date.now());
 
-  // Re-tick every minute so both the event choice and the countdown stay
-  // current — the widget must flip at sunrise/sunset even when the last
-  // data refresh predates the flip.
+  // Re-tick every minute so the marker stays current — the strip must flip
+  // from day to night exactly at sunrise/sunset even between data refreshes.
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
 
-  // Rebase immediately when new location data arrives. This avoids using
-  // the previous location's last minute tick during a city/timezone switch.
+  // Rebase immediately when new location data arrives.
   useEffect(() => {
     setNow(Date.now());
   }, [sunrise, sunset, nextSunrise, timezone]);
 
-  const locale = appLocale(language);
-  const hour12 = language !== 'tc';
   const sunriseDate = toValidSunDate(sunrise);
   const sunsetDate = toValidSunDate(sunset);
   const nextSunriseDate = toValidSunDate(nextSunrise);
-  const empty = !sunriseDate || !sunsetDate;
+  const cycle = useMemo(() => {
+    if (!sunriseDate || !sunsetDate) return null;
+    return sunCycleFor(now, sunriseDate, sunsetDate, nextSunriseDate);
+  }, [now, sunriseDate, sunsetDate, nextSunriseDate]);
 
-  const { type, time, text } = useMemo(() => {
-    if (empty || !sunriseDate || !sunsetDate) {
-      return { type: 'sunset' as const, time: '—:—', text: '—' };
-    }
-    const event = nextSunEvent(
-      now,
-      sunriseDate,
-      sunsetDate,
-      nextSunriseDate,
-    );
-    const time = formatInTimezone(event.at, locale, {
-      timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12,
-    });
-    // Exact-ms diff to the chosen event; selection guarantees it is ahead
-    // of `now`, so no wraparound is needed.
-    const diffMin = Math.floor((event.at.getTime() - now) / 60_000);
-    const hrs = Math.floor(diffMin / 60);
-    const mins = diffMin % 60;
-    const text = diffMin < 1
-      ? t('sun.now')
-      : hrs > 0 && mins > 0
-        ? formatString(t('sun.inHoursMinutes'), String(hrs), String(mins))
-        : hrs > 0
-          ? formatString(t('sun.inHours'), String(hrs))
-          : formatString(t('sun.inMinutes'), String(mins));
-    return { type: event.type, time, text };
-  }, [empty, sunriseDate, sunsetDate, nextSunriseDate, now, locale, timezone, hour12, t]);
+  if (!cycle) return null;
 
-  const Icon = type === 'sunrise' ? Sunrise : Sunset;
-  const label = t(type === 'sunrise' ? 'daily.sunrise' : 'daily.sunset');
+  const isDay = cycle.kind === 'day';
+  const spanMs = cycle.end.getTime() - cycle.start.getTime();
+  const pct = Math.min(1, Math.max(0, (now - cycle.start.getTime()) / spanMs));
+  const locale = appLocale(language);
+  const hour12 = language !== 'tc';
+  const timeOptions: Intl.DateTimeFormatOptions = {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12,
+  };
+  const startTime = formatInTimezone(cycle.start, locale, timeOptions);
+  const endTime = formatInTimezone(cycle.end, locale, timeOptions);
+  // Time left until the phase ends (sunset by day, sunrise by night).
+  const diffMin = Math.max(0, Math.floor((cycle.end.getTime() - now) / 60_000));
+  const leftText = formatSunCountdown(diffMin, t);
 
-  // Theme-tinted countdown value, calibrated to pass 3:1 on cream (large
-  // text threshold) and 4.5:1 on the dark editorial bg. Sunrise: amber-600
-  // #d97706; Sunset: severity-info rgb(14, 90, 129) — matches the umbrella
-  // YES color so the same cue ("blue = night / water attention") is used
-  // for both sunset and umbrella-yes. Single hex values intentionally —
-  // same color reads correctly against both bgs. Icon stays muted to keep
-  // the row label + icon a quiet caption above the prominent value.
-  const tone = type === 'sunrise' ? '#d97706' : 'rgb(14, 90, 129)';
+  // Day reads left→right sunrise → sunset; night reads sunset → next sunrise.
+  const PhaseIcon = isDay ? Sun : Moon;
+  const StartIcon = isDay ? Sunrise : Sunset;
+  const EndIcon = isDay ? Sunset : Sunrise;
+  const phaseLabel = t(isDay ? 'sun.daylight' : 'sun.night');
+  const startLabel = t(isDay ? 'daily.sunrise' : 'daily.sunset');
+  const endLabel = t(isDay ? 'daily.sunset' : 'daily.sunrise');
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2 kicker text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        <span>{label}</span>
+    <div
+      data-testid="sun-progress"
+      data-phase={cycle.kind}
+      role="group"
+      className="cw-fade flex flex-col gap-3 mt-6"
+      aria-label={`${phaseLabel}: ${leftText}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="kicker text-muted-foreground inline-flex items-center gap-2">
+          <PhaseIcon className="h-3.5 w-3.5" aria-hidden="true" />
+          {phaseLabel}
+        </span>
+        <span className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none">
+          {leftText}
+        </span>
       </div>
       <div
-        className="font-display text-2xl md:text-3xl font-light tabular-nums leading-tight"
-        style={{ color: empty ? undefined : tone }}
+        className="relative h-2 border border-foreground/15"
+        style={{ background: isDay ? DAY_GRADIENT : NIGHT_GRADIENT }}
+        aria-hidden="true"
       >
-        {empty ? '—' : text}
+        {/* Marker at the current time — ring in the card colour so it reads
+            as a cutout against the gradient at either end. */}
+        <span
+          className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{
+            left: `${pct * 100}%`,
+            backgroundColor: 'hsl(var(--foreground))',
+            boxShadow: '0 0 0 2px hsl(var(--card))',
+          }}
+        />
       </div>
-      <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
-        {empty ? '—' : time}
+      <div className="flex justify-between gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
+        <span className="inline-flex items-center gap-1.5">
+          <StartIcon className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="whitespace-nowrap">
+            <span className="hidden sm:inline">{startLabel} </span>{startTime}
+          </span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <EndIcon className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="whitespace-nowrap">
+            <span className="hidden sm:inline">{endLabel} </span>{endTime}
+          </span>
+        </span>
       </div>
     </div>
   );
