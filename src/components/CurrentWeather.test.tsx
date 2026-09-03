@@ -204,7 +204,7 @@ describe('CurrentWeather Component', () => {
     expect(container.querySelector('[aria-label*="0.2 – 0.4 in"]')).toBeNull();
   });
 
-  it('uses exact sun timestamps after sunrise and when switching timezone/location', () => {
+  it('uses exact sun timestamps in the sun strip after sunrise and when switching timezone/location', () => {
     vi.setSystemTime(new Date('2024-01-08T06:10:00Z'));
     const daily = (sunrise: Date | string, sunset: Date | string): DailyForecastType => ({
       date: new Date('2024-01-08T00:00:00Z'),
@@ -506,6 +506,122 @@ describe('CurrentWeather Component', () => {
       const precip = screen.getByTestId('quiet-precip');
       expect(precip).toHaveTextContent('Precip. 0.0 mm');
       expect(precip).not.toHaveAttribute('aria-expanded');
+    });
+  });
+
+  // ── Sun-cycle progress strip (issue #97) ─────────────────────────────
+  // The strip shows the active sun phase (daylight or night) as a bar, the
+  // time left until it ends, and the boundary times. It replaced the old
+  // standalone Sunrise/Sunset countdown stat.
+  describe('sun cycle progress strip', () => {
+    const daily = (sunrise: Date | string, sunset: Date | string): DailyForecastType => ({
+      date: new Date('2024-01-08T00:00:00Z'),
+      temperatureMax: 20,
+      temperatureMin: 10,
+      weatherCode: 0,
+      windSpeedMax: 10,
+      windDirectionDominant: 180,
+      precipitationProbabilityMax: 0,
+      sunrise: sunrise as Date,
+      sunset: sunset as Date,
+    });
+    const sunCard = (props: Partial<React.ComponentProps<typeof CurrentWeather>> = {}) =>
+      renderWithLanguage(
+        <CurrentWeather
+          weather={mockWeather}
+          hourlyForecast={mockHourly}
+          timezone="UTC"
+          headline={{ source: 'om' }}
+          {...props}
+        />
+      );
+
+    it('shows daylight bar from sunrise to sunset at noon with time left', () => {
+      vi.setSystemTime(new Date('2024-01-08T12:00:00Z'));
+      const { container } = sunCard({
+        dailyForecast: daily(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z')),
+      });
+      const strip = screen.getByTestId('sun-progress');
+      expect(strip).toHaveAttribute('data-phase', 'day');
+      expect(strip).toHaveTextContent('Daylight');
+      // Time left until sunset (18:00 − 12:00).
+      expect(strip).toHaveTextContent('in 6h');
+      expect(strip).toHaveTextContent('Sunrise 06:00 AM');
+      expect(strip).toHaveTextContent('Sunset 06:00 PM');
+      // The old standalone countdown stat was removed — the strip is now the
+      // single place that reports the lead time alongside the sun bar.
+      expect(container.textContent).toContain('in 6h');
+    });
+
+    it('flips to a night bar (sunset → next sunrise) after dark', () => {
+      vi.setSystemTime(new Date('2024-01-08T21:00:00Z'));
+      sunCard({
+        dailyForecast: daily(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z')),
+        tomorrowSunrise: '2024-01-09T06:00:00Z',
+      });
+      const strip = screen.getByTestId('sun-progress');
+      expect(strip).toHaveAttribute('data-phase', 'night');
+      expect(strip).toHaveTextContent('Night');
+      // Time left until tomorrow's sunrise (06:00 + 24h − 21:00).
+      expect(strip).toHaveTextContent('in 9h');
+      expect(strip).toHaveTextContent('Sunset 06:00 PM');
+      expect(strip).toHaveTextContent('Sunrise 06:00 AM');
+    });
+
+    it('spans the pre-dawn night back to yesterday\'s sunset', () => {
+      vi.setSystemTime(new Date('2024-01-08T03:00:00Z'));
+      sunCard({
+        dailyForecast: daily(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z')),
+      });
+      const strip = screen.getByTestId('sun-progress');
+      expect(strip).toHaveAttribute('data-phase', 'night');
+      // Yesterday's sunset ≈ today 18:00 − 24h; time left until 06:00 today.
+      expect(strip).toHaveTextContent('in 3h');
+      expect(strip).toHaveTextContent('Sunset 06:00 PM');
+      expect(strip).toHaveTextContent('Sunrise 06:00 AM');
+    });
+
+    it('hides the strip without sun data or when the span is inverted (polar)', () => {
+      vi.setSystemTime(new Date('2024-01-08T12:00:00Z'));
+      // Polar edge case: sunset ≤ sunrise (midnight sun / polar night).
+      sunCard({
+        dailyForecast: daily(new Date('2024-01-08T18:00:00Z'), new Date('2024-01-08T06:00:00Z')),
+      });
+      expect(screen.queryByTestId('sun-progress')).toBeNull();
+
+      // No daily forecast at all (hero-only data).
+      sunCard();
+      expect(screen.queryByTestId('sun-progress')).toBeNull();
+    });
+
+    it('localizes captions and formats 24h boundary times under tc', () => {
+      vi.setSystemTime(new Date('2024-01-08T12:00:00Z'));
+      function LangProbe() {
+        const { setLanguage } = useLanguage();
+        return <button data-testid="flip-tc-sun" onClick={() => setLanguage('tc')}>tc</button>;
+      }
+      render(
+        <LanguageProvider>
+          <UnitsProvider>
+            <LangProbe />
+            <CurrentWeather
+              weather={mockWeather}
+              hourlyForecast={mockHourly}
+              dailyForecast={daily(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z'))}
+              timezone="UTC"
+              headline={{ source: 'om' }}
+            />
+          </UnitsProvider>
+        </LanguageProvider>
+      );
+      act(() => {
+        screen.getByTestId('flip-tc-sun').click();
+      });
+      const strip = screen.getByTestId('sun-progress');
+      expect(strip).toHaveTextContent('白天');
+      expect(strip).toHaveTextContent('6小時後');
+      expect(strip).toHaveTextContent('日出 06:00');
+      expect(strip).toHaveTextContent('日落 18:00');
     });
   });
 });

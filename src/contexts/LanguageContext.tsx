@@ -153,6 +153,9 @@ const translations: Record<Language, Record<string, string>> = {
     'sun.inHoursMinutes': 'in {0}h {1}m',
     'sun.inHours': 'in {0}h',
     'sun.inMinutes': 'in {0}m',
+    // Sun-cycle progress strip (CurrentWeather)
+    'sun.daylight': 'Daylight',
+    'sun.night': 'Night',
     
     // City search
     'search.placeholder': 'Search for a city...',
@@ -411,6 +414,9 @@ const translations: Record<Language, Record<string, string>> = {
     'sun.inHoursMinutes': '{0}小時{1}分後',
     'sun.inHours': '{0}小時後',
     'sun.inMinutes': '{0}分後',
+    // Sun-cycle progress strip (CurrentWeather)
+    'sun.daylight': '白天',
+    'sun.night': '夜晚',
     
     // City search
     'search.placeholder': '搜尋城市...',
