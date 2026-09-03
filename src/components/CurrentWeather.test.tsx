@@ -536,7 +536,7 @@ describe('CurrentWeather Component', () => {
         />
       );
 
-    it('shows daylight progress from sunrise to sunset at noon', () => {
+    it('shows daylight bar from sunrise to sunset at noon with time left', () => {
       vi.setSystemTime(new Date('2024-01-08T12:00:00Z'));
       const { container } = sunCard({
         dailyForecast: daily(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z')),
@@ -544,15 +544,15 @@ describe('CurrentWeather Component', () => {
       const strip = screen.getByTestId('sun-progress');
       expect(strip).toHaveAttribute('data-phase', 'day');
       expect(strip).toHaveTextContent('Daylight');
-      // (12:00 − 06:00) / (18:00 − 06:00) = 50%
-      expect(strip).toHaveTextContent('50%');
+      // Time left until sunset (18:00 − 12:00).
+      expect(strip).toHaveTextContent('in 6h');
       expect(strip).toHaveTextContent('Sunrise 06:00 AM');
       expect(strip).toHaveTextContent('Sunset 06:00 PM');
-      // The existing hero countdown is retained next to the strip.
+      // The hero countdown reports the same lead time; both stay visible.
       expect(container.textContent).toContain('in 6h');
     });
 
-    it('flips to night progress (sunset → next sunrise) after dark', () => {
+    it('flips to a night bar (sunset → next sunrise) after dark', () => {
       vi.setSystemTime(new Date('2024-01-08T21:00:00Z'));
       sunCard({
         dailyForecast: daily(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z')),
@@ -561,8 +561,8 @@ describe('CurrentWeather Component', () => {
       const strip = screen.getByTestId('sun-progress');
       expect(strip).toHaveAttribute('data-phase', 'night');
       expect(strip).toHaveTextContent('Night');
-      // (21:00 − 18:00) / (next 06:00 − 18:00) = 3h / 12h = 25%
-      expect(strip).toHaveTextContent('25%');
+      // Time left until tomorrow's sunrise (06:00 + 24h − 21:00).
+      expect(strip).toHaveTextContent('in 9h');
       expect(strip).toHaveTextContent('Sunset 06:00 PM');
       expect(strip).toHaveTextContent('Sunrise 06:00 AM');
     });
@@ -574,8 +574,8 @@ describe('CurrentWeather Component', () => {
       });
       const strip = screen.getByTestId('sun-progress');
       expect(strip).toHaveAttribute('data-phase', 'night');
-      // Yesterday's sunset ≈ today 18:00 − 24h; (03:00 − 18:00) / 12h = 75%
-      expect(strip).toHaveTextContent('75%');
+      // Yesterday's sunset ≈ today 18:00 − 24h; time left until 06:00 today.
+      expect(strip).toHaveTextContent('in 3h');
       expect(strip).toHaveTextContent('Sunset 06:00 PM');
       expect(strip).toHaveTextContent('Sunrise 06:00 AM');
     });
@@ -618,7 +618,7 @@ describe('CurrentWeather Component', () => {
       });
       const strip = screen.getByTestId('sun-progress');
       expect(strip).toHaveTextContent('白天');
-      expect(strip).toHaveTextContent('50%');
+      expect(strip).toHaveTextContent('6小時後');
       expect(strip).toHaveTextContent('日出 06:00');
       expect(strip).toHaveTextContent('日落 18:00');
     });

@@ -277,7 +277,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           )}
         </div>
 
-        <div className="order-2 mt-6 md:order-none md:mt-0 md:justify-self-end">
+        <div className="mt-6 md:mt-0 md:justify-self-end">
           <SunriseSunsetCountdown
             sunrise={dailyForecast?.sunrise}
             sunset={dailyForecast?.sunset}
@@ -285,23 +285,22 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
             timezone={timezone}
           />
         </div>
-
-        <div className="order-1 cw-rule h-px editorial-rule my-6 md:order-none md:col-span-2" />
       </div>
 
-      <div className="cw-rule h-px editorial-rule my-6 md:hidden" />
-
       {/* Sun-cycle progress strip — how far through the current daylight or
-          night phase we are (see SunCycleProgress below). The countdown
-          widget in the hero already reports time left to the next sun event;
-          this strip answers "what fraction of the phase has passed?". Sits
-          above the stat widgets and spans the same content width. */}
+          night phase we are, with time left until the phase ends (see
+          SunCycleProgress below). The countdown widget beside the hero keeps
+          reporting the same event; the strip adds the bar + boundary times.
+          Sits above the hairline rule that separates the hero from the stat
+          widgets. */}
       <SunCycleProgress
         sunrise={dailyForecast?.sunrise}
         sunset={dailyForecast?.sunset}
         nextSunrise={tomorrowSunrise}
         timezone={timezone}
       />
+
+      <div className="cw-rule h-px editorial-rule my-6" />
 
       {/* Bottom section — full widgets for metrics that need attention.
           Quiet metrics (below QUIET thresholds) stay in the
@@ -441,6 +440,17 @@ function nextSunEvent(
   return { type: 'sunrise', at: next };
 }
 
+/** Format a whole-minute lead time the way the sun widgets show it:
+ *  "in 3h 12m" / "in 3h" / "in 12m", or "now" under a minute. */
+function formatSunCountdown(diffMin: number, t: (key: string, fallback?: string) => string): string {
+  const hrs = Math.floor(diffMin / 60);
+  const mins = diffMin % 60;
+  if (diffMin < 1) return t('sun.now');
+  if (hrs > 0 && mins > 0) return formatString(t('sun.inHoursMinutes'), String(hrs), String(mins));
+  if (hrs > 0) return formatString(t('sun.inHours'), String(hrs));
+  return formatString(t('sun.inMinutes'), String(mins));
+}
+
 function SunriseSunsetCountdown({
   sunrise, sunset, nextSunrise, timezone,
 }: {
@@ -489,15 +499,7 @@ function SunriseSunsetCountdown({
     // Exact-ms diff to the chosen event; selection guarantees it is ahead
     // of `now`, so no wraparound is needed.
     const diffMin = Math.floor((event.at.getTime() - now) / 60_000);
-    const hrs = Math.floor(diffMin / 60);
-    const mins = diffMin % 60;
-    const text = diffMin < 1
-      ? t('sun.now')
-      : hrs > 0 && mins > 0
-        ? formatString(t('sun.inHoursMinutes'), String(hrs), String(mins))
-        : hrs > 0
-          ? formatString(t('sun.inHours'), String(hrs))
-          : formatString(t('sun.inMinutes'), String(mins));
+    const text = formatSunCountdown(diffMin, t);
     return { type: event.type, time, text };
   }, [empty, sunriseDate, sunsetDate, nextSunriseDate, now, locale, timezone, hour12, t]);
 
@@ -532,7 +534,7 @@ function SunriseSunsetCountdown({
   );
 }
 
-/* ── Sun-cycle progress strip: fraction of daylight / night elapsed ── */
+/* ── Sun-cycle progress strip: daylight / night bar with time left ── */
 
 type SunCycle = {
   kind: 'day' | 'night';
@@ -583,11 +585,11 @@ function sunCycleFor(
   return { kind: 'night', start: sunset, end: next };
 }
 
-/* Theme-tinted fills for the elapsed portion of the phase. Day runs warm
-   (sunrise amber → afternoon orange); night runs dusk blue → deep indigo.
-   Chosen to read against both the cream card and the dark editorial bg. */
-const DAY_FILL_GRADIENT = 'linear-gradient(90deg, #fcd34d 0%, #f59e0b 55%, #ea580c 100%)';
-const NIGHT_FILL_GRADIENT = 'linear-gradient(90deg, #38bdf8 0%, #2563eb 60%, #1e40af 100%)';
+/* Whole-bar gradients encode the sun's position across the phase.
+   Day runs sunrise (yellow, left) → sunset (navy, right); night is the
+   reverse, sunset → next sunrise. The marker dot sits at "now". */
+const DAY_GRADIENT = 'linear-gradient(90deg, #facc15 0%, #1e3a8a 100%)';
+const NIGHT_GRADIENT = 'linear-gradient(90deg, #1e3a8a 0%, #facc15 100%)';
 
 function SunCycleProgress({
   sunrise, sunset, nextSunrise, timezone,
@@ -635,6 +637,10 @@ function SunCycleProgress({
   };
   const startTime = formatInTimezone(cycle.start, locale, timeOptions);
   const endTime = formatInTimezone(cycle.end, locale, timeOptions);
+  // Time left until the phase ends (sunset by day, sunrise by night) —
+  // same formatting as the hero countdown.
+  const diffMin = Math.max(0, Math.floor((cycle.end.getTime() - now) / 60_000));
+  const leftText = formatSunCountdown(diffMin, t);
 
   // Day reads left→right sunrise → sunset; night reads sunset → next sunrise.
   const PhaseIcon = isDay ? Sun : Moon;
@@ -643,15 +649,14 @@ function SunCycleProgress({
   const phaseLabel = t(isDay ? 'sun.daylight' : 'sun.night');
   const startLabel = t(isDay ? 'daily.sunrise' : 'daily.sunset');
   const endLabel = t(isDay ? 'daily.sunset' : 'daily.sunrise');
-  const pctLabel = `${Math.round(pct * 100)}%`;
 
   return (
     <div
       data-testid="sun-progress"
       data-phase={cycle.kind}
       role="group"
-      className="cw-fade flex flex-col gap-3 mb-6"
-      aria-label={`${phaseLabel}: ${pctLabel} elapsed; ${startLabel} ${startTime} to ${endLabel} ${endTime}`}
+      className="cw-fade flex flex-col gap-3 mt-6"
+      aria-label={`${phaseLabel}: ${leftText}`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="kicker text-muted-foreground inline-flex items-center gap-2">
@@ -659,20 +664,16 @@ function SunCycleProgress({
           {phaseLabel}
         </span>
         <span className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none">
-          {pctLabel}
+          {leftText}
         </span>
       </div>
-      <div className="relative h-2 border border-foreground/15" aria-hidden="true">
-        {/* Elapsed portion of the phase, coloured by day/night. */}
-        <div
-          className="absolute inset-y-0 left-0 transition-[width] duration-700 ease-out"
-          style={{
-            width: `${pct * 100}%`,
-            background: isDay ? DAY_FILL_GRADIENT : NIGHT_FILL_GRADIENT,
-          }}
-        />
+      <div
+        className="relative h-2 border border-foreground/15"
+        style={{ background: isDay ? DAY_GRADIENT : NIGHT_GRADIENT }}
+        aria-hidden="true"
+      >
         {/* Marker at the current time — ring in the card colour so it reads
-            as a cutout whether it sits over the fill or the empty track. */}
+            as a cutout against the gradient at either end. */}
         <span
           className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{
