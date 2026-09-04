@@ -202,6 +202,25 @@
     text-wrap: balance;
   }
 
+  /* iOS safe-area helpers for use with viewport-fit=cover. Each keeps the
+     current padding when the device reports no inset (browser tab, desktop)
+     and grows to clear the notch / Dynamic Island / home indicator in
+     standalone PWA mode. Insets are 0 until viewport-fit=cover is active,
+     so plain `px-4 pt-[10px] pb-4` would let content sit under the home
+     indicator / status bar on a full-bleed PWA. */
+  .safe-px {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .safe-top {
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
   .vertical-text {
     writing-mode: vertical-rl;
     text-orientation: mixed;

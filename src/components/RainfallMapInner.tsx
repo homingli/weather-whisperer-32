@@ -407,7 +407,7 @@ export default function RainfallMapInner({
             </div>
           </div>
 
-          <div className="flex-1 w-full flex flex-col gap-2">
+          <div className="flex-1 min-w-0 w-full flex flex-col gap-2">
             <input
               type="range"
               min={0}
@@ -420,7 +420,13 @@ export default function RainfallMapInner({
               className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label={t('nowcast.slider')}
             />
-            <div className="flex justify-between text-xs font-semibold text-muted-foreground px-1">
+            {/* Step labels: many GeoMet/HKO steps overflow a 375-440 px card,
+                so the row scrolls horizontally (hidden scrollbar) instead of
+                clipping against the card's overflow-x:hidden. w-max keeps the
+                flex content sized to the buttons; min-w-full + justify-between
+                spread a small step count across the full width. */}
+            <div className="overflow-x-auto text-xs font-semibold text-muted-foreground -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex w-max min-w-full items-center justify-between gap-x-1">
               {stepTimes.map((time, index) => (
                 <button
                   key={index}
@@ -429,13 +435,14 @@ export default function RainfallMapInner({
                     setIsPlaying(false);
                   }}
                   aria-current={index === activeStepIndex ? 'true' : undefined}
-                  className={`px-2 py-1 min-h-[24px] rounded hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  className={`px-2 py-1 whitespace-nowrap min-h-[24px] rounded hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                     index === activeStepIndex ? 'text-primary font-bold' : ''
                   }`}
                 >
                   {time}
                 </button>
               ))}
+              </div>
             </div>
           </div>
         </div>
