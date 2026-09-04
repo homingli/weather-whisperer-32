@@ -3,11 +3,12 @@ import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, ge
 import type { HeadlineInfo } from "@/lib/weather";
 import type { LucideIcon } from "lucide-react";
 import { SENTINEL_THRESHOLD, QUIET } from "@/lib/constants";
-import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, Thermometer, AlertTriangle, Moon } from "lucide-react";
+import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, AlertTriangle, Moon } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
 import type { Units } from "@/lib/units";
 import {
+  toDisplayTemperature,
   formatTemperature,
   formatWindSpeed,
   formatPrecipitation,
@@ -197,22 +198,20 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
       ref={root}
       className={`editorial-card ${compact ? 'overflow-x-hidden overflow-y-auto p-6 overscroll-contain' : 'overflow-hidden p-6 md:p-8 lg:p-10'}`}
     >
-      {/* Temperature range leads the hero, setting the day's context first. */}
-      <div className="mb-6 cw-fade">
-        <RangeBar
-          low={dailyForecast?.temperatureMin}
-          high={dailyForecast?.temperatureMax}
-          current={weather.temperature}
-          label={t('label.temperature')}
-          empty={isEmpty}
-          units={units}
-          umbrellaIcon={needsUmbrella ? Umbrella : UmbrellaOff}
-        />
-      </div>
+      {/* Sun-cycle progress strip — the active phase bar with time left
+          until it ends. Sits above the hero so users see the daylight context
+          before the temperature and conditions. */}
+      <SunCycleProgress
+        sunrise={dailyForecast?.sunrise}
+        sunset={dailyForecast?.sunset}
+        nextSunrise={tomorrowSunrise}
+        timezone={timezone}
+        needsUmbrella={needsUmbrella}
+      />
 
       <div>
         {/* Feels-like kicker above the hero so the big number is read as apparent temperature. */}
-          <p className={`cw-fade kicker text-muted-foreground mb-2 ${compact ? 'text-center' : 'md:text-left'}`}>
+          <p className={`cw-fade kicker text-muted-foreground mb-2 text-center`}>
             {t('weather.feelsLike')}
           </p>
 
@@ -251,7 +250,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           </p>
             </div>
           ) : (
-            <header className="grid gap-6 md:grid-cols-[auto_auto] md:items-end md:justify-start">
+            <header className="grid gap-6 md:grid-cols-[auto_auto] md:items-center md:justify-center md:text-center">
           <div className="overflow-hidden min-w-0">
             <h1 className="cw-rise block font-display text-[clamp(80px,14vw,160px)] leading-[0.85] font-light tracking-[-0.04em]">
               {formatHeroTemperature(weather.apparentTemperature, units, SENTINEL_THRESHOLD)}
@@ -276,18 +275,22 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           )}
       </div>
 
-      {/* Sun-cycle progress strip — the active phase bar with time left
-          until it ends (see SunCycleProgress below). This replaced the old
-          standalone Sunrise/Sunset countdown stat: the strip carries both
-          the time-left readout and the sunrise/sunset boundary times. Sits
-          above the hairline rule that separates the hero from the stat
-          widgets. */}
-      <SunCycleProgress
-        sunrise={dailyForecast?.sunrise}
-        sunset={dailyForecast?.sunset}
-        nextSunrise={tomorrowSunrise}
-        timezone={timezone}
-      />
+      {/* Temperature caption — today's high/low plus the short-term trend
+          ("3° warmer by 03:00 PM"). One muted line under the hero; the old
+          full-width range bar was dropped because a position marker on a
+          linear low→high axis can't tell pre-peak from post-peak — the
+          hourly chart owns that job. Sits above the hairline rule that
+          separates the hero from the stat widgets. */}
+      <div className="cw-fade mt-4 md:mt-5">
+        <TempSummary
+          low={dailyForecast?.temperatureMin}
+          high={dailyForecast?.temperatureMax}
+          current={weather.temperature}
+          hourly={hourlyForecast}
+          timezone={timezone}
+          empty={isEmpty}
+        />
+      </div>
 
       <div className="cw-rule h-px editorial-rule my-6" />
 
@@ -342,51 +345,100 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
 
 CurrentWeather.displayName = 'CurrentWeather';
 
-/* ── Temperature range bar: low ── current ── high ──────────────────── */
-function RangeBar({
-  low, high, current, label, empty, units, umbrellaIcon: UmbrellaIcon,
-}: { low?: number; high?: number; current: number; label: string; empty: boolean; units: Units; umbrellaIcon: LucideIcon }) {
+/* ── Temperature caption: today's high/low + short-term trend ──────── */
+
+/** Visible glyph when the 3h trend rounds to zero. Kept aria-hidden so
+ *  assistive tech never announces a bare dash; an sr-only "no change" copy
+ *  carries the meaning in the content, and the group's aria-label spells
+ *  out the full sentence (a "0°" claim would read as noise). */
+const STEADY_TREND_GLYPH = '–';
+
+/** Temperature change (whole display degrees) from the current hour to
+ *  the entry ~3 hours later. Clamps the target to the last available entry
+ *  near the end of the nowcast horizon. Returns null when there is no
+ *  future hour to compare against — including when the target hour has
+ *  already passed, which happens when Index feeds a stale persisted
+ *  snapshot (offline/cache): "3° warmer by 11:00 AM" would be a lie at
+ *  11:05. Rounds each endpoint in the active unit system (convert before
+ *  rounding) so the delta matches what the thermometer reads. */
+function hourlyTrendDelta(hourly: HourlyForecast[], units: Units, now = Date.now()): number | null {
+  if (hourly.length < 2) return null;
+  const target = hourly[Math.min(3, hourly.length - 1)];
+  if (target.time.getTime() <= now) return null;
+  return toDisplayTemperature(target.temperature, units)
+    - toDisplayTemperature(hourly[0].temperature, units);
+}
+
+/** Muted one-liner under the hero: "H 32°C / L 24°C · 3° warmer by
+ *  03:00 PM". The high/low keep the day's envelope glanceable; the trend
+ *  clause answers "hotter or cooler from here?" without the misleading
+ *  position marker the old range bar used. Hidden on empty data. */
+function TempSummary({
+  low, high, current, hourly, timezone, empty,
+}: {
+  low?: number; high?: number; current: number; hourly: HourlyForecast[];
+  timezone?: string; empty: boolean;
+}) {
+  const { language, t } = useLanguage();
+  const { units } = useUnits();
+  if (empty) return null;
+
   const lo = low ?? current;
   const hi = high ?? current;
-  const range = Math.max(hi - lo, 0.1);
-  const clamped = Math.max(lo, Math.min(hi, current));
-  const currentPct = ((clamped - lo) / range) * 100;
-  const loStr = empty ? '—' : formatTemperature(lo, units);
-  const hiStr = empty ? '—' : formatTemperature(hi, units);
-  const curStr = empty ? '—' : formatTemperature(current, units);
+  const loStr = formatTemperature(lo, units);
+  const hiStr = formatTemperature(hi, units);
+
+  const delta = hourlyTrendDelta(hourly, units);
+  let trendText = '';
+  let trendAria = '';
+  if (delta != null) {
+    const target = hourly[Math.min(3, hourly.length - 1)].time;
+    const hour12 = language !== 'tc';
+    const targetLabel = formatInTimezone(target, appLocale(language), {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12,
+    });
+    if (delta === 0) {
+      trendText = STEADY_TREND_GLYPH;
+      trendAria = t('trend.steady');
+    } else if (delta > 0) {
+      trendText = formatString(t('trend.warmer'), String(delta), targetLabel);
+      trendAria = trendText;
+    } else {
+      trendText = formatString(t('trend.cooler'), String(-delta), targetLabel);
+      trendAria = trendText;
+    }
+  }
+
+  const ariaLabel = `${t('temp.hi')} ${hiStr}, ${t('temp.lo')} ${loStr}`
+    + (trendAria ? `, ${trendAria}` : '');
   return (
     <div
-      className="flex flex-col gap-3"
-      aria-label={
-        empty
-          ? `${label}: range unavailable`
-          : `${label}: range ${loStr} to ${hiStr}, currently ${curStr}`
-      }
+      data-testid="temp-summary"
+      role="group"
+      aria-label={ariaLabel}
+      className="flex flex-wrap items-center justify-center gap-x-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 tabular-nums"
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="kicker text-muted-foreground inline-flex items-center gap-2">
-          <Thermometer className="h-3.5 w-3.5" />
-          {label}
-        </span>
-        <span className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none">
-          {curStr}
-        </span>
-      </div>
-      <div className="relative h-2 bg-foreground/10" style={{
-        background: "linear-gradient(90deg, #3b82f6 0%, #06b6d4 35%, #eab308 65%, #ef4444 100%)",
-      }} aria-hidden="true">
-        <div
-          className="absolute -top-3 -translate-x-1/2 h-6 w-6 text-foreground"
-          style={{ left: `${currentPct}%` }}
-          aria-hidden
-        >
-          <UmbrellaIcon className="h-6 w-6 border border-foreground bg-background p-0.5" strokeWidth={1.75} />
-        </div>
-      </div>
-      <div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
-        <span>{loStr}</span>
-        <span>{hiStr}</span>
-      </div>
+      <span>{t('temp.hi')} {hiStr}</span>
+      <span aria-hidden="true">·</span>
+      <span>{t('temp.lo')} {loStr}</span>
+      {trendText && (
+        <>
+          <span aria-hidden="true">·</span>
+          <span data-testid="temp-trend">
+            {delta === 0 ? (
+              <>
+                <span aria-hidden="true">{STEADY_TREND_GLYPH}</span>
+                <span className="sr-only">{t('trend.steady')}</span>
+              </>
+            ) : (
+              trendText
+            )}
+          </span>
+        </>
+      )}
     </div>
   );
 }
@@ -470,12 +522,13 @@ const DAY_GRADIENT = 'linear-gradient(90deg, #fde047 0%, #fbbf24 35%, #fb923c 65
 const NIGHT_GRADIENT = 'linear-gradient(90deg, #60a5fa 0%, #3b82f6 55%, #f59e0b 88%, #fde047 100%)';
 
 function SunCycleProgress({
-  sunrise, sunset, nextSunrise, timezone,
+  sunrise, sunset, nextSunrise, timezone, needsUmbrella,
 }: {
   sunrise?: Date | string | number;
   sunset?: Date | string | number;
   nextSunrise?: Date | string | number;
   timezone?: string;
+  needsUmbrella?: boolean;
 }) {
   const { language, t } = useLanguage();
   const [now, setNow] = useState(() => Date.now());
@@ -532,7 +585,7 @@ function SunCycleProgress({
       data-testid="sun-progress"
       data-phase={cycle.kind}
       role="group"
-      className="cw-fade flex flex-col gap-3 mt-6"
+      className="cw-fade flex flex-col gap-3"
       aria-label={`${phaseLabel}: ${leftText}`}
     >
       <div className="flex items-center justify-between gap-2">
@@ -549,28 +602,33 @@ function SunCycleProgress({
         style={{ background: isDay ? DAY_GRADIENT : NIGHT_GRADIENT }}
         aria-hidden="true"
       >
-        {/* Marker at the current time — ring in the card colour so it reads
-            as a cutout against the gradient at either end. */}
+        {/* Marker at the current time — umbrella icon on the daylight span. */}
         <span
-          className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{
-            left: `${pct * 100}%`,
-            backgroundColor: 'hsl(var(--foreground))',
-            boxShadow: '0 0 0 2px hsl(var(--card))',
-          }}
-        />
+          className="absolute top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 text-foreground"
+          style={{ left: `${pct * 100}%` }}
+          aria-hidden
+        >
+          {needsUmbrella ? (
+            <Umbrella className="h-6 w-6 border border-foreground bg-background p-0.5" strokeWidth={1.75} />
+          ) : (
+            <UmbrellaOff className="h-6 w-6 border border-foreground bg-background p-0.5" strokeWidth={1.75} />
+          )}
+        </span>
       </div>
       <div className="flex justify-between gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
+        {/* Icons + bar colour already identify the day/night phase; the
+            "Sunrise"/"Sunset" words are visual noise, so they stay
+            screen-reader-only (sr-only) and never render on screen. */}
         <span className="inline-flex items-center gap-1.5">
           <StartIcon className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="whitespace-nowrap">
-            <span className="hidden sm:inline">{startLabel} </span>{startTime}
+            <span className="sr-only">{startLabel} </span>{startTime}
           </span>
         </span>
         <span className="inline-flex items-center gap-1.5">
           <EndIcon className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="whitespace-nowrap">
-            <span className="hidden sm:inline">{endLabel} </span>{endTime}
+            <span className="sr-only">{endLabel} </span>{endTime}
           </span>
         </span>
       </div>
