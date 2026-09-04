@@ -627,6 +627,18 @@ describe('CurrentWeather Component', () => {
       expect(screen.getByTestId('temp-trend')).toHaveTextContent('5° warmer by 01:00 PM');
     });
 
+    it('computes the trend when hourly times hydrate from localStorage as ISO strings', () => {
+      // The query cache persists hourly entries as JSON, so on a hard refresh
+      // (cache rehydration) `time` is an ISO string, not the Date the live
+      // parser produces. Regression: hourlyTrendDelta used to call
+      // time.getTime() directly and crashed with "getTime is not a function".
+      const stringTimes = hourlyFrom([20, 21, 22, 23], 12)
+        .map((hour, i) => ({ ...hour, time: `2024-01-08T${12 + i}:00:00.000Z` })) as unknown as HourlyForecastType[];
+      summaryCard({ hourlyForecast: stringTimes });
+      expect(screen.getByTestId('temp-trend')).toHaveTextContent('3° warmer by 03:00 PM');
+      expect(screen.getByTestId('temp-summary')).toHaveAccessibleName('H 30°C, L 10°C, 3° warmer by 03:00 PM');
+    });
+
     it('omits the trend clause when fewer than two hours remain', () => {
       summaryCard({ hourlyForecast: hourlyFrom([20], 12) });
       const summary = screen.getByTestId('temp-summary');
