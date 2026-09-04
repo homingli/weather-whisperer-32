@@ -353,6 +353,14 @@ CurrentWeather.displayName = 'CurrentWeather';
  *  out the full sentence (a "0°" claim would read as noise). */
 const STEADY_TREND_GLYPH = '–';
 
+/** Normalize an hourly entry's time at the persistence boundary: the live
+ *  parser hands out Date instances, but query-cache hydration from
+ *  localStorage returns the same field as an ISO string. TS types it as
+ *  Date, so the runtime check is what keeps .getTime() safe. */
+function toTimeMs(time: Date): number {
+  return time instanceof Date ? time.getTime() : new Date(time).getTime();
+}
+
 /** Temperature change (whole display degrees) from the current hour to
  *  the entry ~3 hours later. Clamps the target to the last available entry
  *  near the end of the nowcast horizon. Returns null when there is no
@@ -364,7 +372,8 @@ const STEADY_TREND_GLYPH = '–';
 function hourlyTrendDelta(hourly: HourlyForecast[], units: Units, now = Date.now()): number | null {
   if (hourly.length < 2) return null;
   const target = hourly[Math.min(3, hourly.length - 1)];
-  if (target.time.getTime() <= now) return null;
+  const targetMs = toTimeMs(target.time);
+  if (!Number.isFinite(targetMs) || targetMs <= now) return null;
   return toDisplayTemperature(target.temperature, units)
     - toDisplayTemperature(hourly[0].temperature, units);
 }
@@ -392,9 +401,11 @@ function TempSummary({
   let trendText = '';
   let trendAria = '';
   if (delta != null) {
-    const target = hourly[Math.min(3, hourly.length - 1)].time;
+    // Rebuild a real Date from the (possibly string, post-hydration) time:
+    // Intl.DateTimeFormat.format throws on strings, so pass a Date.
+    const targetDate = new Date(toTimeMs(hourly[Math.min(3, hourly.length - 1)].time));
     const hour12 = language !== 'tc';
-    const targetLabel = formatInTimezone(target, appLocale(language), {
+    const targetLabel = formatInTimezone(targetDate, appLocale(language), {
       timeZone: timezone,
       hour: '2-digit',
       minute: '2-digit',
