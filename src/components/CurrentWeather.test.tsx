@@ -12,7 +12,7 @@ const mockWeather: CurrentWeatherType = {
   humidity: 60,
   uvIndex: 5,
   weatherCode: 0,
-  windSpeed: 10,
+  windSpeed: 25,
   windDirection: 180,
   precipitation: 0,
   precipitationProbability: 0,
@@ -23,7 +23,7 @@ const mockHourly: HourlyForecastType[] = Array(24).fill(0).map((_, i) => ({
   time: new Date(2024, 0, 8, i),
   temperature: 20,
   weatherCode: 0,
-  windSpeed: 10,
+  windSpeed: 25,
   windDirection: 180,
   precipitationProbability: 0,
   precipitation: 0,
@@ -56,8 +56,8 @@ describe('CurrentWeather Component', () => {
   };
 
   it('renders hero temperature with bare ° by default (metric)', () => {
-    // Hero shows "18°" — the unit context is implicit from the range bar below
-    // and the menu selection.
+    // Hero shows "18°" — the unit context (°C vs °F) is implicit from the
+    // temperature caption below and the menu selection.
     renderWithLanguage(
       <CurrentWeather
         weather={mockWeather}
@@ -470,8 +470,8 @@ describe('CurrentWeather Component', () => {
       expect(container.querySelector('[aria-label^="Wind direction toward"]')).toBeNull();
     });
 
-    it('treats boundary values as needing attention (uv 3, wind 5, humidity outside 30–60)', () => {
-      const boundary = { ...mockWeather, uvIndex: 3, humidity: 29, windSpeed: 5 };
+    it('treats boundary values as needing attention (uv 3, wind 20, humidity outside 30–60)', () => {
+      const boundary = { ...mockWeather, uvIndex: 3, humidity: 29, windSpeed: 20 };
       renderWeather(boundary);
       expect(screen.queryByTestId('quiet-uv')).toBeNull();
       expect(screen.queryByTestId('quiet-humidity')).toBeNull();
@@ -506,6 +506,192 @@ describe('CurrentWeather Component', () => {
       const precip = screen.getByTestId('quiet-precip');
       expect(precip).toHaveTextContent('Precip. 0.0 mm');
       expect(precip).not.toHaveAttribute('aria-expanded');
+    });
+  });
+
+  // ── Temperature caption: H/L + 3h trend (replaces the range bar) ────
+  // The old full-width range bar (low ─ current ─ high with a position
+  // marker) is gone. In its place one muted line under the hero: today's
+  // high/low plus the air-temperature trend from the current hour to ~3h
+  // later ("3° warmer by 03:00 PM"). Flat within a whole degree renders a
+  // dash rather than a bogus "0°" claim.
+  describe('temperature caption', () => {
+    // Hourly temps on 2024-01-08, expressed as UTC instants so the
+    // "by {time}" readout is deterministic under timezone="UTC" regardless
+    // of the test runner's local timezone.
+    const hourlyFrom = (temps: number[], startHourUtc: number): HourlyForecastType[] =>
+      temps.map((temp, i) => ({
+        ...mockHourly[0],
+        time: new Date(Date.UTC(2024, 0, 8, startHourUtc + i)),
+        temperature: temp,
+      }));
+    const dayWithRange = (min: number, max: number): DailyForecastType => ({
+      date: new Date(Date.UTC(2024, 0, 8)),
+      temperatureMax: max,
+      temperatureMin: min,
+      weatherCode: 0,
+      windSpeedMax: 10,
+      windDirectionDominant: 180,
+      precipitationProbabilityMax: 0,
+      // Epoch-0 sun times: toValidSunDate treats them as no-data, so the
+      // sun strip stays hidden and the caption assertions stay unambiguous.
+      sunrise: new Date(0),
+      sunset: new Date(0),
+    });
+    const summaryCard = (props: Partial<React.ComponentProps<typeof CurrentWeather>> = {}) =>
+      renderWithLanguage(
+        <CurrentWeather
+          weather={mockWeather}
+          hourlyForecast={hourlyFrom([20, 21, 22, 23], 12)}
+          dailyForecast={dayWithRange(10, 30)}
+          timezone="UTC"
+          headline={{ source: 'om' }}
+          {...props}
+        />
+      );
+
+    // Freeze "now" one hour before the fixture window (12:00 UTC) so the
+    // trend guard (the +3h target must still be in the future, else the
+    // payload is a stale persisted snapshot) passes deterministically.
+    beforeEach(() => {
+      vi.setSystemTime(new Date('2024-01-08T11:00:00Z'));
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('shows today H/L and a warming trend against the +3h clock time', () => {
+      summaryCard();
+      const summary = screen.getByTestId('temp-summary');
+      expect(summary).toHaveTextContent('H 30°C');
+      expect(summary).toHaveTextContent('L 10°C');
+      // hourly[0] = 20 °C, hourly[3] = 23 °C → 3° warmer. hourly[3] sits
+      // at 15:00 UTC → "03:00 PM".
+      expect(screen.getByTestId('temp-trend')).toHaveTextContent('3° warmer by 03:00 PM');
+      // aria carries the same sentence for screen readers.
+      expect(summary).toHaveAttribute('aria-label', 'H 30°C, L 10°C, 3° warmer by 03:00 PM');
+    });
+
+    it('converts the delta and H/L to whole degrees in us mode', () => {
+      function FlipProbe() {
+        const { setUnits } = useUnits();
+        return <button data-testid="flip-us-caption" onClick={() => setUnits('us')}>flip</button>;
+      }
+      render(
+        <LanguageProvider>
+          <UnitsProvider>
+            <FlipProbe />
+            <CurrentWeather
+              weather={mockWeather}
+              hourlyForecast={hourlyFrom([20, 21, 22, 23], 12)}
+              dailyForecast={dayWithRange(10, 30)}
+              timezone="UTC"
+              headline={{ source: 'om' }}
+            />
+          </UnitsProvider>
+        </LanguageProvider>
+      );
+      act(() => {
+        screen.getByTestId('flip-us-caption').click();
+      });
+      // 20 °C → 68 °F, 23 °C → 73 °F → 5° warmer; range 10–30 °C → 50–86 °F.
+      expect(screen.getByTestId('temp-trend')).toHaveTextContent('5° warmer by 03:00 PM');
+      const summary = screen.getByTestId('temp-summary');
+      expect(summary).toHaveTextContent('H 86°F');
+      expect(summary).toHaveTextContent('L 50°F');
+    });
+
+    it('shows a dash (not a bogus 0°) when the 3h trend is flat', () => {
+      summaryCard({ hourlyForecast: hourlyFrom([20, 20, 20, 20], 12) });
+      const summary = screen.getByTestId('temp-summary');
+      // The dash is decorative; assistive tech gets the meaning both from
+      // an sr-only "no change" copy and from the group's aria-label.
+      expect(screen.getByTestId('temp-trend')).toHaveTextContent('–');
+      expect(screen.getByTestId('temp-trend')).toHaveTextContent('no change');
+      expect(screen.getByText('–')).toHaveAttribute('aria-hidden', 'true');
+      expect(summary).toHaveAttribute('role', 'group');
+      expect(summary).toHaveAccessibleName('H 30°C, L 10°C, no change');
+      expect(summary.textContent).not.toContain('warmer');
+    });
+
+    it('shows a cooling trend with cooler copy when the delta is negative', () => {
+      summaryCard({ hourlyForecast: hourlyFrom([23, 22, 21, 20], 12) });
+      expect(screen.getByTestId('temp-trend')).toHaveTextContent('3° cooler by 03:00 PM');
+      expect(screen.getByTestId('temp-summary'))
+        .toHaveAccessibleName('H 30°C, L 10°C, 3° cooler by 03:00 PM');
+    });
+
+    it('clamps the comparison to the last hour when the horizon is short', () => {
+      // Only 2 hours of nowcast: hourly[0] = 20 vs hourly[1] = 25 at 13:00 UTC.
+      summaryCard({ hourlyForecast: hourlyFrom([20, 25], 12) });
+      expect(screen.getByTestId('temp-trend')).toHaveTextContent('5° warmer by 01:00 PM');
+    });
+
+    it('omits the trend clause when fewer than two hours remain', () => {
+      summaryCard({ hourlyForecast: hourlyFrom([20], 12) });
+      const summary = screen.getByTestId('temp-summary');
+      expect(summary).toHaveTextContent('H 30°C');
+      expect(summary).toHaveTextContent('L 10°C');
+      expect(screen.queryByTestId('temp-trend')).toBeNull();
+      expect(summary).toHaveAccessibleName('H 30°C, L 10°C');
+    });
+
+    it('omits the trend clause when the +3h window has already passed (stale cache)', () => {
+      // Snapshot hours end at 07:00 UTC, before the frozen "now" of 11:00 UTC
+      // — e.g. a persisted offline payload hours old. Claiming "warmer by
+      // 07:00 AM" after the fact would be a lie, so only H/L renders.
+      summaryCard({ hourlyForecast: hourlyFrom([20, 21, 22, 23], 4) });
+      const summary = screen.getByTestId('temp-summary');
+      expect(screen.queryByTestId('temp-trend')).toBeNull();
+      expect(summary).toHaveTextContent('H 30°C');
+      expect(summary).toHaveAccessibleName('H 30°C, L 10°C');
+    });
+
+    it('renders tc copy with 24h target time and localized H/L and trend', () => {
+      function FlipTc() {
+        const { setLanguage } = useLanguage();
+        return <button data-testid="flip-tc-caption" onClick={() => setLanguage('tc')}>tc</button>;
+      }
+      render(
+        <LanguageProvider>
+          <UnitsProvider>
+            <FlipTc />
+            <CurrentWeather
+              weather={mockWeather}
+              hourlyForecast={hourlyFrom([20, 21, 22, 23], 12)}
+              dailyForecast={dayWithRange(10, 30)}
+              timezone="UTC"
+              headline={{ source: 'om' }}
+            />
+          </UnitsProvider>
+        </LanguageProvider>
+      );
+      act(() => {
+        screen.getByTestId('flip-tc-caption').click();
+      });
+      // 高/低 labels, 24h "15:00", TC trend string "至 15:00 升 3°".
+      const summary = screen.getByTestId('temp-summary');
+      expect(summary).toHaveTextContent('高 30°C');
+      expect(summary).toHaveTextContent('低 10°C');
+      expect(screen.getByTestId('temp-trend')).toHaveTextContent('至 15:00 升 3°');
+      expect(summary).toHaveAccessibleName('高 30°C, 低 10°C, 至 15:00 升 3°');
+    });
+
+    it('renders no caption when the data is empty', () => {
+      const empty: CurrentWeatherType = {
+        temperature: -999,
+        apparentTemperature: -999,
+        humidity: -999,
+        uvIndex: null,
+        weatherCode: 0,
+        windSpeed: -999,
+        windDirection: 0,
+        precipitation: -999,
+        precipitationProbability: -999,
+        isDay: true,
+      };
+      summaryCard({ weather: empty });
+      expect(screen.queryByTestId('temp-summary')).toBeNull();
     });
   });
 

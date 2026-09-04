@@ -23,8 +23,8 @@ export const QUIET = {
   /** Comfortable humidity band (inclusive) — below is dry, above is muggy. */
   HUMIDITY_MIN: 30,
   HUMIDITY_MAX: 60,
-  /** Calm wind (raw value is always km/h) — compass direction is noise below this. */
-  WIND_KMH: 5,
+  /** Calm wind (raw value is always km/h) — below this, compass direction is noise. */
+  WIND_KMH: 20,
 } as const;
 
 // ---------------------------------------------------------------------------
