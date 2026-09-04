@@ -281,7 +281,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           linear low→high axis can't tell pre-peak from post-peak — the
           hourly chart owns that job. Sits above the hairline rule that
           separates the hero from the stat widgets. */}
-      <div className="cw-fade">
+      <div className="cw-fade mt-4 md:mt-5">
         <TempSummary
           low={dailyForecast?.temperatureMin}
           high={dailyForecast?.temperatureMax}
@@ -601,16 +601,19 @@ function SunCycleProgress({
         </span>
       </div>
       <div className="flex justify-between gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
+        {/* Icons + bar colour already identify the day/night phase; the
+            "Sunrise"/"Sunset" words are visual noise, so they stay
+            screen-reader-only (sr-only) and never render on screen. */}
         <span className="inline-flex items-center gap-1.5">
           <StartIcon className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="whitespace-nowrap">
-            <span className="hidden sm:inline">{startLabel} </span>{startTime}
+            <span className="sr-only">{startLabel} </span>{startTime}
           </span>
         </span>
         <span className="inline-flex items-center gap-1.5">
           <EndIcon className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="whitespace-nowrap">
-            <span className="hidden sm:inline">{endLabel} </span>{endTime}
+            <span className="sr-only">{endLabel} </span>{endTime}
           </span>
         </span>
       </div>
