@@ -347,19 +347,24 @@ CurrentWeather.displayName = 'CurrentWeather';
 
 /* ── Temperature caption: today's high/low + short-term trend ──────── */
 
-/** Visible glyph when the 3h trend rounds to zero (aria keeps the
- *  "no change" reading; a bare "0°" claim would read as noise). */
+/** Visible glyph when the 3h trend rounds to zero. Kept aria-hidden so
+ *  assistive tech never announces a bare dash; an sr-only "no change" copy
+ *  carries the meaning in the content, and the group's aria-label spells
+ *  out the full sentence (a "0°" claim would read as noise). */
 const STEADY_TREND_GLYPH = '–';
 
 /** Temperature change (whole display degrees) from the current hour to
  *  the entry ~3 hours later. Clamps the target to the last available entry
- *  near the end of the nowcast horizon; returns null when there is no
- *  future hour to compare against. Rounds each endpoint in the active
- *  unit system (convert before rounding) so the delta matches what the
- *  thermometer reads. */
-function hourlyTrendDelta(hourly: HourlyForecast[], units: Units): number | null {
+ *  near the end of the nowcast horizon. Returns null when there is no
+ *  future hour to compare against — including when the target hour has
+ *  already passed, which happens when Index feeds a stale persisted
+ *  snapshot (offline/cache): "3° warmer by 11:00 AM" would be a lie at
+ *  11:05. Rounds each endpoint in the active unit system (convert before
+ *  rounding) so the delta matches what the thermometer reads. */
+function hourlyTrendDelta(hourly: HourlyForecast[], units: Units, now = Date.now()): number | null {
   if (hourly.length < 2) return null;
   const target = hourly[Math.min(3, hourly.length - 1)];
+  if (target.time.getTime() <= now) return null;
   return toDisplayTemperature(target.temperature, units)
     - toDisplayTemperature(hourly[0].temperature, units);
 }
@@ -412,6 +417,7 @@ function TempSummary({
   return (
     <div
       data-testid="temp-summary"
+      role="group"
       aria-label={ariaLabel}
       className="flex flex-wrap items-center justify-center gap-x-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 tabular-nums"
     >
@@ -421,7 +427,16 @@ function TempSummary({
       {trendText && (
         <>
           <span aria-hidden="true">·</span>
-          <span data-testid="temp-trend">{trendText}</span>
+          <span data-testid="temp-trend">
+            {delta === 0 ? (
+              <>
+                <span aria-hidden="true">{STEADY_TREND_GLYPH}</span>
+                <span className="sr-only">{t('trend.steady')}</span>
+              </>
+            ) : (
+              trendText
+            )}
+          </span>
         </>
       )}
     </div>

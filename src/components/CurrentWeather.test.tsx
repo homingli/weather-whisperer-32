@@ -550,6 +550,16 @@ describe('CurrentWeather Component', () => {
         />
       );
 
+    // Freeze "now" one hour before the fixture window (12:00 UTC) so the
+    // trend guard (the +3h target must still be in the future, else the
+    // payload is a stale persisted snapshot) passes deterministically.
+    beforeEach(() => {
+      vi.setSystemTime(new Date('2024-01-08T11:00:00Z'));
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it('shows today H/L and a warming trend against the +3h clock time', () => {
       summaryCard();
       const summary = screen.getByTestId('temp-summary');
@@ -593,11 +603,78 @@ describe('CurrentWeather Component', () => {
 
     it('shows a dash (not a bogus 0°) when the 3h trend is flat', () => {
       summaryCard({ hourlyForecast: hourlyFrom([20, 20, 20, 20], 12) });
-      expect(screen.getByTestId('temp-trend')).toHaveTextContent('–');
       const summary = screen.getByTestId('temp-summary');
-      // aria spells out the dash so assistive tech reads "no change".
-      expect(summary).toHaveAttribute('aria-label', expect.stringContaining('no change'));
+      // The dash is decorative; assistive tech gets the meaning both from
+      // an sr-only "no change" copy and from the group's aria-label.
+      expect(screen.getByTestId('temp-trend')).toHaveTextContent('–');
+      expect(screen.getByTestId('temp-trend')).toHaveTextContent('no change');
+      expect(screen.getByText('–')).toHaveAttribute('aria-hidden', 'true');
+      expect(summary).toHaveAttribute('role', 'group');
+      expect(summary).toHaveAccessibleName('H 30°C, L 10°C, no change');
       expect(summary.textContent).not.toContain('warmer');
+    });
+
+    it('shows a cooling trend with cooler copy when the delta is negative', () => {
+      summaryCard({ hourlyForecast: hourlyFrom([23, 22, 21, 20], 12) });
+      expect(screen.getByTestId('temp-trend')).toHaveTextContent('3° cooler by 03:00 PM');
+      expect(screen.getByTestId('temp-summary'))
+        .toHaveAccessibleName('H 30°C, L 10°C, 3° cooler by 03:00 PM');
+    });
+
+    it('clamps the comparison to the last hour when the horizon is short', () => {
+      // Only 2 hours of nowcast: hourly[0] = 20 vs hourly[1] = 25 at 13:00 UTC.
+      summaryCard({ hourlyForecast: hourlyFrom([20, 25], 12) });
+      expect(screen.getByTestId('temp-trend')).toHaveTextContent('5° warmer by 01:00 PM');
+    });
+
+    it('omits the trend clause when fewer than two hours remain', () => {
+      summaryCard({ hourlyForecast: hourlyFrom([20], 12) });
+      const summary = screen.getByTestId('temp-summary');
+      expect(summary).toHaveTextContent('H 30°C');
+      expect(summary).toHaveTextContent('L 10°C');
+      expect(screen.queryByTestId('temp-trend')).toBeNull();
+      expect(summary).toHaveAccessibleName('H 30°C, L 10°C');
+    });
+
+    it('omits the trend clause when the +3h window has already passed (stale cache)', () => {
+      // Snapshot hours end at 07:00 UTC, before the frozen "now" of 11:00 UTC
+      // — e.g. a persisted offline payload hours old. Claiming "warmer by
+      // 07:00 AM" after the fact would be a lie, so only H/L renders.
+      summaryCard({ hourlyForecast: hourlyFrom([20, 21, 22, 23], 4) });
+      const summary = screen.getByTestId('temp-summary');
+      expect(screen.queryByTestId('temp-trend')).toBeNull();
+      expect(summary).toHaveTextContent('H 30°C');
+      expect(summary).toHaveAccessibleName('H 30°C, L 10°C');
+    });
+
+    it('renders tc copy with 24h target time and localized H/L and trend', () => {
+      function FlipTc() {
+        const { setLanguage } = useLanguage();
+        return <button data-testid="flip-tc-caption" onClick={() => setLanguage('tc')}>tc</button>;
+      }
+      render(
+        <LanguageProvider>
+          <UnitsProvider>
+            <FlipTc />
+            <CurrentWeather
+              weather={mockWeather}
+              hourlyForecast={hourlyFrom([20, 21, 22, 23], 12)}
+              dailyForecast={dayWithRange(10, 30)}
+              timezone="UTC"
+              headline={{ source: 'om' }}
+            />
+          </UnitsProvider>
+        </LanguageProvider>
+      );
+      act(() => {
+        screen.getByTestId('flip-tc-caption').click();
+      });
+      // 高/低 labels, 24h "15:00", TC trend string "至 15:00 升 3°".
+      const summary = screen.getByTestId('temp-summary');
+      expect(summary).toHaveTextContent('高 30°C');
+      expect(summary).toHaveTextContent('低 10°C');
+      expect(screen.getByTestId('temp-trend')).toHaveTextContent('至 15:00 升 3°');
+      expect(summary).toHaveAccessibleName('高 30°C, 低 10°C, 至 15:00 升 3°');
     });
 
     it('renders no caption when the data is empty', () => {
