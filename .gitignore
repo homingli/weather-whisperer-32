@@ -35,3 +35,6 @@ data.csv
 
 # Pi session caches (local agent state, not source)
 .pi*
+
+# Viewport audit output (screenshots + results)
+scripts/audit/shots/
