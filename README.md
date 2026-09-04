@@ -163,6 +163,16 @@ npm run lint        # ESLint
 npm test            # Vitest (single run: add --run)
 ```
 
+### Responsive viewport audit
+
+`npm run audit:viewports` walks the app at every iPhone logical portrait
+width (375 → 440 CSS px) and asserts no page-level horizontal overflow, no
+vertical page scroll, no clipped hero numerals, and no overlapping
+interactive controls, capturing screenshots for review. All API/map data is
+stubbed from recorded fixtures so runs are deterministic and offline.
+Requires the dev-only `playwright-core` browser once per machine
+(`pnpm exec playwright-core install chromium`). See `scripts/audit/README.md`.
+
 ## API sources
 
 ### Carto basemap
