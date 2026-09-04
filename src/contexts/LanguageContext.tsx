@@ -84,8 +84,12 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.sunrise': 'Sunrise',
     'daily.sunset': 'Sunset',
 
-    // Range bar label (the temperature range above the hero)
-    'label.temperature': 'TEMPERATURE',
+    // Temperature caption under the hero (today's H/L + short-term trend)
+    'temp.hi': 'H',
+    'temp.lo': 'L',
+    'trend.warmer': '{0}° warmer by {1}',
+    'trend.cooler': '{0}° cooler by {1}',
+    'trend.steady': 'no change',
 
     // Hero / editorial labels
     'header.dailyEdition': 'Daily Edition',
@@ -342,8 +346,12 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.sunset': '日落',
     'daily.chartLabel': '七日溫度範圍與降雨量圖表',
 
-    // Range bar label (the temperature range above the hero)
-    'label.temperature': '氣溫',
+    // Temperature caption under the hero (today's H/L + short-term trend)
+    'temp.hi': '高',
+    'temp.lo': '低',
+    'trend.warmer': '至 {1} 升 {0}°',
+    'trend.cooler': '至 {1} 降 {0}°',
+    'trend.steady': '無變化',
 
     // Hero / editorial labels
     'header.dailyEdition': '每日天氣',

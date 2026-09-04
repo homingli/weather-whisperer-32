@@ -3,11 +3,12 @@ import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, ge
 import type { HeadlineInfo } from "@/lib/weather";
 import type { LucideIcon } from "lucide-react";
 import { SENTINEL_THRESHOLD, QUIET } from "@/lib/constants";
-import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, Thermometer, AlertTriangle, Moon } from "lucide-react";
+import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, AlertTriangle, Moon } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
 import type { Units } from "@/lib/units";
 import {
+  toDisplayTemperature,
   formatTemperature,
   formatWindSpeed,
   formatPrecipitation,
@@ -274,18 +275,20 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           )}
       </div>
 
-      {/* Temperature range — the day's min/max with current position.
-          Sits above the hairline rule that separates the hero from the
-          stat widgets. */}
+      {/* Temperature caption — today's high/low plus the short-term trend
+          ("3° warmer by 03:00 PM"). One muted line under the hero; the old
+          full-width range bar was dropped because a position marker on a
+          linear low→high axis can't tell pre-peak from post-peak — the
+          hourly chart owns that job. Sits above the hairline rule that
+          separates the hero from the stat widgets. */}
       <div className="cw-fade">
-        <RangeBar
+        <TempSummary
           low={dailyForecast?.temperatureMin}
           high={dailyForecast?.temperatureMax}
           current={weather.temperature}
-          label={t('label.temperature')}
+          hourly={hourlyForecast}
+          timezone={timezone}
           empty={isEmpty}
-          units={units}
-          umbrellaIcon={needsUmbrella ? Umbrella : UmbrellaOff}
         />
       </div>
 
@@ -342,51 +345,85 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
 
 CurrentWeather.displayName = 'CurrentWeather';
 
-/* ── Temperature range bar: low ── current ── high ──────────────────── */
-function RangeBar({
-  low, high, current, label, empty, units, umbrellaIcon: UmbrellaIcon,
-}: { low?: number; high?: number; current: number; label: string; empty: boolean; units: Units; umbrellaIcon: LucideIcon }) {
+/* ── Temperature caption: today's high/low + short-term trend ──────── */
+
+/** Visible glyph when the 3h trend rounds to zero (aria keeps the
+ *  "no change" reading; a bare "0°" claim would read as noise). */
+const STEADY_TREND_GLYPH = '–';
+
+/** Temperature change (whole display degrees) from the current hour to
+ *  the entry ~3 hours later. Clamps the target to the last available entry
+ *  near the end of the nowcast horizon; returns null when there is no
+ *  future hour to compare against. Rounds each endpoint in the active
+ *  unit system (convert before rounding) so the delta matches what the
+ *  thermometer reads. */
+function hourlyTrendDelta(hourly: HourlyForecast[], units: Units): number | null {
+  if (hourly.length < 2) return null;
+  const target = hourly[Math.min(3, hourly.length - 1)];
+  return toDisplayTemperature(target.temperature, units)
+    - toDisplayTemperature(hourly[0].temperature, units);
+}
+
+/** Muted one-liner under the hero: "H 32°C / L 24°C · 3° warmer by
+ *  03:00 PM". The high/low keep the day's envelope glanceable; the trend
+ *  clause answers "hotter or cooler from here?" without the misleading
+ *  position marker the old range bar used. Hidden on empty data. */
+function TempSummary({
+  low, high, current, hourly, timezone, empty,
+}: {
+  low?: number; high?: number; current: number; hourly: HourlyForecast[];
+  timezone?: string; empty: boolean;
+}) {
+  const { language, t } = useLanguage();
+  const { units } = useUnits();
+  if (empty) return null;
+
   const lo = low ?? current;
   const hi = high ?? current;
-  const range = Math.max(hi - lo, 0.1);
-  const clamped = Math.max(lo, Math.min(hi, current));
-  const currentPct = ((clamped - lo) / range) * 100;
-  const loStr = empty ? '—' : formatTemperature(lo, units);
-  const hiStr = empty ? '—' : formatTemperature(hi, units);
-  const curStr = empty ? '—' : formatTemperature(current, units);
+  const loStr = formatTemperature(lo, units);
+  const hiStr = formatTemperature(hi, units);
+
+  const delta = hourlyTrendDelta(hourly, units);
+  let trendText = '';
+  let trendAria = '';
+  if (delta != null) {
+    const target = hourly[Math.min(3, hourly.length - 1)].time;
+    const hour12 = language !== 'tc';
+    const targetLabel = formatInTimezone(target, appLocale(language), {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12,
+    });
+    if (delta === 0) {
+      trendText = STEADY_TREND_GLYPH;
+      trendAria = t('trend.steady');
+    } else if (delta > 0) {
+      trendText = formatString(t('trend.warmer'), String(delta), targetLabel);
+      trendAria = trendText;
+    } else {
+      trendText = formatString(t('trend.cooler'), String(-delta), targetLabel);
+      trendAria = trendText;
+    }
+  }
+
+  const ariaLabel = `${t('temp.hi')} ${hiStr}, ${t('temp.lo')} ${loStr}`
+    + (trendAria ? `, ${trendAria}` : '');
   return (
     <div
-      className="flex flex-col gap-3"
-      aria-label={
-        empty
-          ? `${label}: range unavailable`
-          : `${label}: range ${loStr} to ${hiStr}, currently ${curStr}`
-      }
+      data-testid="temp-summary"
+      aria-label={ariaLabel}
+      className="flex flex-wrap items-center justify-center gap-x-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 tabular-nums"
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="kicker text-muted-foreground inline-flex items-center gap-2">
-          <Thermometer className="h-3.5 w-3.5" />
-          {label}
-        </span>
-        <span className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none">
-          {curStr}
-        </span>
-      </div>
-      <div className="relative h-2 bg-foreground/10" style={{
-        background: "linear-gradient(90deg, #3b82f6 0%, #06b6d4 35%, #eab308 65%, #ef4444 100%)",
-      }} aria-hidden="true">
-        <div
-          className="absolute -top-3 -translate-x-1/2 h-6 w-6 text-foreground"
-          style={{ left: `${currentPct}%` }}
-          aria-hidden
-        >
-          <UmbrellaIcon className="h-6 w-6 border border-foreground bg-background p-0.5" strokeWidth={1.75} />
-        </div>
-      </div>
-      <div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
-        <span>{loStr}</span>
-        <span>{hiStr}</span>
-      </div>
+      <span>{t('temp.hi')} {hiStr}</span>
+      <span aria-hidden="true">·</span>
+      <span>{t('temp.lo')} {loStr}</span>
+      {trendText && (
+        <>
+          <span aria-hidden="true">·</span>
+          <span data-testid="temp-trend">{trendText}</span>
+        </>
+      )}
     </div>
   );
 }
@@ -550,7 +587,7 @@ function SunCycleProgress({
         style={{ background: isDay ? DAY_GRADIENT : NIGHT_GRADIENT }}
         aria-hidden="true"
       >
-        {/* Marker at the current time — umbrella icon, same as the temperature bar. */}
+        {/* Marker at the current time — umbrella icon on the daylight span. */}
         <span
           className="absolute top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 text-foreground"
           style={{ left: `${pct * 100}%` }}
