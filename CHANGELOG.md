@@ -7,6 +7,34 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
 ## Unreleased
 
 ### Fixed
+- **Narrow-phone overflow in the rainfall map timeline.** The nowcast step
+  labels in both map cards (HKO + MSC) sat in a single `justify-between`
+  flex row sized to its content, so the MSC map's many GeoMet steps pushed
+  the row past the card edge on 375–402 px iPhones and clipped against the
+  card's `overflow-x: hidden`. The step row now scrolls horizontally
+  (hidden scrollbar) when it outgrows the card, and the flex column holding
+  it got `min-w-0` so the scroll rail can actually constrain. Caught by the
+  new viewport audit (below).
+- **Full-bleed PWA no longer collides with the notch / home indicator.**
+  The viewport meta now includes `viewport-fit=cover` (iOS Safari + the
+  standalone PWA previously letterboxed the app instead of using the full
+  display), and the app column pads with `env(safe-area-inset-*)` on all
+  four edges, so header actions clear the status bar / Dynamic Island and
+  the bottom pagination + footer clear the home indicator. On browsers
+  without a device inset the padding is unchanged.
+
+### Notes
+- **Responsive viewport audit tooling.** `npm run audit:viewports` walks
+  the app at every iPhone portrait logical width (375 → 440 CSS px,
+  including 402×874 and 375×812) across the main route, both rainfall-map
+  slides, settings, alert badges/toasts and the offline banner, asserting
+  no page-level horizontal overflow, no vertical page scroll, no clipped
+  hero numerals and no overlapping interactive controls. Runs offline on
+  recorded fixtures; screenshots land in `scripts/audit/shots/`. See
+  `scripts/audit/README.md`. 72/72 checks pass at write time.
+
+
+### Fixed
 - **Intermittent blank map on mobile** when clicking "Load Map" for the nowcast rainfall card. Leaflet's constructor reads the container's bounding rect synchronously, so a map mounted against a 0x0 container (common during a Swiper slide transition or iOS Safari URL-bar hide/show) ends up with a 0x0 viewport that never recovers on its own. The basemap renders as `bg-muted/20` and the rainfall cells paint into an invisible canvas. Fix: `map.invalidateSize()` on the next frame after the ref lands, plus a `ResizeObserver` on the map container so subsequent size changes (URL bar toggle, orientation, slide re-entry) re-layout the map.
 - **Cold-start snapshot crash on upgrade.** Snapshot schema bumped to v2 (drops legacy v1 envelopes missing `headline`); `CurrentWeatherProps.headline` made optional with an OM default as a defensive guard.
 
