@@ -176,7 +176,7 @@ const Index = () => {
 
   return (
     <div className={`min-h-screen gradient-sky flex flex-col${isMobile ? ' h-dvh' : ''}`}>
-      <div className={`w-full mx-auto px-4 pt-[10px] pb-4 flex flex-col flex-1 min-h-0 transition-all duration-300${
+      <div className={`w-full mx-auto safe-px safe-top safe-bottom flex flex-col flex-1 min-h-0 transition-all duration-300${
         isMobile ? '' : ' max-w-2xl lg:max-w-5xl xl:max-w-7xl'
       }`}>
         {/* Top bar: row 1 = [date time]; row 2 = [location]; right column spans both */}
