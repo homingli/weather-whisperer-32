@@ -21,6 +21,7 @@ import { usePwaInstall } from '@/hooks/usePwaInstall';
 import { toast } from 'sonner';
 import { CloudRain, MapPin, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { TomorrowGlance } from '@/components/TomorrowGlance';
 
 // Lazy load heavy components. DailyForecast pulls recharts (~120 kB) and is
 // below the fold on both mobile (Swiper slide 2) and desktop (split row);
@@ -166,6 +167,20 @@ const Index = () => {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
+  // Reveal target for the Tomorrow strip: desktop scrolls the secondary row
+  // (hourly/daily) into view; mobile advances the swipe deck to the slide
+  // that holds the DailyForecast.
+  const dailySectionRef = useRef<HTMLDivElement | null>(null);
+  const mobileSwiperRef = useRef<{ slideTo(index: number, speed?: number): void } | null>(null);
+
+  const revealDailyForecast = useCallback(() => {
+    if (isMobile) {
+      mobileSwiperRef.current?.slideTo(1, 400);
+      return;
+    }
+    dailySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [isMobile]);
+
   // Dev-only: `window.__devWarnings` is mounted by devWarningSimulator.ts at
   // module load time. Try __devWarnings.add('TC8') / .addCancelled('TC1') /
   // .remove('TC8') / .resetBaseline() / .list().
@@ -294,8 +309,17 @@ const Index = () => {
               {/* ── Mobile: horizontal swipe card deck ── */}
               {isMobile && (
                 <div className="flex flex-col flex-1 min-h-0 mt-3 animate-fade-in">
+                  {/* Tomorrow strip stays above the deck so it is glanceable on
+                      every slide (hero + hourly/daily live on separate swipe
+                      slides on mobile; see TomorrowGlance). */}
+                  <div className="mb-3 shrink-0">
+                    <TomorrowGlance forecast={weather.daily?.[1]} onReveal={revealDailyForecast} />
+                  </div>
                   <Swiper
                     modules={[Pagination]}
+                    onSwiper={(instance) => {
+                      mobileSwiperRef.current = instance;
+                    }}
                     pagination={{ el: '#swiper-mobile-deck-pagination', clickable: true }}
                     spaceBetween={16}
                     slidesPerView={1}
@@ -374,8 +398,12 @@ const Index = () => {
                     />
                   </div>
 
+                  {/* Tomorrow at a glance — thin strip between the hero and
+                      the hourly/daily split. Scrolls the split below on tap. */}
+                  <TomorrowGlance forecast={weather.daily?.[1]} onReveal={revealDailyForecast} />
+
                   {/* Secondary Row: Split Forecasts */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
+                  <div ref={dailySectionRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
                     <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
                       <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} />
                     </Suspense>
