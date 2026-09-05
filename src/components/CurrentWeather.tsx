@@ -86,18 +86,18 @@ function headlineIconAndLabel(
 const HEADLINE_DEFAULT_OM: HeadlineInfo = { source: 'om' };
 
 /* ── UV index banding (WHO-aligned colors and exposure levels) ─────── */
-type UvBand = { max: number; bg: string; text: string; border: string; label: string };
+type UvBand = { max: number; bg: string; text: string; border: string; labelKey: string };
 
 const UV_BANDS: UvBand[] = [
-  { max: 2,    bg: "#16a34a", text: "#ffffff", border: "#15803d", label: "Low" },
-  { max: 5,    bg: "#facc15", text: "#1a1a1a", border: "#ca8a04", label: "Moderate" },
-  { max: 7,    bg: "#f97316", text: "#ffffff", border: "#c2410c", label: "High" },
-  { max: 10,   bg: "#dc2626", text: "#ffffff", border: "#991b1b", label: "Very High" },
-  { max: 1000, bg: "#7c3aed", text: "#ffffff", border: "#5b21b6", label: "Extreme" },
+  { max: 2,    bg: "#16a34a", text: "#ffffff", border: "#15803d", labelKey: "uv.low" },
+  { max: 5,    bg: "#facc15", text: "#1a1a1a", border: "#ca8a04", labelKey: "uv.moderate" },
+  { max: 7,    bg: "#f97316", text: "#ffffff", border: "#c2410c", labelKey: "uv.high" },
+  { max: 10,   bg: "#dc2626", text: "#ffffff", border: "#991b1b", labelKey: "uv.veryHigh" },
+  { max: 1000, bg: "#7c3aed", text: "#ffffff", border: "#5b21b6", labelKey: "uv.extreme" },
 ];
 
 function uvBandFor(uv: number | null): UvBand {
-  if (uv == null) return { max: 0, bg: "transparent", text: "currentColor", border: "currentColor", label: "—" };
+  if (uv == null) return { max: 0, bg: "transparent", text: "currentColor", border: "currentColor", labelKey: "uv.unavailable" };
   for (const b of UV_BANDS) if (uv <= b.max) return b;
   return UV_BANDS[UV_BANDS.length - 1];
 }
@@ -727,6 +727,7 @@ function WindCompass({
 function UvChip({
   uv, band, label, empty,
 }: { uv: number | null; band: UvBand; label: string; empty: boolean }) {
+  const { t } = useLanguage();
   // -1 when uv is null (band is the null sentinel); otherwise the index
   // of the active band inside UV_BANDS. Drives the icon overlay position.
   const activeIdx = UV_BANDS.indexOf(band);
@@ -736,8 +737,8 @@ function UvChip({
       className="flex flex-col gap-3"
       aria-label={
         empty || uv == null
-          ? `${label}: unavailable`
-          : `${label}: ${uv.toFixed(1)}, ${band.label}`
+          ? `${label}: ${t('uv.unavailable')}`
+          : `${label}: ${uv.toFixed(1)}, ${t(band.labelKey)}`
       }
     >
       <div className="flex items-center justify-between gap-2">
@@ -752,7 +753,7 @@ function UvChip({
               className="text-xs ml-2 uppercase tracking-[0.18em] not-italic font-normal"
               style={{ fontFamily: "'Outfit', sans-serif", color: band.bg }}
             >
-              {band.label}
+              {t(band.labelKey)}
             </span>
           )}
         </span>
@@ -763,7 +764,7 @@ function UvChip({
           const segActive = !empty && uv != null && uv > priorMax && uv <= b.max;
           return (
             <div
-              key={b.label}
+              key={b.labelKey}
               className="flex-1 transition-opacity duration-300"
               style={{
                 backgroundColor: b.bg,
