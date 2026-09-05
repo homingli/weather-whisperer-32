@@ -141,9 +141,10 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `CurrentWeather.tsx`: Hero section displaying real-time conditions
   - `HourlyForecast.tsx`: Interactive 6-hour line chart (temperature & precipitation); day/night `ReferenceArea` bands and sun-event `ReferenceLine` markers when `daily` prop is provided
   - `DailyForecast.tsx`: 7-day forecast with min/max bounds
-  - `RainfallMap.tsx`: Thin wrapper → delegates to `MSCRainfallMap` or `RainfallMapInner` via lazy loading. Shows "Load Map" prompt for HKO nowcast; MSC loads automatically. Error boundary catches lazy-chunk load failures.
+  - `TomorrowGlance.tsx`: "Tomorrow at a glance" strip between hero and daily forecast (range, rain ≥20 %, wind); one button whose `aria-label` is a full sentence; `onReveal` scrolls to / advances to the daily forecast
+  - `RainfallMap.tsx`: Chunk-split wrapper → `RainfallMapInner` (HKO gridded nowcast) via lazy loading. Shows "Load Map" prompt. Error boundary catches lazy-chunk load failures.
   - `RainfallMapInner.tsx`: HKO gridded nowcast (CSV parsed → GeoJSON, time-slider, timeline step buttons). Fetches CSV into `RainGrid`, converts client-side to GeoJSON using `[longitude, latitude]` coordinates. Query with `staleTime: NOWCAST_CACHE_TTL_MS`, `refetchInterval: NOWCAST_REFETCH_INTERVAL_MS (30 min)`, `retry: 1`.
-  - `MSCRainfallMap.tsx`: MSC (Macau) rainfall WMS tile layer. Error boundary catches lazy-chunk load failures. Auto-loads when the section renders (no prompt).
+  - `MSCRainfallMap.tsx`: Chunk-split wrapper → `MSCRainfallMapInner` (MSC (Macau) rainfall WMS tile layer). Error boundary catches lazy-chunk load failures. Auto-loads when the section renders (no prompt).
   - `MSCRainfallMapInner.tsx`: MSC WMS tile rendering with batch error tracking, tile load hang guard (20s), and retry nonce. Shows stale-data indicator when tiles fail to load.
   - `MapLibreMap.tsx`: MapLibre basemap wrapper (CARTO vector/raster tiles). Handles user location marker.
   - `SettingsMenu.tsx`: Global settings controls (Language, Theme, Location, manual refresh)
@@ -161,6 +162,7 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `useWarningChangeDetector.ts`: HKO warning set changes between polls (detects added/removed warnings)
 - `src/lib/`: Core business logic and integrations
   - `weather.ts` (barrel): re-exports from sub-modules
+  - `aria-utils.tsx`: Shared sr-only `aria-live` status region (`StatusRegionProvider` / `useStatusRegion`) for polite/assertive announcements
   - `weather/open-meteo.ts`: Open-Meteo API client + parameter assembly
   - `weather/geocoding.ts`: City search, reverse geocode, user location
   - `weather/storage.ts`: Default/recent city persistence helpers
@@ -188,6 +190,7 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `rainfallBands.ts`: Rainfall color band definitions
   - `units.ts`: Unit conversion (`°C→°F`, `km/h→mph`, `mm→in`)
   - `queryPersistence.ts`: React Query localStorage persistence via `@tanstack/query-persist-client-core` (512 KB cap, schema-versioned)
+  - `sw-observability.ts`: Service worker metrics
 - `src/pages/`: Application routing layers
   - `Index.tsx`: Main dashboard layout with grid/flex responsiveness
   - `NotFound.tsx`: 404 handler
