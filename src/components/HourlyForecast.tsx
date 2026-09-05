@@ -1,5 +1,5 @@
 import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from "@/lib/weather";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from "recharts";
+import { ComposedChart, Bar, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from "recharts";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
 import {
@@ -172,7 +172,14 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
 
       <div className="hf-chart flex-1 w-full min-h-0 touch-pan-y" aria-label={t('hourly.chartLabel')} role="img">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 10 }}>
+          {/* Rain chance is a per-hour probability, not a continuous series —
+              encoding it as a second line on its own axis invites false
+              line-crossing reads against the temperature trace. Bars anchored
+              at 0 convey magnitude and read as discrete per-hour columns.
+              The temp line renders after the bars so it stays on top; bars are
+              translucent so a hot + stormy hour (80% bar running up behind a
+              temp peak) never hides the trace. */}
+          <ComposedChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 10 }}>
             {/* Day/night background areas */}
             {dayNightAreas.map((area, index) => (
               <ReferenceArea
@@ -296,6 +303,13 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
                 return null;
               }}
             />
+            <Bar
+              yAxisId="right"
+              dataKey="rainChance"
+              fill="hsl(var(--weather-rain))"
+              fillOpacity={0.22}
+              maxBarSize={24}
+            />
             <Line
               yAxisId="left"
               type="monotone"
@@ -305,16 +319,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
               dot={{ fill: 'hsl(var(--weather-sunny))', strokeWidth: 0, r: 4 }}
               activeDot={{ r: 6, fill: 'hsl(var(--weather-sunny))' }}
             />
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="rainChance"
-              stroke="hsl(var(--weather-rain))"
-              strokeWidth={2}
-              dot={{ fill: 'hsl(var(--weather-rain))', strokeWidth: 0, r: 4 }}
-              activeDot={{ r: 6, fill: 'hsl(var(--weather-rain))' }}
-            />
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
 

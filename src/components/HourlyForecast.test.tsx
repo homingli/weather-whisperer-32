@@ -17,7 +17,7 @@ vi.mock('recharts', async () => {
   return {
     ...OriginalModule,
     ResponsiveContainer: ({ children }: MockChartProps) => <div data-testid="chart-container">{children}</div>,
-    LineChart: ({ data, children, ticks }: MockChartProps) => {
+    ComposedChart: ({ data, children, ticks }: MockChartProps) => {
       renderedChartData.push(...((data ?? []) as ChartCapture[]));
       if (ticks) renderedChartData.push({ ticks });
       // Use React.Children to properly render all child elements.
@@ -25,9 +25,16 @@ vi.mock('recharts', async () => {
       React.Children.forEach(children, (child) => {
         renderedChildren.push(child);
       });
-      return <div data-testid="line-chart">{renderedChildren}</div>;
+      return <div data-testid="composed-chart">{renderedChildren}</div>;
     },
-    Line: () => null,
+    Line: ({ dataKey }: { dataKey?: string | number }) => {
+      renderedChartData.push({ lineDataKey: dataKey });
+      return null;
+    },
+    Bar: ({ dataKey }: { dataKey?: string | number }) => {
+      renderedChartData.push({ barDataKey: dataKey });
+      return null;
+    },
     XAxis: () => <div data-testid="x-axis" />,
     YAxis: () => <div data-testid="y-axis" />,
     Tooltip: () => null,
@@ -97,15 +104,20 @@ describe('HourlyForecast Component', () => {
     expect(screen.queryByTestId('ref-area')).not.toBeInTheDocument();
   });
 
-  it('renders the LineChart with chart data derived from hourly forecast', () => {
+  it('renders the composed chart — temperature line + rain-chance bars — from hourly forecast', () => {
     renderWithLanguage(<HourlyForecast forecast={mockHourlyData} />);
 
     // The chart container and SVG elements should render.
     expect(screen.getByTestId('chart-container')).toBeInTheDocument();
-    expect(screen.getByTestId('line-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('composed-chart')).toBeInTheDocument();
     expect(screen.getByTestId('x-axis')).toBeInTheDocument();
     // Two YAxis (left = temperature, right = rain chance).
     expect(screen.getAllByTestId('y-axis')).toHaveLength(2);
+
+    // Rain chance is encoded as a Bar (not a second line) — the core of
+    // issue #106. The line series must only carry temperature.
+    expect(renderedChartData.some((e) => e.barDataKey === 'rainChance')).toBe(true);
+    expect(renderedChartData.some((e) => e.lineDataKey === 'rainChance')).toBe(false);
 
     // chartData should have one entry per hourly slot, each with the expected keys.
     // mockHourlyData has 2 entries; the component slices to first 8.
@@ -175,7 +187,7 @@ describe('HourlyForecast Component', () => {
     renderWithLanguage(<HourlyForecast forecast={extendedHourly} daily={mockDaily} />);
 
     // The chart renders, and ReferenceArea bands appear for day/night.
-    expect(screen.getByTestId('line-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('composed-chart')).toBeInTheDocument();
     expect(screen.getAllByTestId('ref-area').length).toBeGreaterThanOrEqual(1);
 
     // Verify that ReferenceLine was called with label props for the sun events.
