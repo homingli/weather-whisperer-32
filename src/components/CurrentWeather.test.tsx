@@ -425,6 +425,34 @@ describe('CurrentWeather Component', () => {
       });
       expect(container.textContent).toContain('天晴');
     });
+
+    it('localizes the UV band label under tc (uv 9 → 甚高, not "Very High")', () => {
+      // Regression: the UV chip used to render English band labels ("LOW" /
+      // "MODERATE" / …) regardless of the active language. uv 9 sits in the
+      // "Very High" band (8–10), a string unique enough to assert cleanly.
+      function LangProbe() {
+        const { setLanguage } = useLanguage();
+        return <button data-testid="flip-tc-uv" onClick={() => setLanguage('tc')}>tc</button>;
+      }
+      const { container } = render(
+        <LanguageProvider>
+          <UnitsProvider>
+            <LangProbe />
+            <CurrentWeather
+              weather={{ ...mockWeather, uvIndex: 9 }}
+              hourlyForecast={mockHourly}
+              timezone="UTC"
+              headline={{ source: 'om' }}
+            />
+          </UnitsProvider>
+        </LanguageProvider>
+      );
+      act(() => {
+        screen.getByTestId('flip-tc-uv').click();
+      });
+      expect(container.textContent).toContain('甚高');
+      expect(container.textContent).not.toContain('Very High');
+    });
   });
 
   // ── Quiet shelf: below-threshold metrics stay expanded ───────────────
