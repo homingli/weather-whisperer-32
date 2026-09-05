@@ -225,6 +225,13 @@ const translations: Record<Language, Record<string, string>> = {
     'weather.windDirection': 'Wind Direction',
     'weather.humidity': 'Humidity',
     'weather.uvIndex': 'UV Index',
+    // UV exposure band labels (WHO UV index scale).
+    'uv.low': 'Low',
+    'uv.moderate': 'Moderate',
+    'uv.high': 'High',
+    'uv.veryHigh': 'Very High',
+    'uv.extreme': 'Extreme',
+    'uv.unavailable': 'unavailable',
     'unit.kmh': 'km/h',
     // Quiet shelf — aria-label on the icon row holding distilled metrics.
     'quiet.shelfLabel': 'Metrics needing no attention',
@@ -490,6 +497,13 @@ const translations: Record<Language, Record<string, string>> = {
     'weather.windDirection': '風向',
     'weather.humidity': '濕度',
     'weather.uvIndex': '紫外線指數',
+    // UV 強度級別（WHO UV 指數分級）。
+    'uv.low': '低',
+    'uv.moderate': '中',
+    'uv.high': '高',
+    'uv.veryHigh': '甚高',
+    'uv.extreme': '極高',
+    'uv.unavailable': '無法取得',
     'unit.kmh': '公里/小時',
     // Quiet shelf — aria-label on the icon row holding distilled metrics.
     'quiet.shelfLabel': '無需關注的指標',
