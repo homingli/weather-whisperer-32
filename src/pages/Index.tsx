@@ -428,16 +428,9 @@ const Index = () => {
             </>
           ) : null}
         </main>
-
-        {/* Footer */}
-        <footer className="text-center py-3 shrink-0 text-sm text-muted-foreground" aria-label={language === 'tc' ? '關於此頁' : 'About this page'}>
-          <p>
-            {isHKCovered
-              ? formatString(t('source.poweredByBoth'), t('source.openMeteo'), t('source.hko'))
-              : formatString(t('source.poweredBy'), t('source.openMeteo'))
-            }
-          </p>
-        </footer>
+        {/* No page footer — the forecast cards use the full viewport height.
+            The data-source credit moved into the bottom of the settings
+            (hamburger) menu; see SettingsMenu. */}
       </div>
     </div>
   );
