@@ -14,6 +14,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage, Language, formatString } from '@/contexts/LanguageContext';
 import { useUnits, Units } from '@/contexts/UnitsContext';
 import { useCitySearch } from '@/hooks/useCitySearch';
+import { isInHongKong } from '@/lib/hko-weather';
 import { cn } from '@/lib/utils';
 import { GeoLocation, getUserLocation, reverseGeocode, setDefaultCity } from '@/lib/weather';
 import { logWarn } from '@/lib/log';
@@ -273,6 +274,19 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
             options={languages}
             onChange={setLanguage}
           />
+
+          <DropdownMenuSeparator />
+
+          {/* Data-source credit — lives at the bottom of the menu instead of
+              a page footer so the forecast cards can use the full viewport
+              height. Mirrors the credit the page footer used to show: both
+              sources when the selected city is in HK coverage, Open-Meteo
+              alone otherwise (no city yet included). */}
+          <div className="px-3 py-2 text-center text-[11px] leading-relaxed text-muted-foreground/70">
+            {currentCity && isInHongKong(currentCity.latitude, currentCity.longitude)
+              ? formatString(t('source.poweredByBoth'), t('source.openMeteo'), t('source.hko'))
+              : formatString(t('source.poweredBy'), t('source.openMeteo'))}
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
 
