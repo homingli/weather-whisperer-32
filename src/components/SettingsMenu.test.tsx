@@ -243,3 +243,64 @@ describe('SettingsMenu primary action pill', () => {
 });
 
 // Tiny helper — avoids an extra import surface just for `within`.
+describe('SettingsMenu data-source credit (relocated from the page footer)', () => {
+  let user: UserEvent;
+
+  beforeEach(() => {
+    localStorage.clear();
+    user = userEvent.setup({ pointerEventsCheck: PointerEventsCheckLevel.Never });
+  });
+
+  const hkCity: GeoLocation = {
+    name: 'Hong Kong',
+    latitude: 22.3193,
+    longitude: 114.1694,
+    country: 'HK',
+  };
+  const nonHkCity: GeoLocation = {
+    name: 'London',
+    latitude: 51.5072,
+    longitude: -0.1276,
+    country: 'GB',
+    admin1: 'England',
+  };
+
+  const renderMenu = (city: GeoLocation | null = noCity) =>
+    render(
+      <TestProviders>
+        <ThemeProvider>
+          <LanguageProvider>
+            <UnitsProvider>
+              <SettingsMenu currentCity={city} recentCities={noRecent} onCitySelect={() => {}} />
+            </UnitsProvider>
+          </LanguageProvider>
+        </ThemeProvider>
+      </TestProviders>,
+    );
+
+  it('credits Open-Meteo & HK Observatory for a HK-coverage city (en)', async () => {
+    renderMenu(hkCity);
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    expect(screen.getByText('Data from Open-Meteo & HK Observatory')).toBeInTheDocument();
+  });
+
+  it('credits both sources in Traditional Chinese after switching language', async () => {
+    renderMenu(hkCity);
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('radio', { name: '繁體中文' }));
+    expect(screen.getByText('資料來源：Open-Meteo 及 香港天文台')).toBeInTheDocument();
+  });
+
+  it('credits Open-Meteo alone for a non-HK city', async () => {
+    renderMenu(nonHkCity);
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    expect(screen.getByText('Data from Open-Meteo')).toBeInTheDocument();
+    expect(screen.queryByText(/HK Observatory/i)).not.toBeInTheDocument();
+  });
+
+  it('credits Open-Meteo alone when no city is selected yet', async () => {
+    renderMenu(noCity);
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    expect(screen.getByText('Data from Open-Meteo')).toBeInTheDocument();
+  });
+});
