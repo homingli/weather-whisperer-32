@@ -4,6 +4,7 @@ import type { Map } from 'maplibre-gl';
 import { AlertCircle, RefreshCw, Play, Pause, Layers } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { PRD_BOUNDS } from '@/lib/hko-weather';
 import { TIMING } from '@/lib/constants';
 import { parseRainfallCSVText, buildRainGrid, type RainGrid } from '@/lib/rainfallGrid';
@@ -199,18 +200,9 @@ export default function RainfallMapInner({
     setBasemapIsDark(resolvedTheme === 'dark');
   }, [resolvedTheme]);
 
-  // Keep two extra zoom-out steps versus current default, with mobile one step
-  // wider still. maxZoom 17 is shared.
-  // Same 1080px breakpoint as the rest of the app.
-  const [isMobile, setIsMobile] = useState(
-    () => window.matchMedia('(max-width: 1080px)').matches
-  );
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 1080px)');
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
+  // Same 1080px breakpoint as the rest of the app (shared refcounted
+  // matchMedia listener in useIsMobile).
+  const isMobile = useIsMobile();
   const minZoom = isMobile ? 6 : 7;
 
   const { data, error, isLoading, isFetching, refetch } = useQuery({
