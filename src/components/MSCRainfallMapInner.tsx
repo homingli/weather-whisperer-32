@@ -3,6 +3,7 @@ import type { Map } from 'maplibre-gl';
 import { AlertCircle, RefreshCw, Play, Pause, Layers, CloudRain } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { MSC, TIMING, VANCOUVER_BBOX, VANCOUVER_CENTER } from '@/lib/constants';
 import { buildMscStepTimes, formatStepTime, formatObservationTime, vancouverTimeZoneAbbr, buildProbeUrl } from '@/lib/msc-wms';
 import { markMscMapMounted } from '@/lib/msc-prefetch';
@@ -262,15 +263,9 @@ export default function MSCRainfallMapInner({
     return () => clearTimeout(id);
   }, [tileLoading, hasLoadedOnce]);
 
-  const [isMobile, setIsMobile] = useState(
-    () => window.matchMedia('(max-width: 1080px)').matches,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 1080px)');
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
+  // Same 1080px breakpoint as the rest of the app (shared refcounted
+  // matchMedia listener in useIsMobile).
+  const isMobile = useIsMobile();
   // Keep map a few steps wider than Leaflet-era bounds; mobile gets one extra.
   const minZoom = isMobile ? 6 : 7;
 
