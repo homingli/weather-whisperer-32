@@ -52,8 +52,14 @@ export const persister: Persister = {
       // allocation at MAX_BYTES and short-circuits before the final
       // concatenated stringify. A small fixed overhead per query accounts
       // for queryKey + queryHash + state metadata.
+      //
+      // v5 PersistedClient nests the dehydrate payload under `clientState`
+      // ({ buster, timestamp, clientState: { queries, mutations } }) —
+      // iterating `client.queries` would be a silent no-op (undefined is
+      // not iterable, the throw lands in the catch below, and nothing is
+      // ever persisted).
       let bytes = 64; // buster + timestamp + clientState overhead
-      for (const q of client.queries) {
+      for (const q of client.clientState.queries) {
         bytes += JSON.stringify(q.queryKey).length + 128;
         if (q.state.data !== undefined) {
           bytes += JSON.stringify(q.state.data).length;

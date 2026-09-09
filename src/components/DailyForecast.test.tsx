@@ -19,12 +19,13 @@ vi.mock('recharts', async () => {
     XAxis: () => <div data-testid="x-axis" />,
     YAxis: () => <div data-testid="y-axis" />,
     Tooltip: ({ content }: { content?: unknown }) => {
-      const rendered = typeof content === 'function'
-        // The Tooltip's `content` render-prop signature is wider than we need
-        // to test — the formatter mock only consumes simple values, so widen
-        // the call site with unknown[] instead of `any`.
-        ? (content as (...args: unknown[]) => ReactNode)({ active: false, payload: [] })
-        : content;
+      const rendered: ReactNode =
+        typeof content === 'function'
+          // The Tooltip's `content` render-prop signature is wider than we need
+          // to test — the formatter mock only consumes simple values, so widen
+          // the call site with unknown[] instead of `any`.
+          ? (content as (...args: unknown[]) => ReactNode)({ active: false, payload: [] })
+          : (content as ReactNode);
       return <div data-testid="tooltip">{rendered}</div>;
     },
     Cell: () => <div data-testid="cell" />,
@@ -32,7 +33,7 @@ vi.mock('recharts', async () => {
       // Render the formatter output for each datum so we can assert on it.
       // The BarChart mock below passes rows as data; we mirror that here by
       // accepting a static placeholder sample.
-      const sample = formatter ? formatter(20) : dataKey;
+      const sample: ReactNode = formatter ? (formatter(20) as ReactNode) : dataKey;
       return <span data-testid={`label-${dataKey}`}>{sample}</span>;
     },
     ReferenceArea: () => null,
