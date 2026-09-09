@@ -1,131 +1,52 @@
 # Weather Whisperer
 
-A weather app built with React and TypeScript. It pulls data from the Hong Kong Observatory (HKO) and Open-Meteo, supports English and Traditional Chinese, and renders interactive rainfall nowcast maps with a glass-morphism design.
+Weather Whisperer is a weather app that answers the questions behind the forecast: Will I need an umbrella? Is a typhoon coming? When will the rain reach my street? It works anywhere in the world, and in Hong Kong it brings in official data straight from the Hong Kong Observatory — in English or Traditional Chinese, online or offline.
 
-## Features
+## Wherever you are
 
-- **Dual weather sources.** Switches between Hong Kong Observatory (HKO) and Open-Meteo based on location. Open-Meteo is primary; HKO enhances coverage in Hong Kong.
-- **Resilient gateway.** Parallel fetches with per-source status badges. An HKO failure falls back to Open-Meteo without blocking the UI.
-- **Fetching status screen.** Animated loading overlay with per-source status badges (`FetchingStatus` + `StatusBadge` components).
-- **Two languages.** English and Traditional Chinese with `<html lang>` synced synchronously on language switch.
-- **Location services.** Auto-detect the user's position or search any city worldwide; the last 3 cities stay in a recent-cities list.
-- **Weather data.** Current conditions, 6-hour forecasts, 7-day forecasts.
-- **Local timezone.** Date and time in the selected location's timezone.
-- **High/low temperatures.** Today's high and low in the hero caption, with a 3-hour trend indicator (up/down/flat).
-- **Sun-cycle strip.** Day/night progress bar in the hero; next sunset during the day, next sunrise at night, with exact times.
-- **UV index chip.** Color-banded UV chip with localized band labels (Low / Moderate / High / Very High / Extreme).
-- **Tomorrow at a glance.** Thin strip between the hero and the daily forecast summarising tomorrow's range, rain chance (only when ≥ 20 %), and max wind; tapping reveals the full daily forecast.
-- **Hourly charts.** Interactive temperature line with translucent precipitation-probability bars behind it (bars use their own right Y-axis).
-- **7-day forecast cards.** Horizontal Swiper carousel with min/max temps, weather icons, and precipitation probability.
-- **Gridded rainfall nowcast map.** Interactive MapLibre map with Carto basemap and HKO gridded rainfall for Hong Kong and the Pearl River Delta.
-- **MSC rainfall tile layer.** Macau Meteorological Services WMS tiles rendered via the `MSCRainfallMap` component.
-- **Carto basemap.** Optional vector basemap via Carto API key (`VITE_CARTO_API_KEY`); falls back to unauthenticated tiles.
-- **User location marker.** Blue pin on the rainfall map for the user's position.
-- **Weather alerts.** HKO warnings as compact icons in the top bar; clicking opens a modal with the full safety text.
-- **Per-source loading indicators.** Status badges for Open-Meteo and HKO fetch state (fetching / success / error).
-- **Responsive layout.** Works on mobile, tablet, and desktop.
-- **Adaptive refetch cadence.** React Query refetches every 5 minutes, dropping to 1 minute when any source has failed.
-- **Three-tier offline support.** `localStorage` last-known snapshot (lz-string compressed) seeds the first paint; React Query handles in-memory freshness; the Workbox service worker replays the last successful API response when fully offline. Amber banners mark partial data (one source missing); red banners mark cached data only, with a refetch button.
-- **PWA.** The service worker uses per-host cache handlers (NetworkFirst / StaleWhileRevalidate / CacheFirst buckets) so dev and prod offline behavior match.
-- **Accessibility (WCAG 2.1 AA).** Skip link, sr-only data tables for the hourly/daily charts, `<html lang>` synced to the active UI language, semantic severity color tokens (≥5.5:1 on cream), `role="alert"` on the offline and partial-data banners, `aria-current` on the rainfall nowcast timestep buttons, `aria-label`s on icon-only controls.
+**Know what today actually feels like.** See the current conditions with a "feels like" temperature, today's high and low, and whether things are warming up, cooling down, or holding steady over the next three hours.
 
-## Technology stack
+**Get a straight answer about rain.** The app tells you plainly whether an umbrella is worth carrying, and the "tomorrow" strip shows the chance of rain only when it is worth knowing about — at least one in five. It also shows tomorrow's temperature range and the strongest wind.
 
-- **Frontend Framework**: React 18 with TypeScript
-- **Build Tool**: Vite 6
-- **UI Components**: shadcn-ui with Radix UI 2
-- **Styling**: Tailwind CSS 3 with custom animations
-- **Data Fetching**: TanStack React Query 5 (with persistence via `@tanstack/query-persist-client-core`)
-- **Routing**: React Router 7
-- **Map**: MapLibre GL JS 5
-- **Swiper**: Swiper 14 (horizontal carousels for forecast cards and metric chips)
-- **Icons**: Lucide React
-- **Charts**: Recharts 2
-- **Date Handling**: date-fns 3
-- **PWA**: vite-plugin-pwa with workbox
-- **Testing**: Vitest 3 with Testing Library + jsdom
+**Look ahead by hours or by week.** An interactive chart traces the temperature through the next six hours with the chance of rain behind it, and a seven-day outlook carries you through the rest of the week.
 
-## Getting started
+**Check any city, in its own time.** Search for a place by name, let the app find you automatically, or jump back to your recent cities with one tap. Every forecast shows the local time of that city — useful when you are travelling or checking on family elsewhere.
 
-### Prerequisites
+**Make it yours.** Switch between English and Traditional Chinese, pick a light or dark theme (or one that follows the sun), and add the app to your home screen. It works like a native app: it loads fast, remembers the last forecast you saw, and keeps showing it even when you have no connection.
 
-- Node.js 20+
-- npm or pnpm
+## In Hong Kong and the Pearl River Delta
 
-### Installation
+**Weather from the official source.** In Hong Kong, Weather Whisperer blends the Hong Kong Observatory's official data into the forecast, so you are reading the same warnings the Observatory itself publishes — not a watered-down feed.
+
+**Warnings the moment they are issued.** Typhoon signals (T1 through T10), rainstorm alerts, and hot-weather, cold-weather and other advisories appear at the top of the page as soon as they are announced. Tap one to read the full safety guidance in your language.
+
+**Watch the rain coming.** An animated map shows where rainfall is expected over the next couple of hours across Hong Kong, Shenzhen, Macau and the wider Pearl River Delta. Press play and step through the coming hours frame by frame; a blue pin marks where you are.
+
+## What makes it different
+
+- **Official where it counts.** Most weather apps serve you the same generic feed everywhere. In Hong Kong this one adds the Observatory's own data, warnings, and rainfall maps.
+- **It tells you what to do.** Umbrella advice, and a rain chance that only appears when it is worth mentioning, replace the usual wall of numbers.
+- **Offline-friendly and no strings attached.** No account, no login — just weather. If your connection drops, you still get the last forecast you saw, clearly marked, with a button to refresh when you are back online.
+
+## For developers
+
+### Run it locally
 
 ```bash
-# Clone the repository
 git clone https://github.com/homingli/weather-whisperer-32.git
-
-# Navigate to project directory
 cd weather-whisperer-32
-
-# Install dependencies
-npm install
+npm install   # dependencies; lifecycle scripts are not run (--ignore-scripts)
+npm run dev   # http://localhost:8080 with hot reload
 ```
 
-> Note: Lifecycle scripts are intentionally not run during install in this repo (`--ignore-scripts`); approve or run them explicitly only when you trust the dependency.
+Other useful commands: `npm run build` (production build), `npm run lint`, and `npm test` (add `--run` for a single pass). Node.js 20+ required.
 
-### Development
-
-```bash
-npm run dev
-```
-
-The application will open at `http://localhost:8080` (set in `vite.config.ts`) with hot module replacement enabled.
-
-### Build and preview
-
-```bash
-npm run build       # Production build
-npm run build:dev   # Development build (no minification)
-npm run preview     # Preview the production build
-npm run lint        # ESLint
-npm test            # Vitest (single run: add --run)
-```
-
-### Responsive viewport audit
-
-`npm run audit:viewports` walks the app at every iPhone logical portrait
-width (375 → 440 CSS px) and asserts no page-level horizontal overflow, no
-vertical page scroll, no clipped hero numerals, and no overlapping
-interactive controls, capturing screenshots for review. All API/map data is
-stubbed from recorded fixtures so runs are deterministic and offline.
-Requires the dev-only `playwright-core` browser once per machine
-(`pnpm exec playwright-core install chromium`). See `scripts/audit/README.md`.
-
-## API sources
-
-### Carto basemap
-
-Set `VITE_CARTO_API_KEY` in the deployment environment to authenticate Carto
-vector basemap requests. The app logs a console warning when the variable is
-missing and falls back to unauthenticated OSM tiles.
-
-### Open-Meteo (primary)
-- Free, open-source weather API
-- Global coverage
-- Provides current weather, hourly, and daily forecasts
-
-### HKO (HK-only secondary)
-- Official Hong Kong weather data (automatically activated for HK locations)
-- Includes weather warnings and alerts
-- Probability of Significant Rain (PSR) data
-- Station-based observations
-- Gridded rainfall nowcast (CSV, served via `/hko-data/...` proxy in `vite.config.ts` and `vercel.json`)
-
-## Browser support
-
-- Chrome/Edge (latest)
-- Firefox (latest)
-- Safari (latest)
-- Mobile browsers
+The map uses a Carto vector basemap when `VITE_CARTO_API_KEY` is set and falls back to open tiles without it. `npm run audit:viewports` checks the app at every iPhone portrait width against layout regressions; see `scripts/audit/README.md`.
 
 ## Documentation
 
-- [Architecture](./ARCHITECTURE.md) — data flow, project structure, key logic concepts, testing strategy
+- [Architecture](./ARCHITECTURE.md) — data flow, project structure, testing strategy
 - [Feature details](./docs/features.md) — per-feature breakdown (hero, hourly/daily, alerts, nowcast maps)
-- [Local storage and caching](./docs/local-storage.md) — localStorage keys and the three-tier cache design
+- [Local storage and caching](./docs/local-storage.md) — how offline and cached data work
 - [Performance](./docs/performance.md) — refetch cadence, lazy loading, render isolation
 - [Accessibility](./docs/accessibility.md) — WCAG 2.1 AA status and remaining work
