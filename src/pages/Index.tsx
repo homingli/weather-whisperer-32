@@ -1,10 +1,10 @@
 import { useMemo, useCallback, lazy, Suspense, useEffect, useState, useRef } from 'react';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Pagination } from 'swiper/modules';
 import { CurrentWeather } from '@/components/CurrentWeather';
+import type { MobileSwiperDeckHandle } from '@/components/MobileSwiperDeck';
 
 import { FetchingStatus } from '@/components/FetchingStatus';
 import { LocalClock } from '@/components/LocalClock';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
 import { useWarningChangeDetector } from '@/hooks/useWarningChangeDetector';
@@ -37,6 +37,11 @@ const MSCRainfallMap = lazy(() => import('@/components/MSCRainfallMap').then(mod
 const SettingsMenu = lazy(() => import('@/components/SettingsMenu').then(module => ({ default: module.SettingsMenu })));
 const WeatherBanners = lazy(() => import('@/components/WeatherBanners').then(module => ({ default: module.WeatherBanners })));
 const WeatherAlerts = lazy(() => import('@/components/WeatherAlerts').then(module => ({ default: module.WeatherAlerts })));
+// The mobile swipe deck (swiper/react + Pagination, ~27 kB gzip) is only
+// rendered at <=1080px. Isolating it in its own lazy chunk keeps swiper out
+// of the initial bundle for desktop users; the deck is the only module that
+// imports swiper/react.
+const MobileSwiperDeck = lazy(() => import('@/components/MobileSwiperDeck').then(module => ({ default: module.MobileSwiperDeck })));
 
 // Placeholder used when weather.current is null during transitions
 // All display values set to PLACEHOLDER_SENTINEL so CurrentWeather shows `-` instead of 0
@@ -155,23 +160,16 @@ const Index = () => {
     }
   }, [warningDiff, t]);
 
-  // Mobile detection for conditional rendering (avoids double-mounting both layouts)
-  const [isMobile, setIsMobile] = useState(
-    () => window.matchMedia('(max-width: 1080px)').matches
-  );
-
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 1080px)');
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
+  // Mobile detection for conditional rendering (avoids double-mounting both
+  // layouts). Shared with the two map components via one refcounted
+  // matchMedia listener (useIsMobile).
+  const isMobile = useIsMobile();
 
   // Reveal target for the Tomorrow strip: desktop scrolls the secondary row
   // (hourly/daily) into view; mobile advances the swipe deck to the slide
   // that holds the DailyForecast.
   const dailySectionRef = useRef<HTMLDivElement | null>(null);
-  const mobileSwiperRef = useRef<{ slideTo(index: number, speed?: number): void } | null>(null);
+  const mobileSwiperRef = useRef<MobileSwiperDeckHandle | null>(null);
 
   const revealDailyForecast = useCallback(() => {
     if (isMobile) {
@@ -188,6 +186,13 @@ const Index = () => {
   // Freshness banner moved into <WeatherBanners>; the hook augments the
   // cached data with `fallbackSource: 'cache'` when the background fetch
   // fails, so we no longer need a separate top-bar label here.
+
+  // Pulse set memoized on warningDiff (stable identity between real changes)
+  // so WeatherAlerts' memo isn't defeated by a fresh Set on every render.
+  const pulseCodes = useMemo(
+    () => new Set(warningDiff.added.map((w) => w.code)),
+    [warningDiff],
+  );
 
   return (
     <div className={`min-h-screen gradient-sky flex flex-col${isMobile ? ' h-dvh' : ''}`}>
@@ -207,7 +212,7 @@ const Index = () => {
                 <WeatherAlerts
                   warnings={effectiveWarnings}
                   pulseTrigger={pulseTrigger}
-                  pulseCodes={new Set(warningDiff.added.map(w => w.code))}
+                  pulseCodes={pulseCodes}
                   selectedWarningCode={selectedWarningCode}
                   onConsumed={handleConsumedSelectedWarning}
                 />
@@ -315,20 +320,13 @@ const Index = () => {
                   <div className="mb-3 shrink-0">
                     <TomorrowGlance forecast={weather.daily?.[1]} onReveal={revealDailyForecast} />
                   </div>
-                  <Swiper
-                    modules={[Pagination]}
-                    onSwiper={(instance) => {
-                      mobileSwiperRef.current = instance;
-                    }}
-                    pagination={{ el: '#swiper-mobile-deck-pagination', clickable: true }}
-                    spaceBetween={16}
-                    slidesPerView={1}
-                    className="swiper-mobile-deck"
-                    threshold={30}
-                    noSwipingClass="no-swipe"
-                  >
-                    {/* Slide 1: Current weather */}
-                    <SwiperSlide>
+                  {/* Each child is one slide's content; MobileSwiperDeck wraps
+                      them in SwiperSlide. It is the only module that may import
+                      swiper/react, keeping the ~27 kB gzip deck out of the
+                      initial bundle for desktop users. */}
+                  <Suspense fallback={<Skeleton className="swiper-mobile-deck rounded-xl bg-muted/20" />}>
+                    <MobileSwiperDeck ref={mobileSwiperRef}>
+                      {/* Slide 1: Current weather */}
                       <CurrentWeather
                         compact
                         weather={weather.current ?? PLACEHOLDER_CURRENT}
@@ -339,10 +337,8 @@ const Index = () => {
                         timezone={weather.timezone}
                         headline={weather.headline}
                       />
-                    </SwiperSlide>
 
-                    {/* Slide 2: Hourly (top) + 7-day (bottom) split 50/50 */}
-                    <SwiperSlide>
+                      {/* Slide 2: Hourly (top) + 7-day (bottom) split 50/50 */}
                       <div className="flex flex-col gap-3 h-full">
                         <div className="flex-1 min-h-0">
                           <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 glass-card" />}>
@@ -355,11 +351,9 @@ const Index = () => {
                           </Suspense>
                         </div>
                       </div>
-                    </SwiperSlide>
 
-                    {/* Slide 3: Rainfall map (PRD only) */}
-                    {nowcastVisible && (
-                      <SwiperSlide>
+                      {/* Slide 3: Rainfall map (PRD or Vancouver) */}
+                      {nowcastVisible && (
                         <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 glass-card" />}>
                           {useMSCNowcast ? (
                             <MSCRainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
@@ -367,9 +361,9 @@ const Index = () => {
                             <RainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
                           )}
                         </Suspense>
-                      </SwiperSlide>
-                    )}
-                  </Swiper>
+                      )}
+                    </MobileSwiperDeck>
+                  </Suspense>
 
                   {/* Swipe hint + pagination — bullets render here (outside the swiper
                       so they don't overlap the rainfall band's legend). CSS overrides
