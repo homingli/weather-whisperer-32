@@ -77,7 +77,7 @@ function SeverityBanner({
       role={role}
     >
       <Icon className="h-5 w-5 shrink-0 mt-0.5" />
-      <div className={action && 'flex-1 min-w-0'}>
+      <div className={action ? 'flex-1 min-w-0' : undefined}>
         <h4 className="font-semibold text-sm">{title}</h4>
         <p className="text-xs opacity-90 mt-1">{desc}</p>
       </div>
