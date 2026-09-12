@@ -141,7 +141,7 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `CurrentWeather.tsx`: Hero section displaying real-time conditions
   - `HourlyForecast.tsx`: Interactive 6-hour line chart (temperature & precipitation); day/night `ReferenceArea` bands and sun-event `ReferenceLine` markers when `daily` prop is provided
   - `DailyForecast.tsx`: 7-day forecast with min/max bounds
-  - `TomorrowGlance.tsx`: "Tomorrow at a glance" strip between hero and daily forecast (range, rain ≥20 %, wind); one button whose `aria-label` is a full sentence; `onReveal` scrolls to / advances to the daily forecast
+  - `AtAGlance.tsx`: at-a-glance strip between hero and daily forecast — one day group per day (today + tomorrow: low→high range, rain ≥20 %, wind), sharing a line when they fit and wrapping per day when they don't; one button whose `aria-label` is a full sentence per day; `onReveal` scrolls to / advances to the daily forecast
   - `RainfallMap.tsx`: Chunk-split wrapper → `RainfallMapInner` (HKO gridded nowcast) via lazy loading. Shows "Load Map" prompt. Error boundary catches lazy-chunk load failures.
   - `RainfallMapInner.tsx`: HKO gridded nowcast (CSV parsed → GeoJSON, time-slider, timeline step buttons). Fetches CSV into `RainGrid`, converts client-side to GeoJSON using `[longitude, latitude]` coordinates. Query with `staleTime: NOWCAST_CACHE_TTL_MS`, `refetchInterval: NOWCAST_REFETCH_INTERVAL_MS (30 min)`, `retry: 1`.
   - `MSCRainfallMap.tsx`: Chunk-split wrapper → `MSCRainfallMapInner` (MSC (Macau) rainfall WMS tile layer). Error boundary catches lazy-chunk load failures. Auto-loads when the section renders (no prompt).

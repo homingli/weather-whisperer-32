@@ -6,7 +6,31 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
 
 ## Unreleased
 
+### Changed
+- **Hero temperature caption now reads low → high.** The muted line under
+  the hero ("L 24°C · H 32°C · 3° warmer by 03:00 PM") previously led with
+  the high; the low now comes first, left to right, in both the visible
+  caption and its screen-reader label (en + tc).
+- **At-a-glance strip now covers today, not just tomorrow.** `TomorrowGlance`
+  is `AtAGlance`: the thin strip between the hero and the hourly/daily
+  split (above the swipe deck on mobile) summarises `daily[0]` and
+  `daily[1]` in the same per-day format (range, rain ≥ 20 %, wind). Each
+  day is one group — kicker, icon, low/high, rain, wind — and the groups
+  share a line when they fit and wrap to one line per day on narrow
+  screens; the row stays a single button (full per-day sentence in the
+  `aria-label`, joined by "; "). The range reads low → high, matching the
+  hero caption. A missing or sentinel day is skipped, so partial
+  forecasts degrade to a single-day strip.
+
 ### Fixed
+- **HK daily wind no longer shows 0 km/h.** The HKO daily forecast does
+  not publish wind, so the parser seeds `windSpeedMax: 0` placeholders;
+  the Open-Meteo merge only backfilled sunrise/sunset, so the 0 leaked
+  into the at-a-glance strip and the daily cards (today's day-max read 0
+  while the live wind was, say, 13 km/h). The merge now backfills wind
+  speed + direction from Open-Meteo for HKO daily rows, as the parser
+  comment always intended. (The HKO-only fallback, used when Open-Meteo
+  is fully down, still has no wind source and keeps 0.)
 - **Narrow-phone overflow in the rainfall map timeline.** The nowcast step
   labels in both map cards (HKO + MSC) sat in a single `justify-between`
   flex row sized to its content, so the MSC map's many GeoMet steps pushed

@@ -208,8 +208,9 @@ export async function fetchWeather(
     return persist(result);
   }
 
-  // Both succeeded — combine. HKO wins for daily (with OM sunrise/sunset
-  // preserved) and supplies warnings/station/district; HKO also wins for the
+  // Both succeeded — combine. HKO wins for daily (OM backfills its
+  // sunrise/sunset and wind placeholders) and supplies warnings/station/
+  // district; HKO also wins for the
   // current temperature when its current-weather fetch succeeds (the today
   // temperature bar / marker uses this value). OM keeps current/hourly for
   // everything else.
@@ -229,9 +230,10 @@ export async function fetchWeather(
     hkoCurrentData?.temperature.data[0];
   const hkoCurrentTemperature = hkoTempReading?.value;
 
-  // HKO seeds sunrise/sunset with epoch-0 sentinels (HKO daily doesn't publish
-  // sun times); replace any invalid date with the OM value so the chart's
-  // sunrise/sunset markers don't render at 1970.
+  // HKO seeds sunrise/sunset with epoch-0 sentinels and wind with 0
+  // (HKO daily doesn't publish either); replace the placeholders with the OM
+  // values so the chart's sunrise/sunset markers don't render at 1970 and
+  // the at-a-glance strip / daily cards don't read "0 km/h".
   const isValidDate = (d: Date | undefined | null): d is Date =>
     d instanceof Date && !isNaN(d.getTime()) && d.getTime() > 0;
 
@@ -242,10 +244,14 @@ export async function fetchWeather(
       ? { ...omData!.current, temperature: hkoCurrentTemperature }
       : omData!.current,
     daily: (hkoData.daily ?? []).filter(Boolean).map((day: DailyForecast, i: number) => {
-      const omSunrise = omData!.daily[i]?.sunrise;
-      const omSunset = omData!.daily[i]?.sunset;
+      const omDay = omData!.daily[i];
+      const omSunrise = omDay?.sunrise;
+      const omSunset = omDay?.sunset;
+      const hasHkoWind = day.windSpeedMax > 0;
       return {
         ...day,
+        windSpeedMax: hasHkoWind ? day.windSpeedMax : (omDay?.windSpeedMax ?? 0),
+        windDirectionDominant: hasHkoWind ? day.windDirectionDominant : (omDay?.windDirectionDominant ?? 0),
         sunrise: isValidDate(day.sunrise) ? day.sunrise : (isValidDate(omSunrise) ? omSunrise : day.sunrise),
         sunset: isValidDate(day.sunset) ? day.sunset : (isValidDate(omSunset) ? omSunset : day.sunset),
       };
