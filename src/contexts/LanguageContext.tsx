@@ -84,7 +84,7 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.sunrise': 'Sunrise',
     'daily.sunset': 'Sunset',
 
-    // Temperature caption under the hero (today's H/L + short-term trend)
+    // Temperature caption under the hero (today's L/H + short-term trend)
     'temp.hi': 'H',
     'temp.lo': 'L',
     'trend.warmer': '{0}° warmer by {1}',
@@ -353,7 +353,7 @@ const translations: Record<Language, Record<string, string>> = {
     'daily.sunset': '日落',
     'daily.chartLabel': '七日溫度範圍與降雨量圖表',
 
-    // Temperature caption under the hero (today's H/L + short-term trend)
+    // Temperature caption under the hero (today's L/H + short-term trend)
     'temp.hi': '高',
     'temp.lo': '低',
     'trend.warmer': '至 {1} 升 {0}°',
