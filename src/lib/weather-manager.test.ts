@@ -81,12 +81,14 @@ function makeHkoDaily(): Awaited<ReturnType<typeof getHKODailyAndWarnings>> {
       temperatureMax: 26,
       temperatureMin: 21,
       weatherCode: 0,
-      windSpeedMax: 10,
-      windDirectionDominant: 180,
+      // Real HKO shape: no wind, no sun times → parser seeds 0 / epoch-0
+      // placeholders, which the manager backfills from Open-Meteo.
+      windSpeedMax: 0,
+      windDirectionDominant: 0,
       precipitationProbabilityMax: 40,
       precipitationProbabilityRaw: 'Med',
-      sunrise: new Date(2024, 0, 8, 6, 0),
-      sunset: new Date(2024, 0, 8, 18, 0),
+      sunrise: new Date(0),
+      sunset: new Date(0),
     }],
     warnings: [{ code: 'WFIREY', name: 'Yellow Fire', actionCode: 'ISSUE', issueTime: 't', updateTime: 't' }],
     nearestStation: "King's Park",
@@ -231,6 +233,25 @@ describe('fetchWeather orchestration', () => {
       expect(result.nearestStation).toBe(hkoDaily.nearestStation);
       expect(result.nearestDistrict).toBe(hkoDaily.nearestDistrict);
       expect((result as { hkoFailed?: boolean }).hkoFailed).toBeUndefined();
+    });
+
+    it('backfills HKO daily wind placeholders from Open-Meteo', async () => {
+      mockIsInHK.mockReturnValue(true);
+      const omData = makeOpenMeteoData();
+      mockGetOpenMeteo.mockResolvedValue(omData);
+      mockGetHKODaily.mockResolvedValue(makeHkoDaily()); // wind 0 / sun epoch-0
+      mockGetHKOCurrent.mockResolvedValue(makeHkoCurrent());
+
+      const result = await fetchWeather(HK_LAT, HK_LON);
+
+      // HKO wins for temp + PSR ...
+      expect(result.daily[0].temperatureMax).toBe(26);
+      expect(result.daily[0].precipitationProbabilityMax).toBe(40);
+      // ... but the 0 wind placeholders are backfilled from OM, not leaked
+      // into the at-a-glance strip / daily cards as "0 km/h".
+      expect(result.daily[0].windSpeedMax).toBe(omData.daily[0].windSpeedMax);
+      expect(result.daily[0].windDirectionDominant).toBe(omData.daily[0].windDirectionDominant);
+      expect(result.daily[0].windSpeedMax).toBeGreaterThan(0);
     });
 
     it('falls back to OM current temperature when HKO current fetch fails in the merged path', async () => {

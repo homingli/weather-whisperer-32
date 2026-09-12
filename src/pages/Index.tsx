@@ -21,7 +21,7 @@ import { usePwaInstall } from '@/hooks/usePwaInstall';
 import { toast } from 'sonner';
 import { CloudRain, MapPin, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TomorrowGlance } from '@/components/TomorrowGlance';
+import { AtAGlance } from '@/components/AtAGlance';
 
 // Lazy load heavy components. DailyForecast pulls recharts (~120 kB) and is
 // below the fold on both mobile (Swiper slide 2) and desktop (split row);
@@ -165,7 +165,7 @@ const Index = () => {
   // matchMedia listener (useIsMobile).
   const isMobile = useIsMobile();
 
-  // Reveal target for the Tomorrow strip: desktop scrolls the secondary row
+  // Reveal target for the glance strip: desktop scrolls the secondary row
   // (hourly/daily) into view; mobile advances the swipe deck to the slide
   // that holds the DailyForecast.
   const dailySectionRef = useRef<HTMLDivElement | null>(null);
@@ -314,11 +314,11 @@ const Index = () => {
               {/* ── Mobile: horizontal swipe card deck ── */}
               {isMobile && (
                 <div className="flex flex-col flex-1 min-h-0 mt-3 animate-fade-in">
-                  {/* Tomorrow strip stays above the deck so it is glanceable on
+                  {/* Glance strip stays above the deck so it is glanceable on
                       every slide (hero + hourly/daily live on separate swipe
-                      slides on mobile; see TomorrowGlance). */}
+                      slides on mobile; see AtAGlance). */}
                   <div className="mb-3 shrink-0">
-                    <TomorrowGlance forecast={weather.daily?.[1]} onReveal={revealDailyForecast} />
+                    <AtAGlance today={weather.daily?.[0]} tomorrow={weather.daily?.[1]} onReveal={revealDailyForecast} />
                   </div>
                   {/* Each child is one slide's content; MobileSwiperDeck wraps
                       them in SwiperSlide. It is the only module that may import
@@ -392,9 +392,10 @@ const Index = () => {
                     />
                   </div>
 
-                  {/* Tomorrow at a glance — thin strip between the hero and
-                      the hourly/daily split. Scrolls the split below on tap. */}
-                  <TomorrowGlance forecast={weather.daily?.[1]} onReveal={revealDailyForecast} />
+                  {/* Today + tomorrow at a glance — thin strip between the
+                      hero and the hourly/daily split. Scrolls the split
+                      below on tap. */}
+                  <AtAGlance today={weather.daily?.[0]} tomorrow={weather.daily?.[1]} onReveal={revealDailyForecast} />
 
                   {/* Secondary Row: Split Forecasts */}
                   <div ref={dailySectionRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
