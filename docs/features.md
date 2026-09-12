@@ -6,15 +6,15 @@ The hero section displays:
 - **Location and time.** City name and local time formatted for that timezone
 - **Icon.** Large weather icon for current conditions
 - **Temperature.** Current apparent temperature with a "feels like" label
-- **Temperature caption.** Today's high and low with a 3-hour trend indicator (up/down/flat)
+- **Temperature caption.** Today's low and high (low first, left to right) with a 3-hour trend indicator (up/down/flat)
 - **Condition.** Current precipitation and humidity data
 - **Umbrella indicator.** Whether an umbrella is recommended, based on current rain or upcoming precipitation
 - **Sun-cycle strip.** Day/night progress bar; next sunset during the day, next sunrise at night, with exact times
 - **UV index chip.** Color-banded UV chip with localized band labels (Low / Moderate / High / Very High / Extreme)
 
-## Tomorrow at a glance
+## At a glance (today + tomorrow)
 
-`TomorrowGlance` is a thin, low-weight strip between the hero and the hourly/daily split on desktop, and above the swipe deck on mobile. It summarises `daily[1]`: temp range, rain chance (only when ≥ 20 %), and max wind. Activating the strip reveals the full daily forecast (desktop scroll / mobile deck advance). Below 360 px the wind group hides; the chevron still signals "more".
+`AtAGlance` is a thin, low-weight strip between the hero and the hourly/daily split on desktop, and above the swipe deck on mobile. It summarises `daily[0]` and `daily[1]` in the same per-day format: temp range (low → high), rain chance (only when ≥ 20 %), and max wind. Each day is one group (kicker, icon, range, rain, wind); the groups share a line when they fit and wrap to one line per day when they don't — the whole row is still a single button. Activating the strip reveals the full daily forecast (desktop scroll / mobile deck advance). Below 360 px each day's wind group hides; the chevron still signals "more". A missing or sentinel day is skipped; with none left the strip renders nothing.
 
 ## Hourly forecast
 
@@ -24,7 +24,7 @@ The hero section displays:
 
 ## Daily forecast
 
-7-day forecast (tomorrow is also summarised in the `TomorrowGlance` strip above the deck) with:
+7-day forecast (today and tomorrow are also summarised in the `AtAGlance` strip above the deck) with:
 - Min/max temperatures
 - Weather conditions
 - Precipitation probability

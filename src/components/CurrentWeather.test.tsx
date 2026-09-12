@@ -588,7 +588,7 @@ describe('CurrentWeather Component', () => {
       vi.useRealTimers();
     });
 
-    it('shows today H/L and a warming trend against the +3h clock time', () => {
+    it('shows today L/H and a warming trend against the +3h clock time', () => {
       summaryCard();
       const summary = screen.getByTestId('temp-summary');
       expect(summary).toHaveTextContent('H 30°C');
@@ -597,7 +597,7 @@ describe('CurrentWeather Component', () => {
       // at 15:00 UTC → "03:00 PM".
       expect(screen.getByTestId('temp-trend')).toHaveTextContent('3° warmer by 03:00 PM');
       // aria carries the same sentence for screen readers.
-      expect(summary).toHaveAttribute('aria-label', 'H 30°C, L 10°C, 3° warmer by 03:00 PM');
+      expect(summary).toHaveAttribute('aria-label', 'L 10°C, H 30°C, 3° warmer by 03:00 PM');
     });
 
     it('converts the delta and H/L to whole degrees in us mode', () => {
@@ -638,7 +638,7 @@ describe('CurrentWeather Component', () => {
       expect(screen.getByTestId('temp-trend')).toHaveTextContent('no change');
       expect(screen.getByText('–')).toHaveAttribute('aria-hidden', 'true');
       expect(summary).toHaveAttribute('role', 'group');
-      expect(summary).toHaveAccessibleName('H 30°C, L 10°C, no change');
+      expect(summary).toHaveAccessibleName('L 10°C, H 30°C, no change');
       expect(summary.textContent).not.toContain('warmer');
     });
 
@@ -646,7 +646,7 @@ describe('CurrentWeather Component', () => {
       summaryCard({ hourlyForecast: hourlyFrom([23, 22, 21, 20], 12) });
       expect(screen.getByTestId('temp-trend')).toHaveTextContent('3° cooler by 03:00 PM');
       expect(screen.getByTestId('temp-summary'))
-        .toHaveAccessibleName('H 30°C, L 10°C, 3° cooler by 03:00 PM');
+        .toHaveAccessibleName('L 10°C, H 30°C, 3° cooler by 03:00 PM');
     });
 
     it('clamps the comparison to the last hour when the horizon is short', () => {
@@ -664,7 +664,7 @@ describe('CurrentWeather Component', () => {
         .map((hour, i) => ({ ...hour, time: `2024-01-08T${12 + i}:00:00.000Z` })) as unknown as HourlyForecastType[];
       summaryCard({ hourlyForecast: stringTimes });
       expect(screen.getByTestId('temp-trend')).toHaveTextContent('3° warmer by 03:00 PM');
-      expect(screen.getByTestId('temp-summary')).toHaveAccessibleName('H 30°C, L 10°C, 3° warmer by 03:00 PM');
+      expect(screen.getByTestId('temp-summary')).toHaveAccessibleName('L 10°C, H 30°C, 3° warmer by 03:00 PM');
     });
 
     it('omits the trend clause when fewer than two hours remain', () => {
@@ -673,7 +673,7 @@ describe('CurrentWeather Component', () => {
       expect(summary).toHaveTextContent('H 30°C');
       expect(summary).toHaveTextContent('L 10°C');
       expect(screen.queryByTestId('temp-trend')).toBeNull();
-      expect(summary).toHaveAccessibleName('H 30°C, L 10°C');
+      expect(summary).toHaveAccessibleName('L 10°C, H 30°C');
     });
 
     it('omits the trend clause when the +3h window has already passed (stale cache)', () => {
@@ -684,7 +684,7 @@ describe('CurrentWeather Component', () => {
       const summary = screen.getByTestId('temp-summary');
       expect(screen.queryByTestId('temp-trend')).toBeNull();
       expect(summary).toHaveTextContent('H 30°C');
-      expect(summary).toHaveAccessibleName('H 30°C, L 10°C');
+      expect(summary).toHaveAccessibleName('L 10°C, H 30°C');
     });
 
     it('renders tc copy with 24h target time and localized H/L and trend', () => {
@@ -714,7 +714,7 @@ describe('CurrentWeather Component', () => {
       expect(summary).toHaveTextContent('高 30°C');
       expect(summary).toHaveTextContent('低 10°C');
       expect(screen.getByTestId('temp-trend')).toHaveTextContent('至 15:00 升 3°');
-      expect(summary).toHaveAccessibleName('高 30°C, 低 10°C, 至 15:00 升 3°');
+      expect(summary).toHaveAccessibleName('低 10°C, 高 30°C, 至 15:00 升 3°');
     });
 
     it('renders no caption when the data is empty', () => {

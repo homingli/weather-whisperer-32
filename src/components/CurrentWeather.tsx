@@ -275,7 +275,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           )}
       </div>
 
-      {/* Temperature caption — today's high/low plus the short-term trend
+      {/* Temperature caption — today's low/high plus the short-term trend
           ("3° warmer by 03:00 PM"). One muted line under the hero; the old
           full-width range bar was dropped because a position marker on a
           linear low→high axis can't tell pre-peak from post-peak — the
@@ -345,7 +345,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
 
 CurrentWeather.displayName = 'CurrentWeather';
 
-/* ── Temperature caption: today's high/low + short-term trend ──────── */
+/* ── Temperature caption: today's low/high + short-term trend ──────── */
 
 /** Visible glyph when the 3h trend rounds to zero. Kept aria-hidden so
  *  assistive tech never announces a bare dash; an sr-only "no change" copy
@@ -378,8 +378,8 @@ function hourlyTrendDelta(hourly: HourlyForecast[], units: Units, now = Date.now
     - toDisplayTemperature(hourly[0].temperature, units);
 }
 
-/** Muted one-liner under the hero: "H 32°C / L 24°C · 3° warmer by
- *  03:00 PM". The high/low keep the day's envelope glanceable; the trend
+/** Muted one-liner under the hero: "L 24°C · H 32°C · 3° warmer by
+ *  03:00 PM". The low/high keep the day's envelope glanceable; the trend
  *  clause answers "hotter or cooler from here?" without the misleading
  *  position marker the old range bar used. Hidden on empty data. */
 function TempSummary({
@@ -423,7 +423,7 @@ function TempSummary({
     }
   }
 
-  const ariaLabel = `${t('temp.hi')} ${hiStr}, ${t('temp.lo')} ${loStr}`
+  const ariaLabel = `${t('temp.lo')} ${loStr}, ${t('temp.hi')} ${hiStr}`
     + (trendAria ? `, ${trendAria}` : '');
   return (
     <div
@@ -432,9 +432,9 @@ function TempSummary({
       aria-label={ariaLabel}
       className="flex flex-wrap items-center justify-center gap-x-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 tabular-nums"
     >
-      <span>{t('temp.hi')} {hiStr}</span>
-      <span aria-hidden="true">·</span>
       <span>{t('temp.lo')} {loStr}</span>
+      <span aria-hidden="true">·</span>
+      <span>{t('temp.hi')} {hiStr}</span>
       {trendText && (
         <>
           <span aria-hidden="true">·</span>
