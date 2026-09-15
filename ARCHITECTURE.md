@@ -387,7 +387,7 @@ Timeouts throw → trigger React Query retry. No `Cache-Control` headers set or 
 `weather-last-known-v2` is the new persistence layer. The app reads it synchronously on mount, clears it on city switch, and overwrites it on every successful `fetchWeather` call. The envelope's `cityId` (lat/lon rounded to 2 decimal places) prevents cross-city paint. A schema version mismatch or parse error causes a silent drop rather than a crash.
 
 ## Testing strategy
-The project uses **Vitest** with jsdom. Coverage is split across layers (**312 tests**, 28 files):
+The project uses **Vitest** with jsdom. Coverage is split across layers (**409 tests**, 30 files):
 - **Unit tests** (lib/):
   - `src/lib/weather.test.ts` (2): Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
   - `src/lib/weather/hko-codes.test.ts` (15): WMO weather-code descriptions and icons.
@@ -406,7 +406,7 @@ The project uses **Vitest** with jsdom. Coverage is split across layers (**312 t
   - `src/components/DailyForecast.test.tsx` (4): Swiper carousel rendering, forecast cards, precipitation probability.
   - `src/components/LocalClock.test.tsx` (6): wide-viewport renders HH:MM:SS with 1s interval; narrow-viewport (via `matchMedia` stub) drops seconds, uses 60s interval aligned to the next minute boundary.
   - `src/components/WeatherAlerts.test.tsx` (12): HKO warning rendering, modal open/close, warning detail display, cancellation filter (mixed-case + uppercase `CANCEL`), live-fixture replay of the 2026-07-31 cancelled amber rainstorm regression (EN + TC), TC/rainstorm signal icons, pulse animation.
-  - `src/components/WeatherBanners.test.tsx` (8), `src/components/SettingsMenu.test.tsx` (11).
+  - `src/components/WeatherBanners.test.tsx` (8), `src/components/SettingsMenu.test.tsx` (23).
   - `src/pages/NotFound.test.tsx` (6): 404 page rendering, programmatic focus on h1.
 - **Integration test**:
   - `src/test/Integration.test.tsx` (1): composes `CurrentWeather` + `HourlyForecast` with providers and fake timers; validates locale-agnostic time formatting (bounded `/09:00:00\s*PM/` pattern).
