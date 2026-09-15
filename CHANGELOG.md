@@ -6,6 +6,19 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
 
 ## Unreleased
 
+### Added
+- **Text size setting in the menu (Small / Medium / Large).** A new pill in
+  the settings menu scales the whole UI by setting the root font-size
+  (87.5% / 100% / 112.5% of the browser default), so every rem-based
+  Tailwind size — text, spacing, icons, tap targets — rescales together:
+  `Small` fits more on low-resolution phones, `Large` reads better. The
+  choice persists in localStorage and is applied before first paint (no
+  flash of the default scale). `Medium` is the previous look, unchanged.
+  The few fixed-px text utilities (hero numerals, kicker labels, small
+  captions) were converted to rem so they scale too; chart-internal SVG
+  label sizes are intentionally left fixed to avoid label collisions in
+  the fixed chart geometry.
+
 ### Changed
 - **Hero temperature caption now reads low → high.** The muted line under
   the hero ("L 24°C · H 32°C · 3° warmer by 03:00 PM") previously led with
