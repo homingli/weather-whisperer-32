@@ -6,6 +6,7 @@ import { SettingsMenu } from './SettingsMenu';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { UnitsProvider } from '@/contexts/UnitsContext';
+import { FontSizeProvider } from '@/contexts/FontSizeContext';
 import { GeoLocation } from '@/lib/weather';
 
 const noCity: GeoLocation | null = null;
@@ -54,11 +55,13 @@ describe('SettingsMenu units + language pill toggles', () => {
         <ThemeProvider>
           <LanguageProvider>
             <UnitsProvider>
-              <SettingsMenu
-                currentCity={noCity}
-                recentCities={noRecent}
-                onCitySelect={() => {}}
-              />
+              <FontSizeProvider>
+                <SettingsMenu
+                  currentCity={noCity}
+                  recentCities={noRecent}
+                  onCitySelect={() => {}}
+                />
+              </FontSizeProvider>
             </UnitsProvider>
           </LanguageProvider>
         </ThemeProvider>
@@ -145,7 +148,9 @@ describe('SettingsMenu theme pill toggle', () => {
         <ThemeProvider>
           <LanguageProvider>
             <UnitsProvider>
-              <SettingsMenu currentCity={noCity} recentCities={noRecent} onCitySelect={() => {}} />
+              <FontSizeProvider>
+                <SettingsMenu currentCity={noCity} recentCities={noRecent} onCitySelect={() => {}} />
+              </FontSizeProvider>
             </UnitsProvider>
           </LanguageProvider>
         </ThemeProvider>
@@ -211,7 +216,9 @@ describe('SettingsMenu primary action pill', () => {
         <ThemeProvider>
           <LanguageProvider>
             <UnitsProvider>
-              <SettingsMenu currentCity={noCity} recentCities={noRecent} onCitySelect={() => {}} />
+              <FontSizeProvider>
+                <SettingsMenu currentCity={noCity} recentCities={noRecent} onCitySelect={() => {}} />
+              </FontSizeProvider>
             </UnitsProvider>
           </LanguageProvider>
         </ThemeProvider>
@@ -271,7 +278,9 @@ describe('SettingsMenu data-source credit (relocated from the page footer)', () 
         <ThemeProvider>
           <LanguageProvider>
             <UnitsProvider>
-              <SettingsMenu currentCity={city} recentCities={noRecent} onCitySelect={() => {}} />
+              <FontSizeProvider>
+                <SettingsMenu currentCity={city} recentCities={noRecent} onCitySelect={() => {}} />
+              </FontSizeProvider>
             </UnitsProvider>
           </LanguageProvider>
         </ThemeProvider>
@@ -302,5 +311,70 @@ describe('SettingsMenu data-source credit (relocated from the page footer)', () 
     renderMenu(noCity);
     await user.click(screen.getByRole('button', { name: /settings/i }));
     expect(screen.getByText('Data from Open-Meteo')).toBeInTheDocument();
+  });
+});
+
+describe('SettingsMenu font-size pill toggle', () => {
+  let user: UserEvent;
+
+  beforeEach(() => {
+    localStorage.clear();
+    document.documentElement.style.removeProperty('font-size');
+    user = userEvent.setup({ pointerEventsCheck: PointerEventsCheckLevel.Never });
+  });
+
+  const renderMenu = () =>
+    render(
+      <TestProviders>
+        <ThemeProvider>
+          <LanguageProvider>
+            <UnitsProvider>
+              <FontSizeProvider>
+                <SettingsMenu currentCity={noCity} recentCities={noRecent} onCitySelect={() => {}} />
+              </FontSizeProvider>
+            </UnitsProvider>
+          </LanguageProvider>
+        </ThemeProvider>
+      </TestProviders>,
+    );
+
+  it('renders the pill with Small/Medium/Large options in order', async () => {
+    renderMenu();
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    const sizeGroup = screen.getByRole('radiogroup', { name: /text size/i });
+    const radios = within(sizeGroup).getAllByRole('radio');
+    expect(radios.map((r) => r.textContent)).toEqual(['Small', 'Medium', 'Large']);
+  });
+
+  it('marks Medium as checked by default', async () => {
+    renderMenu();
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    expect(screen.getByRole('radio', { name: 'Medium' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Small' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('radio', { name: 'Large' })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('persists Large and rescales the root font-size when clicked', async () => {
+    renderMenu();
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('radio', { name: 'Large' }));
+    expect(localStorage.getItem('weather-font-size')).toBe('large');
+    expect(document.documentElement.style.fontSize).toBe('112.5%');
+    expect(screen.getByRole('radio', { name: 'Large' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('applies a stored Small preference to the root font-size on mount', () => {
+    localStorage.setItem('weather-font-size', 'small');
+    renderMenu();
+    expect(document.documentElement.style.fontSize).toBe('87.5%');
+  });
+
+  it('shows 細/標準/大 labels after switching to Traditional Chinese', async () => {
+    renderMenu();
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('radio', { name: '繁體中文' }));
+    const sizeGroup = screen.getByRole('radiogroup', { name: '字體大小' });
+    const radios = within(sizeGroup).getAllByRole('radio');
+    expect(radios.map((r) => r.textContent)).toEqual(['細', '標準', '大']);
   });
 });

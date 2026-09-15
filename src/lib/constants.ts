@@ -35,6 +35,10 @@ export const STORAGE_KEYS = {
   THEME_MODE: 'theme-mode',
   /** User's preferred unit system: 'metric' (default) or 'us'. */
   UNITS: 'weather-units',
+  /** User's preferred UI text scale: 'small' | 'medium' (default) | 'large'.
+   *  Applied as a percentage root font-size so all rem-based Tailwind
+   *  spacing/typography scale with it (see FontSizeContext). */
+  FONT_SIZE: 'weather-font-size',
   DEFAULT_CITY: 'weather-default-city',
   RECENT_CITIES: 'weather-recent-cities',
   /** Last-known weather snapshot for cold-start first paint. Schema-versioned. */

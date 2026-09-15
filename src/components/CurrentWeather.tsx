@@ -224,7 +224,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
               const Icon = headlineRender.Icon;
               return (
                 <span
-                  className="inline-flex items-center justify-center text-[72px] sm:text-[110px] leading-none select-none text-foreground"
+                  className="inline-flex items-center justify-center text-[4.5rem] sm:text-[6.875rem] leading-none select-none text-foreground"
                   role="img"
                   aria-label={t(headlineRender.labelKey)}
                 >
@@ -430,7 +430,7 @@ function TempSummary({
       data-testid="temp-summary"
       role="group"
       aria-label={ariaLabel}
-      className="flex flex-wrap items-center justify-center gap-x-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 tabular-nums"
+      className="flex flex-wrap items-center justify-center gap-x-2 text-[0.625rem] uppercase tracking-[0.18em] text-muted-foreground/70 tabular-nums"
     >
       <span>{t('temp.lo')} {loStr}</span>
       <span aria-hidden="true">·</span>
@@ -626,7 +626,7 @@ function SunCycleProgress({
           )}
         </span>
       </div>
-      <div className="flex justify-between gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
+      <div className="flex justify-between gap-3 text-[0.625rem] uppercase tracking-[0.18em] text-muted-foreground/60 tabular-nums">
         {/* Icons + bar colour already identify the day/night phase; the
             "Sunrise"/"Sunset" words are visual noise, so they stay
             screen-reader-only (sr-only) and never render on screen. */}
@@ -670,7 +670,7 @@ function HumidityBar({ pct, label, empty }: { pct: number; label: string; empty:
           aria-hidden
         />
       </div>
-      <div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground/50 tabular-nums">
+      <div className="flex justify-between text-[0.625rem] uppercase tracking-[0.18em] text-muted-foreground/50 tabular-nums">
         <span>0%</span><span>100%</span>
       </div>
     </div>
@@ -714,7 +714,7 @@ function WindCompass({
         </div>
         <span className="font-display text-xl md:text-2xl tabular-nums leading-none">
           {empty ? '—' : `${Math.round(towardDeg)}°`}
-          <span className="ml-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 not-italic" style={{ fontFamily: "'Outfit', sans-serif" }}>
+          <span className="ml-1 text-[0.625rem] uppercase tracking-[0.18em] text-muted-foreground/70 not-italic" style={{ fontFamily: "'Outfit', sans-serif" }}>
             {empty ? '' : windCompass(towardDeg)}
           </span>
         </span>
@@ -879,7 +879,7 @@ function PrecipBar({
           </div>
         )}
       </div>
-      <div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground/50 tabular-nums">
+      <div className="flex justify-between text-[0.625rem] uppercase tracking-[0.18em] text-muted-foreground/50 tabular-nums">
         <span>{units === 'us' ? '0.02' : '0.5'}</span>
         <span>{units === 'us' ? '0.2' : '5'}</span>
         <span>{units === 'us' ? '0.4' : '10'}</span>
@@ -923,7 +923,7 @@ function QuietChip({ id, Icon, label, value }: QuietItem) {
     <div
       data-testid={`quiet-${id}`}
       aria-label={`${label}: ${value}`}
-      className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] tabular-nums text-muted-foreground"
+      className="inline-flex items-center gap-1.5 text-[0.6875rem] uppercase tracking-[0.18em] tabular-nums text-muted-foreground"
     >
       <Icon className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
       <span>

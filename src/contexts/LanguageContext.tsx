@@ -218,6 +218,12 @@ const translations: Record<Language, Record<string, string>> = {
     'unit.mph': 'mph',
     'unit.in': 'in',
 
+    // Text size (root font-size scale)
+    'settings.fontSize': 'Text size',
+    'settings.fontSize.small': 'Small',
+    'settings.fontSize.medium': 'Medium',
+    'settings.fontSize.large': 'Large',
+
     // Current weather
     'weather.feelsLike': 'Feels like',
     'weather.wind': 'Wind',
@@ -489,6 +495,12 @@ const translations: Record<Language, Record<string, string>> = {
     'settings.us': '美制',
     'unit.mph': '英里/小時',
     'unit.in': '英寸',
+
+    // Text size (root font-size scale)
+    'settings.fontSize': '字體大小',
+    'settings.fontSize.small': '細',
+    'settings.fontSize.medium': '標準',
+    'settings.fontSize.large': '大',
 
     // Current weather
     'weather.feelsLike': '體感溫度',

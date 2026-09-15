@@ -147,12 +147,13 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `MSCRainfallMap.tsx`: Chunk-split wrapper → `MSCRainfallMapInner` (MSC (Macau) rainfall WMS tile layer). Error boundary catches lazy-chunk load failures. Auto-loads when the section renders (no prompt).
   - `MSCRainfallMapInner.tsx`: MSC WMS tile rendering with batch error tracking, tile load hang guard (20s), and retry nonce. Shows stale-data indicator when tiles fail to load.
   - `MapLibreMap.tsx`: MapLibre basemap wrapper (CARTO vector/raster tiles). Handles user location marker.
-  - `SettingsMenu.tsx`: Global settings controls (Language, Theme, Location, manual refresh)
+  - `SettingsMenu.tsx`: Global settings controls (Units, Theme, Language, Text size, Location, manual refresh)
   - `WeatherAlerts.tsx`: HKO warning icons in the top bar; tapping opens a modal with the full safety text. Tap targets are **44×44 CSS px on mobile (WCAG 2.5.5 AAA)** with 28px icons, and 48×48 with 32px icons on `sm+`. Cancellation filter is case-insensitive on `actionCode` against `"CANCEL"`. HKO returns uppercase; a previous mixed-case compare silently let a cancelled amber rainstorm stay visible until 2026-07-31.
 - `src/contexts/`: Global application state
   - `LanguageContext.tsx`: Manages i18n between English and Traditional Chinese (HK)
   - `ThemeContext.tsx`: Manages active theme (Light, Dark, and Sun-synced Auto)
   - `UnitsContext.tsx`: Manages unit preference (metric/US), persisted to localStorage
+  - `FontSizeContext.tsx`: Manages UI text scale (Small 87.5% / Medium 100% / Large 112.5% root font-size), persisted to localStorage. Applied to `document.documentElement` so all rem-based Tailwind spacing/typography — the entire layout — rescales with it; `medium` removes the inline override.
 - `src/hooks/`: React hooks
   - `useCitySearch.ts`: Open-Meteo Geocoding API autocomplete
   - `useOnlineStatus.ts`: Returns `online`/`offline` boolean
@@ -398,7 +399,7 @@ The project uses **Vitest** with jsdom. Coverage is split across layers (**312 t
 - **Hook tests** (hooks/):
   - `src/hooks/useWarningChangeDetector.test.ts` (18): diff semantics, baseline reset on `resetKey`, case-insensitive `CANCEL` filtering, `Reissue` no-diff.
 - **Context tests** (contexts/):
-  - `src/contexts/LanguageContext.test.tsx` (12), `src/contexts/ThemeContext.test.tsx` (8), `src/contexts/UnitsContext.test.tsx` (6).
+  - `src/contexts/LanguageContext.test.tsx` (12), `src/contexts/ThemeContext.test.tsx` (8), `src/contexts/UnitsContext.test.tsx` (6), `src/contexts/FontSizeContext.test.tsx` (7).
 - **Component tests** (components/):
   - `src/components/CurrentWeather.test.tsx` (23): fixture-data render, umbrella indicator, sun event display, quiet-shelf behavior.
   - `src/components/HourlyForecast.test.tsx` (8): empty forecast, chartData shape validation (mock capture), day/night `ReferenceArea` bands, sun-event `ReferenceLine` label capture, timezone propagation. Recharts is mocked because jsdom lacks ResizeObserver.

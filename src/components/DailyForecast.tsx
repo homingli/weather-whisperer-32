@@ -154,10 +154,10 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
           return (
             <div key={row.index} className="flex flex-col items-center gap-1 min-w-0 px-0.5">
               <div className="flex flex-col items-center leading-tight">
-                <span className="text-[13px] font-medium text-muted-foreground">
+                <span className="text-[0.8125rem] font-medium text-muted-foreground">
                   {row.line1}
                 </span>
-                <span className="text-[11px] font-medium text-muted-foreground/70">
+                <span className="text-[0.6875rem] font-medium text-muted-foreground/70">
                   {row.line2}
                 </span>
               </div>
