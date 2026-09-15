@@ -226,13 +226,14 @@
     text-orientation: mixed;
   }
 
-  /* Editorial kicker label — uppercase, tracked, sans body */
+  /* Editorial kicker label — uppercase, tracked, sans body.
+     font-size is rem (not px) so the text-size setting rescales it too. */
   .kicker {
     font-family: var(--font-body);
     text-transform: uppercase;
     letter-spacing: 0.32em;
     font-weight: 500;
-    font-size: 12px;
+    font-size: 0.75rem;
   }
 }
 
