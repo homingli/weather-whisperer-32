@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage, Language, formatString } from '@/contexts/LanguageContext';
 import { useUnits, Units } from '@/contexts/UnitsContext';
+import { useFontSize, FontSize } from '@/contexts/FontSizeContext';
 import { useCitySearch } from '@/hooks/useCitySearch';
 import { isInHongKong } from '@/lib/hko-weather';
 import { cn } from '@/lib/utils';
@@ -121,6 +122,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
   const { mode, setMode } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const { units, setUnits } = useUnits();
+  const { fontSize, setFontSize } = useFontSize();
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const { data: results, isFetching, isPlaceholderData } = useCitySearch(query);
@@ -190,6 +192,15 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
   const unitOptions: { value: Units; label: string }[] = [
     { value: 'metric', label: 'Metric' },
     { value: 'us', label: 'US' },
+  ];
+
+  // Pill options for text size — scales the whole rem-based layout, so a
+  // low-resolution phone can trade density for fit (Small) and anyone can
+  // trade fit for readability (Large).
+  const fontSizeOptions: { value: FontSize; label: string }[] = [
+    { value: 'small', label: t('settings.fontSize.small') },
+    { value: 'medium', label: t('settings.fontSize.medium') },
+    { value: 'large', label: t('settings.fontSize.large') },
   ];
 
   return (
@@ -277,12 +288,23 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
 
           <DropdownMenuSeparator />
 
+          {/* Text size pill — rescales the root font-size so the entire
+              rem-based layout grows/shrinks with it. */}
+          <PillToggle
+            label={t('settings.fontSize')}
+            value={fontSize}
+            options={fontSizeOptions}
+            onChange={setFontSize}
+          />
+
+          <DropdownMenuSeparator />
+
           {/* Data-source credit — lives at the bottom of the menu instead of
               a page footer so the forecast cards can use the full viewport
               height. Mirrors the credit the page footer used to show: both
               sources when the selected city is in HK coverage, Open-Meteo
               alone otherwise (no city yet included). */}
-          <div className="px-3 py-2 text-center text-[11px] leading-relaxed text-muted-foreground/70">
+          <div className="px-3 py-2 text-center text-[0.6875rem] leading-relaxed text-muted-foreground/70">
             {currentCity && isInHongKong(currentCity.latitude, currentCity.longitude)
               ? formatString(t('source.poweredByBoth'), t('source.openMeteo'), t('source.hko'))
               : formatString(t('source.poweredBy'), t('source.openMeteo'))}

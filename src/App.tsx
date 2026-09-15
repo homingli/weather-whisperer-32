@@ -6,6 +6,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { UnitsProvider } from "@/contexts/UnitsContext";
+import { FontSizeProvider } from "@/contexts/FontSizeContext";
 import { StatusRegionProvider } from "@/lib/aria-utils";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -77,17 +78,19 @@ const App = () => (
     <ThemeProvider>
       <LanguageProvider>
         <UnitsProvider>
-          <StatusRegionProvider>
-            <Sonner />
-            <BrowserRouter>
-              <RouteAwareSpeedInsights />
-              <Routes>
-                <Route path="/" element={<Index />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </StatusRegionProvider>
+          <FontSizeProvider>
+            <StatusRegionProvider>
+              <Sonner />
+              <BrowserRouter>
+                <RouteAwareSpeedInsights />
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </StatusRegionProvider>
+          </FontSizeProvider>
         </UnitsProvider>
       </LanguageProvider>
     </ThemeProvider>
