@@ -21,9 +21,9 @@ const VALID: ReadonlySet<FontSize> = new Set<FontSize>(['small', 'medium', 'larg
  * (the app's designed 16px look) applies.
  */
 export const FONT_SIZE_ROOT_PERCENT: Record<FontSize, string> = {
-  small: '87.5%',
+  small: '80%',
   medium: '100%',
-  large: '112.5%',
+  large: '125%',
 };
 
 function applyRootFontSize(next: FontSize) {
