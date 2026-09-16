@@ -141,22 +141,23 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `CurrentWeather.tsx`: Hero section displaying real-time conditions
   - `HourlyForecast.tsx`: Interactive 6-hour line chart (temperature & precipitation); day/night `ReferenceArea` bands and sun-event `ReferenceLine` markers when `daily` prop is provided
   - `DailyForecast.tsx`: 7-day forecast with min/max bounds
-  - `AtAGlance.tsx`: at-a-glance strip between hero and daily forecast — one day group per day (today + tomorrow: low→high range, rain ≥20 %, wind), sharing a line when they fit and wrapping per day when they don't; one button whose `aria-label` is a full sentence per day; `onReveal` scrolls to / advances to the daily forecast
+  - `AtAGlance.tsx`: at-a-glance strip between hero and daily forecast — one day group per day (today + tomorrow: low→high range, rain ≥20 %; wind intentionally omitted, it lives on the daily cards), sharing a line when they fit and wrapping per day when they don't; one button whose `aria-label` is a full sentence per day; `onReveal` scrolls to / advances to the daily forecast
   - `RainfallMap.tsx`: Chunk-split wrapper → `RainfallMapInner` (HKO gridded nowcast) via lazy loading. Shows "Load Map" prompt. Error boundary catches lazy-chunk load failures.
   - `RainfallMapInner.tsx`: HKO gridded nowcast (CSV parsed → GeoJSON, time-slider, timeline step buttons). Fetches CSV into `RainGrid`, converts client-side to GeoJSON using `[longitude, latitude]` coordinates. Query with `staleTime: NOWCAST_CACHE_TTL_MS`, `refetchInterval: NOWCAST_REFETCH_INTERVAL_MS (30 min)`, `retry: 1`.
   - `MSCRainfallMap.tsx`: Chunk-split wrapper → `MSCRainfallMapInner` (MSC (Macau) rainfall WMS tile layer). Error boundary catches lazy-chunk load failures. Auto-loads when the section renders (no prompt).
   - `MSCRainfallMapInner.tsx`: MSC WMS tile rendering with batch error tracking, tile load hang guard (20s), and retry nonce. Shows stale-data indicator when tiles fail to load.
   - `MapLibreMap.tsx`: MapLibre basemap wrapper (CARTO vector/raster tiles). Handles user location marker.
   - `SettingsMenu.tsx`: Global settings controls (Units, Theme, Language, Text size, Location, manual refresh)
+  - `OfflineIndicator.tsx`: Top-bar connectivity chip driven by `useOnlineStatus` — renders nothing while online; on `navigator.onLine` → offline shows an amber badge (`role="status"`, reuses the `data.offline` string) so users learn data may be stale before a fetch fails. On reconnect React Query's default `refetchOnReconnect` refreshes in the background. Direct (non-lazy) import: must be visible on a cold start that begins offline.
   - `WeatherAlerts.tsx`: HKO warning icons in the top bar; tapping opens a modal with the full safety text. Tap targets are **44×44 CSS px on mobile (WCAG 2.5.5 AAA)** with 28px icons, and 48×48 with 32px icons on `sm+`. Cancellation filter is case-insensitive on `actionCode` against `"CANCEL"`. HKO returns uppercase; a previous mixed-case compare silently let a cancelled amber rainstorm stay visible until 2026-07-31.
 - `src/contexts/`: Global application state
   - `LanguageContext.tsx`: Manages i18n between English and Traditional Chinese (HK)
   - `ThemeContext.tsx`: Manages active theme (Light, Dark, and Sun-synced Auto)
   - `UnitsContext.tsx`: Manages unit preference (metric/US), persisted to localStorage
-  - `FontSizeContext.tsx`: Manages UI text scale (Small 87.5% / Medium 100% / Large 112.5% root font-size), persisted to localStorage. Applied to `document.documentElement` so all rem-based Tailwind spacing/typography — the entire layout — rescales with it; `medium` removes the inline override.
+  - `FontSizeContext.tsx`: Manages UI text scale (Small 80% / Medium 100% / Large 125% root font-size), persisted to localStorage. Applied to `document.documentElement` so all rem-based Tailwind spacing/typography — the entire layout — rescales with it; `medium` removes the inline override.
 - `src/hooks/`: React hooks
   - `useCitySearch.ts`: Open-Meteo Geocoding API autocomplete
-  - `useOnlineStatus.ts`: Returns `online`/`offline` boolean
+  - `useOnlineStatus.ts`: Returns `true` while the browser reports offline (consumed by `OfflineIndicator`)
   - `usePwaInstall.ts`: Tracks `beforeinstallprompt` and provides an `install()` helper
   - `useSelectedCity.ts`: City init, geo-swap, persistence wrapper
   - `useWeatherWithProgress.ts`: `useQuery` wrapper with `loadProgress` per-source status, faster retry on failure
@@ -387,7 +388,7 @@ Timeouts throw → trigger React Query retry. No `Cache-Control` headers set or 
 `weather-last-known-v2` is the new persistence layer. The app reads it synchronously on mount, clears it on city switch, and overwrites it on every successful `fetchWeather` call. The envelope's `cityId` (lat/lon rounded to 2 decimal places) prevents cross-city paint. A schema version mismatch or parse error causes a silent drop rather than a crash.
 
 ## Testing strategy
-The project uses **Vitest** with jsdom. Coverage is split across layers (**409 tests**, 30 files):
+The project uses **Vitest** with jsdom. Coverage is split across layers (**414 tests**, 31 files):
 - **Unit tests** (lib/):
   - `src/lib/weather.test.ts` (2): Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
   - `src/lib/weather/hko-codes.test.ts` (15): WMO weather-code descriptions and icons.
@@ -405,6 +406,8 @@ The project uses **Vitest** with jsdom. Coverage is split across layers (**409 t
   - `src/components/HourlyForecast.test.tsx` (8): empty forecast, chartData shape validation (mock capture), day/night `ReferenceArea` bands, sun-event `ReferenceLine` label capture, timezone propagation. Recharts is mocked because jsdom lacks ResizeObserver.
   - `src/components/DailyForecast.test.tsx` (4): Swiper carousel rendering, forecast cards, precipitation probability.
   - `src/components/LocalClock.test.tsx` (6): wide-viewport renders HH:MM:SS with 1s interval; narrow-viewport (via `matchMedia` stub) drops seconds, uses 60s interval aligned to the next minute boundary.
+  - `src/components/AtAGlance.test.tsx` (10): empty/sentinel-day rendering, per-day sentence + strip content in metric and US units, rain-chance 20 % cutoff (visible text and aria-label), Traditional Chinese labels, `onReveal` activation.
+  - `src/components/OfflineIndicator.test.tsx` (5): hidden while online, badge appears on `offline` event / offline-at-mount, hides on `online` event, Traditional Chinese string.
   - `src/components/WeatherAlerts.test.tsx` (12): HKO warning rendering, modal open/close, warning detail display, cancellation filter (mixed-case + uppercase `CANCEL`), live-fixture replay of the 2026-07-31 cancelled amber rainstorm regression (EN + TC), TC/rainstorm signal icons, pulse animation.
   - `src/components/WeatherBanners.test.tsx` (8), `src/components/SettingsMenu.test.tsx` (23).
   - `src/pages/NotFound.test.tsx` (6): 404 page rendering, programmatic focus on h1.

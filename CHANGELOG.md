@@ -7,9 +7,16 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
 ## Unreleased
 
 ### Added
+- **Offline indicator in the top bar.** A small amber "Currently offline"
+  chip appears next to the clock the moment the browser reports it is
+  offline, and disappears when connectivity returns — at which point the
+  weather refetches automatically in the background. Previously the app
+  only told you about connectivity after a refresh actually failed (the
+  red cached-data banner); the chip is the proactive heads-up that pairs
+  with it. Reuses the banner's wording in both languages.
 - **Text size setting in the menu (Small / Medium / Large).** A new pill in
   the settings menu scales the whole UI by setting the root font-size
-  (87.5% / 100% / 112.5% of the browser default), so every rem-based
+  (80% / 100% / 125% of the browser default), so every rem-based
   Tailwind size — text, spacing, icons, tap targets — rescales together:
   `Small` fits more on low-resolution phones, `Large` reads better. The
   choice persists in localStorage and is applied before first paint (no
@@ -27,13 +34,18 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
 - **At-a-glance strip now covers today, not just tomorrow.** `TomorrowGlance`
   is `AtAGlance`: the thin strip between the hero and the hourly/daily
   split (above the swipe deck on mobile) summarises `daily[0]` and
-  `daily[1]` in the same per-day format (range, rain ≥ 20 %, wind). Each
-  day is one group — kicker, icon, low/high, rain, wind — and the groups
+  `daily[1]` in the same per-day format (range, rain ≥ 20 %). Each
+  day is one group — kicker, icon, low/high, rain — and the groups
   share a line when they fit and wrap to one line per day on narrow
   screens; the row stays a single button (full per-day sentence in the
   `aria-label`, joined by "; "). The range reads low → high, matching the
   hero caption. A missing or sentinel day is skipped, so partial
   forecasts degrade to a single-day strip.
+- **Wind removed from the at-a-glance strip.** The strip now reads kicker,
+  icon, low/high, rain ≥ 20 % per day — the wind clause crowded narrow
+  screens (it already hid below 360 px). Wind is unchanged on the daily
+  forecast cards and in the hourly chart, and the screen-reader sentence
+  drops the wind clause to match what is shown.
 
 ### Fixed
 - **HK daily wind no longer shows 0 km/h.** The HKO daily forecast does
