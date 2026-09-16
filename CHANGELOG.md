@@ -27,11 +27,6 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
   the fixed chart geometry.
 
 ### Changed
-- **Wind removed from the at-a-glance strip.** The strip now reads kicker,
-  icon, low/high, rain ≥ 20 % per day — the wind clause crowded narrow
-  screens (it already hid below 360 px). Wind is unchanged on the daily
-  forecast cards and in the hourly chart, and the screen-reader sentence
-  drops the wind clause to match what is shown.
 - **Hero temperature caption now reads low → high.** The muted line under
   the hero ("L 24°C · H 32°C · 3° warmer by 03:00 PM") previously led with
   the high; the low now comes first, left to right, in both the visible
@@ -46,6 +41,11 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
   `aria-label`, joined by "; "). The range reads low → high, matching the
   hero caption. A missing or sentinel day is skipped, so partial
   forecasts degrade to a single-day strip.
+- **Wind removed from the at-a-glance strip.** The strip now reads kicker,
+  icon, low/high, rain ≥ 20 % per day — the wind clause crowded narrow
+  screens (it already hid below 360 px). Wind is unchanged on the daily
+  forecast cards and in the hourly chart, and the screen-reader sentence
+  drops the wind clause to match what is shown.
 
 ### Fixed
 - **HK daily wind no longer shows 0 km/h.** The HKO daily forecast does
