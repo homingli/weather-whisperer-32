@@ -4,6 +4,7 @@ import type { MobileSwiperDeckHandle } from '@/components/MobileSwiperDeck';
 
 import { FetchingStatus } from '@/components/FetchingStatus';
 import { LocalClock } from '@/components/LocalClock';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
@@ -201,10 +202,13 @@ const Index = () => {
       }`}>
         {/* Top bar: row 1 = [date time]; row 2 = [location]; right column spans both */}
         <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 mb-3 shrink-0">
-          <div className="flex items-center">
+          <div className="flex items-center gap-2 min-w-0">
             {weather?.timezone && (
               <LocalClock timezone={weather.timezone} />
             )}
+            {/* Direct import (not lazy): must be visible on the first paint
+                of a cold start that begins offline. */}
+            <OfflineIndicator />
           </div>
           <div className="row-span-2 flex items-center justify-end gap-2">
             {effectiveWarnings.length > 0 && (
