@@ -6,7 +6,7 @@ import { SettingsMenu } from './SettingsMenu';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { UnitsProvider } from '@/contexts/UnitsContext';
-import { FontSizeProvider } from '@/contexts/FontSizeContext';
+import { FontSizeProvider, FONT_SIZE_ROOT_PERCENT } from '@/contexts/FontSizeContext';
 import { GeoLocation } from '@/lib/weather';
 
 const noCity: GeoLocation | null = null;
@@ -359,14 +359,14 @@ describe('SettingsMenu font-size pill toggle', () => {
     await user.click(screen.getByRole('button', { name: /settings/i }));
     await user.click(screen.getByRole('radio', { name: 'Large' }));
     expect(localStorage.getItem('weather-font-size')).toBe('large');
-    expect(document.documentElement.style.fontSize).toBe('112.5%');
+    expect(document.documentElement.style.fontSize).toBe(FONT_SIZE_ROOT_PERCENT.large);
     expect(screen.getByRole('radio', { name: 'Large' })).toHaveAttribute('aria-checked', 'true');
   });
 
   it('applies a stored Small preference to the root font-size on mount', () => {
     localStorage.setItem('weather-font-size', 'small');
     renderMenu();
-    expect(document.documentElement.style.fontSize).toBe('87.5%');
+    expect(document.documentElement.style.fontSize).toBe(FONT_SIZE_ROOT_PERCENT.small);
   });
 
   it('shows 細/標準/大 labels after switching to Traditional Chinese', async () => {

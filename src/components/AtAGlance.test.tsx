@@ -65,8 +65,8 @@ describe('AtAGlance Component', () => {
     renderWithProviders(<AtAGlance today={today} tomorrow={tomorrow} onReveal={() => {}} />);
 
     const strip = screen.getByRole('button', {
-      // "Today: Mainly clear, High 29°C, Low 23°C, Wind 18 km/h; Tomorrow: Partly cloudy, High 31°C, Low 25°C, Rain Chance 80%, Wind 25 km/h"
-      name: /Today: Mainly clear, High 29°C, Low 23°C, Wind 18 km\/h; Tomorrow: Partly cloudy, High 31°C, Low 25°C, Rain Chance 80%, Wind 25 km\/h/i,
+      // "Today: Mainly clear, High 29°C, Low 23°C; Tomorrow: Partly cloudy, High 31°C, Low 25°C, Rain Chance 80%"
+      name: /Today: Mainly clear, High 29°C, Low 23°C; Tomorrow: Partly cloudy, High 31°C, Low 25°C, Rain Chance 80%/i,
     });
     expect(strip).toBeInTheDocument();
 
@@ -80,8 +80,8 @@ describe('AtAGlance Component', () => {
     expect(strip).toHaveTextContent('23°C');
     expect(strip).toHaveTextContent('31°C');
     expect(strip).toHaveTextContent('25°C');
-    expect(strip).toHaveTextContent('18 km/h');
-    expect(strip).toHaveTextContent('25 km/h');
+    // Wind stays off the strip (it lives on the daily cards instead).
+    expect(strip).not.toHaveTextContent('km/h');
     // Tomorrow's rain chance signals; today's 15 % stays below the cutoff
     // and is omitted from the strip (and from the sentence).
     expect(strip).toHaveTextContent('80%');
@@ -92,7 +92,7 @@ describe('AtAGlance Component', () => {
     renderWithProviders(<AtAGlance tomorrow={tomorrow} onReveal={() => {}} />);
 
     const strip = screen.getByRole('button', {
-      name: /Tomorrow: Partly cloudy, High 31°C, Low 25°C, Rain Chance 80%, Wind 25 km\/h/i,
+      name: /Tomorrow: Partly cloudy, High 31°C, Low 25°C, Rain Chance 80%/i,
     });
     expect(strip).toBeInTheDocument();
     expect(strip).not.toHaveTextContent('Today');
@@ -102,7 +102,7 @@ describe('AtAGlance Component', () => {
     renderWithProviders(<AtAGlance today={today} onReveal={() => {}} />);
 
     const strip = screen.getByRole('button', {
-      name: /Today: Mainly clear, High 29°C, Low 23°C, Wind 18 km\/h/i,
+      name: /Today: Mainly clear, High 29°C, Low 23°C/i,
     });
     expect(strip).toBeInTheDocument();
     expect(strip).not.toHaveTextContent('Tomorrow');
@@ -118,7 +118,7 @@ describe('AtAGlance Component', () => {
     );
 
     const strip = screen.getByRole('button', {
-      name: /Tomorrow: Partly cloudy, High 31°C, Low 25°C, Rain Chance 80%, Wind 25 km\/h/i,
+      name: /Tomorrow: Partly cloudy, High 31°C, Low 25°C, Rain Chance 80%/i,
     });
     expect(strip).toBeInTheDocument();
     expect(strip).not.toHaveTextContent('Today');
@@ -144,23 +144,23 @@ describe('AtAGlance Component', () => {
     renderWithProviders(<AtAGlance today={today} tomorrow={tomorrow} onReveal={() => {}} />);
 
     const strip = screen.getByRole('button', {
-      // 29.4°C → 85°F, 23.2°C → 74°F, 18.3 km/h → 11 mph;
-      // 31.2°C → 88°F, 25.1°C → 77°F, 25.4 km/h → 16 mph.
-      name: /Today: Mainly clear, High 85°F, Low 74°F, Wind 11 mph; Tomorrow: Partly cloudy, High 88°F, Low 77°F, Rain Chance 80%, Wind 16 mph/i,
+      // 29.4°C → 85°F, 23.2°C → 74°F;
+      // 31.2°C → 88°F, 25.1°C → 77°F.
+      name: /Today: Mainly clear, High 85°F, Low 74°F; Tomorrow: Partly cloudy, High 88°F, Low 77°F, Rain Chance 80%/i,
     });
     expect(strip).toBeInTheDocument();
     expect(strip).toHaveTextContent('85°F');
     expect(strip).toHaveTextContent('77°F');
-    expect(strip).toHaveTextContent('11 mph');
-    expect(strip).toHaveTextContent('16 mph');
+    // No wind clause and no stray mph on the strip.
+    expect(strip).not.toHaveTextContent('mph');
   });
 
   it('uses the active UI language for the labels and sentences', () => {
     localStorage.setItem('weather-language', 'tc');
     renderWithProviders(<AtAGlance today={today} tomorrow={tomorrow} onReveal={() => {}} />);
 
-    // 今日: 大致晴朗, 最高 29°C, 最低 23°C, 風 18 公里/小時;
-    // 明日: 局部多雲, 最高 31°C, 最低 25°C, 降雨機率 80%, 風 25 公里/小時
+    // 今日: 大致晴朗, 最高 29°C, 最低 23°C;
+    // 明日: 局部多雲, 最高 31°C, 最低 25°C, 降雨機率 80%
     expect(
       screen.getByRole('button', {
         name: /今日: 大致晴朗, 最高 29°C, 最低 23°C/,
@@ -173,7 +173,8 @@ describe('AtAGlance Component', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button')).toHaveTextContent('今日');
     expect(screen.getByRole('button')).toHaveTextContent('明日');
-    expect(screen.getByRole('button')).toHaveTextContent('公里/小時');
+    // No wind clause in Traditional Chinese either.
+    expect(screen.getByRole('button')).not.toHaveTextContent('公里/小時');
   });
 
   it('calls onReveal when activated', async () => {
