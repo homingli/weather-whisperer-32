@@ -157,7 +157,7 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `FontSizeContext.tsx`: Manages UI text scale (Small 80% / Medium 100% / Large 125% root font-size), persisted to localStorage. Applied to `document.documentElement` so all rem-based Tailwind spacing/typography — the entire layout — rescales with it; `medium` removes the inline override.
 - `src/hooks/`: React hooks
   - `useCitySearch.ts`: Open-Meteo Geocoding API autocomplete
-  - `useOnlineStatus.ts`: Returns `online`/`offline` boolean (consumed by `OfflineIndicator`)
+  - `useOnlineStatus.ts`: Returns `true` while the browser reports offline (consumed by `OfflineIndicator`)
   - `usePwaInstall.ts`: Tracks `beforeinstallprompt` and provides an `install()` helper
   - `useSelectedCity.ts`: City init, geo-swap, persistence wrapper
   - `useWeatherWithProgress.ts`: `useQuery` wrapper with `loadProgress` per-source status, faster retry on failure
@@ -388,7 +388,7 @@ Timeouts throw → trigger React Query retry. No `Cache-Control` headers set or 
 `weather-last-known-v2` is the new persistence layer. The app reads it synchronously on mount, clears it on city switch, and overwrites it on every successful `fetchWeather` call. The envelope's `cityId` (lat/lon rounded to 2 decimal places) prevents cross-city paint. A schema version mismatch or parse error causes a silent drop rather than a crash.
 
 ## Testing strategy
-The project uses **Vitest** with jsdom. Coverage is split across layers (**409 tests**, 30 files):
+The project uses **Vitest** with jsdom. Coverage is split across layers (**414 tests**, 31 files):
 - **Unit tests** (lib/):
   - `src/lib/weather.test.ts` (2): Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
   - `src/lib/weather/hko-codes.test.ts` (15): WMO weather-code descriptions and icons.
