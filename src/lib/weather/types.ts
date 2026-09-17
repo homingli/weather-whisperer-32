@@ -1,7 +1,6 @@
 /** Public weather data transport types */
 
 import type { HKOWarning } from '../hko-types';
-import type { AqhiLevel } from '../hko-aqhi';
 
 export interface GeoLocation {
   /** City/place name */
@@ -43,11 +42,11 @@ export interface CurrentWeather {
    * Air Quality Health Index (EPD scale, 1–10+). HK locations only — the
    * EPD RSS feed has no Open-Meteo equivalent, so non-HK data leaves these
    * undefined and the UI renders nothing (no "—" placeholder). Undefined
-   * also when the EPD fetch failed: AQHI degrades silently.
+   * also when the EPD fetch failed: AQHI degrades silently. The health-risk
+   * band is derived for display via `aqhiLevelFor` (hko-aqhi.ts), so no
+   * redundant level field is persisted.
    */
   aqhiIndex?: number;
-  /** Health-risk band derived from `aqhiIndex` */
-  aqhiLevel?: AqhiLevel;
   /** EPD monitoring station the reading was taken from (fetch language) */
   aqhiStation?: string;
 }

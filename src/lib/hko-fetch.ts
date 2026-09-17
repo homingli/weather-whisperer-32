@@ -247,7 +247,6 @@ export async function buildHKOWeatherData(
     isDay,
     ...(dailyAndWarnings.aqhi ? {
       aqhiIndex: dailyAndWarnings.aqhi.index,
-      aqhiLevel: dailyAndWarnings.aqhi.level,
       aqhiStation: dailyAndWarnings.aqhi.station,
     } : {}),
   };

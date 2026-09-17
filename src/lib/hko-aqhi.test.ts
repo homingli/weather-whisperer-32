@@ -33,17 +33,19 @@ const TC_FEED = `<?xml version="1.0" encoding="UTF-8"?>
 </channel></rss>`;
 
 describe('aqhiLevelFor', () => {
-  it('maps EPD health-risk bands (Low 1-3, Moderate 4-7, High 8-10, Very High 10+)', () => {
-    // Boundary values verified against the live feed's own labels:
-    // value 3 published as "Low", 4 as "Moderate".
+  it('maps EPD\'s official FIVE health-risk bands (Low 1-3, Moderate 4-6, High 7, Very High 8-10, Serious 10+)', () => {
+    // Official table from gov.hk/en/residents/environment/air/aqhi.htm
+    // (verified 18 Sep 2026). The issue body's four-band table
+    // (Moderate 4-7 / High 8-10 / Very High >10) is wrong.
     expect(aqhiLevelFor(1)).toBe('low');
     expect(aqhiLevelFor(3)).toBe('low');
     expect(aqhiLevelFor(4)).toBe('moderate');
-    expect(aqhiLevelFor(7)).toBe('moderate');
-    expect(aqhiLevelFor(8)).toBe('high');
-    expect(aqhiLevelFor(10)).toBe('high');
-    expect(aqhiLevelFor(11)).toBe('veryHigh');
-    expect(aqhiLevelFor(15)).toBe('veryHigh');
+    expect(aqhiLevelFor(6)).toBe('moderate');
+    expect(aqhiLevelFor(7)).toBe('high');
+    expect(aqhiLevelFor(8)).toBe('veryHigh');
+    expect(aqhiLevelFor(10)).toBe('veryHigh');
+    expect(aqhiLevelFor(11)).toBe('serious');
+    expect(aqhiLevelFor(15)).toBe('serious');
   });
 });
 
@@ -138,9 +140,9 @@ describe('getHKOAQHI', () => {
 
   it('resolves the nearest general station reading from the EN feed', async () => {
     vi.stubGlobal('fetch', mockFeedResponse(EN_FEED));
-    // Central Kowloon → Sham Shui Po (general), index 4 → moderate.
+    // Central Kowloon → Sham Shui Po (general), index 4 → moderate band.
     const reading = await getHKOAQHI('en', 22.3180, 114.1700);
-    expect(reading).toEqual({ index: 4, level: 'moderate', station: 'Sham Shui Po' });
+    expect(reading).toEqual({ index: 4, station: 'Sham Shui Po' });
     // Proxied same-origin path, not the blocked cross-origin feed URL.
     expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/aqhi-rss/aqhi_ind_rss_Eng.xml');
   });
@@ -148,7 +150,7 @@ describe('getHKOAQHI', () => {
   it('resolves the TC station title under tc', async () => {
     vi.stubGlobal('fetch', mockFeedResponse(TC_FEED));
     const reading = await getHKOAQHI('tc', 22.3180, 114.1700);
-    expect(reading).toEqual({ index: 4, level: 'moderate', station: '深水埗' });
+    expect(reading).toEqual({ index: 4, station: '深水埗' });
     expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/aqhi-rss/aqhi_ind_rss_ChT.xml');
   });
 
@@ -223,7 +225,7 @@ describe('getHKOAQHI', () => {
     vi.stubGlobal('fetch', fetchMock);
     await expect(getHKOAQHI('en', 22.3180, 114.1700)).resolves.toBeNull();
     await expect(getHKOAQHI('en', 22.3180, 114.1700)).resolves.toEqual({
-      index: 4, level: 'moderate', station: 'Sham Shui Po',
+      index: 4, station: 'Sham Shui Po',
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
@@ -235,7 +237,7 @@ describe('getHKOAQHI', () => {
     vi.stubGlobal('fetch', fetchMock);
     await expect(getHKOAQHI('en', 22.3180, 114.1700)).resolves.toBeNull();
     await expect(getHKOAQHI('en', 22.3180, 114.1700)).resolves.toEqual({
-      index: 4, level: 'moderate', station: 'Sham Shui Po',
+      index: 4, station: 'Sham Shui Po',
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
