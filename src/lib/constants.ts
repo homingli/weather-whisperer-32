@@ -156,4 +156,8 @@ export const TIMING = {
   MSC_TIMEOUT_MS: 30000,
   /** HKO warnings / storm signal TTL — push-driven, sub-minute user expectation. Used as the SourceState.ttlMs for HKO since warnings are the most volatile HKO slice in a unified fetch. */
   HKO_WARNINGS_TTL_MS: 60 * 1000,
+  /** EPD AQHI feed min refetch interval. AQHI piggybacks the 5-min weather
+   *  refresh loop but the feed only updates hourly, so a 15-min TTL keeps
+   *  the proxy hits polite without a dedicated timer. */
+  AQHI_TTL_MS: 15 * 60 * 1000,
 } as const;

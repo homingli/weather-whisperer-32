@@ -41,9 +41,11 @@ export interface AqhiFeedItem {
 
 /** EPD monitoring stations. Titles must match the RSS feed exactly for
  *  each language; coordinates are approximate station locations (± few
- *  hundred metres) — accurate enough for nearest-station selection, but
- *  verify against EPD's station addresses before relying on them for
- *  anything distance-sensitive. */
+ *  hundred metres — accepted for this use, 17 Sep 2026). Roadside entries
+ *  are kept to document the full feed, but nearest-station matching is
+ *  general-only by product decision: the general reading represents the
+ *  district's background air, while roadside reflects kerbside exposure
+ *  that overstates what a whole-district card should claim. */
 export interface EpdAqhiStation {
   en: string;
   tc: string;
@@ -83,10 +85,9 @@ export function aqhiLevelFor(value: number): AqhiLevel {
   return 'veryHigh';
 }
 
-/** Nearest EPD station to the given coordinates, with its feed title in
- *  the requested language. Roadside and general stations compete equally —
- *  in dense urban areas (Central, Mong Kok) the roadside station usually
- *  wins; see the viability notes on the branch for the open design question. */
+/** Nearest general EPD station to the given coordinates, with its feed
+ *  title in the requested language. Roadside stations (Causeway Bay,
+ *  Central, Mong Kok) are excluded — see the station-table note. */
 export function findNearestAqhiStation(
   lat: number,
   lon: number,
@@ -94,6 +95,7 @@ export function findNearestAqhiStation(
 ): { title: string; station: EpdAqhiStation; distance: number } | null {
   let best: { title: string; station: EpdAqhiStation; distance: number } | null = null;
   for (const station of EPD_AQHI_STATIONS) {
+    if (station.type !== 'general') continue;
     const distance = getDistanceFromLatLon(lat, lon, station.lat, station.lon);
     if (!best || distance < best.distance) {
       best = { title: lang === 'tc' ? station.tc : station.en, station, distance };
@@ -134,6 +136,20 @@ const FEED_PATHS: Record<'en' | 'tc', string> = {
   tc: '/aqhi-rss/aqhi_ind_rss_ChT.xml',
 };
 
+/** Per-language parsed-feed cache. AQHI piggybacks the app-wide 5-min
+ *  weather refetch, but the EPD feed only updates hourly — TIMING.AQHI_TTL_MS
+ *  (15 min) bounds the proxy hits without a dedicated timer. Keyed by
+ *  language because each language is a separate feed file; the nearest-station
+ *  resolution stays outside the cache so a location/language switch resolves
+ *  correctly from whatever cached feed is valid. Failures are never cached —
+ *  a down feed retries on the next weather loop (5 min). */
+const feedCache: Partial<Record<'en' | 'tc', { data: AqhiFeedItem[]; fetchedAt: number }>> = {};
+
+/** Test seam: drop all cached feeds. */
+export function resetAqhiFeedCacheForTests(): void {
+  for (const key of Object.keys(feedCache) as Array<'en' | 'tc'>) delete feedCache[key];
+}
+
 /** Fetch the EPD AQHI feed and resolve the reading for the nearest station.
  *  Returns null (never throws) when the feed is down, unparseable, or no
  *  station matches — AQHI is an enhancement, so callers degrade silently. */
@@ -142,22 +158,33 @@ export async function getHKOAQHI(
   lat: number,
   lon: number,
 ): Promise<AqhiReading | null> {
-  const start = Date.now();
-  try {
-    const response = await fetchWithTimeout(FEED_PATHS[lang], { timeout: TIMING.HKO_TIMEOUT_MS });
-    if (!response.ok) throw new Error(`Failed to fetch AQHI feed: ${response.status}`);
-    const xml = await response.text();
-    logTiming('EPD aqhi fetch', Date.now() - start);
+  let items: AqhiFeedItem[];
+  const cached = feedCache[lang];
+  if (cached && Date.now() - cached.fetchedAt < TIMING.AQHI_TTL_MS) {
+    items = cached.data;
+  } else {
+    const start = Date.now();
+    try {
+      const response = await fetchWithTimeout(FEED_PATHS[lang], { timeout: TIMING.HKO_TIMEOUT_MS });
+      if (!response.ok) throw new Error(`Failed to fetch AQHI feed: ${response.status}`);
+      const xml = await response.text();
+      logTiming('EPD aqhi fetch', Date.now() - start);
 
-    const { data, warnings } = parseAqhiRss(xml);
-    logParseWarnings('EPD aqhi', warnings);
-
-    const nearest = findNearestAqhiStation(lat, lon, lang);
-    const match = nearest ? data.find(r => r.station === nearest.title) : undefined;
-    if (!match) return null;
-    return { index: match.value, level: aqhiLevelFor(match.value), station: match.station };
-  } catch (err) {
-    logFailure('EPD aqhi', Date.now() - start, err);
-    return null;
+      const { data, warnings } = parseAqhiRss(xml);
+      logParseWarnings('EPD aqhi', warnings);
+      // A feed that parsed to zero items is a down feed in disguise —
+      // don't cache it, so the next loop retries.
+      if (data.length === 0) return null;
+      feedCache[lang] = { data, fetchedAt: Date.now() };
+      items = data;
+    } catch (err) {
+      logFailure('EPD aqhi', Date.now() - start, err);
+      return null;
+    }
   }
+
+  const nearest = findNearestAqhiStation(lat, lon, lang);
+  const match = nearest ? items.find(r => r.station === nearest.title) : undefined;
+  if (!match) return null;
+  return { index: match.value, level: aqhiLevelFor(match.value), station: match.station };
 }

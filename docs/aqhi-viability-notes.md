@@ -52,21 +52,27 @@ A working vertical slice, all tests green (`431 passing`):
 6. **Feed cadence:** `pubDate`/`lastBuildDate` update hourly (hourly AQHI is
    EPD's published maximum reporting interval).
 
-## Caveats / decisions before merging
+## Caveats — resolved 17 Sep 2026 (review with owner)
 
 1. **Station coordinates are approximate** (± few hundred metres, marked in
-   `EPD_AQHI_STATIONS`). Fine for nearest-station selection; verify against
-   EPD's published station addresses if this ever drives anything
-   distance-sensitive.
-2. **Roadside vs general.** Nearest-of-all-18 wins, so users in Central /
-   Causeway Bay / Mong Kok typically get the roadside reading (more protective
-   for pedestrians; higher than the general reading). Alternative: general-only.
-   Needs a product call.
-3. **`findNearestDistrict()` reuse was rejected.** HKO rainfall district names
-   ("Central & Western District", "Kwai Tsing") don't match EPD titles
-   ("Central/Western", "Kwai Chung"), and EPD stations (Tung Chung, Tap Mun,
-   Tseung Kwan O, the roadside trio) have no HKO district equivalent. A
-   dedicated EPD station table removes the fragile string mapping entirely.
+   `EPD_AQHI_STATIONS`). Owner accepted — fine for nearest-station selection.
+2. **Roadside vs general — resolved: general-only.** Roadside entries stay in
+   the table to document the feed, but `findNearestAqhiStation` skips them, so
+   every user gets the district's background reading.
+3. **Refetch cadence — resolved: 15-min TTL on the AQHI fetch.** The 5-min
+   loop is the app-wide weather refresh (`useWeatherWithProgress`), not
+   AQHI-specific; loosening it would delay warnings (1-min TTL expectation).
+   Instead `getHKOAQHI` serves repeat calls from a per-language parsed-feed
+   cache (`TIMING.AQHI_TTL_MS`), so the proxy is hit at most every 15 min.
+   Failures and empty feeds are never cached — the next loop retries.
+
+## Design note: dedicated EPD station table
+
+`findNearestDistrict()` reuse was rejected. HKO rainfall district names
+("Central & Western District", "Kwai Tsing") don't match EPD titles
+("Central/Western", "Kwai Chung"), and EPD stations (Tung Chung, Tap Mun,
+Tseung Kwan O, the roadside trio) have no HKO district equivalent. A
+dedicated EPD station table removes the fragile string mapping entirely.
 
 ## Explicitly out of scope (spike)
 
