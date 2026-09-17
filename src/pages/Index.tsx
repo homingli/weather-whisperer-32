@@ -351,7 +351,7 @@ const Index = () => {
                         </div>
                         <div className="flex-1 min-h-0">
                           <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20" />}>
-                            <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
+                            <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={selectedCity?.name} />
                           </Suspense>
                         </div>
                       </div>
@@ -408,7 +408,7 @@ const Index = () => {
                     </Suspense>
 
                     <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
-                      <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} />
+                      <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={selectedCity?.name} />
                     </Suspense>
                   </div>
 
