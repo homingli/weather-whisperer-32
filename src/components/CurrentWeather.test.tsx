@@ -537,6 +537,74 @@ describe('CurrentWeather Component', () => {
     });
   });
 
+  describe('aqhi chip (issue #99 spike)', () => {
+    const renderWeather = (weather: CurrentWeatherType) =>
+      renderWithLanguage(
+        <CurrentWeather
+          weather={weather}
+          hourlyForecast={mockHourly}
+          timezone="UTC"
+          headline={{ source: 'om' }}
+        />
+      );
+
+    it('renders the full widget with EPD band label when AQHI needs attention', () => {
+      const { container } = renderWeather({ ...mockWeather, aqhiIndex: 5, aqhiLevel: 'moderate', aqhiStation: 'Central/Western' });
+      expect(container.textContent).toContain('Air Quality (AQHI)');
+      expect(container.textContent).toContain('Moderate');
+      expect(screen.queryByTestId('quiet-aqhi')).toBeNull();
+    });
+
+    it('collapses to a quiet chip when AQHI is in the Low band (1-3)', () => {
+      renderWeather({ ...mockWeather, aqhiIndex: 2, aqhiLevel: 'low', aqhiStation: 'Tung Chung' });
+      const chip = screen.getByTestId('quiet-aqhi');
+      expect(chip).toHaveAttribute('aria-label', 'Air Quality (AQHI): 2 Low');
+      expect(chip).toHaveTextContent('Air Quality (AQHI) 2 Low');
+    });
+
+    it('renders nothing (not even a dash) when the location has no AQHI data', () => {
+      const { container } = renderWeather(mockWeather);
+      expect(screen.queryByTestId('quiet-aqhi')).toBeNull();
+      expect(container.textContent).not.toContain('Air Quality (AQHI)');
+    });
+
+    it('keeps the widget grid up when only AQHI needs attention', () => {
+      // Regression: the grid used to hide when all four base metrics were
+      // quiet; a non-quiet AQHI must stay visible as a full widget.
+      const calm = { ...mockWeather, uvIndex: 2, humidity: 45, windSpeed: 2, aqhiIndex: 5, aqhiLevel: 'moderate' as const };
+      const { container } = renderWeather(calm);
+      expect(screen.getByTestId('quiet-uv')).toBeInTheDocument();
+      expect(container.textContent).toContain('Air Quality (AQHI)');
+    });
+
+    it('localizes the band label under tc (aqhi 11 → 很高)', () => {
+      // 很高 (Very High) starts at index 11 — 8 would be 高 (High).
+      function LangProbe() {
+        const { setLanguage } = useLanguage();
+        return <button data-testid="flip-tc-aqhi" onClick={() => setLanguage('tc')}>tc</button>;
+      }
+      const { container } = render(
+        <LanguageProvider>
+          <UnitsProvider>
+            <LangProbe />
+            <CurrentWeather
+              weather={{ ...mockWeather, aqhiIndex: 11, aqhiLevel: 'veryHigh' }}
+              hourlyForecast={mockHourly}
+              timezone="UTC"
+              headline={{ source: 'om' }}
+            />
+          </UnitsProvider>
+        </LanguageProvider>
+      );
+      act(() => {
+        screen.getByTestId('flip-tc-aqhi').click();
+      });
+      expect(container.textContent).toContain('很高');
+      expect(container.textContent).toContain('空氣質素健康指數');
+      expect(container.textContent).not.toContain('Very High');
+    });
+  });
+
   // ── Temperature caption: H/L + 3h trend (replaces the range bar) ────
   // The old full-width range bar (low ─ current ─ high with a position
   // marker) is gone. In its place one muted line under the hero: today's

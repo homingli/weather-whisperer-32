@@ -1,7 +1,8 @@
 /** HKO weather station and district coordinate mappings */
 
-/** Haversine distance between two coordinates in km */
-function getDistanceFromLatLon(lat1: number, lon1: number, lat2: number, lon2: number): number {
+/** Haversine distance between two coordinates in km (also used by the
+ *  EPD AQHI nearest-station lookup in hko-aqhi.ts) */
+export function getDistanceFromLatLon(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = deg2rad(lat2 - lat1);
   const dLon = deg2rad(lon2 - lon1);
