@@ -312,6 +312,9 @@ const translations: Record<Language, Record<string, string>> = {
     'rainstart.now': 'Raining now',
     'rainstart.nowUntil': 'Raining now · easing around {0}',
     'rainstart.expectedIn': 'Rain expected around {0} · {1}',
+    // Screen-reader twin of expectedIn without the per-minute countdown —
+    // live-region content must stay stable across minute ticks.
+    'rainstart.expectedAt': 'Rain expected around {0}',
     'rainstart.none': 'No rain expected in the next {0} h',
     'rainstart.citywide': 'city-wide forecast',
     'rainstart.inMinutes': 'in ~{0} min',
@@ -612,6 +615,8 @@ const translations: Record<Language, Record<string, string>> = {
     'rainstart.now': '正在下雨',
     'rainstart.nowUntil': '正在下雨 · 預計 {0} 前後減弱',
     'rainstart.expectedIn': '預計 {0} 前後有雨 · {1}',
+    // expectedIn 的讀屏版本：省去每分鐘變動的倒數，保持 live region 內容穩定。
+    'rainstart.expectedAt': '預計 {0} 前後有雨',
     'rainstart.none': '未來 {0} 小時預計無雨',
     'rainstart.citywide': '全港預報',
     'rainstart.inMinutes': '約 {0} 分鐘後',

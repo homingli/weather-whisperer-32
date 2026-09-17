@@ -72,7 +72,7 @@ export interface HourlyForecast {
  * (~1 km, 0–2 h) is the only district-precise rain source in the app.
  */
 export interface MinutelyPrecipitation {
-  /** Window end timestamp (interval start as returned by the API) */
+  /** Interval-end timestamp as returned by the API */
   time: Date;
   /** Precipitation in mm over the preceding 15 minutes */
   precipitation: number;

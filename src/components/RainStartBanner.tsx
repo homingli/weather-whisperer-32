@@ -12,6 +12,7 @@ import {
   type RainStartForecast,
 } from '@/lib/rain-start';
 import type { RainGrid } from '@/lib/rainfallGrid';
+import { getDateTimeFormatter } from '@/lib/utils';
 
 /**
  * Cached nowcast entry in the React Query cache, written by RainfallMapInner.
@@ -105,7 +106,7 @@ function RainStartStrip({
   timezone?: string;
   className?: string;
 }) {
-  const timeFmt = new Intl.DateTimeFormat(language === 'tc' ? 'zh-HK' : 'en-GB', {
+  const timeFmt = getDateTimeFormatter(language === 'tc' ? 'zh-HK' : 'en-GB', {
     timeZone: timezone || undefined,
     hour: '2-digit',
     minute: '2-digit',
@@ -122,6 +123,12 @@ function RainStartStrip({
   };
 
   let text: string;
+  // Live-region twin of `text`: carries only verdict-stable parts (clock
+  // times, horizon). The relative "in ~N min" clause mutates on every
+  // minute tick and must stay OUT of the role="status" span — polite live
+  // regions announce content changes, and a per-minute countdown would
+  // chatter at screen-reader users for as long as the strip is mounted.
+  let liveText: string;
   let Icon: typeof CloudRain;
   switch (forecast.status) {
     case 'raining-now':
@@ -129,6 +136,7 @@ function RainStartStrip({
         forecast.endsAt !== undefined
           ? formatString(t('rainstart.nowUntil'), fmtTime(forecast.endsAt))
           : t('rainstart.now');
+      liveText = text;
       Icon = Umbrella;
       break;
     case 'rain-expected':
@@ -137,6 +145,7 @@ function RainStartStrip({
         fmtTime(forecast.startsAt!),
         fmtDuration(forecast.startsInMinutes ?? 0),
       );
+      liveText = formatString(t('rainstart.expectedAt'), fmtTime(forecast.startsAt!));
       Icon = CloudRain;
       break;
     default:
@@ -144,18 +153,17 @@ function RainStartStrip({
         t('rainstart.none'),
         Math.max(1, Math.round(forecast.horizonMinutes / 60)),
       );
+      liveText = text;
       Icon = CloudSun;
   }
 
   // The nowcast window is district-accurate; anything Open-Meteo-backed is
   // city-scale (~8 km cells) — say so instead of implying precision.
   const cityWide = forecast.source === 'open-meteo';
-  const aria = cityWide ? `${text} (${t('rainstart.citywide')})` : text;
+  if (cityWide) liveText = `${liveText} (${t('rainstart.citywide')})`;
 
   return (
     <div
-      role="status"
-      aria-label={aria}
       className={`flex w-full flex-wrap items-center justify-center gap-x-3 gap-y-1.5 border border-border bg-card px-4 py-2 text-xs tabular-nums text-muted-foreground${className ? ` ${className}` : ''}`}
     >
       <span className="inline-flex items-center gap-x-2">
@@ -168,6 +176,9 @@ function RainStartStrip({
         {cityWide && <span className="kicker">{t('rainstart.citywide')}</span>}
       </span>
       <Sparkline series={forecast.series} />
+      <span role="status" className="sr-only">
+        {liveText}
+      </span>
     </div>
   );
 }

@@ -392,10 +392,11 @@ function parseMinutelyPrecipitation(
   }
 
   const nowUnix = Math.floor(Date.now() / 1000);
-  let startIndex = points.findIndex((pt) => {
-    const t = Math.floor(pt.time.getTime() / 1000);
-    return nowUnix >= t && nowUnix < t + 900;
-  });
+  // `time` stamps the interval END (value = preceding-15-min sum), so the
+  // window covering "now" is the first whose stamp is still in the future.
+  // A stale all-past snapshot falls back to index 0; downstream consumers
+  // drop closed windows anyway.
+  let startIndex = points.findIndex((pt) => Math.floor(pt.time.getTime() / 1000) > nowUnix);
   if (startIndex < 0) startIndex = 0;
   return points.slice(startIndex, startIndex + 96);
 }
