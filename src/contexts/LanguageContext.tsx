@@ -238,6 +238,12 @@ const translations: Record<Language, Record<string, string>> = {
     'uv.veryHigh': 'Very High',
     'uv.extreme': 'Extreme',
     'uv.unavailable': 'unavailable',
+    // Air Quality Health Index (EPD feed, HK locations only).
+    'weather.aqhi': 'Air Quality (AQHI)',
+    'aqhi.low': 'Low',
+    'aqhi.moderate': 'Moderate',
+    'aqhi.high': 'High',
+    'aqhi.veryHigh': 'Very High',
     'unit.kmh': 'km/h',
     // Quiet shelf — aria-label on the icon row holding distilled metrics.
     'quiet.shelfLabel': 'Metrics needing no attention',
@@ -544,6 +550,12 @@ const translations: Record<Language, Record<string, string>> = {
     'uv.veryHigh': '甚高',
     'uv.extreme': '極高',
     'uv.unavailable': '無法取得',
+    // 空氣質素健康指數（環境保護署，僅香港地區）。
+    'weather.aqhi': '空氣質素健康指數',
+    'aqhi.low': '低',
+    'aqhi.moderate': '中',
+    'aqhi.high': '高',
+    'aqhi.veryHigh': '很高',
     'unit.kmh': '公里/小時',
     // Quiet shelf — aria-label on the icon row holding distilled metrics.
     'quiet.shelfLabel': '無需關注的指標',

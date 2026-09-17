@@ -1,0 +1,163 @@
+/** EPD Air Quality Health Index (AQHI) — RSS feed fetching and parsing.
+ *
+ *  Spike for issue #99. The HKO Open Data API has no `dataType=aqhi`; the
+ *  authoritative AQHI source is the EPD RSS feed hosted on aqhi.gov.hk
+ *  (18 stations: 15 general + 3 roadside). The feed blocks cross-origin
+ *  reads (Access-Control-Allow-Origin: https://aqhi.gov.hk), so it is
+ *  fetched through a same-origin proxy: the Vite dev proxy (`/aqhi-rss`)
+ *  in development and a Vercel rewrite in production — the same pattern
+ *  the nowcast CSV uses for `/hko-data`.
+ *
+ *  Parsing notes (from the live feed, Sep 2026):
+ *  - EN description: "Central/Western - General Stations: 5 Moderate - Thu, ..."
+ *  - TC description: "中西區 - 一般監測站: 5 中 - 2026年9月17日 (星期四)"
+ *  The TC level token is 中, not 中等 — so the health-risk band is derived
+ *  from the numeric value instead of parsing the level word.
+ */
+
+import { fetchWithTimeout } from './fetch-utils';
+import { logTiming, logFailure } from './log';
+import { logParseWarnings } from './parsers';
+import { TIMING } from './constants';
+import { getDistanceFromLatLon } from './hko-stations';
+
+export type AqhiLevel = 'low' | 'moderate' | 'high' | 'veryHigh';
+
+/** A resolved AQHI reading for the user's location. */
+export interface AqhiReading {
+  /** AQHI value (1–10+, EPD scale) */
+  index: number;
+  /** Health-risk band, derived from `index` */
+  level: AqhiLevel;
+  /** Station title in the fetch language (e.g. "Central/Western" / "中西區") */
+  station: string;
+}
+
+/** One parsed feed item. */
+export interface AqhiFeedItem {
+  station: string;
+  value: number;
+}
+
+/** EPD monitoring stations. Titles must match the RSS feed exactly for
+ *  each language; coordinates are approximate station locations (± few
+ *  hundred metres) — accurate enough for nearest-station selection, but
+ *  verify against EPD's station addresses before relying on them for
+ *  anything distance-sensitive. */
+export interface EpdAqhiStation {
+  en: string;
+  tc: string;
+  lat: number;
+  lon: number;
+  type: 'general' | 'roadside';
+}
+
+export const EPD_AQHI_STATIONS: EpdAqhiStation[] = [
+  { en: 'Central/Western', tc: '中西區', lat: 22.2867, lon: 114.1441, type: 'general' },
+  { en: 'Southern', tc: '南區', lat: 22.2478, lon: 114.1906, type: 'general' },
+  { en: 'Eastern', tc: '東區', lat: 22.2880, lon: 114.2180, type: 'general' },
+  { en: 'Kwun Tong', tc: '觀塘', lat: 22.3129, lon: 114.2267, type: 'general' },
+  { en: 'Sham Shui Po', tc: '深水埗', lat: 22.3304, lon: 114.1592, type: 'general' },
+  { en: 'Kwai Chung', tc: '葵涌', lat: 22.3572, lon: 114.1292, type: 'general' },
+  { en: 'Tsuen Wan', tc: '荃灣', lat: 22.3716, lon: 114.1177, type: 'general' },
+  { en: 'Tseung Kwan O', tc: '將軍澳', lat: 22.3174, lon: 114.2606, type: 'general' },
+  { en: 'Yuen Long', tc: '元朗', lat: 22.4453, lon: 114.0226, type: 'general' },
+  { en: 'Tuen Mun', tc: '屯門', lat: 22.3904, lon: 113.9753, type: 'general' },
+  { en: 'Tung Chung', tc: '東涌', lat: 22.2880, lon: 113.9425, type: 'general' },
+  { en: 'Tai Po', tc: '大埔', lat: 22.4501, lon: 114.1647, type: 'general' },
+  { en: 'Sha Tin', tc: '沙田', lat: 22.3777, lon: 114.1917, type: 'general' },
+  { en: 'North', tc: '北區', lat: 22.4927, lon: 114.1387, type: 'general' },
+  { en: 'Tap Mun', tc: '塔門', lat: 22.4722, lon: 114.3600, type: 'general' },
+  { en: 'Causeway Bay', tc: '銅鑼灣', lat: 22.2800, lon: 114.1828, type: 'roadside' },
+  { en: 'Central', tc: '中環', lat: 22.2820, lon: 114.1580, type: 'roadside' },
+  { en: 'Mong Kok', tc: '旺角', lat: 22.3196, lon: 114.1686, type: 'roadside' },
+];
+
+/** EPD health-risk bands. Verified against the live feed's own labeling
+ *  (3 Sep 2026 + 17 Sep 2026 samples): value 3 reads "Low", 4 reads
+ *  "Moderate", i.e. Low is 1–3 and Moderate 4–7. */
+export function aqhiLevelFor(value: number): AqhiLevel {
+  if (value <= 3) return 'low';
+  if (value <= 7) return 'moderate';
+  if (value <= 10) return 'high';
+  return 'veryHigh';
+}
+
+/** Nearest EPD station to the given coordinates, with its feed title in
+ *  the requested language. Roadside and general stations compete equally —
+ *  in dense urban areas (Central, Mong Kok) the roadside station usually
+ *  wins; see the viability notes on the branch for the open design question. */
+export function findNearestAqhiStation(
+  lat: number,
+  lon: number,
+  lang: 'en' | 'tc' = 'en',
+): { title: string; station: EpdAqhiStation; distance: number } | null {
+  let best: { title: string; station: EpdAqhiStation; distance: number } | null = null;
+  for (const station of EPD_AQHI_STATIONS) {
+    const distance = getDistanceFromLatLon(lat, lon, station.lat, station.lon);
+    if (!best || distance < best.distance) {
+      best = { title: lang === 'tc' ? station.tc : station.en, station, distance };
+    }
+  }
+  return best;
+}
+
+/** Parse the AQHI RSS feed into per-station readings.
+ *  Item titles hold the station name; descriptions hold
+ *  "{station} - {type} Stations: {value} {level} - {timestamp}".
+ *  Unparseable items are skipped and reported in `warnings` — a partial
+ *  feed still yields readings for the districts that parsed. */
+export function parseAqhiRss(xml: string): { data: AqhiFeedItem[]; warnings: string[] } {
+  const data: AqhiFeedItem[] = [];
+  const warnings: string[] = [];
+  const items = xml.match(/<item>[\s\S]*?<\/item>/g) ?? [];
+
+  for (const item of items) {
+    const title = item.match(/<title>([^<]+)<\/title>/)?.[1]?.trim();
+    // Description may be CDATA-wrapped; strip the wrapper if present.
+    const rawDesc = item.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/)?.[1] ?? '';
+    // Tolerant of EN "General Stations:" / "Roadside Stations:" and TC
+    // "一般監測站:" / "路邊監測站:" with full-width or ASCII colon.
+    const valueMatch = rawDesc.match(/(?:Stations?|監測站)\s*[:：]\s*(\d+)/);
+    if (!title || !valueMatch) {
+      warnings.push(`unparseable AQHI item: ${title ?? '<no title>'}`);
+      continue;
+    }
+    data.push({ station: title, value: parseInt(valueMatch[1], 10) });
+  }
+
+  return { data, warnings };
+}
+
+const FEED_PATHS: Record<'en' | 'tc', string> = {
+  en: '/aqhi-rss/aqhi_ind_rss_Eng.xml',
+  tc: '/aqhi-rss/aqhi_ind_rss_ChT.xml',
+};
+
+/** Fetch the EPD AQHI feed and resolve the reading for the nearest station.
+ *  Returns null (never throws) when the feed is down, unparseable, or no
+ *  station matches — AQHI is an enhancement, so callers degrade silently. */
+export async function getHKOAQHI(
+  lang: 'en' | 'tc' = 'en',
+  lat: number,
+  lon: number,
+): Promise<AqhiReading | null> {
+  const start = Date.now();
+  try {
+    const response = await fetchWithTimeout(FEED_PATHS[lang], { timeout: TIMING.HKO_TIMEOUT_MS });
+    if (!response.ok) throw new Error(`Failed to fetch AQHI feed: ${response.status}`);
+    const xml = await response.text();
+    logTiming('EPD aqhi fetch', Date.now() - start);
+
+    const { data, warnings } = parseAqhiRss(xml);
+    logParseWarnings('EPD aqhi', warnings);
+
+    const nearest = findNearestAqhiStation(lat, lon, lang);
+    const match = nearest ? data.find(r => r.station === nearest.title) : undefined;
+    if (!match) return null;
+    return { index: match.value, level: aqhiLevelFor(match.value), station: match.station };
+  } catch (err) {
+    logFailure('EPD aqhi', Date.now() - start, err);
+    return null;
+  }
+}
