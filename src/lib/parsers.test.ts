@@ -140,6 +140,61 @@ describe('parseOpenMeteoForecast', () => {
     expect(r.data?.current.humidity).toBe(0);
     expect(r.data?.hourly).toHaveLength(1);
     expect(r.warnings.length).toBeGreaterThan(0);
+    expect(r.data?.minutely).toBeUndefined();
+  });
+
+  describe('minutely_15', () => {
+    const NOW = Date.UTC(2026, 8, 17, 8, 0) / 1000; // 2026-09-17 08:00 UTC
+
+    // The parser anchors against the real clock; pin it so the fixture's
+    // "current" interval stays current.
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(NOW * 1000);
+    });
+    afterEach(() => vi.useRealTimers());
+
+    function omWithMinutely(times: unknown[], precip: unknown[]) {
+      return parseOpenMeteoForecast({
+        current: { temperature_2m: 20 },
+        hourly: { time: [NOW], temperature_2m: [20] },
+        daily: { time: [NOW] },
+        minutely_15: { time: times, precipitation: precip },
+      });
+    }
+
+    it('anchors the series at the interval covering now and keeps both fields aligned', () => {
+      const times = [NOW - 900, NOW, NOW + 900, NOW + 1800]; // one past, then now onward
+      const r = omWithMinutely(times, [0.1, 0.2, 0, 0.3]);
+      expect(r.warnings).not.toContain('minutely_15 (object)');
+      expect(r.data?.minutely).toHaveLength(3);
+      // The past interval is dropped; the anchored series starts at `now`.
+      expect(r.data?.minutely?.[0].time.getTime()).toBe(NOW * 1000);
+      expect(r.data?.minutely?.[0].precipitation).toBe(0.2);
+    });
+
+    it('zips then filters so a bad cell cannot misalign the series', () => {
+      const times = [NOW, NOW + 900, 'bad', NOW + 2700];
+      const r = omWithMinutely(times, [0.5, null, 0.2, 0.7]);
+      expect(r.data?.minutely).toEqual([
+        { time: new Date(NOW * 1000), precipitation: 0.5 },
+        { time: new Date((NOW + 2700) * 1000), precipitation: 0.7 },
+      ]);
+    });
+
+    it('warns and leaves minutely undefined when the block is missing or empty', () => {
+      const missing = parseOpenMeteoForecast({
+        current: { temperature_2m: 20 },
+        hourly: { time: [NOW], temperature_2m: [20] },
+        daily: { time: [NOW] },
+      });
+      expect(missing.data?.minutely).toBeUndefined();
+      expect(missing.warnings).toContain('minutely_15 (object)');
+
+      const empty = omWithMinutely(['bad'], [null]);
+      expect(empty.data?.minutely).toBeUndefined();
+      expect(empty.warnings).toContain('minutely_15 (empty after zip-filter)');
+    });
   });
 });
 

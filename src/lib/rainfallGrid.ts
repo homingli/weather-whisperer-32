@@ -37,6 +37,14 @@ export interface RainGrid {
   stepCount: number;
   /** Human-readable "HH:MM" per step. Length === stepCount. */
   stepTimes: string[];
+  /**
+   * Raw step-end timestamps ("YYYYMMDDHHmm", HK local) per step.
+   * Length === stepCount. Unlike `stepTimes` these carry the full date, so
+   * rain-start consumers can place each step on a real timeline. Steps only
+   * exist when at least one cell in that step had rain — HKO's feed drops
+   * fully-dry steps.
+   */
+  stepEndTimesRaw: string[];
   /** values[step * rows * cols + row * cols + col] = mm (0 = no rain). */
   values: Float32Array;
 }
@@ -54,6 +62,7 @@ export function buildRainGrid(rows: CellRow[]): RainGrid | null {
   const stepOrder: string[] = [];
   const stepIndex = new Map<string, number>();
   const stepTimes: string[] = [];
+  const stepEndTimesRaw: string[] = [];
 
   for (const r of rows) {
     if (r.value <= 0) continue;
@@ -63,6 +72,7 @@ export function buildRainGrid(rows: CellRow[]): RainGrid | null {
       stepIndex.set(r.endTime, stepOrder.length);
       stepOrder.push(r.endTime);
       stepTimes.push(formatHHMM(r.endTime));
+      stepEndTimesRaw.push(r.endTime);
     }
   }
 
@@ -112,8 +122,66 @@ export function buildRainGrid(rows: CellRow[]): RainGrid | null {
     cellLons,
     stepCount,
     stepTimes,
+    stepEndTimesRaw,
     values,
   };
+}
+
+/**
+ * Parse an HKO nowcast step-end timestamp ("YYYYMMDDHHmm", HK local time)
+ * into a UTC epoch in ms. HK has no DST, so the fixed UTC+8 offset is exact.
+ * Returns null for anything unparseable.
+ */
+export function hkoStepEndToEpoch(raw: string): number | null {
+  if (!raw || raw.length < 12) return null;
+  const y = Number(raw.slice(0, 4));
+  const mo = Number(raw.slice(4, 6));
+  const d = Number(raw.slice(6, 8));
+  const h = Number(raw.slice(8, 10));
+  const mi = Number(raw.slice(10, 12));
+  if (![y, mo, d, h, mi].every(Number.isFinite)) return null;
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return Date.UTC(y, mo - 1, d, h, mi) - 8 * 60 * 60 * 1000;
+}
+
+/**
+ * Sample the grid at (lat, lon): mm per step at the nearest cell.
+ * Returns null when the point falls outside the domain (beyond half a
+ * boundary cell). Used by the rain-start merge to extract the
+ * district-accurate 0–2 h series for the selected location.
+ */
+export function sampleRainGridAt(grid: RainGrid, lat: number, lon: number): Float32Array | null {
+  const rowIdx = nearestIndexWithinDomain(grid.cellLats, lat);
+  const colIdx = nearestIndexWithinDomain(grid.cellLons, lon);
+  if (rowIdx < 0 || colIdx < 0) return null;
+  const { rows, cols, stepCount, values } = grid;
+  const out = new Float32Array(stepCount);
+  for (let s = 0; s < stepCount; s++) {
+    out[s] = values[s * rows * cols + rowIdx * cols + colIdx];
+  }
+  return out;
+}
+
+/**
+ * Binary-search nearest index in a sorted array, accepting points up to half
+ * a boundary cell outside the observed domain (so a location one street past
+ * the outermost cell center still resolves). Returns -1 when clearly outside,
+ * e.g. a Vancouver coordinate against the PRD grid.
+ */
+function nearestIndexWithinDomain(arr: Float64Array, target: number): number {
+  const n = arr.length;
+  if (n === 0) return -1;
+  let lo = 0;
+  let hi = n - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (arr[mid] < target) lo = mid + 1;
+    else hi = mid;
+  }
+  const best = lo > 0 && Math.abs(arr[lo - 1] - target) <= Math.abs(arr[lo] - target) ? lo - 1 : lo;
+  const spacing = n >= 2 ? Math.abs(arr[1] - arr[0]) : SNAP_RADIUS_DEG * 2;
+  const tolerance = Math.max(spacing / 2, SNAP_RADIUS_DEG);
+  return Math.abs(arr[best] - target) <= tolerance ? best : -1;
 }
 
 /**

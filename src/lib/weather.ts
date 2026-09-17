@@ -3,7 +3,7 @@
  */
 
 // Types
-export type { GeoLocation, CurrentWeather, HourlyForecast, DailyForecast, WeatherData, SourceState, SourceId, HeadlineInfo } from './weather/types';
+export type { GeoLocation, CurrentWeather, HourlyForecast, DailyForecast, MinutelyPrecipitation, WeatherData, SourceState, SourceId, HeadlineInfo } from './weather/types';
 
 // Open-Meteo forecast API
 export { getWeather } from './weather/open-meteo';

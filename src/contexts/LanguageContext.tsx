@@ -305,6 +305,22 @@ const translations: Record<Language, Record<string, string>> = {
     'share.rainChance': '{0}% rain',
     'share.copied': 'Forecast copied — paste it to your friends',
     'share.copyFailed': 'Could not copy the forecast',
+
+    // Rain-start banner (HKO nowcast 0–2 h + Open-Meteo beyond; see
+    // RainStartBanner / rain-start.ts). Open-Meteo segments are city-scale
+    // (~8 km cells), so they carry the city-wide qualifier.
+    'rainstart.now': 'Raining now',
+    'rainstart.nowUntil': 'Raining now · easing around {0}',
+    'rainstart.expectedIn': 'Rain expected around {0} · {1}',
+    'rainstart.none': 'No rain expected in the next {0} h',
+    'rainstart.citywide': 'city-wide forecast',
+    'rainstart.inMinutes': 'in ~{0} min',
+    'rainstart.inHours': 'in ~{0} h',
+    'rainstart.inHoursMin': 'in ~{0} h {1} min',
+
+    // At-a-glance rain chip — jumps to the nowcast pane (see AtAGlance).
+    'glance.rainAria': 'Rain chance {0}%. View the rainfall nowcast map.',
+    'glance.rainTitle': 'View rainfall nowcast',
   },
   tc: {
     // Header
@@ -589,6 +605,22 @@ const translations: Record<Language, Record<string, string>> = {
     'share.rainChance': '降雨 {0}%',
     'share.copied': '已複製天氣預報，貼給朋友吧',
     'share.copyFailed': '無法複製天氣預報',
+
+    // Rain-start banner（HKO 即時預報 0–2 小時 + 其後 Open-Meteo；見
+    // RainStartBanner / rain-start.ts）。Open-Meteo 網格約 8 公里，只屬
+    // 全港尺度，故加上「全港預報」標示。
+    'rainstart.now': '正在下雨',
+    'rainstart.nowUntil': '正在下雨 · 預計 {0} 前後減弱',
+    'rainstart.expectedIn': '預計 {0} 前後有雨 · {1}',
+    'rainstart.none': '未來 {0} 小時預計無雨',
+    'rainstart.citywide': '全港預報',
+    'rainstart.inMinutes': '約 {0} 分鐘後',
+    'rainstart.inHours': '約 {0} 小時後',
+    'rainstart.inHoursMin': '約 {0} 小時 {1} 分後',
+
+    // At-a-glance 降雨標籤 — 跳至降雨即時預報面板（見 AtAGlance）。
+    'glance.rainAria': '降雨機率 {0}%。查看降雨即時預報地圖。',
+    'glance.rainTitle': '查看降雨即時預報',
   },
 };
 

@@ -61,6 +61,23 @@ export interface HourlyForecast {
   isDay: boolean;
 }
 
+/**
+ * One 15-minute precipitation point (Open-Meteo `minutely_15`). The value
+ * is the sum over the window ending at `time` (preceding-15-minutes), so
+ * rain consumers should treat the window as (time − 15 min, time].
+ *
+ * Note on precision: Open-Meteo snaps requests to ~7–8 km model grid cells
+ * (verified 2026-09-17 — Kwun Tong and Central return the identical cell),
+ * so this series is city-scale, not district-scale. The HKO nowcast grid
+ * (~1 km, 0–2 h) is the only district-precise rain source in the app.
+ */
+export interface MinutelyPrecipitation {
+  /** Window end timestamp (interval start as returned by the API) */
+  time: Date;
+  /** Precipitation in mm over the preceding 15 minutes */
+  precipitation: number;
+}
+
 export interface DailyForecast {
   /** Forecast date (midnight local time) */
   date: Date;
@@ -97,6 +114,13 @@ export interface WeatherData {
   current: CurrentWeather;
   /** Hourly forecast (may be empty) */
   hourly: HourlyForecast[];
+  /**
+   * 15-minute precipitation series anchored at the current interval,
+   * capped at 24 h. Optional: absent from cached snapshots written before
+   * this field existed and when the API degrades. City-scale only — see
+   * the caveat on `MinutelyPrecipitation`.
+   */
+  minutely?: MinutelyPrecipitation[];
   /** Daily forecast */
   daily: DailyForecast[];
   /** Active weather warnings */

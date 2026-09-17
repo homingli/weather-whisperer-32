@@ -16,6 +16,20 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
   without a share sheet the message is copied with a confirmation
   toast, ready to paste. Temps follow your unit setting and the
   message renders in English or Traditional Chinese to match the app.
+- **Rain-start banner ("when will it rain?").** A thin strip above the
+  at-a-glance row reads "Rain expected around 15:30 · in ~45 min",
+  "Raining now · easing around 17:00", or "No rain expected in the next
+  24 h", with a small upcoming-precipitation bar strip. It merges two
+  free sources with complementary strengths: the HKO gridded nowcast
+  (0–2 h, ~1 km cells — district-accurate) and Open-Meteo's 15-minute
+  precipitation series, which now arrives inside the existing weather
+  fetch (no extra request, up to 24 h ahead). Open-Meteo's model grid
+  is city-scale (~8 km cells — Kwun Tong and Central get the same
+  forecast), so segments it backs carry a "city-wide" qualifier instead
+  of implying district precision. The banner reads the rain map's cached
+  data when available (upgrading the 0–2 h segment to district accuracy)
+  and never triggers the 2.7 MB nowcast download itself. Both English
+  and Traditional Chinese.
 - **Offline indicator in the top bar.** A small amber "Currently offline"
   chip appears next to the clock the moment the browser reports it is
   offline, and disappears when connectivity returns — at which point the
@@ -36,6 +50,16 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
   the fixed chart geometry.
 
 ### Changed
+- **At-a-glance strip: rain jumps to the nowcast, arrow removed.** The
+  rain-percentage chip (shown when the chance is ≥ 20 %) is now its own
+  button that takes you straight to the rainfall nowcast pane — the map
+  slide on mobile, the bottom map section on desktop — where the
+  2-hour radar-based forecast lives. Outside nowcast coverage (no PRD or
+  Vancouver pane) the chip stays plain text. Each day's temperature group
+  keeps its old behavior (reveals the full daily forecast), and the
+  down-arrow at the end of the strip is gone — the row now reads as two
+  plain controls. Rain-chip labels are full sentences for screen readers
+  in both languages ("Rain chance 80%. View the rainfall nowcast map.").
 - **Hero temperature caption now reads low → high.** The muted line under
   the hero ("L 24°C · H 32°C · 3° warmer by 03:00 PM") previously led with
   the high; the low now comes first, left to right, in both the visible
