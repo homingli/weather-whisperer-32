@@ -625,6 +625,22 @@ describe('CurrentWeather Component', () => {
       expect(container.textContent).toContain('甚高');
       expect(container.textContent).toContain('空氣質素健康指數');
       expect(container.textContent).not.toContain('很高');
+
+      // Serious band (10+) renders 嚴重 under tc.
+      const { container: serious } = render(
+        <LanguageProvider>
+          <UnitsProvider>
+            <LangProbe />
+            <CurrentWeather
+              weather={{ ...mockWeather, uvIndex: 2, humidity: 45, windSpeed: 2, aqhiIndex: 11 }}
+              hourlyForecast={mockHourly}
+              timezone="UTC"
+              headline={{ source: 'om' }}
+            />
+          </UnitsProvider>
+        </LanguageProvider>
+      );
+      expect(serious.textContent).toContain('嚴重');
     });
   });
 

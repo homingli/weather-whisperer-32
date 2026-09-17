@@ -118,7 +118,9 @@ const AQHI_BANDS: AqhiBand[] = [
   { level: "serious",   bg: "#7f1d1d", labelKey: "aqhi.serious" },
 ];
 
-/** Null-safe band lookup; null yields the unavailable sentinel like uvBandFor. */
+/** Band lookup by level. The null branch is unreachable through the chip —
+ *  it renders only when `aqhiIndex != null` — and exists for type
+ *  completeness alongside `uvBandFor`. */
 function aqhiBandFor(index: number | null | undefined): AqhiBand {
   if (index == null) return { level: "low", bg: "transparent", labelKey: "aqhi.low" };
   const level = aqhiLevelFor(index);
