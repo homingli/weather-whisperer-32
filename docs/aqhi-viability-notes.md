@@ -65,6 +65,17 @@ A working vertical slice, all tests green (`431 passing`):
    Instead `getHKOAQHI` serves repeat calls from a per-language parsed-feed
    cache (`TIMING.AQHI_TTL_MS`), so the proxy is hit at most every 15 min.
    Failures and empty feeds are never cached — the next loop retries.
+   Concurrent cold-cache calls share one in-flight promise. The feed fetch
+   uses a dedicated 3s timeout (`TIMING.AQHI_TIMEOUT_MS`) so a slow EPD feed
+   can never stall warnings/daily/current beyond 3s on a cache miss.
+
+## Known unknowns
+
+- **Vercel rewrite path is unverified until the PR's preview deploy.** The
+  dev-server proxy is proven (both languages 200), but EPD could treat
+  Vercel's datacenter egress differently than a browser (403 instead of a
+  CORS block). Check the preview URL's `/aqhi-rss/aqhi_ind_rss_Eng.xml`
+  before merging.
 
 ## Design note: dedicated EPD station table
 

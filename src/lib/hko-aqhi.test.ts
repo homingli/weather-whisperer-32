@@ -88,6 +88,15 @@ describe('parseAqhiRss', () => {
     expect(data).toEqual([]);
     expect(warnings).toEqual([]);
   });
+
+  it('parses CDATA-wrapped titles and attributed <item> tags (feed drift hardening)', () => {
+    const drifted = `<?xml version="1.0"?><rss version="2.0"><channel>
+<item id="7"><title><![CDATA[Sha Tin]]></title><description><![CDATA[Sha Tin - General Stations: 9 High - now]]></description></item>
+</channel></rss>`;
+    const { data, warnings } = parseAqhiRss(drifted);
+    expect(warnings).toEqual([]);
+    expect(data).toEqual([{ station: 'Sha Tin', value: 9 }]);
+  });
 });
 
 describe('findNearestAqhiStation', () => {
@@ -190,6 +199,21 @@ describe('getHKOAQHI', () => {
     await getHKOAQHI('tc', 22.3180, 114.1700);
     await getHKOAQHI('tc', 22.3180, 114.1700); // Cached now
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('deduplicates concurrent cold-cache calls into one fetch', async () => {
+    // City switch / remount mid-flight: both callers start before the first
+    // fetch settles; fetchAqhiFeed must share the in-flight promise.
+    const slowFetch = vi.fn().mockImplementation(() => new Promise<Response>(
+      resolve => setTimeout(() => resolve(new Response(EN_FEED, { status: 200 })), 10),
+    ));
+    vi.stubGlobal('fetch', slowFetch);
+    const [a, b] = await Promise.all([
+      getHKOAQHI('en', 22.3180, 114.1700),
+      getHKOAQHI('en', 22.3180, 114.1700),
+    ]);
+    expect(a).toEqual(b);
+    expect(slowFetch).toHaveBeenCalledTimes(1);
   });
 
   it('does not cache failures — the next weather loop retries', async () => {

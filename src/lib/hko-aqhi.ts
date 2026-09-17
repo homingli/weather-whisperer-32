@@ -112,10 +112,11 @@ export function findNearestAqhiStation(
 export function parseAqhiRss(xml: string): { data: AqhiFeedItem[]; warnings: string[] } {
   const data: AqhiFeedItem[] = [];
   const warnings: string[] = [];
-  const items = xml.match(/<item>[\s\S]*?<\/item>/g) ?? [];
+  const items = xml.match(/<item\b[^>]*>[\s\S]*?<\/item>/g) ?? [];
 
   for (const item of items) {
-    const title = item.match(/<title>([^<]+)<\/title>/)?.[1]?.trim();
+    // Title may be CDATA-wrapped like descriptions (strip if present).
+    const title = item.match(/<title\b[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)?.[1]?.trim();
     // Description may be CDATA-wrapped; strip the wrapper if present.
     const rawDesc = item.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/)?.[1] ?? '';
     // Tolerant of EN "General Stations:" / "Roadside Stations:" and TC
@@ -144,10 +145,45 @@ const FEED_PATHS: Record<'en' | 'tc', string> = {
  *  correctly from whatever cached feed is valid. Failures are never cached —
  *  a down feed retries on the next weather loop (5 min). */
 const feedCache: Partial<Record<'en' | 'tc', { data: AqhiFeedItem[]; fetchedAt: number }>> = {};
+/** In-flight dedup: concurrent cold-cache calls (city switch / remount mid-
+ *  flight) share one fetch instead of each hitting the proxy. */
+const inFlight: Partial<Record<'en' | 'tc', Promise<AqhiFeedItem[]>>> = {};
 
 /** Test seam: drop all cached feeds. */
 export function resetAqhiFeedCacheForTests(): void {
   for (const key of Object.keys(feedCache) as Array<'en' | 'tc'>) delete feedCache[key];
+  for (const key of Object.keys(inFlight) as Array<'en' | 'tc'>) delete inFlight[key];
+}
+
+/** Fetch + parse the feed for `lang`, deduplicating concurrent callers.
+ *  Resolves [] when the fetch or parse fails (callers treat [] as no data). */
+async function fetchAqhiFeed(lang: 'en' | 'tc'): Promise<AqhiFeedItem[]> {
+  const pending = inFlight[lang];
+  if (pending) return pending;
+
+  const fetchPromise = (async () => {
+    const start = Date.now();
+    try {
+      const response = await fetchWithTimeout(FEED_PATHS[lang], { timeout: TIMING.AQHI_TIMEOUT_MS });
+      if (!response.ok) throw new Error(`Failed to fetch AQHI feed: ${response.status}`);
+      const xml = await response.text();
+      logTiming('EPD aqhi fetch', Date.now() - start);
+
+      const { data, warnings } = parseAqhiRss(xml);
+      logParseWarnings('EPD aqhi', warnings);
+      return data;
+    } catch (err) {
+      logFailure('EPD aqhi', Date.now() - start, err);
+      return [];
+    }
+  })();
+
+  inFlight[lang] = fetchPromise;
+  try {
+    return await fetchPromise;
+  } finally {
+    if (inFlight[lang] === fetchPromise) delete inFlight[lang];
+  }
 }
 
 /** Fetch the EPD AQHI feed and resolve the reading for the nearest station.
@@ -163,24 +199,11 @@ export async function getHKOAQHI(
   if (cached && Date.now() - cached.fetchedAt < TIMING.AQHI_TTL_MS) {
     items = cached.data;
   } else {
-    const start = Date.now();
-    try {
-      const response = await fetchWithTimeout(FEED_PATHS[lang], { timeout: TIMING.HKO_TIMEOUT_MS });
-      if (!response.ok) throw new Error(`Failed to fetch AQHI feed: ${response.status}`);
-      const xml = await response.text();
-      logTiming('EPD aqhi fetch', Date.now() - start);
-
-      const { data, warnings } = parseAqhiRss(xml);
-      logParseWarnings('EPD aqhi', warnings);
-      // A feed that parsed to zero items is a down feed in disguise —
-      // don't cache it, so the next loop retries.
-      if (data.length === 0) return null;
-      feedCache[lang] = { data, fetchedAt: Date.now() };
-      items = data;
-    } catch (err) {
-      logFailure('EPD aqhi', Date.now() - start, err);
-      return null;
-    }
+    items = await fetchAqhiFeed(lang);
+    // An empty result is a down feed in disguise — don't cache it,
+    // so the next weather loop retries.
+    if (items.length === 0) return null;
+    feedCache[lang] = { data: items, fetchedAt: Date.now() };
   }
 
   const nearest = findNearestAqhiStation(lat, lon, lang);

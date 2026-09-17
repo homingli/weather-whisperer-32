@@ -103,18 +103,18 @@ function uvBandFor(uv: number | null): UvBand {
 }
 
 /* ── AQHI banding (EPD health-risk categories) ─────────────────────── */
-type AqhiBand = { max: number; bg: string; text: string; labelKey: string };
+type AqhiBand = { max: number; bg: string; labelKey: string };
 
 const AQHI_BANDS: AqhiBand[] = [
-  { max: 3,    bg: "#16a34a", text: "#ffffff", labelKey: "aqhi.low" },
-  { max: 7,    bg: "#facc15", text: "#1a1a1a", labelKey: "aqhi.moderate" },
-  { max: 10,   bg: "#f97316", text: "#ffffff", labelKey: "aqhi.high" },
-  { max: 1000, bg: "#dc2626", text: "#ffffff", labelKey: "aqhi.veryHigh" },
+  { max: 3,    bg: "#16a34a", labelKey: "aqhi.low" },
+  { max: 7,    bg: "#facc15", labelKey: "aqhi.moderate" },
+  { max: 10,   bg: "#f97316", labelKey: "aqhi.high" },
+  { max: 1000, bg: "#dc2626", labelKey: "aqhi.veryHigh" },
 ];
 
 /** Null-safe band lookup; null yields the unavailable sentinel like uvBandFor. */
 function aqhiBandFor(index: number | null | undefined): AqhiBand {
-  if (index == null) return { max: 0, bg: "transparent", text: "currentColor", labelKey: "aqhi.low" };
+  if (index == null) return { max: 0, bg: "transparent", labelKey: "aqhi.low" };
   for (const b of AQHI_BANDS) if (index <= b.max) return b;
   return AQHI_BANDS[AQHI_BANDS.length - 1];
 }
@@ -209,11 +209,13 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
     return items;
   }, [isEmpty, weather, humidityPct, units, t, aqhiBand]);
   const quietKeys = useMemo(() => new Set(quietItems.map((i) => i.id)), [quietItems]);
-  // The full-widget grid renders while any metric needs attention. The old
-  // `quietItems.length < 4` check assumed exactly four metrics; AQHI joins
-  // the pool, so a non-quiet AQHI must keep the grid up even when the other
-  // four all went quiet.
-  const showWidgetGrid = quietItems.length < 4
+  // The full-widget grid renders while any metric needs attention. Count
+  // only the four base metrics here: the raw `quietItems.length < 4` check
+  // broke once AQHI joined the pool (3 base + AQHI quiet = 4 → grid hidden
+  // while the fourth base metric still needed attention). A non-quiet AQHI
+  // keeps the grid up through the explicit clause.
+  const baseQuietCount = quietItems.filter((i) => i.id !== 'aqhi').length;
+  const showWidgetGrid = baseQuietCount < 4
     || (weather.aqhiIndex != null && !quietKeys.has('aqhi'));
 
   const resolvedHeadline: HeadlineInfo = headline ?? HEADLINE_DEFAULT_OM;
@@ -359,7 +361,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
                 />
               )}
               {weather.aqhiIndex != null && !quietKeys.has('aqhi') && (
-                <AqhiChip index={weather.aqhiIndex} band={aqhiBand} label={t('weather.aqhi')} />
+                <AqhiChip index={weather.aqhiIndex} band={aqhiBand} label={t('weather.aqhi')} station={weather.aqhiStation} />
               )}
             </div>
           )}
@@ -825,14 +827,13 @@ function UvChip({
 
 /* ── AQHI: color-coded chip with EPD health-risk level ──────────────── */
 function AqhiChip({
-  index, band, label,
-}: { index: number; band: AqhiBand; label: string }) {
+  index, band, label, station,
+}: { index: number; band: AqhiBand; label: string; station?: string }) {
   const { t } = useLanguage();
-  const activeIdx = AQHI_BANDS.indexOf(band);
   return (
     <div
       className="flex flex-col gap-3"
-      aria-label={`${label}: ${index}, ${t(band.labelKey)}`}
+      aria-label={`${label}: ${index}, ${t(band.labelKey)}${station ? ` — ${station}` : ''}`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="kicker text-muted-foreground inline-flex items-center gap-2">
@@ -864,19 +865,6 @@ function AqhiChip({
             />
           );
         })}
-        {activeIdx >= 0 && (
-          <div
-            className="absolute pointer-events-none"
-            style={{
-              left: `${((activeIdx + 0.5) / AQHI_BANDS.length) * 100}%`,
-              top: '-14px',
-              transform: 'translateX(-50%)',
-              color: band.text,
-            }}
-          >
-            <AlertTriangle className="h-3 w-3" />
-          </div>
-        )}
       </div>
     </div>
   );

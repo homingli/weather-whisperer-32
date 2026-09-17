@@ -252,7 +252,8 @@ export async function fetchWeather(
         aqhiLevel: aqhi.level,
         aqhiStation: aqhi.station,
       } : {}),
-    },    daily: (hkoData.daily ?? []).filter(Boolean).map((day: DailyForecast, i: number) => {
+    },
+    daily: (hkoData.daily ?? []).filter(Boolean).map((day: DailyForecast, i: number) => {
       const omDay = omData!.daily[i];
       const omSunrise = omDay?.sunrise;
       const omSunset = omDay?.sunset;
