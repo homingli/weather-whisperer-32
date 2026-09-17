@@ -5,8 +5,10 @@ The application persists the following to `localStorage`:
 - `weather-recent-cities`: up to 3 recent cities (capped, MRU)
 - `weather-language`: user language preference (`'en' | 'tc'`)
 - `theme-mode`: user theme preference (`'light' | 'dark' | 'auto'`)
-- `weather-last-known-v1`: schema-versioned, lz-string compressed envelope of the last successful weather fetch. Read synchronously at mount as the cold-start seed; cleared on city switch; overwritten on every successful fetch.
+- `weather-last-known-v2`: schema-versioned, lz-string compressed envelope of the last successful weather fetch. Read synchronously at mount as the cold-start seed; cleared on city switch; overwritten on every successful fetch.
 - `weather-units`: preferred unit system, `'metric'` (default: °C / km/h / mm) or `'us'` (°F / mph / in). Read at `UnitsContext` mount, written on toggle.
+- `weather-font-size`: UI text scale (`'small' | 'medium'` (default) `| 'large'`), applied as a percentage root font-size. Read at `FontSizeContext` mount, written on change.
+- `weather-nowcast-cache-v2`: schema-versioned, LZString-compressed snapshot of the gridded rainfall nowcast CSV (~2.7 MB raw). Read at mount to skip the "Load Map" prompt when fresh (15-min TTL).
 
 Cache strategy is a three-tier design:
 

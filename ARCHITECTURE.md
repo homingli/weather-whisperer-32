@@ -142,10 +142,11 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `HourlyForecast.tsx`: Interactive 6-hour line chart (temperature & precipitation); day/night `ReferenceArea` bands and sun-event `ReferenceLine` markers when `daily` prop is provided
   - `DailyForecast.tsx`: 7-day forecast with min/max bounds
   - `ShareForecastButton.tsx`: share icon in the daily-forecast card header. Builds a chat-friendly message of the upcoming days (emoji condition, low–high, rain chance, app link) via `buildForecastShareText`, then hands it to the Web Share API so the user can pick the friends/chat to send it to; falls back to clipboard copy + toast when `navigator.share` is unavailable or fails (share-sheet dismissal is silent).
-  - `AtAGlance.tsx`: at-a-glance strip between hero and daily forecast — one day group per day (today + tomorrow: low→high range, rain ≥20 %; wind intentionally omitted, it lives on the daily cards), sharing a line when they fit and wrapping per day when they don't; one button whose `aria-label` is a full sentence per day; `onReveal` scrolls to / advances to the daily forecast
+  - `AtAGlance.tsx`: at-a-glance strip between hero and daily forecast — one day group per day (today + tomorrow: low→high range, rain ≥20 %; wind intentionally omitted, it lives on the daily cards), sharing a line when they fit and wrapping per day when they don't. Two kinds of controls share the row: each day's temperature group is a button with a full-sentence `aria-label` whose activation calls `onReveal` (scroll to / advance to the daily forecast), and each rain chip is its own button calling `onRevealNowcast` (jump to the nowcast pane — deck slide 3 on mobile, section scroll on desktop; degrades to static text when the city is outside nowcast coverage). No chevron — the strip reads as two plain controls.
+  - `RainStartBanner.tsx`: thin "when will it rain?" strip above the at-a-glance row (both layouts). Merges `WeatherData.minutely` (Open-Meteo, city-scale) with the HKO `RainGrid` when the rain map has populated the shared `['hkoGriddedRainfallNowcast']` cache — the 0–2 h segment then upgrades to district accuracy. Read-only query subscription (`enabled: false`) so the banner never triggers the 2.7 MB CSV fetch; minute-tick re-render keeps "in ~N min" phrasing current; renders nothing when no series is usable. Merge logic lives in `src/lib/rain-start.ts`.
   - `RainfallMap.tsx`: Chunk-split wrapper → `RainfallMapInner` (HKO gridded nowcast) via lazy loading. Shows "Load Map" prompt. Error boundary catches lazy-chunk load failures.
   - `RainfallMapInner.tsx`: HKO gridded nowcast (CSV parsed → GeoJSON, time-slider, timeline step buttons). Fetches CSV into `RainGrid`, converts client-side to GeoJSON using `[longitude, latitude]` coordinates. Query with `staleTime: NOWCAST_CACHE_TTL_MS`, `refetchInterval: NOWCAST_REFETCH_INTERVAL_MS (30 min)`, `retry: 1`.
-  - `MSCRainfallMap.tsx`: Chunk-split wrapper → `MSCRainfallMapInner` (MSC (Macau) rainfall WMS tile layer). Error boundary catches lazy-chunk load failures. Auto-loads when the section renders (no prompt).
+  - `MSCRainfallMap.tsx`: Chunk-split wrapper → `MSCRainfallMapInner` (MSC GeoMet (Meteorological Service of Canada) rainfall WMS tile layer for Vancouver). Error boundary catches lazy-chunk load failures. Auto-loads when the section renders (no prompt).
   - `MSCRainfallMapInner.tsx`: MSC WMS tile rendering with batch error tracking, tile load hang guard (20s), and retry nonce. Shows stale-data indicator when tiles fail to load.
   - `MapLibreMap.tsx`: MapLibre basemap wrapper (CARTO vector/raster tiles). Handles user location marker.
   - `SettingsMenu.tsx`: Global settings controls (Units, Theme, Language, Text size, Location, manual refresh)
@@ -170,7 +171,7 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `weather/geocoding.ts`: City search, reverse geocode, user location
   - `weather/storage.ts`: Default/recent city persistence helpers
   - `weather/codes.ts`: WMO weather-code to description/icon mapping
-  - `weather/types.ts`: `GeoLocation`, `WeatherData`, `CurrentWeather`, `HourlyForecast`, `DailyForecast` interfaces
+  - `weather/types.ts`: `GeoLocation`, `WeatherData`, `CurrentWeather`, `HourlyForecast`, `DailyForecast`, `MinutelyPrecipitation` interfaces
   - `hko-weather.ts` (barrel): re-exports from sub-modules
   - `hko-types.ts`: HKO API response interfaces (`HKOCurrentWeatherResponse`, `HKOForecastResponse`, `HKOWarning`, `HKOWarningSummaryResponse`)
   - `hko-bounds.ts`: `HK_BOUNDS`, `PRD_BOUNDS`, `isInHongKong`, `isInRainfallRegion`
@@ -188,9 +189,10 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `carto.ts`: Carto basemap URL helpers (`cartoStyleUrl`, `cartoRasterUrl`, `cartoMapLibreRasterUrl`), validates `VITE_CARTO_API_KEY`
   - `nowcastCache.ts`: Rainfall nowcast localStorage cache (15-min TTL, LZ-string compressed)
   - `parsers.ts`: Generic data parsing utilities
-  - `msc-wms.ts`: MSC WMS tile fetching (macau.weather.gov.mo)
+  - `msc-wms.ts`: MSC GeoMet WMS tile fetching (geo.weather.gc.ca)
   - `msc-prefetch.ts`: MSC data prefetching strategy (tiered by connection type)
   - `rainfallBands.ts`: Rainfall color band definitions
+  - `rain-start.ts`: "When will it rain?" merge (see Key logic concepts). Normalizes HKO grid windows + Open-Meteo `minutely_15`/hourly into one verdict (`RainStartForecast`); pure and unit-tested.
   - `units.ts`: Unit conversion (`°C→°F`, `km/h→mph`, `mm→in`)
   - `share-forecast.ts`: Pure share-message builder for the daily forecast (see `ShareForecastButton`). Emojis come from `getWeatherIcon`, rain chance from `precipitationProbabilityMax` or the HKO PSR level via `psrToPercentage`, and dates render in the city's timezone per app language. Takes a `translate` callback so it stays framework-free.
   - `queryPersistence.ts`: React Query localStorage persistence via `@tanstack/query-persist-client-core` (512 KB cap, schema-versioned)
@@ -211,6 +213,16 @@ The orchestrator at `src/lib/weather-manager.ts` is the single point of entry fo
 - **Hybrid fetching.** Open-Meteo (primary, global) and HKO (secondary, HK-only) run in parallel via `Promise.all`.
 - **Merging.** HKO daily entries merge onto Open-Meteo's frame; Open-Meteo's sunrise/sunset takes precedence over HKO placeholders.
 - **Fault tolerance.** If HKO fails, Open-Meteo is returned with `hkoFailed: true` (banner shown in UI). If Open-Meteo fails and HKO succeeds, the gateway falls back to HKO-only data. If both fail, the error propagates to React Query.
+
+### Rain-start verdict (`src/lib/rain-start.ts`)
+The banner answers "when will it rain?" by merging three series into one timeline. All series are normalized to explicit rain windows `{ startMs, endMs, mm }` because their native semantics differ:
+- **HKO gridded nowcast** (0–2 h, ~1 km cells): step ending at `T` covers `(T−30 min, T]`. Sampled at the selected location via `sampleRainGridAt` (nearest cell). Only present when the rain map has populated the query cache — the CSV stays opt-in.
+- **Open-Meteo `minutely_15`** (`WeatherData.minutely`, fetched in the unified call): value at `T` is the preceding-15-minute sum → `(T−15 min, T]`.
+- **Open-Meteo hourly** (fallback when minutely is missing): value at `T` covers the bucket starting at `T`.
+
+Merge rules: dedupe by window start with the nowcast winning shared slots (both grids sit on whole-minute UTC boundaries since HKT is a whole-hour offset), drop closed windows, verdict from the first window ≥ `RAIN_THRESHOLD_MM` (0.1 mm). Status is `raining-now` (window straddling now is wet, `endsAt` when a dry window follows), `rain-expected` (startsAt/startsInMinutes), or `no-rain` (within `horizonMinutes`).
+
+**Precision tiering.** `source: 'hko-grid'` segments are district-accurate; Open-Meteo snaps requests to ~7–8 km model grid cells (verified 2026-09-17: Kwun Tong and Central return the identical cell), so Open-Meteo-backed copy carries a "city-wide" qualifier instead of implying district precision.
 
 ### Caching and retry strategy
 
@@ -390,25 +402,25 @@ Timeouts throw → trigger React Query retry. No `Cache-Control` headers set or 
 `weather-last-known-v2` is the new persistence layer. The app reads it synchronously on mount, clears it on city switch, and overwrites it on every successful `fetchWeather` call. The envelope's `cityId` (lat/lon rounded to 2 decimal places) prevents cross-city paint. A schema version mismatch or parse error causes a silent drop rather than a crash.
 
 ## Testing strategy
-The project uses **Vitest** with jsdom. Coverage is split across layers (**418 tests**, 32 files):
+The project uses **Vitest** with jsdom. Coverage is split across layers (**444 tests**, 33 files):
 - **Unit tests** (lib/):
   - `src/lib/weather.test.ts` (2): Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
   - `src/lib/weather/hko-codes.test.ts` (15): WMO weather-code descriptions and icons.
   - `src/lib/hko-weather.test.ts` (47): PSR normalization/percentage/umbrella, PSR translation, station/district lookup, bounds checks, HKO icon mapping, warning display helpers.
   - `src/lib/weather-manager.test.ts` (21): all `fetchWeather` orchestration branches: HK/non-HK routing, parallel fetch + merge, HKO fallback, both-fail, progress callbacks, `lang` propagation.
   - `src/lib/devWarningSimulator.test.ts` (14): simulated warnings CRUD, baseline nonce bumping, dev-only environment isolation.
-  - `src/lib/units.test.ts` (29), `src/lib/parsers.test.ts` (20), `src/lib/share-forecast.test.ts` (4): share-message header/day-line/link shape, °F conversion, PSR→percentage mapping, Traditional Chinese rendering. `src/lib/rainfallGrid.test.ts` (8), `src/lib/rainfallGeoJson.test.ts` (1), `src/lib/nowcastCache.test.ts` (20), `src/lib/msc-wms.test.ts` (21), `src/lib/msc-prefetch.test.ts` (16), `src/lib/sw-observability.test.ts` (13), `src/lib/carto.test.ts` (3), `src/lib/weather/storage.test.ts` (13).
+  - `src/lib/units.test.ts` (29), `src/lib/parsers.test.ts` (23), `src/lib/share-forecast.test.ts` (4), `src/lib/rain-start.test.ts` (14): share-message header/day-line/link shape and °F conversion; window normalization for the Open-Meteo `minutely_15`/hourly and HKO-grid series, merge dedupe with the grid preferred on shared slots, verdict branches (rain expected, raining-now with/without end, trace amounts treated as dry), source attribution, horizon and series capping. `src/lib/rainfallGrid.test.ts` (14), `src/lib/rainfallGeoJson.test.ts` (1), `src/lib/nowcastCache.test.ts` (20), `src/lib/msc-wms.test.ts` (21), `src/lib/msc-prefetch.test.ts` (16), `src/lib/sw-observability.test.ts` (13), `src/lib/carto.test.ts` (3), `src/lib/weather/storage.test.ts` (13).
   - `src/lib/__fixtures__/`: live HKO `warnsum` response snapshots (EN + TC, captured 2026-07-31). Used by `WeatherAlerts.test.tsx` to lock the uppercase `CANCEL` regression against the real API shape.
 - **Hook tests** (hooks/):
   - `src/hooks/useWarningChangeDetector.test.ts` (18): diff semantics, baseline reset on `resetKey`, case-insensitive `CANCEL` filtering, `Reissue` no-diff.
 - **Context tests** (contexts/):
   - `src/contexts/LanguageContext.test.tsx` (12), `src/contexts/ThemeContext.test.tsx` (8), `src/contexts/UnitsContext.test.tsx` (6), `src/contexts/FontSizeContext.test.tsx` (7).
 - **Component tests** (components/):
-  - `src/components/CurrentWeather.test.tsx` (23): fixture-data render, umbrella indicator, sun event display, quiet-shelf behavior.
+  - `src/components/CurrentWeather.test.tsx` (36): fixture-data render, umbrella indicator, unit conversions, HKO headline icon states, quiet-shelf behavior, today L/H + 3-hour trend caption, daylight/night sun strip.
   - `src/components/HourlyForecast.test.tsx` (8): empty forecast, chartData shape validation (mock capture), day/night `ReferenceArea` bands, sun-event `ReferenceLine` label capture, timezone propagation. Recharts is mocked because jsdom lacks ResizeObserver.
   - `src/components/DailyForecast.test.tsx` (4): Swiper carousel rendering, forecast cards, precipitation probability.
   - `src/components/LocalClock.test.tsx` (6): wide-viewport renders HH:MM:SS with 1s interval; narrow-viewport (via `matchMedia` stub) drops seconds, uses 60s interval aligned to the next minute boundary.
-  - `src/components/AtAGlance.test.tsx` (10): empty/sentinel-day rendering, per-day sentence + strip content in metric and US units, rain-chance 20 % cutoff (visible text and aria-label), Traditional Chinese labels, `onReveal` activation.
+  - `src/components/AtAGlance.test.tsx` (13): empty/sentinel-day rendering, per-day temperature-button sentences in metric and US units, rain-chip button vs static-text fallback (nowcast reachable or not), rain-chance 20 % cutoff (visible text and aria-labels), no-chevron regression, Traditional Chinese labels, `onReveal` / `onRevealNowcast` activation.
   - `src/components/OfflineIndicator.test.tsx` (5): hidden while online, badge appears on `offline` event / offline-at-mount, hides on `online` event, Traditional Chinese string.
   - `src/components/WeatherAlerts.test.tsx` (12): HKO warning rendering, modal open/close, warning detail display, cancellation filter (mixed-case + uppercase `CANCEL`), live-fixture replay of the 2026-07-31 cancelled amber rainstorm regression (EN + TC), TC/rainstorm signal icons, pulse animation.
   - `src/components/WeatherBanners.test.tsx` (8), `src/components/SettingsMenu.test.tsx` (23).

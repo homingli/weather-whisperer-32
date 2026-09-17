@@ -6,7 +6,7 @@ Weather Whisperer is a weather app that answers the questions behind the forecas
 
 **Know what today actually feels like.** See the current conditions with a "feels like" temperature, today's high and low, and whether things are warming up, cooling down, or holding steady over the next three hours.
 
-**Get a straight answer about rain.** The app tells you plainly whether an umbrella is worth carrying, and the "tomorrow" strip shows the chance of rain only when it is worth knowing about — at least one in five. It also shows tomorrow's temperature range and the strongest wind.
+**Get a straight answer about rain.** The app tells you plainly whether an umbrella is worth carrying. A "when will it rain?" banner tells you when rain is expected — or, if it is already raining, when it should ease — and the today-and-tomorrow strip shows each day's temperature range, with the chance of rain only when it is worth knowing about — at least one in five.
 
 **Look ahead by hours or by week.** An interactive chart traces the temperature through the next six hours with the chance of rain behind it, and a seven-day outlook carries you through the rest of the week.
 
@@ -35,7 +35,7 @@ Weather Whisperer is a weather app that answers the questions behind the forecas
 ```bash
 git clone https://github.com/homingli/weather-whisperer-32.git
 cd weather-whisperer-32
-npm install   # dependencies; lifecycle scripts are not run (--ignore-scripts)
+pnpm install --ignore-scripts   # dependencies; lifecycle scripts are not run
 npm run dev   # http://localhost:8080 with hot reload
 ```
 
