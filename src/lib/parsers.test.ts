@@ -167,17 +167,21 @@ describe('parseOpenMeteoForecast', () => {
       const times = [NOW - 900, NOW, NOW + 900, NOW + 1800]; // one past, then now onward
       const r = omWithMinutely(times, [0.1, 0.2, 0, 0.3]);
       expect(r.warnings).not.toContain('minutely_15 (object)');
-      expect(r.data?.minutely).toHaveLength(3);
-      // The past interval is dropped; the anchored series starts at `now`.
-      expect(r.data?.minutely?.[0].time.getTime()).toBe(NOW * 1000);
-      expect(r.data?.minutely?.[0].precipitation).toBe(0.2);
+      expect(r.data?.minutely).toHaveLength(2);
+      // Stamps are interval ENDs (value = preceding-15-min sum), so the
+      // window covering now is the first FUTURE stamp: NOW+900 covers
+      // (NOW, NOW+900]. The stamps at and before NOW are closed windows.
+      expect(r.data?.minutely?.[0].time.getTime()).toBe((NOW + 900) * 1000);
+      expect(r.data?.minutely?.[0].precipitation).toBe(0);
+      expect(r.data?.minutely?.[1].time.getTime()).toBe((NOW + 1800) * 1000);
     });
 
     it('zips then filters so a bad cell cannot misalign the series', () => {
       const times = [NOW, NOW + 900, 'bad', NOW + 2700];
       const r = omWithMinutely(times, [0.5, null, 0.2, 0.7]);
+      // The NOW stamp is a closed window under the preceding-sum
+      // convention, so anchoring keeps only the future survivor.
       expect(r.data?.minutely).toEqual([
-        { time: new Date(NOW * 1000), precipitation: 0.5 },
         { time: new Date((NOW + 2700) * 1000), precipitation: 0.7 },
       ]);
     });

@@ -14,7 +14,8 @@
  *  - HKO nowcast step ending at T (raw "YYYYMMDDHHmm") covers (T−30 min, T].
  *  - Open-Meteo minutely_15 value at T is the preceding-15-minute sum, so it
  *    covers (T−15 min, T].
- *  - Open-Meteo hourly value at T covers the bucket starting at T.
+ *  - Open-Meteo hourly value at T is the preceding-hour sum, so it covers
+ *    (T−60 min, T] (aggregation convention per Open-Meteo docs).
  * Timestamps that survived a localStorage round-trip arrive as ISO strings
  * (storage.ts writes WeatherData with JSON.stringify and never revives
  * Dates), so every adapter coerces via `new Date()` and drops NaN rows.
@@ -90,14 +91,18 @@ export function seriesFromMinutely(points?: MinutelyPrecipitation[]): RainStep[]
   return out;
 }
 
-/** Open-Meteo hourly → windows. The value at T covers the hour starting at T. */
+/**
+ * Open-Meteo hourly → windows. The value at T is the preceding-hour sum
+ * (Open-Meteo aggregates precipitation backwards; same convention as
+ * minutely_15), so the window opens at T − 60 min.
+ */
 export function seriesFromHourly(points?: HourlyForecast[]): RainStep[] {
   if (!points?.length) return [];
   const out: RainStep[] = [];
   for (const p of points) {
-    const start = toEpoch(p.time);
-    if (!Number.isFinite(start) || !Number.isFinite(p.precipitation)) continue;
-    out.push({ startMs: start, endMs: start + HOURLY_STEP_MIN * 60_000, mm: p.precipitation });
+    const end = toEpoch(p.time);
+    if (!Number.isFinite(end) || !Number.isFinite(p.precipitation)) continue;
+    out.push({ startMs: end - HOURLY_STEP_MIN * 60_000, endMs: end, mm: p.precipitation });
   }
   return out;
 }
@@ -164,6 +169,9 @@ export function computeRainStart(input: ComputeRainStartInput): RainStartForecas
 
   const gridStarts = new Set(grid.map((s) => s.startMs));
   const series = merged.filter((s) => s.startMs < now + horizonMs);
+  // A tiny custom horizon can drop every merged window (all start beyond
+  // it) — bail instead of dereferencing an empty tail below.
+  if (series.length === 0) return null;
   const lastEnd = series[series.length - 1].endMs;
   const horizonMinutes = Math.max(0, Math.round((lastEnd - now) / 60_000));
 

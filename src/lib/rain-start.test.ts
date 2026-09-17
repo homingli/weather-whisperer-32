@@ -2,7 +2,7 @@
 // The window semantics under test:
 //   - HKO step ending at T covers (T−30 min, T]
 //   - minutely_15 value at T is the preceding-15-minute sum → (T−15 min, T]
-//   - hourly value at T covers the bucket starting at T
+//   - hourly value at T is the preceding-hour sum → (T−60 min, T]
 
 import { describe, it, expect } from 'vitest';
 import {
@@ -28,7 +28,7 @@ function minutelyPoints(values: number[], startUnix = NOW / 1000): MinutelyPreci
   }));
 }
 
-/** Raw hourly points at T, T+1h, … (value = bucket starting at T). */
+/** Raw hourly points at T, T+1h, … (value = preceding-hour sum). */
 function hourlyPoints(values: number[], startUnix = NOW / 1000): HourlyForecast[] {
   return values.map((precipitation, i) => ({
     time: new Date((startUnix + i * HOURLY_STEP_MIN * 60) * 1000),
@@ -74,11 +74,12 @@ describe('seriesFromMinutely', () => {
 });
 
 describe('seriesFromHourly', () => {
-  it('opens each window at the bucket timestamp', () => {
+  it('opens each window 60 minutes before the timestamp (preceding sum)', () => {
     const steps = seriesFromHourly(hourlyPoints([0.2, 0]));
     expect(steps).toHaveLength(2);
+    expect(steps[0].endMs).toBe(NOW);
     expect(steps[0].endMs - steps[0].startMs).toBe(HOURLY_STEP_MIN * MIN);
-    expect(steps[0].startMs).toBe(steps[1].startMs - HOURLY_STEP_MIN * MIN);
+    expect(steps[0].endMs).toBe(steps[1].startMs);
   });
 });
 
@@ -167,13 +168,15 @@ describe('computeRainStart', () => {
   });
 
   it('uses hourly as the fallback series when minutely is missing', () => {
+    // Stamps NOW/NOW+1h/NOW+2h → windows (NOW−1h, NOW] (closed, dropped),
+    // (NOW, NOW+1h] dry, (NOW+1h, NOW+2h] wet → the wet bucket opens at
+    // NOW+60 under the preceding-hour convention.
     const forecast = computeRainStart({
       now: NOW,
-      hourly: seriesFromHourly(hourlyPoints([0, RAIN_THRESHOLD_MM + 0.3])),
+      hourly: seriesFromHourly(hourlyPoints([0, 0, RAIN_THRESHOLD_MM + 0.3])),
     });
     expect(forecast!.status).toBe('rain-expected');
     expect(forecast!.source).toBe('open-meteo');
-    // The wet bucket opens at NOW+60.
     expect(forecast!.startsInMinutes).toBe(HOURLY_STEP_MIN);
     expect(forecast!.horizonMinutes).toBeGreaterThanOrEqual(60);
   });
@@ -195,5 +198,13 @@ describe('computeRainStart', () => {
     }));
     const forecast = computeRainStart({ now: NOW, minutely: many });
     expect(forecast!.series.length).toBe(MAX_SERIES_STEPS);
+  });
+
+  it('returns null when the horizon filter drops every merged window', () => {
+    // A window 90–120 min out survives the history filter but starts beyond
+    // a 60-min horizon — the merge must bail instead of crashing on the
+    // empty tail.
+    const later = nowcastSeries([0], NOW + 120 * MIN);
+    expect(computeRainStart({ now: NOW, nowcast: later, horizonMinutes: 60 })).toBeNull();
   });
 });

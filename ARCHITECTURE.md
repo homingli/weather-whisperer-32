@@ -218,7 +218,7 @@ The orchestrator at `src/lib/weather-manager.ts` is the single point of entry fo
 The banner answers "when will it rain?" by merging three series into one timeline. All series are normalized to explicit rain windows `{ startMs, endMs, mm }` because their native semantics differ:
 - **HKO gridded nowcast** (0–2 h, ~1 km cells): step ending at `T` covers `(T−30 min, T]`. Sampled at the selected location via `sampleRainGridAt` (nearest cell). Only present when the rain map has populated the query cache — the CSV stays opt-in.
 - **Open-Meteo `minutely_15`** (`WeatherData.minutely`, fetched in the unified call): value at `T` is the preceding-15-minute sum → `(T−15 min, T]`.
-- **Open-Meteo hourly** (fallback when minutely is missing): value at `T` covers the bucket starting at `T`.
+- **Open-Meteo hourly** (fallback when minutely is missing): value at `T` is the preceding-hour sum → covers `(T−60 min, T]` (Open-Meteo aggregates precipitation backwards for both hourly and `minutely_15`).
 
 Merge rules: dedupe by window start with the nowcast winning shared slots (both grids sit on whole-minute UTC boundaries since HKT is a whole-hour offset), drop closed windows, verdict from the first window ≥ `RAIN_THRESHOLD_MM` (0.1 mm). Status is `raining-now` (window straddling now is wet, `endsAt` when a dry window follows), `rain-expected` (startsAt/startsInMinutes), or `no-rain` (within `horizonMinutes`).
 
@@ -402,14 +402,14 @@ Timeouts throw → trigger React Query retry. No `Cache-Control` headers set or 
 `weather-last-known-v2` is the new persistence layer. The app reads it synchronously on mount, clears it on city switch, and overwrites it on every successful `fetchWeather` call. The envelope's `cityId` (lat/lon rounded to 2 decimal places) prevents cross-city paint. A schema version mismatch or parse error causes a silent drop rather than a crash.
 
 ## Testing strategy
-The project uses **Vitest** with jsdom. Coverage is split across layers (**444 tests**, 33 files):
+The project uses **Vitest** with jsdom. Coverage is split across layers (**450 tests**, 34 files):
 - **Unit tests** (lib/):
   - `src/lib/weather.test.ts` (2): Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
   - `src/lib/weather/hko-codes.test.ts` (15): WMO weather-code descriptions and icons.
   - `src/lib/hko-weather.test.ts` (47): PSR normalization/percentage/umbrella, PSR translation, station/district lookup, bounds checks, HKO icon mapping, warning display helpers.
   - `src/lib/weather-manager.test.ts` (21): all `fetchWeather` orchestration branches: HK/non-HK routing, parallel fetch + merge, HKO fallback, both-fail, progress callbacks, `lang` propagation.
   - `src/lib/devWarningSimulator.test.ts` (14): simulated warnings CRUD, baseline nonce bumping, dev-only environment isolation.
-  - `src/lib/units.test.ts` (29), `src/lib/parsers.test.ts` (23), `src/lib/share-forecast.test.ts` (4), `src/lib/rain-start.test.ts` (14): share-message header/day-line/link shape and °F conversion; window normalization for the Open-Meteo `minutely_15`/hourly and HKO-grid series, merge dedupe with the grid preferred on shared slots, verdict branches (rain expected, raining-now with/without end, trace amounts treated as dry), source attribution, horizon and series capping. `src/lib/rainfallGrid.test.ts` (14), `src/lib/rainfallGeoJson.test.ts` (1), `src/lib/nowcastCache.test.ts` (20), `src/lib/msc-wms.test.ts` (21), `src/lib/msc-prefetch.test.ts` (16), `src/lib/sw-observability.test.ts` (13), `src/lib/carto.test.ts` (3), `src/lib/weather/storage.test.ts` (13).
+  - `src/lib/units.test.ts` (29), `src/lib/parsers.test.ts` (23), `src/lib/share-forecast.test.ts` (4), `src/lib/rain-start.test.ts` (15): share-message header/day-line/link shape and °F conversion; window normalization for the Open-Meteo `minutely_15`/hourly and HKO-grid series (both preceding-sum), merge dedupe with the grid preferred on shared slots, verdict branches (rain expected, raining-now with/without end, trace amounts treated as dry), source attribution, horizon and series capping. `src/lib/rainfallGrid.test.ts` (14), `src/lib/rainfallGeoJson.test.ts` (1), `src/lib/nowcastCache.test.ts` (20), `src/lib/msc-wms.test.ts` (21), `src/lib/msc-prefetch.test.ts` (16), `src/lib/sw-observability.test.ts` (13), `src/lib/carto.test.ts` (3), `src/lib/weather/storage.test.ts` (13).
   - `src/lib/__fixtures__/`: live HKO `warnsum` response snapshots (EN + TC, captured 2026-07-31). Used by `WeatherAlerts.test.tsx` to lock the uppercase `CANCEL` regression against the real API shape.
 - **Hook tests** (hooks/):
   - `src/hooks/useWarningChangeDetector.test.ts` (18): diff semantics, baseline reset on `resetKey`, case-insensitive `CANCEL` filtering, `Reissue` no-diff.
@@ -421,6 +421,7 @@ The project uses **Vitest** with jsdom. Coverage is split across layers (**444 t
   - `src/components/DailyForecast.test.tsx` (4): Swiper carousel rendering, forecast cards, precipitation probability.
   - `src/components/LocalClock.test.tsx` (6): wide-viewport renders HH:MM:SS with 1s interval; narrow-viewport (via `matchMedia` stub) drops seconds, uses 60s interval aligned to the next minute boundary.
   - `src/components/AtAGlance.test.tsx` (13): empty/sentinel-day rendering, per-day temperature-button sentences in metric and US units, rain-chip button vs static-text fallback (nowcast reachable or not), rain-chance 20 % cutoff (visible text and aria-labels), no-chevron regression, Traditional Chinese labels, `onReveal` / `onRevealNowcast` activation.
+  - `src/components/RainStartBanner.test.tsx` (4): rain-expected / raining-now / no-rain verdict copy, city-wide qualifier, live-region content stable across minute ticks (countdown clause excluded), renders nothing when no series is usable.
   - `src/components/OfflineIndicator.test.tsx` (5): hidden while online, badge appears on `offline` event / offline-at-mount, hides on `online` event, Traditional Chinese string.
   - `src/components/WeatherAlerts.test.tsx` (12): HKO warning rendering, modal open/close, warning detail display, cancellation filter (mixed-case + uppercase `CANCEL`), live-fixture replay of the 2026-07-31 cancelled amber rainstorm regression (EN + TC), TC/rainstorm signal icons, pulse animation.
   - `src/components/WeatherBanners.test.tsx` (8), `src/components/SettingsMenu.test.tsx` (23).
