@@ -160,4 +160,8 @@ export const TIMING = {
    *  refresh loop but the feed only updates hourly, so a 15-min TTL keeps
    *  the proxy hits polite without a dedicated timer. */
   AQHI_TTL_MS: 15 * 60 * 1000,
+  /** EPD AQHI feed fetch timeout. Shorter than HKO's 8s on purpose: AQHI
+   *  rides the same Promise.all as warnings/daily, and an enhancement
+   *  must not stall the critical trio for its full timeout every 15 min. */
+  AQHI_TIMEOUT_MS: 3000,
 } as const;

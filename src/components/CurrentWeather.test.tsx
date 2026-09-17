@@ -577,6 +577,18 @@ describe('CurrentWeather Component', () => {
       expect(container.textContent).toContain('Air Quality (AQHI)');
     });
 
+    it('keeps the grid up when AQHI is quiet but a base metric is not', () => {
+      // Regression for the first grid fix: 3 base quiet + AQHI quiet counts
+      // to 4 quiet items, but the loud fourth base metric (uv 5) must still
+      // render its full widget.
+      const uvLoud = { ...mockWeather, uvIndex: 5, humidity: 45, windSpeed: 2, aqhiIndex: 2, aqhiLevel: 'low' as const };
+      const { container } = renderWeather(uvLoud);
+      expect(screen.queryByTestId('quiet-uv')).toBeNull();
+      expect(screen.getByTestId('quiet-aqhi')).toBeInTheDocument();
+      // Full UvChip renders (uv 5 → "Moderate" band label).
+      expect(container.textContent).toContain('Moderate');
+    });
+
     it('localizes the band label under tc (aqhi 11 → 很高)', () => {
       // 很高 (Very High) starts at index 11 — 8 would be 高 (High).
       function LangProbe() {
