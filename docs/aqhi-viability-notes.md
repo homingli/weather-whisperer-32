@@ -19,15 +19,15 @@ A working vertical slice, all tests green (`440 passing`):
 - `src/lib/weather-manager.ts` — the both-live merge rebuilds `current` from
   Open-Meteo, so AQHI fields are re-attached explicitly there.
 - `src/components/CurrentWeather.tsx` — `AqhiChip` full widget (mirrors
-  `UvChip`: value + colored EPD band label + 4-segment band bar) and a quiet
-  chip when AQHI ≤ 3 (Low). Renders only when data exists.
+  `UvChip`: value + colored EPD band label + five-segment band bar) and a
+  quiet chip when AQHI ≤ 3 (Low). Renders only when data exists.
 - `vercel.json` + `vite.config.ts` — same-origin `/aqhi-rss/*` proxy (Vercel
   rewrite in prod, Vite dev proxy in dev), the same pattern as `/hko-data/*`,
   plus a service-worker NetworkFirst rule (1h, matches EPD publish cadence).
 - `src/contexts/LanguageContext.tsx` — `weather.aqhi`, `aqhi.low/moderate/
-  high/veryHigh` in en + tc.
+  high/veryHigh/serious` in en + tc.
 - Tests: `hko-aqhi.test.ts` (parser, bands, nearest, silent degradation) and
-  5 component tests incl. a grid-visibility regression.
+  component tests incl. grid-visibility regressions.
 
 ## Evidence collected (Sep 2026)
 
