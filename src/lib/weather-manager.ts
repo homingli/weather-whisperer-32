@@ -249,7 +249,6 @@ export async function fetchWeather(
       ...(hkoCurrentTemperature != null ? { temperature: hkoCurrentTemperature } : {}),
       ...(aqhi ? {
         aqhiIndex: aqhi.index,
-        aqhiLevel: aqhi.level,
         aqhiStation: aqhi.station,
       } : {}),
     },

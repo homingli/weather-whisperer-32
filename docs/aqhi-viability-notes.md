@@ -5,13 +5,14 @@ data source, transport, parsing, pipeline, and UI slot are all proven below.
 
 ## What this branch contains
 
-A working vertical slice, all tests green (`431 passing`):
+A working vertical slice, all tests green (`440 passing`):
 
 - `src/lib/hko-aqhi.ts` — EPD RSS fetcher (`getHKOAQHI`), regex parser,
   18-station coordinate table, `aqhiLevelFor` band derivation, nearest-station
   lookup. Fetch failure returns `null` (never throws).
-- `src/lib/weather/types.ts` — `aqhiIndex` / `aqhiLevel` / `aqhiStation` on
-  `CurrentWeather` (undefined ⇒ UI renders nothing, HK-only metric).
+- `src/lib/weather/types.ts` — `aqhiIndex` / `aqhiStation` on `CurrentWeather`
+  (undefined ⇒ UI renders nothing, HK-only metric; band derived for display
+  via `aqhiLevelFor`, so no redundant level field is persisted).
 - `src/lib/hko-fetch.ts` — AQHI joins the parallel fetch in
   `getHKODailyAndWarnings` (non-fatal `.catch`); `buildHKOWeatherData` attaches
   it to `current`. Covers both the merged path and the HKO-only fallback path.
@@ -46,9 +47,16 @@ A working vertical slice, all tests green (`431 passing`):
    parser here never reads the level word — it extracts the station title and
    numeric value only, then derives the band from the value. Validated against
    live bytes: 18/18 items parse, 0 warnings.
-5. **Bands verified against the feed's own labels.** Live data shows value 3
-   labeled "Low" and 4 "Moderate" ⇒ Low 1–3, Moderate 4–7, High 8–10, Very
-   High 10+. (The issue body's table agrees.)
+5. **Band boundaries — CORRECTED 18 Sep 2026 against the official table.**
+   EPD's health-risk scale has FIVE categories (gov.hk/en/residents/
+   environment/air/aqhi.htm, en + tc verified): Low 1–3, Moderate 4–6,
+   High 7, Very High 8–10, Serious 10+; TC terms 低/中/高/甚高/嚴重.
+   The issue body's four-band table (Moderate 4–7, High 8–10, Very High
+   >10) is wrong, and an earlier draft of this spike shipped it — the live
+   feed's own "3→Low, 4→Moderate" labels cannot discriminate the 6/7 and
+   7/8 boundaries, so that spot-check proved less than it appeared to.
+   `aqhiLevelFor` in hko-aqhi.ts is the single source of truth for
+   value → band; the UI band table keys off its levels.
 6. **Feed cadence:** `pubDate`/`lastBuildDate` update hourly (hourly AQHI is
    EPD's published maximum reporting interval).
 

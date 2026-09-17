@@ -3,6 +3,7 @@ import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, ge
 import type { HeadlineInfo } from "@/lib/weather";
 import type { LucideIcon } from "lucide-react";
 import { SENTINEL_THRESHOLD, QUIET } from "@/lib/constants";
+import { aqhiLevelFor, type AqhiLevel } from "@/lib/hko-aqhi";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, AlertTriangle, Moon, Activity } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
@@ -103,20 +104,25 @@ function uvBandFor(uv: number | null): UvBand {
 }
 
 /* ── AQHI banding (EPD health-risk categories) ─────────────────────── */
-type AqhiBand = { max: number; bg: string; labelKey: string };
+// Band VALUES (which index maps to which level) live solely in
+// `aqhiLevelFor` (hko-aqhi.ts) — this table only attaches display colors
+// and labels to each level, so the two can never drift. Serious is
+// rendered maroon: past Very High red, matching EPD's 10+ escalation.
+type AqhiBand = { level: AqhiLevel; bg: string; labelKey: string };
 
 const AQHI_BANDS: AqhiBand[] = [
-  { max: 3,    bg: "#16a34a", labelKey: "aqhi.low" },
-  { max: 7,    bg: "#facc15", labelKey: "aqhi.moderate" },
-  { max: 10,   bg: "#f97316", labelKey: "aqhi.high" },
-  { max: 1000, bg: "#dc2626", labelKey: "aqhi.veryHigh" },
+  { level: "low",       bg: "#16a34a", labelKey: "aqhi.low" },
+  { level: "moderate",  bg: "#facc15", labelKey: "aqhi.moderate" },
+  { level: "high",      bg: "#f97316", labelKey: "aqhi.high" },
+  { level: "veryHigh",  bg: "#dc2626", labelKey: "aqhi.veryHigh" },
+  { level: "serious",   bg: "#7f1d1d", labelKey: "aqhi.serious" },
 ];
 
 /** Null-safe band lookup; null yields the unavailable sentinel like uvBandFor. */
 function aqhiBandFor(index: number | null | undefined): AqhiBand {
-  if (index == null) return { max: 0, bg: "transparent", labelKey: "aqhi.low" };
-  for (const b of AQHI_BANDS) if (index <= b.max) return b;
-  return AQHI_BANDS[AQHI_BANDS.length - 1];
+  if (index == null) return { level: "low", bg: "transparent", labelKey: "aqhi.low" };
+  const level = aqhiLevelFor(index);
+  return AQHI_BANDS.find((b) => b.level === level) ?? AQHI_BANDS[AQHI_BANDS.length - 1];
 }
 
 /* ── Rainfall bands, mirrors the nowcast map legend ───────────────── */
@@ -851,9 +857,8 @@ function AqhiChip({
         </span>
       </div>
       <div className="relative flex h-2 overflow-hidden border border-foreground/15" aria-hidden="true">
-        {AQHI_BANDS.map((b, i) => {
-          const priorMax = i > 0 ? AQHI_BANDS[i - 1].max : 0;
-          const segActive = index > priorMax && index <= b.max;
+        {AQHI_BANDS.map((b) => {
+          const segActive = index != null && b.level === aqhiLevelFor(index);
           return (
             <div
               key={b.labelKey}

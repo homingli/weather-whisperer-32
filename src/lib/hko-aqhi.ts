@@ -21,14 +21,12 @@ import { logParseWarnings } from './parsers';
 import { TIMING } from './constants';
 import { getDistanceFromLatLon } from './hko-stations';
 
-export type AqhiLevel = 'low' | 'moderate' | 'high' | 'veryHigh';
+export type AqhiLevel = 'low' | 'moderate' | 'high' | 'veryHigh' | 'serious';
 
 /** A resolved AQHI reading for the user's location. */
 export interface AqhiReading {
   /** AQHI value (1–10+, EPD scale) */
   index: number;
-  /** Health-risk band, derived from `index` */
-  level: AqhiLevel;
   /** Station title in the fetch language (e.g. "Central/Western" / "中西區") */
   station: string;
 }
@@ -75,14 +73,20 @@ export const EPD_AQHI_STATIONS: EpdAqhiStation[] = [
   { en: 'Mong Kok', tc: '旺角', lat: 22.3196, lon: 114.1686, type: 'roadside' },
 ];
 
-/** EPD health-risk bands. Verified against the live feed's own labeling
- *  (3 Sep 2026 + 17 Sep 2026 samples): value 3 reads "Low", 4 reads
- *  "Moderate", i.e. Low is 1–3 and Moderate 4–7. */
+/** EPD health-risk bands — the official five-category table
+ *  (gov.hk/en/residents/environment/air/aqhi.htm, verified 18 Sep 2026):
+ *  Low 1–3, Moderate 4–6, High 7, Very High 8–10, Serious 10+.
+ *  NOTE: the issue body's table (Moderate 4–7, High 8–10, Very High >10,
+ *  four categories) is wrong — an earlier draft of this spike shipped it.
+ *  This function is the single source of truth for value → band; the UI
+ *  band table in CurrentWeather.tsx keys off these levels, so the two
+ *  cannot drift. */
 export function aqhiLevelFor(value: number): AqhiLevel {
   if (value <= 3) return 'low';
-  if (value <= 7) return 'moderate';
-  if (value <= 10) return 'high';
-  return 'veryHigh';
+  if (value <= 6) return 'moderate';
+  if (value <= 7) return 'high';
+  if (value <= 10) return 'veryHigh';
+  return 'serious';
 }
 
 /** Nearest general EPD station to the given coordinates, with its feed
@@ -118,7 +122,9 @@ export function parseAqhiRss(xml: string): { data: AqhiFeedItem[]; warnings: str
     // Title may be CDATA-wrapped like descriptions (strip if present).
     const title = item.match(/<title\b[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)?.[1]?.trim();
     // Description may be CDATA-wrapped; strip the wrapper if present.
-    const rawDesc = item.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/)?.[1] ?? '';
+    // `\b[^>]*` tolerates attributed tags (<description type="html">) —
+    // same drift-hardening as <item>/<title> above.
+    const rawDesc = item.match(/<description\b[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/)?.[1] ?? '';
     // Tolerant of EN "General Stations:" / "Roadside Stations:" and TC
     // "一般監測站:" / "路邊監測站:" with full-width or ASCII colon.
     const valueMatch = rawDesc.match(/(?:Stations?|監測站)\s*[:：]\s*(\d+)/);
@@ -209,5 +215,5 @@ export async function getHKOAQHI(
   const nearest = findNearestAqhiStation(lat, lon, lang);
   const match = nearest ? items.find(r => r.station === nearest.title) : undefined;
   if (!match) return null;
-  return { index: match.value, level: aqhiLevelFor(match.value), station: match.station };
+  return { index: match.value, station: match.station };
 }
