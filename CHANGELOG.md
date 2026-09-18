@@ -7,6 +7,15 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
 ## Unreleased
 
 ### Added
+- **Share the forecast with friends.** A new share icon in the 7-day
+  forecast card composes the upcoming days into a short message —
+  "Weather in Hong Kong for the coming days: ☀️ Sat, Sep 19 · Clear
+  sky · 24–28°C 🌧️ Sun, Sep 20 · Light rain · 60% rain …" plus a link
+  to the app — and opens the phone's share sheet so you can send it
+  straight to the group chat before an outdoor event. On devices
+  without a share sheet the message is copied with a confirmation
+  toast, ready to paste. Temps follow your unit setting and the
+  message renders in English or Traditional Chinese to match the app.
 - **Offline indicator in the top bar.** A small amber "Currently offline"
   chip appears next to the clock the moment the browser reports it is
   offline, and disappears when connectivity returns — at which point the

@@ -7,6 +7,7 @@ import { formatTemperature, formatWindSpeed, windSpeedUnitLabel } from "@/lib/un
 import { translatePsr } from "@/lib/hko-weather";
 import { getDateTimeFormatter, formatInTimezone, appLocale } from "@/lib/utils";
 import { useMemo, useCallback, memo, useRef } from "react";
+import { ShareForecastButton } from "@/components/ShareForecastButton";
 import {
   Bar,
   BarChart,
@@ -21,6 +22,8 @@ import {
 interface DailyForecastProps {
   forecast: DailyForecastType[];
   timezone?: string;
+  /** Display name of the selected city — used by the share button. */
+  cityName?: string;
 }
 
 function ymdInTimezone(date: Date, timeZone: string): string {
@@ -47,7 +50,7 @@ function tomorrowYmdInTimezone(timeZone: string): string {
   }).format(next);
 }
 
-export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) => {
+export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForecastProps) => {
   const { language, t } = useLanguage();
   const { units } = useUnits();
   const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -140,9 +143,12 @@ export const DailyForecast = memo(({ forecast, timezone }: DailyForecastProps) =
         <h3 className="kicker text-muted-foreground font-display text-lg">
           {t("daily.title")}
         </h3>
-        <span className="kicker text-muted-foreground/60 text-sm">
-          {t('daily.lookAhead')}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="kicker text-muted-foreground/60 text-sm">
+            {t('daily.lookAhead')}
+          </span>
+          <ShareForecastButton cityName={cityName ?? ''} days={forecast} timezone={timezone} />
+        </div>
       </div>
 
       <div className="df-rule h-px editorial-rule mt-3 mb-4" />

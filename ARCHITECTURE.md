@@ -141,6 +141,7 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `CurrentWeather.tsx`: Hero section displaying real-time conditions
   - `HourlyForecast.tsx`: Interactive 6-hour line chart (temperature & precipitation); day/night `ReferenceArea` bands and sun-event `ReferenceLine` markers when `daily` prop is provided
   - `DailyForecast.tsx`: 7-day forecast with min/max bounds
+  - `ShareForecastButton.tsx`: share icon in the daily-forecast card header. Builds a chat-friendly message of the upcoming days (emoji condition, low–high, rain chance, app link) via `buildForecastShareText`, then hands it to the Web Share API so the user can pick the friends/chat to send it to; falls back to clipboard copy + toast when `navigator.share` is unavailable or fails (share-sheet dismissal is silent).
   - `AtAGlance.tsx`: at-a-glance strip between hero and daily forecast — one day group per day (today + tomorrow: low→high range, rain ≥20 %; wind intentionally omitted, it lives on the daily cards), sharing a line when they fit and wrapping per day when they don't; one button whose `aria-label` is a full sentence per day; `onReveal` scrolls to / advances to the daily forecast
   - `RainfallMap.tsx`: Chunk-split wrapper → `RainfallMapInner` (HKO gridded nowcast) via lazy loading. Shows "Load Map" prompt. Error boundary catches lazy-chunk load failures.
   - `RainfallMapInner.tsx`: HKO gridded nowcast (CSV parsed → GeoJSON, time-slider, timeline step buttons). Fetches CSV into `RainGrid`, converts client-side to GeoJSON using `[longitude, latitude]` coordinates. Query with `staleTime: NOWCAST_CACHE_TTL_MS`, `refetchInterval: NOWCAST_REFETCH_INTERVAL_MS (30 min)`, `retry: 1`.
@@ -191,6 +192,7 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `msc-prefetch.ts`: MSC data prefetching strategy (tiered by connection type)
   - `rainfallBands.ts`: Rainfall color band definitions
   - `units.ts`: Unit conversion (`°C→°F`, `km/h→mph`, `mm→in`)
+  - `share-forecast.ts`: Pure share-message builder for the daily forecast (see `ShareForecastButton`). Emojis come from `getWeatherIcon`, rain chance from `precipitationProbabilityMax` or the HKO PSR level via `psrToPercentage`, and dates render in the city's timezone per app language. Takes a `translate` callback so it stays framework-free.
   - `queryPersistence.ts`: React Query localStorage persistence via `@tanstack/query-persist-client-core` (512 KB cap, schema-versioned)
   - `sw-observability.ts`: Service worker metrics
 - `src/pages/`: Application routing layers
@@ -388,14 +390,14 @@ Timeouts throw → trigger React Query retry. No `Cache-Control` headers set or 
 `weather-last-known-v2` is the new persistence layer. The app reads it synchronously on mount, clears it on city switch, and overwrites it on every successful `fetchWeather` call. The envelope's `cityId` (lat/lon rounded to 2 decimal places) prevents cross-city paint. A schema version mismatch or parse error causes a silent drop rather than a crash.
 
 ## Testing strategy
-The project uses **Vitest** with jsdom. Coverage is split across layers (**414 tests**, 31 files):
+The project uses **Vitest** with jsdom. Coverage is split across layers (**418 tests**, 32 files):
 - **Unit tests** (lib/):
   - `src/lib/weather.test.ts` (2): Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
   - `src/lib/weather/hko-codes.test.ts` (15): WMO weather-code descriptions and icons.
   - `src/lib/hko-weather.test.ts` (47): PSR normalization/percentage/umbrella, PSR translation, station/district lookup, bounds checks, HKO icon mapping, warning display helpers.
   - `src/lib/weather-manager.test.ts` (21): all `fetchWeather` orchestration branches: HK/non-HK routing, parallel fetch + merge, HKO fallback, both-fail, progress callbacks, `lang` propagation.
   - `src/lib/devWarningSimulator.test.ts` (14): simulated warnings CRUD, baseline nonce bumping, dev-only environment isolation.
-  - `src/lib/units.test.ts` (29), `src/lib/parsers.test.ts` (20), `src/lib/rainfallGrid.test.ts` (8), `src/lib/rainfallGeoJson.test.ts` (1), `src/lib/nowcastCache.test.ts` (20), `src/lib/msc-wms.test.ts` (21), `src/lib/msc-prefetch.test.ts` (16), `src/lib/sw-observability.test.ts` (13), `src/lib/carto.test.ts` (3), `src/lib/weather/storage.test.ts` (13).
+  - `src/lib/units.test.ts` (29), `src/lib/parsers.test.ts` (20), `src/lib/share-forecast.test.ts` (4): share-message header/day-line/link shape, °F conversion, PSR→percentage mapping, Traditional Chinese rendering. `src/lib/rainfallGrid.test.ts` (8), `src/lib/rainfallGeoJson.test.ts` (1), `src/lib/nowcastCache.test.ts` (20), `src/lib/msc-wms.test.ts` (21), `src/lib/msc-prefetch.test.ts` (16), `src/lib/sw-observability.test.ts` (13), `src/lib/carto.test.ts` (3), `src/lib/weather/storage.test.ts` (13).
   - `src/lib/__fixtures__/`: live HKO `warnsum` response snapshots (EN + TC, captured 2026-07-31). Used by `WeatherAlerts.test.tsx` to lock the uppercase `CANCEL` regression against the real API shape.
 - **Hook tests** (hooks/):
   - `src/hooks/useWarningChangeDetector.test.ts` (18): diff semantics, baseline reset on `resetKey`, case-insensitive `CANCEL` filtering, `Reissue` no-diff.

@@ -296,6 +296,15 @@ const translations: Record<Language, Record<string, string>> = {
 
     // PWA install button (visible label)
     'pwa.install': 'Install',
+
+    // Share forecast (ShareForecastButton / share-forecast.ts) — compose the
+    // upcoming days into a message the user can send to friends.
+    'share.forecast': 'Share forecast',
+    'share.title': 'Weather outlook',
+    'share.header': 'Weather in {0} for the coming days:',
+    'share.rainChance': '{0}% rain',
+    'share.copied': 'Forecast copied — paste it to your friends',
+    'share.copyFailed': 'Could not copy the forecast',
   },
   tc: {
     // Header
@@ -571,6 +580,15 @@ const translations: Record<Language, Record<string, string>> = {
 
     // PWA install button (visible label)
     'pwa.install': '安裝',
+
+    // Share forecast（ShareForecastButton / share-forecast.ts）— 把未來數日
+    // 天氣組成訊息，方便傳給朋友。
+    'share.forecast': '分享天氣預報',
+    'share.title': '天氣概況',
+    'share.header': '{0}未來幾日天氣：',
+    'share.rainChance': '降雨 {0}%',
+    'share.copied': '已複製天氣預報，貼給朋友吧',
+    'share.copyFailed': '無法複製天氣預報',
   },
 };
 
