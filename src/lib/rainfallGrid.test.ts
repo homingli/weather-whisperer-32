@@ -6,6 +6,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buildRainGrid,
   parseRainfallCSVText,
+  sampleRainGridAt,
+  hkoStepEndToEpoch,
   type CellRow,
 } from './rainfallGrid';
 
@@ -177,5 +179,73 @@ describe('buildRainGrid', () => {
     expect(grid!.values[0]).toBe(0.5);
     // step=0, row=2, col=2 → idx 2*3 + 2 = 8.
     expect(grid!.values[2 * 3 + 2]).toBe(2.5);
+  });
+});
+
+describe('stepEndTimesRaw', () => {
+  it('carries the raw YYYYMMDDHHmm step-end timestamps in step order', () => {
+    const rows: CellRow[] = [
+      { endTime: '202605171700', lat: 22.31, lon: 114.17, value: 12.5 },
+      { endTime: '202605171630', lat: 22.31, lon: 114.17, value: 1.5 },
+    ];
+
+    const grid = buildRainGrid(rows);
+    expect(grid).not.toBeNull();
+    // Steps are ordered by first appearance in the CSV, matching stepTimes.
+    expect(grid!.stepTimes).toEqual(['17:00', '16:30']);
+    expect(grid!.stepEndTimesRaw).toEqual(['202605171700', '202605171630']);
+  });
+});
+
+describe('hkoStepEndToEpoch', () => {
+  it('converts HK local step-end timestamps to UTC epochs (fixed UTC+8)', () => {
+    // 2026-05-17 16:30 HKT === 08:30 UTC.
+    expect(hkoStepEndToEpoch('202605171630')).toBe(Date.UTC(2026, 4, 17, 8, 30));
+  });
+
+  it('returns null for malformed input', () => {
+    expect(hkoStepEndToEpoch('')).toBeNull();
+    expect(hkoStepEndToEpoch('20260517')).toBeNull();
+    expect(hkoStepEndToEpoch('not-a-date!!!')).toBeNull();
+    expect(hkoStepEndToEpoch('202613171630')).toBeNull(); // month 13
+  });
+});
+
+describe('sampleRainGridAt', () => {
+  // 2×2 grid, 2 steps. values[step * 4 + row * 2 + col].
+  function makeGrid() {
+    return buildRainGrid([
+      { endTime: '202605171630', lat: 22.31, lon: 114.17, value: 1.5 },
+      { endTime: '202605171630', lat: 22.31, lon: 114.18, value: 2.0 },
+      { endTime: '202605171630', lat: 22.33, lon: 114.17, value: 3.0 },
+      { endTime: '202605171630', lat: 22.33, lon: 114.18, value: 4.0 },
+      { endTime: '202605171700', lat: 22.31, lon: 114.17, value: 5.5 },
+      // Other cells stay dry in step 1 (0 in the Float32Array).
+    ])!;
+  }
+
+  it('returns mm per step at the nearest cell', () => {
+    const grid = makeGrid();
+    const values = sampleRainGridAt(grid, 22.312, 114.171);
+    expect(values).not.toBeNull();
+    expect(Array.from(values!)).toEqual([1.5, 5.5]);
+    // Nearest cell to the NE corner.
+    const ne = sampleRainGridAt(grid, 22.329, 114.179);
+    expect(ne![0]).toBe(4.0);
+    expect(ne![1]).toBe(0); // dry in step 1
+  });
+
+  it('accepts points within half a boundary cell outside the domain', () => {
+    const grid = makeGrid();
+    // Half the boundary lat spacing (0.02 / 2 = 0.01) beyond the north edge.
+    const values = sampleRainGridAt(grid, 22.339, 114.175);
+    expect(values).not.toBeNull();
+    expect(values![0]).toBe(3.0);
+  });
+
+  it('returns null for points outside the domain (e.g. Vancouver)', () => {
+    const grid = makeGrid();
+    expect(sampleRainGridAt(grid, 49.28, -123.12)).toBeNull();
+    expect(sampleRainGridAt(grid, 0, 0)).toBeNull();
   });
 });

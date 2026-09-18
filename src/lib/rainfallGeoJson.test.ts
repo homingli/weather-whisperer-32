@@ -11,6 +11,7 @@ describe('rainfallGridToGeoJson', () => {
       cellLons: Float64Array.from([114, 114.02]),
       stepCount: 1,
       stepTimes: ['00:00'],
+      stepEndTimesRaw: ['202609170000'],
       values: Float32Array.from([1, 0, 0, 0]),
     };
     const ring = rainfallGridToGeoJson(grid, 0).features[0].geometry.coordinates[0];
