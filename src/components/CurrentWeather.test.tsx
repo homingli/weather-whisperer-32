@@ -537,6 +537,113 @@ describe('CurrentWeather Component', () => {
     });
   });
 
+  describe('aqhi chip (issue #99 spike)', () => {
+    const renderWeather = (weather: CurrentWeatherType) =>
+      renderWithLanguage(
+        <CurrentWeather
+          weather={weather}
+          hourlyForecast={mockHourly}
+          timezone="UTC"
+          headline={{ source: 'om' }}
+        />
+      );
+
+    it('renders the full widget with EPD band label when AQHI needs attention', () => {
+      const { container } = renderWeather({ ...mockWeather, aqhiIndex: 5, aqhiStation: 'Central/Western' });
+      expect(container.textContent).toContain('Air Quality (AQHI)');
+      expect(container.textContent).toContain('Moderate');
+      expect(screen.queryByTestId('quiet-aqhi')).toBeNull();
+    });
+
+    it('collapses to a quiet chip when AQHI is in the Low band (1-3)', () => {
+      renderWeather({ ...mockWeather, aqhiIndex: 2, aqhiStation: 'Tung Chung' });
+      const chip = screen.getByTestId('quiet-aqhi');
+      expect(chip).toHaveAttribute('aria-label', 'Air Quality (AQHI): 2 Low');
+      expect(chip).toHaveTextContent('Air Quality (AQHI) 2 Low');
+    });
+
+    it('labels 7 as High and 8 as Very High (EPD five-band table)', () => {
+      // Regression: an earlier draft shipped the issue body's four-band
+      // table, which called 7 "Moderate" and 8 "High". EPD: High is 7 only,
+      // Very High starts at 8.
+      const { container: c7 } = renderWeather({ ...mockWeather, uvIndex: 2, humidity: 45, windSpeed: 2, aqhiIndex: 7 });
+      expect(c7.textContent).toContain('High');
+      const { container: c8 } = renderWeather({ ...mockWeather, uvIndex: 2, humidity: 45, windSpeed: 2, aqhiIndex: 8 });
+      expect(c8.textContent).toContain('Very High');
+    });
+
+    it('renders nothing (not even a dash) when the location has no AQHI data', () => {
+      const { container } = renderWeather(mockWeather);
+      expect(screen.queryByTestId('quiet-aqhi')).toBeNull();
+      expect(container.textContent).not.toContain('Air Quality (AQHI)');
+    });
+
+    it('keeps the widget grid up when only AQHI needs attention', () => {
+      // Regression: the grid used to hide when all four base metrics were
+      // quiet; a non-quiet AQHI must stay visible as a full widget.
+      const calm = { ...mockWeather, uvIndex: 2, humidity: 45, windSpeed: 2, aqhiIndex: 5 };
+      const { container } = renderWeather(calm);
+      expect(screen.getByTestId('quiet-uv')).toBeInTheDocument();
+      expect(container.textContent).toContain('Air Quality (AQHI)');
+    });
+
+    it('keeps the grid up when AQHI is quiet but a base metric is not', () => {
+      // Regression for the first grid fix: 3 base quiet + AQHI quiet counts
+      // to 4 quiet items, but the loud fourth base metric (uv 5) must still
+      // render its full widget.
+      const uvLoud = { ...mockWeather, uvIndex: 5, humidity: 45, windSpeed: 2, aqhiIndex: 2 };
+      const { container } = renderWeather(uvLoud);
+      expect(screen.queryByTestId('quiet-uv')).toBeNull();
+      expect(screen.getByTestId('quiet-aqhi')).toBeInTheDocument();
+      // Full UvChip renders (uv 5 → "Moderate" band label).
+      expect(container.textContent).toContain('Moderate');
+    });
+
+    it('localizes the band labels under tc (aqhi 9 → 甚高, aqhi 11 → 嚴重)', () => {
+      // EPD's official TC terms: Very High is 甚高 (8-10), Serious is
+      // 嚴重 (10+) — NOT the 很高 an earlier draft shipped.
+      function LangProbe() {
+        const { setLanguage } = useLanguage();
+        return <button data-testid="flip-tc-aqhi" onClick={() => setLanguage('tc')}>tc</button>;
+      }
+      const { container } = render(
+        <LanguageProvider>
+          <UnitsProvider>
+            <LangProbe />
+            <CurrentWeather
+              weather={{ ...mockWeather, uvIndex: 2, humidity: 45, windSpeed: 2, aqhiIndex: 9 }}
+              hourlyForecast={mockHourly}
+              timezone="UTC"
+              headline={{ source: 'om' }}
+            />
+          </UnitsProvider>
+        </LanguageProvider>
+      );
+      act(() => {
+        screen.getByTestId('flip-tc-aqhi').click();
+      });
+      expect(container.textContent).toContain('甚高');
+      expect(container.textContent).toContain('空氣質素健康指數');
+      expect(container.textContent).not.toContain('很高');
+
+      // Serious band (10+) renders 嚴重 under tc.
+      const { container: serious } = render(
+        <LanguageProvider>
+          <UnitsProvider>
+            <LangProbe />
+            <CurrentWeather
+              weather={{ ...mockWeather, uvIndex: 2, humidity: 45, windSpeed: 2, aqhiIndex: 11 }}
+              hourlyForecast={mockHourly}
+              timezone="UTC"
+              headline={{ source: 'om' }}
+            />
+          </UnitsProvider>
+        </LanguageProvider>
+      );
+      expect(serious.textContent).toContain('嚴重');
+    });
+  });
+
   // ── Temperature caption: H/L + 3h trend (replaces the range bar) ────
   // The old full-width range bar (low ─ current ─ high with a position
   // marker) is gone. In its place one muted line under the hero: today's

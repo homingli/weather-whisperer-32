@@ -238,6 +238,15 @@ const translations: Record<Language, Record<string, string>> = {
     'uv.veryHigh': 'Very High',
     'uv.extreme': 'Extreme',
     'uv.unavailable': 'unavailable',
+    // Air Quality Health Index (EPD feed, HK locations only). Band names are
+    // EPD's official five categories — NOT the four-band table in the issue
+    // body (Very High is 8-10, Serious is 10+).
+    'weather.aqhi': 'Air Quality (AQHI)',
+    'aqhi.low': 'Low',
+    'aqhi.moderate': 'Moderate',
+    'aqhi.high': 'High',
+    'aqhi.veryHigh': 'Very High',
+    'aqhi.serious': 'Serious',
     'unit.kmh': 'km/h',
     // Quiet shelf — aria-label on the icon row holding distilled metrics.
     'quiet.shelfLabel': 'Metrics needing no attention',
@@ -544,6 +553,14 @@ const translations: Record<Language, Record<string, string>> = {
     'uv.veryHigh': '甚高',
     'uv.extreme': '極高',
     'uv.unavailable': '無法取得',
+    // 空氣質素健康指數（環境保護署，僅香港地區）。級別名稱按環保署官方
+    // 五級制：低（1-3）、中（4-6）、高（7）、甚高（8-10）、嚴重（10+）。
+    'weather.aqhi': '空氣質素健康指數',
+    'aqhi.low': '低',
+    'aqhi.moderate': '中',
+    'aqhi.high': '高',
+    'aqhi.veryHigh': '甚高',
+    'aqhi.serious': '嚴重',
     'unit.kmh': '公里/小時',
     // Quiet shelf — aria-label on the icon row holding distilled metrics.
     'quiet.shelfLabel': '無需關注的指標',

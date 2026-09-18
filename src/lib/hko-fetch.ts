@@ -2,6 +2,7 @@
 
 import { CurrentWeather, DailyForecast, WeatherData } from './weather';
 import { HKOCurrentWeatherResponse, HKOForecastResponse, HKOWarning, HKOWarningInfoResponse, HKOWarningSummaryResponse } from './hko-types';
+import { AqhiReading, getHKOAQHI } from './hko-aqhi';
 import { findNearestStation, findNearestDistrict } from './hko-stations';
 import { normalizePsr, psrToPercentage } from './hko-psr';
 import { hkoIconToWeatherCode } from './hko-icons';
@@ -122,11 +123,16 @@ export async function getHKODailyAndWarnings(
   lang: 'en' | 'tc' = 'en',
   lat?: number,
   lon?: number
-): Promise<{ daily: DailyForecast[]; warnings: HKOWarning[]; nearestStation?: string; nearestDistrict?: string; timezone?: string }> {
-  const [forecastData, warningsData, warningInfoData] = await Promise.all([
+): Promise<{ daily: DailyForecast[]; warnings: HKOWarning[]; nearestStation?: string; nearestDistrict?: string; timezone?: string; aqhi?: AqhiReading | null }> {
+  // AQHI rides along non-fatally: the EPD feed is an enhancement, so a
+  // failure leaves `aqhi` null instead of sinking the forecast.
+  const [forecastData, warningsData, warningInfoData, aqhi] = await Promise.all([
     getHKOForecast(lang),
     getHKOWarningSummary(lang),
     getHKOWarningInfo(lang).catch(() => ({ details: [] } as HKOWarningInfoResponse)),
+    lat !== undefined && lon !== undefined
+      ? getHKOAQHI(lang, lat, lon)
+      : Promise.resolve(null),
   ]);
 
   let nearestStation: { name: string; distance: number } | null = null;
@@ -179,12 +185,13 @@ export async function getHKODailyAndWarnings(
     nearestStation: nearestStation?.name,
     nearestDistrict: nearestDistrict?.name,
     timezone: 'Asia/Hong_Kong',
+    aqhi,
   };
 }
 
 export async function buildHKOWeatherData(
   currentHko: HKOCurrentWeatherResponse,
-  dailyAndWarnings: { daily: DailyForecast[]; warnings: HKOWarning[]; nearestStation?: string; nearestDistrict?: string; timezone?: string },
+  dailyAndWarnings: { daily: DailyForecast[]; warnings: HKOWarning[]; nearestStation?: string; nearestDistrict?: string; timezone?: string; aqhi?: AqhiReading | null },
   lat: number,
   lon: number,
   lang: 'en' | 'tc' = 'en'
@@ -238,6 +245,10 @@ export async function buildHKOWeatherData(
     precipitationProbability: dailyAndWarnings.daily[0]?.precipitationProbabilityMax || 0,
     precipitationProbabilityRaw: dailyAndWarnings.daily[0]?.precipitationProbabilityRaw,
     isDay,
+    ...(dailyAndWarnings.aqhi ? {
+      aqhiIndex: dailyAndWarnings.aqhi.index,
+      aqhiStation: dailyAndWarnings.aqhi.station,
+    } : {}),
   };
 
   // HKO does not publish hourly data; return empty array

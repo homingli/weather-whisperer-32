@@ -237,12 +237,21 @@ export async function fetchWeather(
   const isValidDate = (d: Date | undefined | null): d is Date =>
     d instanceof Date && !isNaN(d.getTime()) && d.getTime() > 0;
 
+  // AQHI comes from the EPD feed via getHKODailyAndWarnings; `current` is
+  // rebuilt from OM here, so the fields must be re-attached explicitly.
+  const aqhi = hkoData.aqhi;
+
   const merged: WeatherData = {
     ...omData!,
     headline: headlineFromHkoIcon(hkoCurrentData?.icon),
-    current: hkoCurrentTemperature != null
-      ? { ...omData!.current, temperature: hkoCurrentTemperature }
-      : omData!.current,
+    current: {
+      ...omData!.current,
+      ...(hkoCurrentTemperature != null ? { temperature: hkoCurrentTemperature } : {}),
+      ...(aqhi ? {
+        aqhiIndex: aqhi.index,
+        aqhiStation: aqhi.station,
+      } : {}),
+    },
     daily: (hkoData.daily ?? []).filter(Boolean).map((day: DailyForecast, i: number) => {
       const omDay = omData!.daily[i];
       const omSunrise = omDay?.sunrise;
