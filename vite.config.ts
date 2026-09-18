@@ -22,6 +22,13 @@ export default defineConfig(({ mode }) => {
         target: 'https://data.weather.gov.hk/weatherAPI/hko_data',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/hko-data/, '')
+      },
+      // EPD AQHI RSS (issue #99) — mirrors the Vercel rewrite in prod.
+      // aqhi.gov.hk blocks cross-origin browser reads, same as HKO data.
+      '/aqhi-rss': {
+        target: 'https://www.aqhi.gov.hk/epd/ddata/html/out',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/aqhi-rss/, '')
       }
     }
   },
@@ -144,6 +151,24 @@ export default defineConfig(({ mode }) => {
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 30 * 60, // 30 min, matches NOWCAST_REFETCH_INTERVAL_MS
+                purgeOnQuotaError: true,
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            },
+          },
+          // EPD AQHI RSS via the same-origin proxy (dev Vite proxy / prod
+          // Vercel rewrite). The feed refreshes hourly, so NetworkFirst with
+          // a 1h cap: fresh when online, last-known reading offline.
+          {
+            urlPattern: /\/aqhi-rss\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'aqhi-proxy-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60, // 1h, matches EPD publish cadence
                 purgeOnQuotaError: true,
               },
               cacheableResponse: {

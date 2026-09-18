@@ -25,6 +25,8 @@ export const QUIET = {
   HUMIDITY_MAX: 60,
   /** Calm wind (raw value is always km/h) — below this, compass direction is noise. */
   WIND_KMH: 20,
+  /** AQHI in EPD's "Low" band (1–3): no health precaution needed. */
+  AQHI_MAX: 3,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -154,4 +156,12 @@ export const TIMING = {
   MSC_TIMEOUT_MS: 30000,
   /** HKO warnings / storm signal TTL — push-driven, sub-minute user expectation. Used as the SourceState.ttlMs for HKO since warnings are the most volatile HKO slice in a unified fetch. */
   HKO_WARNINGS_TTL_MS: 60 * 1000,
+  /** EPD AQHI feed min refetch interval. AQHI piggybacks the 5-min weather
+   *  refresh loop but the feed only updates hourly, so a 15-min TTL keeps
+   *  the proxy hits polite without a dedicated timer. */
+  AQHI_TTL_MS: 15 * 60 * 1000,
+  /** EPD AQHI feed fetch timeout. Shorter than HKO's 8s on purpose: AQHI
+   *  rides the same Promise.all as warnings/daily, and an enhancement
+   *  must not stall the critical trio for its full timeout every 15 min. */
+  AQHI_TIMEOUT_MS: 3000,
 } as const;

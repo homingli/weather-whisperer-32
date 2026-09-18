@@ -3,7 +3,8 @@ import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, ge
 import type { HeadlineInfo } from "@/lib/weather";
 import type { LucideIcon } from "lucide-react";
 import { SENTINEL_THRESHOLD, QUIET } from "@/lib/constants";
-import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, AlertTriangle, Moon } from "lucide-react";
+import { aqhiLevelFor, type AqhiLevel } from "@/lib/hko-aqhi";
+import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, AlertTriangle, Moon, Activity } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
 import type { Units } from "@/lib/units";
@@ -102,6 +103,30 @@ function uvBandFor(uv: number | null): UvBand {
   return UV_BANDS[UV_BANDS.length - 1];
 }
 
+/* ── AQHI banding (EPD health-risk categories) ─────────────────────── */
+// Band VALUES (which index maps to which level) live solely in
+// `aqhiLevelFor` (hko-aqhi.ts) — this table only attaches display colors
+// and labels to each level, so the two can never drift. Serious is
+// rendered maroon: past Very High red, matching EPD's 10+ escalation.
+type AqhiBand = { level: AqhiLevel; bg: string; labelKey: string };
+
+const AQHI_BANDS: AqhiBand[] = [
+  { level: "low",       bg: "#16a34a", labelKey: "aqhi.low" },
+  { level: "moderate",  bg: "#facc15", labelKey: "aqhi.moderate" },
+  { level: "high",      bg: "#f97316", labelKey: "aqhi.high" },
+  { level: "veryHigh",  bg: "#dc2626", labelKey: "aqhi.veryHigh" },
+  { level: "serious",   bg: "#7f1d1d", labelKey: "aqhi.serious" },
+];
+
+/** Band lookup by level. The null branch is unreachable through the chip —
+ *  it renders only when `aqhiIndex != null` — and exists for type
+ *  completeness alongside `uvBandFor`. */
+function aqhiBandFor(index: number | null | undefined): AqhiBand {
+  if (index == null) return { level: "low", bg: "transparent", labelKey: "aqhi.low" };
+  const level = aqhiLevelFor(index);
+  return AQHI_BANDS.find((b) => b.level === level) ?? AQHI_BANDS[AQHI_BANDS.length - 1];
+}
+
 /* ── Rainfall bands, mirrors the nowcast map legend ───────────────── */
 type RainBand = { max: number; color: string; label: string };
 
@@ -165,7 +190,10 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
 
   /* Quiet shelf — metrics below their attention thresholds (QUIET in
      lib/constants) stay visible as compact, expanded rows. Empty data is a
-     separate state (legacy grid with dashes). */
+     separate state (legacy grid with dashes). AQHI differs from the others:
+     it renders only when data exists (HK-only metric), so a missing reading
+     drops out of the shelf entirely instead of showing a permanent "—". */
+  const aqhiBand = useMemo(() => aqhiBandFor(weather.aqhiIndex), [weather.aqhiIndex]);
   const quietItems = useMemo<QuietItem[]>(() => {
     if (isEmpty) return [];
     const mm = weather.precipitation ?? 0;
@@ -183,9 +211,20 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
     if (weather.windSpeed < QUIET.WIND_KMH) {
       items.push({ id: 'wind', Icon: Wind, label: t('weather.wind'), value: `${formatWindSpeed(weather.windSpeed, units)} ${windUnit}` });
     }
+    if (weather.aqhiIndex != null && weather.aqhiIndex <= QUIET.AQHI_MAX) {
+      items.push({ id: 'aqhi', Icon: Activity, label: t('weather.aqhi'), value: `${weather.aqhiIndex} ${t(aqhiBand.labelKey)}` });
+    }
     return items;
-  }, [isEmpty, weather, humidityPct, units, t]);
+  }, [isEmpty, weather, humidityPct, units, t, aqhiBand]);
   const quietKeys = useMemo(() => new Set(quietItems.map((i) => i.id)), [quietItems]);
+  // The full-widget grid renders while any metric needs attention. Count
+  // only the four base metrics here: the raw `quietItems.length < 4` check
+  // broke once AQHI joined the pool (3 base + AQHI quiet = 4 → grid hidden
+  // while the fourth base metric still needed attention). A non-quiet AQHI
+  // keeps the grid up through the explicit clause.
+  const baseQuietCount = quietItems.filter((i) => i.id !== 'aqhi').length;
+  const showWidgetGrid = baseQuietCount < 4
+    || (weather.aqhiIndex != null && !quietKeys.has('aqhi'));
 
   const resolvedHeadline: HeadlineInfo = headline ?? HEADLINE_DEFAULT_OM;
   const headlineRender = useMemo(
@@ -314,7 +353,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
         </div>
       ) : (
         <>
-          {quietItems.length < 4 && (
+          {showWidgetGrid && (
             <div className={`grid gap-x-10 gap-y-6 cw-fade ${compact ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
               {!quietKeys.has('precip') && <PrecipBar mm={weather.precipitation ?? 0} empty={false} units={units} />}
               {!quietKeys.has('uv') && <UvChip uv={weather.uvIndex} band={uvBand} label={t('weather.uvIndex')} empty={false} />}
@@ -328,6 +367,9 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
                   unitLabel={units === 'us' ? t('unit.mph', 'mph') : t('unit.kmh', 'km/h')}
                   units={units}
                 />
+              )}
+              {weather.aqhiIndex != null && !quietKeys.has('aqhi') && (
+                <AqhiChip index={weather.aqhiIndex} band={aqhiBand} label={t('weather.aqhi')} station={weather.aqhiStation} />
               )}
             </div>
           )}
@@ -791,6 +833,50 @@ function UvChip({
   );
 }
 
+/* ── AQHI: color-coded chip with EPD health-risk level ──────────────── */
+function AqhiChip({
+  index, band, label, station,
+}: { index: number; band: AqhiBand; label: string; station?: string }) {
+  const { t } = useLanguage();
+  return (
+    <div
+      className="flex flex-col gap-3"
+      aria-label={`${label}: ${index}, ${t(band.labelKey)}${station ? ` — ${station}` : ''}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="kicker text-muted-foreground inline-flex items-center gap-2">
+          <Activity className="h-3.5 w-3.5" />
+          {label}
+        </span>
+        <span className="font-display text-2xl md:text-3xl font-light tabular-nums leading-none">
+          {index}
+          <span
+            className="text-xs ml-2 uppercase tracking-[0.18em] not-italic font-normal"
+            style={{ fontFamily: "'Outfit', sans-serif", color: band.bg }}
+          >
+            {t(band.labelKey)}
+          </span>
+        </span>
+      </div>
+      <div className="relative flex h-2 overflow-hidden border border-foreground/15" aria-hidden="true">
+        {AQHI_BANDS.map((b) => {
+          const segActive = index != null && b.level === aqhiLevelFor(index);
+          return (
+            <div
+              key={b.labelKey}
+              className="flex-1 transition-opacity duration-300"
+              style={{
+                backgroundColor: b.bg,
+                opacity: segActive ? 1 : 0.18,
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ── Precipitation: rainfall nowcast color bar with mm marker ──────── */
 function PrecipBar({
   mm, empty, units,
@@ -891,7 +977,7 @@ function PrecipBar({
 }
 
 /* ── Quiet shelf: expanded compact metrics below attention thresholds ── */
-type QuietKey = 'precip' | 'uv' | 'humidity' | 'wind';
+type QuietKey = 'precip' | 'uv' | 'humidity' | 'wind' | 'aqhi';
 
 interface QuietItem {
   /** Metric identity, also the `quiet-${id}` data-testid. (Not `key` —
