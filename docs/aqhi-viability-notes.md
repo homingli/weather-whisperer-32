@@ -79,11 +79,20 @@ A working vertical slice, all tests green (`440 passing`):
 
 ## Known unknowns
 
-- **Vercel rewrite path is unverified until the PR's preview deploy.** The
-  dev-server proxy is proven (both languages 200), but EPD could treat
-  Vercel's datacenter egress differently than a browser (403 instead of a
-  CORS block). Check the preview URL's `/aqhi-rss/aqhi_ind_rss_Eng.xml`
-  before merging.
+- **Vercel rewrite egress — resolved as far as pre-merge allows (18 Sep
+  2026).** Production is Vercel (`weather.hmli.fyi`, `server: Vercel`), where
+  the sibling `/hko-data` rewrite serves the 2.7 MB nowcast CSV as HTTP 200
+  `text/csv` — the exact mechanism `/aqhi-rss` copies. PR previews are
+  SSO-protected (Vercel Deployment Protection): `/aqhi-rss` and `/hko-data`
+  both 302 to `vercel.com/sso-api` for anonymous requests, so the preview
+  can't be probed without auth. **Post-merge smoke test:** once on prod,
+  `https://weather.hmli.fyi/aqhi-rss/aqhi_ind_rss_Eng.xml` must return 200
+  XML — the only residual risk is EPD blocking Vercel's datacenter egress
+  (a different failure mode than the browser CORS block). The app degrades
+  to no-AQHI if it does.
+- **Cloudflare Pages previews ignore `vercel.json`** — the CF preview check
+  serves `/aqhi-rss` via the SPA fallback. Production traffic is Vercel, so
+  this only affects preview testing (pre-existing for `/hko-data` too).
 
 ## Design note: dedicated EPD station table
 
