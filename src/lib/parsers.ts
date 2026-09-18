@@ -26,7 +26,7 @@ import type {
   HKOWarningInfoDetail,
   HKOCurrentWeatherResponse,
 } from './hko-types';
-import type { WeatherData, GeoLocation } from './weather/types';
+import type { WeatherData, GeoLocation, MinutelyPrecipitation } from './weather/types';
 import { logWarn } from './log';
 
 /** Shared parse result: typed data (or null) plus a list of degraded field paths. */
@@ -289,6 +289,14 @@ export function parseOpenMeteoForecast(input: unknown): ParseResult<WeatherData>
   const hourlyWindDir = readArrayNumber(hourly, 'wind_direction_10m', warnings);
   const hourlyIsDay = readArrayNumber(hourly, 'is_day', warnings);
 
+  // minutely_15 (optional): 15-minute precipitation. Missing or degraded →
+  // `minutely` stays undefined and the rain-start UI falls back to hourly.
+  // Unlike the hourly arrays above (which are filtered per-array), the two
+  // arrays here are zipped then filtered so one bad cell can't misalign the
+  // series. Verified live 2026-09-17: `time` values are true UTC epochs
+  // (current.time sat 583 s behind Date.now()), aligned to :00/:15/:30/:45.
+  const minutely = parseMinutelyPrecipitation(input.minutely_15, warnings);
+
   // daily: { time, weather_code, temperature_2m_max, ..., sunrise, sunset }
   const dailyTime = readArrayNumber(daily, 'time', warnings);
   const dailyMax = readArrayNumber(daily, 'temperature_2m_max', warnings);
@@ -332,6 +340,7 @@ export function parseOpenMeteoForecast(input: unknown): ParseResult<WeatherData>
         precipitation: hourlyPrecip[startIndex + i] ?? 0,
         isDay: (hourlyIsDay[startIndex + i] ?? 1) === 1,
       })),
+      minutely,
       daily: dailyTime.map((time, i) => ({
         date: new Date(time * 1000),
         temperatureMax: dailyMax[i] ?? 0,
@@ -347,6 +356,49 @@ export function parseOpenMeteoForecast(input: unknown): ParseResult<WeatherData>
     },
     warnings,
   };
+}
+
+/**
+ * Parse the optional `minutely_15` block: anchor at the interval covering
+ * "now" (same convention as the hourly `startIndex` above) and cap at
+ * 96 steps (24 h) to bound the localStorage snapshot size. Returns
+ * undefined when the block is missing or empty — never throws.
+ */
+function parseMinutelyPrecipitation(
+  input: unknown,
+  warnings: string[],
+): MinutelyPrecipitation[] | undefined {
+  if (!isObject(input)) {
+    warnings.push('minutely_15 (object)');
+    return undefined;
+  }
+  const rawTime = input.time;
+  const rawPrecip = input.precipitation;
+  if (!Array.isArray(rawTime) || !Array.isArray(rawPrecip)) {
+    warnings.push('minutely_15.time/precipitation (array)');
+    return undefined;
+  }
+
+  const points: MinutelyPrecipitation[] = [];
+  for (let i = 0; i < Math.min(rawTime.length, rawPrecip.length); i++) {
+    const t = rawTime[i];
+    const p = rawPrecip[i];
+    if (!isNumber(t) || !isNumber(p)) continue;
+    points.push({ time: new Date(t * 1000), precipitation: p });
+  }
+  if (points.length === 0) {
+    warnings.push('minutely_15 (empty after zip-filter)');
+    return undefined;
+  }
+
+  const nowUnix = Math.floor(Date.now() / 1000);
+  // `time` stamps the interval END (value = preceding-15-min sum), so the
+  // window covering "now" is the first whose stamp is still in the future.
+  // A stale all-past snapshot falls back to index 0; downstream consumers
+  // drop closed windows anyway.
+  let startIndex = points.findIndex((pt) => Math.floor(pt.time.getTime() / 1000) > nowUnix);
+  if (startIndex < 0) startIndex = 0;
+  return points.slice(startIndex, startIndex + 96);
 }
 
 function readArrayNumber(

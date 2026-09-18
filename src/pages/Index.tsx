@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { CloudRain, MapPin, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AtAGlance } from '@/components/AtAGlance';
+import { RainStartBanner } from '@/components/RainStartBanner';
 
 // Lazy load heavy components. DailyForecast pulls recharts (~120 kB) and is
 // below the fold on both mobile (Swiper slide 2) and desktop (split row);
@@ -180,6 +181,20 @@ const Index = () => {
     dailySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [isMobile]);
 
+  // The glance strip's rain chips jump to the nowcast pane instead: deck
+  // slide 3 on mobile (index 2), the bottom map section on desktop. Only
+  // wired when the city is inside nowcast coverage — elsewhere the chips
+  // degrade to static text.
+  const nowcastSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const revealNowcast = useCallback(() => {
+    if (isMobile) {
+      mobileSwiperRef.current?.slideTo(2, 400);
+      return;
+    }
+    nowcastSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [isMobile]);
+
   // Dev-only: `window.__devWarnings` is mounted by devWarningSimulator.ts at
   // module load time. Try __devWarnings.add('TC8') / .addCancelled('TC1') /
   // .remove('TC8') / .resetBaseline() / .list().
@@ -320,9 +335,22 @@ const Index = () => {
                 <div className="flex flex-col flex-1 min-h-0 mt-3 animate-fade-in">
                   {/* Glance strip stays above the deck so it is glanceable on
                       every slide (hero + hourly/daily live on separate swipe
-                      slides on mobile; see AtAGlance). */}
+                      slides on mobile; see AtAGlance). The rain-start banner
+                      rides above it in the same thin-strip language; both
+                      hide themselves when their data is missing. */}
                   <div className="mb-3 shrink-0">
-                    <AtAGlance today={weather.daily?.[0]} tomorrow={weather.daily?.[1]} onReveal={revealDailyForecast} />
+                    <RainStartBanner
+                      weather={weather}
+                      latitude={selectedCity.latitude}
+                      longitude={selectedCity.longitude}
+                      className="mb-2"
+                    />
+                    <AtAGlance
+                      today={weather.daily?.[0]}
+                      tomorrow={weather.daily?.[1]}
+                      onReveal={revealDailyForecast}
+                      onRevealNowcast={nowcastVisible ? revealNowcast : undefined}
+                    />
                   </div>
                   {/* Each child is one slide's content; MobileSwiperDeck wraps
                       them in SwiperSlide. It is the only module that may import
@@ -398,8 +426,18 @@ const Index = () => {
 
                   {/* Today + tomorrow at a glance — thin strip between the
                       hero and the hourly/daily split. Scrolls the split
-                      below on tap. */}
-                  <AtAGlance today={weather.daily?.[0]} tomorrow={weather.daily?.[1]} onReveal={revealDailyForecast} />
+                      below on tap. The rain-start banner sits above it. */}
+                  <RainStartBanner
+                    weather={weather}
+                    latitude={selectedCity.latitude}
+                    longitude={selectedCity.longitude}
+                  />
+                  <AtAGlance
+                    today={weather.daily?.[0]}
+                    tomorrow={weather.daily?.[1]}
+                    onReveal={revealDailyForecast}
+                    onRevealNowcast={nowcastVisible ? revealNowcast : undefined}
+                  />
 
                   {/* Secondary Row: Split Forecasts */}
                   <div ref={dailySectionRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
@@ -412,15 +450,21 @@ const Index = () => {
                     </Suspense>
                   </div>
 
-                  {/* Bottom Row: Optional Map */}
+                  {/* Bottom Row: Optional Map — scroll target for the glance
+                      strip's rain chips (revealNowcast). The wrapper div is
+                      the ref anchor; space-y still applies to it as a direct
+                      child. scroll-mt keeps the sticky header from covering
+                      the map's top edge after scrollIntoView. */}
                   {nowcastVisible && (
-                    <Suspense fallback={<Skeleton className="h-[400px] rounded-xl bg-muted/20" />}>
-                      {useMSCNowcast ? (
-                        <MSCRainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
-                      ) : (
-                        <RainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
-                      )}
-                    </Suspense>
+                    <div ref={nowcastSectionRef} className="scroll-mt-4">
+                      <Suspense fallback={<Skeleton className="h-[400px] rounded-xl bg-muted/20" />}>
+                        {useMSCNowcast ? (
+                          <MSCRainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
+                        ) : (
+                          <RainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
+                        )}
+                      </Suspense>
+                    </div>
                   )}
                 </div>
               )}

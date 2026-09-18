@@ -37,6 +37,11 @@ const renderWithProviders = (ui: React.ReactElement) =>
     </LanguageProvider>
   );
 
+/** The strip container (a div since the row hosts two kinds of controls). */
+const strip = (container: HTMLElement): HTMLElement => container.firstChild as HTMLElement;
+
+const noop = () => {};
+
 describe('AtAGlance Component', () => {
   beforeEach(() => {
     // Reset the units/language preferences so tests start in metric/English.
@@ -45,7 +50,7 @@ describe('AtAGlance Component', () => {
 
   it('renders nothing when there are no days', () => {
     const { container } = renderWithProviders(
-      <AtAGlance onReveal={() => {}} />
+      <AtAGlance onReveal={noop} />
     );
     expect(container).toBeEmptyDOMElement();
   });
@@ -55,134 +60,174 @@ describe('AtAGlance Component', () => {
       <AtAGlance
         today={{ ...today, temperatureMax: -999, temperatureMin: -999 }}
         tomorrow={{ ...tomorrow, temperatureMax: -999, temperatureMin: -999 }}
-        onReveal={() => {}}
+        onReveal={noop}
       />
     );
     expect(container).toBeEmptyDOMElement();
   });
 
   it('summarises both days in the same format (metric)', () => {
-    renderWithProviders(<AtAGlance today={today} tomorrow={tomorrow} onReveal={() => {}} />);
+    const { container } = renderWithProviders(
+      <AtAGlance today={today} tomorrow={tomorrow} onReveal={noop} onRevealNowcast={noop} />
+    );
 
-    const strip = screen.getByRole('button', {
-      // "Today: Mainly clear, High 29°C, Low 23°C; Tomorrow: Partly cloudy, High 31°C, Low 25°C, Rain Chance 80%"
-      name: /Today: Mainly clear, High 29°C, Low 23°C; Tomorrow: Partly cloudy, High 31°C, Low 25°C, Rain Chance 80%/i,
-    });
-    expect(strip).toBeInTheDocument();
+    // Each day's temperature group is a button with a full-sentence label
+    // (the rain clause moved to the rain chip's own label).
+    expect(
+      screen.getByRole('button', { name: 'Today: Mainly clear, High 29°C, Low 23°C' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Tomorrow: Partly cloudy, High 31°C, Low 25°C' })
+    ).toBeInTheDocument();
+    // The rain chip is its own button with the nowcast destination in the label.
+    expect(
+      screen.getByRole('button', { name: 'Rain chance 80%. View the rainfall nowcast map.' })
+    ).toBeInTheDocument();
 
+    const row = strip(container);
     // Both day groups are visible, in order.
-    expect(strip).toHaveTextContent('Today');
-    expect(strip).toHaveTextContent('Tomorrow');
+    expect(row).toHaveTextContent('Today');
+    expect(row).toHaveTextContent('Tomorrow');
     // Range reads low → high (matching the hero caption).
-    expect(strip).toHaveTextContent(/23°C\/29°C/);
-    expect(strip).toHaveTextContent(/25°C\/31°C/);
-    expect(strip).toHaveTextContent('29°C');
-    expect(strip).toHaveTextContent('23°C');
-    expect(strip).toHaveTextContent('31°C');
-    expect(strip).toHaveTextContent('25°C');
+    expect(row).toHaveTextContent(/23°C\/29°C/);
+    expect(row).toHaveTextContent(/25°C\/31°C/);
     // Wind stays off the strip (it lives on the daily cards instead).
-    expect(strip).not.toHaveTextContent('km/h');
+    expect(row).not.toHaveTextContent('km/h');
     // Tomorrow's rain chance signals; today's 15 % stays below the cutoff
-    // and is omitted from the strip (and from the sentence).
-    expect(strip).toHaveTextContent('80%');
-    expect(strip).not.toHaveTextContent('15%');
+    // and is omitted from the strip (and from the labels).
+    expect(row).toHaveTextContent('80%');
+    expect(row).not.toHaveTextContent('15%');
+  });
+
+  it('renders no down-arrow chevron (removed affordance)', () => {
+    const { container } = renderWithProviders(
+      <AtAGlance today={today} tomorrow={tomorrow} onReveal={noop} onRevealNowcast={noop} />
+    );
+    expect(container.querySelector('.lucide-chevron-down')).toBeNull();
   });
 
   it('renders tomorrow only when the today row is missing', () => {
-    renderWithProviders(<AtAGlance tomorrow={tomorrow} onReveal={() => {}} />);
+    const { container } = renderWithProviders(
+      <AtAGlance tomorrow={tomorrow} onReveal={noop} onRevealNowcast={noop} />
+    );
 
-    const strip = screen.getByRole('button', {
-      name: /Tomorrow: Partly cloudy, High 31°C, Low 25°C, Rain Chance 80%/i,
-    });
-    expect(strip).toBeInTheDocument();
-    expect(strip).not.toHaveTextContent('Today');
+    expect(
+      screen.getByRole('button', { name: /Tomorrow: Partly cloudy, High 31°C, Low 25°C/ })
+    ).toBeInTheDocument();
+    expect(strip(container)).not.toHaveTextContent('Today');
   });
 
   it('renders today only when the tomorrow row is missing', () => {
-    renderWithProviders(<AtAGlance today={today} onReveal={() => {}} />);
+    const { container } = renderWithProviders(
+      <AtAGlance today={today} onReveal={noop} onRevealNowcast={noop} />
+    );
 
-    const strip = screen.getByRole('button', {
-      name: /Today: Mainly clear, High 29°C, Low 23°C/i,
-    });
-    expect(strip).toBeInTheDocument();
-    expect(strip).not.toHaveTextContent('Tomorrow');
+    expect(
+      screen.getByRole('button', { name: /Today: Mainly clear, High 29°C, Low 23°C/ })
+    ).toBeInTheDocument();
+    expect(strip(container)).not.toHaveTextContent('Tomorrow');
   });
 
   it('skips a sentinel day but keeps the other', () => {
-    renderWithProviders(
+    const { container } = renderWithProviders(
       <AtAGlance
         today={{ ...today, temperatureMax: -999, temperatureMin: -999 }}
         tomorrow={tomorrow}
-        onReveal={() => {}}
+        onReveal={noop}
+        onRevealNowcast={noop}
       />
     );
 
-    const strip = screen.getByRole('button', {
-      name: /Tomorrow: Partly cloudy, High 31°C, Low 25°C, Rain Chance 80%/i,
-    });
-    expect(strip).toBeInTheDocument();
-    expect(strip).not.toHaveTextContent('Today');
+    expect(
+      screen.getByRole('button', { name: /Tomorrow: Partly cloudy, High 31°C, Low 25°C/ })
+    ).toBeInTheDocument();
+    expect(strip(container)).not.toHaveTextContent('Today');
   });
 
-  it('omits the rain-chance segment below 20 %', () => {
+  it('omits the rain-chance chip below 20 %', () => {
     renderWithProviders(
       <AtAGlance
         tomorrow={{ ...tomorrow, precipitationProbabilityMax: 10 }}
-        onReveal={() => {}}
+        onReveal={noop}
+        onRevealNowcast={noop}
       />
     );
 
-    const strip = screen.getByRole('button');
-    expect(strip).not.toHaveTextContent('10%');
-    // The aria-label drops the "Rain Chance" clause too.
-    expect(strip.getAttribute('aria-label')).not.toContain('Rain Chance');
+    // No rain chip button and no visible percentage.
+    expect(screen.queryByRole('button', { name: /Rain chance/ })).toBeNull();
+    expect(screen.queryByText('10%')).toBeNull();
+  });
+
+  it('renders the rain chip as static text when the nowcast pane is unreachable', () => {
+    renderWithProviders(<AtAGlance today={today} tomorrow={tomorrow} onReveal={noop} />);
+
+    // Tomorrow's 80 % still shows, but not as a control.
+    expect(screen.getByText('80%')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Rain chance/ })).toBeNull();
   });
 
   it('respects US units (°F / mph) on both days', () => {
     // Round-trip the stored unit through localStorage like the provider does.
     localStorage.setItem('weather-units', 'us');
-    renderWithProviders(<AtAGlance today={today} tomorrow={tomorrow} onReveal={() => {}} />);
+    renderWithProviders(
+      <AtAGlance today={today} tomorrow={tomorrow} onReveal={noop} onRevealNowcast={noop} />
+    );
 
-    const strip = screen.getByRole('button', {
-      // 29.4°C → 85°F, 23.2°C → 74°F;
-      // 31.2°C → 88°F, 25.1°C → 77°F.
-      name: /Today: Mainly clear, High 85°F, Low 74°F; Tomorrow: Partly cloudy, High 88°F, Low 77°F, Rain Chance 80%/i,
-    });
-    expect(strip).toBeInTheDocument();
-    expect(strip).toHaveTextContent('85°F');
-    expect(strip).toHaveTextContent('77°F');
+    // 29.4°C → 85°F, 23.2°C → 74°F; 31.2°C → 88°F, 25.1°C → 77°F.
+    expect(
+      screen.getByRole('button', { name: 'Today: Mainly clear, High 85°F, Low 74°F' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Tomorrow: Partly cloudy, High 88°F, Low 77°F' })
+    ).toBeInTheDocument();
     // No wind clause and no stray mph on the strip.
-    expect(strip).not.toHaveTextContent('mph');
+    expect(strip(screen.getByRole('button', { name: /Today:/ }).parentElement!)).not.toHaveTextContent('mph');
   });
 
   it('uses the active UI language for the labels and sentences', () => {
     localStorage.setItem('weather-language', 'tc');
-    renderWithProviders(<AtAGlance today={today} tomorrow={tomorrow} onReveal={() => {}} />);
+    renderWithProviders(
+      <AtAGlance today={today} tomorrow={tomorrow} onReveal={noop} onRevealNowcast={noop} />
+    );
 
-    // 今日: 大致晴朗, 最高 29°C, 最低 23°C;
-    // 明日: 局部多雲, 最高 31°C, 最低 25°C, 降雨機率 80%
+    // 今日: 大致晴朗, 最高 29°C, 最低 23°C / 明日: 局部多雲, 最高 31°C, 最低 25°C
     expect(
-      screen.getByRole('button', {
-        name: /今日: 大致晴朗, 最高 29°C, 最低 23°C/,
-      })
+      screen.getByRole('button', { name: /今日: 大致晴朗, 最高 29°C, 最低 23°C/ })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', {
-        name: /; 明日: 局部多雲, 最高 31°C, 最低 25°C, 降雨機率 80%/,
-      })
+      screen.getByRole('button', { name: /明日: 局部多雲, 最高 31°C, 最低 25°C/ })
     ).toBeInTheDocument();
-    expect(screen.getByRole('button')).toHaveTextContent('今日');
-    expect(screen.getByRole('button')).toHaveTextContent('明日');
+    // Rain chip label is translated too.
+    expect(
+      screen.getByRole('button', { name: /降雨機率 80%。查看降雨即時預報地圖。/ })
+    ).toBeInTheDocument();
     // No wind clause in Traditional Chinese either.
-    expect(screen.getByRole('button')).not.toHaveTextContent('公里/小時');
+    expect(strip(screen.getByRole('button', { name: /今日:/ }).parentElement!)).not.toHaveTextContent('公里/小時');
   });
 
-  it('calls onReveal when activated', async () => {
+  it('calls onReveal when a day group is activated', async () => {
     const user = userEvent.setup();
     const onReveal = vi.fn();
-    renderWithProviders(<AtAGlance today={today} tomorrow={tomorrow} onReveal={onReveal} />);
+    const onRevealNowcast = vi.fn();
+    renderWithProviders(
+      <AtAGlance today={today} tomorrow={tomorrow} onReveal={onReveal} onRevealNowcast={onRevealNowcast} />
+    );
 
-    await user.click(screen.getByRole('button'));
+    await user.click(screen.getByRole('button', { name: /Today: Mainly clear/ }));
     expect(onReveal).toHaveBeenCalledTimes(1);
+    expect(onRevealNowcast).not.toHaveBeenCalled();
+  });
+
+  it('calls onRevealNowcast when a rain chip is activated', async () => {
+    const user = userEvent.setup();
+    const onReveal = vi.fn();
+    const onRevealNowcast = vi.fn();
+    renderWithProviders(
+      <AtAGlance today={today} tomorrow={tomorrow} onReveal={onReveal} onRevealNowcast={onRevealNowcast} />
+    );
+
+    await user.click(screen.getByRole('button', { name: /Rain chance 80%/ }));
+    expect(onRevealNowcast).toHaveBeenCalledTimes(1);
+    expect(onReveal).not.toHaveBeenCalled();
   });
 });

@@ -14,7 +14,7 @@ The hero section displays:
 
 ## At a glance (today + tomorrow)
 
-`AtAGlance` is a thin, low-weight strip between the hero and the hourly/daily split on desktop, and above the swipe deck on mobile. It summarises `daily[0]` and `daily[1]` in the same per-day format: temp range (low → high), rain chance (only when ≥ 20 %), and max wind. Each day is one group (kicker, icon, range, rain, wind); the groups share a line when they fit and wrap to one line per day when they don't — the whole row is still a single button. Activating the strip reveals the full daily forecast (desktop scroll / mobile deck advance). Below 360 px each day's wind group hides; the chevron still signals "more". A missing or sentinel day is skipped; with none left the strip renders nothing.
+`AtAGlance` is a thin, low-weight strip between the hero and the hourly/daily split on desktop, and above the swipe deck on mobile. It summarises `daily[0]` and `daily[1]` in the same per-day format: temp range (low → high) and rain chance (only when ≥ 20 %); wind intentionally stays off the strip (it lives on the daily cards). Each day's temperature group (kicker, icon, range) is a button that reveals the full daily forecast (desktop scroll / mobile deck advance); the groups share a line when they fit and wrap to one line per day when they don't. Each rain chip is its own button that jumps to the nowcast pane (map slide on mobile, section scroll on desktop) — where the 2-hour radar-based forecast lives — and degrades to static text when the city is outside nowcast coverage. A missing or sentinel day is skipped; with none left the strip renders nothing.
 
 ## Hourly forecast
 
@@ -51,13 +51,21 @@ HKO warnings render as compact icons in the top bar; clicking opens a modal with
 - 20 locally-hosted animated warning GIFs (no CDN dependencies)
 - Cancelled warnings are filtered with `actionCode.toUpperCase() !== 'CANCEL'` (case-insensitive; HKO returns uppercase `CANCEL`). The filter is locked against the live fixture in `src/lib/__fixtures__/`
 
+## Rain-start banner
+
+A thin strip above the at-a-glance row (both mobile and desktop layouts) answering "when will it rain?":
+- **No rain expected in the next N h** / **Rain expected around HH:MM · in ~N min** / **Raining now · easing around HH:MM**, with a small upcoming-precipitation bar strip
+- Merges two free sources with complementary strengths: the HKO gridded nowcast (0–2 h, ~1 km cells — district-accurate) and Open-Meteo 15-minute/hourly precipitation (up to 24 h — city-scale, ~8 km model cells, so Open-Meteo-backed copy carries a "city-wide" qualifier)
+- The Open-Meteo 15-minute series arrives inside the existing unified weather fetch (no extra request); the HKO grid segment upgrades automatically once the rain map has been loaded (it reads the shared query cache and never triggers the 2.7 MB CSV download itself)
+- Renders nothing when neither source has usable data; phrasing refreshes on a minute tick
+
 ## Gridded rainfall nowcast
 
 - HKO gridded rainfall data visualized on an interactive MapLibre map
 - Covers Hong Kong and the Pearl River Delta (Shenzhen, Guangzhou, Macau, Zhuhai; extends into Guangdong, China)
 - Forecast step controls sit directly above the map: Play/Pause button, the active `Forecast Step` label (formatted HH:MM), the timeline slider, and clickable per-step buttons.
 - Map follows underneath with the active timestep's color-bucketed GeoJSON overlay
-- MSC (Macau) rainfall tile layer via WMS, rendered through `MSCRainfallMap`
+- MSC GeoMet (Meteorological Service of Canada, Vancouver) rainfall tile layer via WMS, rendered through `MSCRainfallMap`
 - Carto basemap support for vector tiles when `VITE_CARTO_API_KEY` is set
 - Precise ending timestamps are derived from raw CSV `endTime` values
 - User location blue pin marker with automatic map zoom to data extent
