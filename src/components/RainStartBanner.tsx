@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CloudRain, CloudSun, Umbrella } from 'lucide-react';
+import { CloudRain, Umbrella } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import type { WeatherData } from '@/lib/weather';
 import {
@@ -47,8 +47,10 @@ const VERDICT_HORIZON_MIN = SPARKLINE_STEPS * MINUTELY_STEP_MIN;
  * bars always describe the same window. Re-renders on a minute
  * tick so relative phrasing ("in ~45 min") stays current while mounted.
  *
- * Renders nothing when no series is usable (both sources missing) so a
- * degraded payload just hides the strip instead of showing a dead row.
+ * Renders only when rain is expected or already falling — a no-rain verdict
+ * hides the strip (the at-a-glance row's rain chips carry the all-clear
+ * case), as does a payload with no usable series, so a degraded fetch just
+ * loses the row instead of showing a dead strip.
  */
 export const RainStartBanner = memo(
   ({ weather, latitude, longitude, className }: RainStartBannerProps) => {
@@ -81,7 +83,7 @@ export const RainStartBanner = memo(
       [now, nowcast, latitude, longitude, weather.minutely, weather.hourly],
     );
 
-    if (!forecast) return null;
+    if (!forecast || forecast.status === 'no-rain') return null;
 
     return (
       <RainStartStrip
@@ -161,13 +163,9 @@ function RainStartStrip({
       liveText = formatString(t('rainstart.expectedAt'), fmtTime(forecast.startsAt!));
       Icon = CloudRain;
       break;
-    default:
-      // State the verdict horizon, not `forecast.horizonMinutes` (data
-      // coverage): on the hourly fallback the last window starting inside
-      // the horizon can END an hour past it, which would round up to 7.
-      text = formatString(t('rainstart.none'), Math.max(1, Math.round(VERDICT_HORIZON_MIN / 60)));
-      liveText = text;
-      Icon = CloudSun;
+    case 'no-rain':
+      // Unreachable — the banner hides the strip on a no-rain verdict.
+      return null;
   }
 
   // The nowcast window is district-accurate; anything Open-Meteo-backed is
@@ -179,6 +177,9 @@ function RainStartStrip({
     <div
       className={`flex w-full flex-wrap items-center justify-center gap-x-3 gap-y-1.5 border border-border bg-card px-4 py-2 text-xs tabular-nums text-muted-foreground${className ? ` ${className}` : ''}`}
     >
+      {/* Resolution qualifier leads the strip: it scopes everything that
+          follows before the eye reaches the verdict. */}
+      {cityWide && <span className="kicker">{t('rainstart.citywide')}</span>}
       <span className="inline-flex items-center gap-x-2">
         <Icon
           className="h-4 w-4 shrink-0 text-weather-rain"
@@ -186,7 +187,6 @@ function RainStartStrip({
           aria-hidden="true"
         />
         <span className="text-foreground/90">{text}</span>
-        {cityWide && <span className="kicker">{t('rainstart.citywide')}</span>}
       </span>
       <Sparkline series={forecast.series} />
       {/* Label shares the Sparkline's render condition (≥ 2 bars) so a

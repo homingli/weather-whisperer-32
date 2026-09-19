@@ -17,10 +17,11 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
   toast, ready to paste. Temps follow your unit setting and the
   message renders in English or Traditional Chinese to match the app.
 - **Rain-start banner ("when will it rain?").** A thin strip above the
-  at-a-glance row reads "Rain expected around 15:30 · in ~45 min",
-  "Raining now · easing around 17:00", or "No rain expected in the next
-  6 h", with a small upcoming-precipitation bar strip labelled "next 6 h".
-  Text and bars scan the same 6-hour span — bar height scales with the
+  at-a-glance row reads "Rain expected around 15:30 · in ~45 min" or
+  "Raining now · easing around 17:00", with a small
+  upcoming-precipitation bar strip labelled "next 6 h" — and hides
+  itself when no rain is expected within that span. Text and bars scan
+  the same 6-hour span; bar height scales with the
   rain amount in each window and the bar where rain begins is
   highlighted. It merges two
   free sources with complementary strengths: the HKO gridded nowcast
