@@ -21,7 +21,7 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
   "Raining now · easing around 17:00", or "No rain expected in the next
   6 h", with a small upcoming-precipitation bar strip labelled "next 6 h".
   Text and bars scan the same 6-hour span — bar height scales with the
-  rain amount in each 15-minute window and the bar where rain begins is
+  rain amount in each window and the bar where rain begins is
   highlighted. It merges two
   free sources with complementary strengths: the HKO gridded nowcast
   (0–2 h, ~1 km cells — district-accurate) and Open-Meteo's 15-minute
