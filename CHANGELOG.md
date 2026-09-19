@@ -19,13 +19,17 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
 - **Rain-start banner ("when will it rain?").** A thin strip above the
   at-a-glance row reads "Rain expected around 15:30 · in ~45 min",
   "Raining now · easing around 17:00", or "No rain expected in the next
-  24 h", with a small upcoming-precipitation bar strip. It merges two
+  6 h", with a small upcoming-precipitation bar strip labelled "next 6 h".
+  Text and bars scan the same 6-hour span — bar height scales with the
+  rain amount in each 15-minute window and the bar where rain begins is
+  highlighted. It merges two
   free sources with complementary strengths: the HKO gridded nowcast
   (0–2 h, ~1 km cells — district-accurate) and Open-Meteo's 15-minute
   precipitation series, which now arrives inside the existing weather
-  fetch (no extra request, up to 24 h ahead). Open-Meteo's model grid
+  fetch (no extra request). Open-Meteo's model grid
   is city-scale (~8 km cells — Kwun Tong and Central get the same
-  forecast), so segments it backs carry a "city-wide" qualifier instead
+  forecast), so segments it backs carry a location-neutral "city-scale"
+  qualifier (城市尺度預報) instead
   of implying district precision. The banner reads the rain map's cached
   data when available (upgrading the 0–2 h segment to district accuracy)
   and never triggers the 2.7 MB nowcast download itself. Both English

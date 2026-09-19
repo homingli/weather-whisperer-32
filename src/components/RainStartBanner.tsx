@@ -8,6 +8,7 @@ import {
   seriesFromMinutely,
   seriesFromHourly,
   seriesFromNowcastGrid,
+  MINUTELY_STEP_MIN,
   RAIN_THRESHOLD_MM,
   type RainStartForecast,
 } from '@/lib/rain-start';
@@ -27,12 +28,23 @@ interface NowcastCacheEntry {
 const SPARKLINE_STEPS = 24;
 
 /**
+ * The verdict scans exactly the span the sparkline can show. Text and strip
+ * used to diverge (text scanned 24 h, bars showed 6 h), so a wet window 23 h
+ * out would announce "rain expected" over an all-dry strip. The label passed
+ * as the {0} of `rainstart.horizon` derives from this constant — keep them
+ * in sync by construction.
+ */
+const VERDICT_HORIZON_MIN = SPARKLINE_STEPS * MINUTELY_STEP_MIN;
+
+/**
  * "When will it rain?" — a thin strip above the at-a-glance row.
  *
  * Merges Open-Meteo's city-scale minutely/hourly precipitation (already in
  * the unified weather payload, no extra request) with the HKO gridded
  * nowcast whenever the rain map has populated the shared query cache — the
- * 0–2 h segment then upgrades to district accuracy. Re-renders on a minute
+ * 0–2 h segment then upgrades to district accuracy. The verdict is capped to
+ * the sparkline's 6-hour span (`VERDICT_HORIZON_MIN`) so the text and the
+ * bars always describe the same window. Re-renders on a minute
  * tick so relative phrasing ("in ~45 min") stays current while mounted.
  *
  * Renders nothing when no series is usable (both sources missing) so a
@@ -61,6 +73,7 @@ export const RainStartBanner = memo(
       () =>
         computeRainStart({
           now,
+          horizonMinutes: VERDICT_HORIZON_MIN,
           nowcast: nowcast ? seriesFromNowcastGrid(nowcast.grid, latitude, longitude) : null,
           minutely: seriesFromMinutely(weather.minutely),
           hourly: seriesFromHourly(weather.hourly),
@@ -149,10 +162,10 @@ function RainStartStrip({
       Icon = CloudRain;
       break;
     default:
-      text = formatString(
-        t('rainstart.none'),
-        Math.max(1, Math.round(forecast.horizonMinutes / 60)),
-      );
+      // State the verdict horizon, not `forecast.horizonMinutes` (data
+      // coverage): on the hourly fallback the last window starting inside
+      // the horizon can END an hour past it, which would round up to 7.
+      text = formatString(t('rainstart.none'), Math.max(1, Math.round(VERDICT_HORIZON_MIN / 60)));
       liveText = text;
       Icon = CloudSun;
   }
@@ -176,6 +189,9 @@ function RainStartStrip({
         {cityWide && <span className="kicker">{t('rainstart.citywide')}</span>}
       </span>
       <Sparkline series={forecast.series} />
+      <span className="kicker text-muted-foreground/70">
+        {formatString(t('rainstart.horizon'), Math.round(VERDICT_HORIZON_MIN / 60))}
+      </span>
       <span role="status" className="sr-only">
         {liveText}
       </span>
@@ -194,12 +210,14 @@ function Sparkline({ series }: { series: RainStartForecast['series'] }) {
       {bars.map((b, i) => {
         const wet = b.mm >= RAIN_THRESHOLD_MM;
         const heightPct = wet ? Math.max(20, Math.round((b.mm / scaleMax) * 100)) : 12;
+        // The bar where rain begins gets the full tone; later wet bars sit
+        // at 60% so the start reads as the timing marker the strip exists for.
+        const tone = i === firstWet ? 'bg-weather-rain' : 'bg-weather-rain/60';
         return (
           <span
             key={i}
-            className={`w-1 rounded-sm ${wet ? 'bg-weather-rain' : 'bg-muted-foreground/25'}`}
+            className={`w-1 rounded-sm ${wet ? tone : 'bg-muted-foreground/25'}`}
             style={{ height: `${heightPct}%` }}
-            data-wet={i === firstWet ? 'first' : undefined}
           />
         );
       })}
