@@ -112,6 +112,16 @@ describe('RainStartBanner', () => {
     expect(live.textContent).not.toMatch(/Rain expected/);
   });
 
+  it('hides the span label when the series is too short for a sparkline', () => {
+    // Single window → Sparkline bails (needs ≥ 2 bars); the "next 6 h"
+    // caption must not render orphaned next to nothing.
+    renderBanner({ ...baseWeather, minutely: minutely([0]) });
+    const kickers = Array.from(document.querySelectorAll('.kicker')).map((k) => k.textContent);
+    expect(kickers).not.toContain('next 6 h');
+    // Verdict still renders (its copy mentions the horizon too).
+    expect(screen.getByRole('status').textContent).toMatch(/No rain expected in the next 6 h/);
+  });
+
   it('renders nothing when no series is usable', () => {
     const { container } = renderBanner({ ...baseWeather, minutely: undefined });
     expect(container.querySelector('[role="status"]')).toBeNull();

@@ -189,9 +189,13 @@ function RainStartStrip({
         {cityWide && <span className="kicker">{t('rainstart.citywide')}</span>}
       </span>
       <Sparkline series={forecast.series} />
-      <span className="kicker text-muted-foreground/70">
-        {formatString(t('rainstart.horizon'), Math.round(VERDICT_HORIZON_MIN / 60))}
-      </span>
+      {/* Label shares the Sparkline's render condition (≥ 2 bars) so a
+          single-window series never leaves an orphaned "NEXT 6 H" caption. */}
+      {forecast.series.length >= 2 && (
+        <span className="kicker text-muted-foreground/70">
+          {formatString(t('rainstart.horizon'), Math.round(VERDICT_HORIZON_MIN / 60))}
+        </span>
+      )}
       <span role="status" className="sr-only">
         {liveText}
       </span>
