@@ -59,7 +59,9 @@ export interface RainStartForecast {
 
 /** A window with at least this much rain counts as "rain" (mm per step). */
 export const RAIN_THRESHOLD_MM = 0.1;
-/** Default forward horizon for the "no rain" verdict. */
+/** Default forward horizon for the "no rain" verdict. The RainStartBanner
+ *  passes a tighter horizon (the sparkline's 6-h span) so its text and bars
+ *  always describe the same window. */
 export const DEFAULT_HORIZON_MINUTES = 24 * 60;
 /** Cap on windows handed to the UI (96 × 15 min = 24 h). */
 export const MAX_SERIES_STEPS = 96;

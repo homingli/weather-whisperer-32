@@ -222,7 +222,9 @@ The banner answers "when will it rain?" by merging three series into one timelin
 
 Merge rules: dedupe by window start with the nowcast winning shared slots (both grids sit on whole-minute UTC boundaries since HKT is a whole-hour offset), drop closed windows, verdict from the first window ≥ `RAIN_THRESHOLD_MM` (0.1 mm). Status is `raining-now` (window straddling now is wet, `endsAt` when a dry window follows), `rain-expected` (startsAt/startsInMinutes), or `no-rain` (within `horizonMinutes`).
 
-**Precision tiering.** `source: 'hko-grid'` segments are district-accurate; Open-Meteo snaps requests to ~7–8 km model grid cells (verified 2026-09-17: Kwun Tong and Central return the identical cell), so Open-Meteo-backed copy carries a "city-wide" qualifier instead of implying district precision.
+**Text/strip alignment.** `RainStartBanner` passes `horizonMinutes: 96 × 15 min` (the sparkline's 24-bar span) so the verdict scans exactly the window the bars can show — a wet window 23 h out no longer announces "rain expected" over an all-dry strip. The strip carries a "next 6 h" label (`rainstart.horizon`) and the no-rain copy states that same verdict horizon rather than data coverage.
+
+**Precision tiering.** `source: 'hko-grid'` segments are district-accurate; Open-Meteo snaps requests to ~7–8 km model grid cells (verified 2026-09-17: Kwun Tong and Central return the identical cell), so Open-Meteo-backed copy carries a location-neutral "city-scale" qualifier (`城市尺度預報`) instead of implying district precision — the banner renders for every city, so the wording must not name Hong Kong.
 
 ### Caching and retry strategy
 
@@ -421,7 +423,7 @@ The project uses **Vitest** with jsdom. Coverage is split across layers (**450 t
   - `src/components/DailyForecast.test.tsx` (4): Swiper carousel rendering, forecast cards, precipitation probability.
   - `src/components/LocalClock.test.tsx` (6): wide-viewport renders HH:MM:SS with 1s interval; narrow-viewport (via `matchMedia` stub) drops seconds, uses 60s interval aligned to the next minute boundary.
   - `src/components/AtAGlance.test.tsx` (13): empty/sentinel-day rendering, per-day temperature-button sentences in metric and US units, rain-chip button vs static-text fallback (nowcast reachable or not), rain-chance 20 % cutoff (visible text and aria-labels), no-chevron regression, Traditional Chinese labels, `onReveal` / `onRevealNowcast` activation.
-  - `src/components/RainStartBanner.test.tsx` (4): rain-expected / raining-now / no-rain verdict copy, city-wide qualifier, live-region content stable across minute ticks (countdown clause excluded), renders nothing when no series is usable.
+  - `src/components/RainStartBanner.test.tsx` (5): rain-expected / raining-now / no-rain verdict copy, city-scale qualifier, sparkline span label, live-region content stable across minute ticks (countdown clause excluded), wet windows beyond the 6-hour verdict horizon ignored, renders nothing when no series is usable.
   - `src/components/OfflineIndicator.test.tsx` (5): hidden while online, badge appears on `offline` event / offline-at-mount, hides on `online` event, Traditional Chinese string.
   - `src/components/WeatherAlerts.test.tsx` (12): HKO warning rendering, modal open/close, warning detail display, cancellation filter (mixed-case + uppercase `CANCEL`), live-fixture replay of the 2026-07-31 cancelled amber rainstorm regression (EN + TC), TC/rainstorm signal icons, pulse animation.
   - `src/components/WeatherBanners.test.tsx` (8), `src/components/SettingsMenu.test.tsx` (23).

@@ -1,6 +1,7 @@
-// Tests for the rain-start banner strip: verdict copy, the city-wide
-// qualifier, the screen-reader live region (which must NOT carry the
-// per-minute countdown), and the renders-nothing degradation path.
+// Tests for the rain-start banner strip: verdict copy, the city-scale
+// qualifier, the sparkline span label, the screen-reader live region (which
+// must NOT carry the per-minute countdown), the 6-hour verdict horizon, and
+// the renders-nothing degradation path.
 //
 // Fake timers pin `now` so the fixtures' relative offsets stay exact.
 
@@ -68,7 +69,7 @@ describe('RainStartBanner', () => {
     vi.useRealTimers();
   });
 
-  it('renders the rain-expected verdict with countdown and city-wide qualifier', () => {
+  it('renders the rain-expected verdict with countdown, qualifier and span label', () => {
     // Stamps N+15…N+60 → the wet window is (N+30, N+45], so rain is
     // expected at 08:30 (its start), in ~30 min.
     renderBanner({ ...baseWeather, minutely: minutely([0, 0, 0.5, 0]) });
@@ -76,10 +77,12 @@ describe('RainStartBanner', () => {
     expect(live.textContent).toMatch(/Rain expected around 08:30/);
     // Live region must stay stable across minute ticks: no countdown clause.
     expect(live.textContent).not.toMatch(/min/);
-    expect(live.textContent).toMatch(/city-wide forecast/);
-    // Visible text carries the countdown and the qualifier kicker.
+    expect(live.textContent).toMatch(/city-scale forecast/);
+    // Visible text carries the countdown, the qualifier and the sparkline's
+    // 6-hour span label.
     expect(document.body.textContent).toMatch(/in ~30 min/);
     expect(document.body.textContent).toMatch(/Rain expected around 08:30/);
+    expect(document.body.textContent).toMatch(/next 6 h/);
   });
 
   it('renders raining-now copy when the straddling window is wet', () => {
@@ -93,7 +96,20 @@ describe('RainStartBanner', () => {
 
   it('renders the no-rain verdict from the minutely horizon', () => {
     renderBanner({ ...baseWeather, minutely: minutely([0, 0, 0, 0]) });
-    expect(screen.getByRole('status').textContent).toMatch(/No rain expected in the next 1 h/);
+    // The no-rain claim states the verdict horizon (6 h), not data coverage.
+    expect(screen.getByRole('status').textContent).toMatch(/No rain expected in the next 6 h/);
+  });
+
+  it('ignores wet windows beyond the 6-hour verdict horizon', () => {
+    // 96 stamps reaching N+24 h with a wet window 23 h out. The old 24 h
+    // horizon announced "rain expected" for it over an all-dry sparkline;
+    // the verdict must now stay no-rain and say 6 h.
+    const values = Array<number>(96).fill(0);
+    values[91] = 0.5; // window (N+22 h 45, N+23 h]
+    renderBanner({ ...baseWeather, minutely: minutely(values) });
+    const live = screen.getByRole('status');
+    expect(live.textContent).toMatch(/No rain expected in the next 6 h/);
+    expect(live.textContent).not.toMatch(/Rain expected/);
   });
 
   it('renders nothing when no series is usable', () => {
