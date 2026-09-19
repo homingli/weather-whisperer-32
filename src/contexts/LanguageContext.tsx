@@ -316,16 +316,20 @@ const translations: Record<Language, Record<string, string>> = {
     'share.copyFailed': 'Could not copy the forecast',
 
     // Rain-start banner (HKO nowcast 0–2 h + Open-Meteo beyond; see
-    // RainStartBanner / rain-start.ts). Open-Meteo segments are city-scale
-    // (~8 km cells), so they carry the city-wide qualifier.
+    // RainStartBanner / rain-start.ts). It renders only for rain-expected /
+    // raining-now verdicts. Open-Meteo segments are city-scale
+    // (~8 km cells), so they carry the city-scale qualifier — wording must
+    // stay location-neutral (the banner renders for every city, not just
+    // Hong Kong). rainstart.horizon labels the sparkline span and must
+    // match the banner's VERDICT_HORIZON_MIN.
     'rainstart.now': 'Raining now',
     'rainstart.nowUntil': 'Raining now · easing around {0}',
     'rainstart.expectedIn': 'Rain expected around {0} · {1}',
     // Screen-reader twin of expectedIn without the per-minute countdown —
     // live-region content must stay stable across minute ticks.
     'rainstart.expectedAt': 'Rain expected around {0}',
-    'rainstart.none': 'No rain expected in the next {0} h',
-    'rainstart.citywide': 'city-wide forecast',
+    'rainstart.citywide': 'city-scale forecast',
+    'rainstart.horizon': 'next {0} h',
     'rainstart.inMinutes': 'in ~{0} min',
     'rainstart.inHours': 'in ~{0} h',
     'rainstart.inHoursMin': 'in ~{0} h {1} min',
@@ -627,15 +631,18 @@ const translations: Record<Language, Record<string, string>> = {
     'share.copyFailed': '無法複製天氣預報',
 
     // Rain-start banner（HKO 即時預報 0–2 小時 + 其後 Open-Meteo；見
-    // RainStartBanner / rain-start.ts）。Open-Meteo 網格約 8 公里，只屬
-    // 全港尺度，故加上「全港預報」標示。
+    // RainStartBanner / rain-start.ts）。橫額只在「預計有雨／正在下雨」時
+    // 顯示。Open-Meteo 網格約 8 公里，只屬
+    // 城市尺度，故加上「城市尺度預報」標示；字眼不可預設香港（橫額在
+    // 任何城市都會顯示）。rainstart.horizon 標示走勢圖的時間跨度，
+    // 必須與橫額的 VERDICT_HORIZON_MIN 一致。
     'rainstart.now': '正在下雨',
     'rainstart.nowUntil': '正在下雨 · 預計 {0} 前後減弱',
     'rainstart.expectedIn': '預計 {0} 前後有雨 · {1}',
     // expectedIn 的讀屏版本：省去每分鐘變動的倒數，保持 live region 內容穩定。
     'rainstart.expectedAt': '預計 {0} 前後有雨',
-    'rainstart.none': '未來 {0} 小時預計無雨',
-    'rainstart.citywide': '全港預報',
+    'rainstart.citywide': '城市尺度預報',
+    'rainstart.horizon': '未來 {0} 小時',
     'rainstart.inMinutes': '約 {0} 分鐘後',
     'rainstart.inHours': '約 {0} 小時後',
     'rainstart.inHoursMin': '約 {0} 小時 {1} 分後',
