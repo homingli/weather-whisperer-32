@@ -90,21 +90,25 @@ export async function reverseGeocode(latitude: number, longitude: number): Promi
  * implemented there and the browser prompts during getCurrentPosition.
  */
 export async function getUserLocation(): Promise<{ latitude: number; longitude: number }> {
-  if (Capacitor.isNativePlatform()) {
-    const permissions = await Geolocation.checkPermissions();
-    const granted = permissions.location === 'granted' || permissions.coarseLocation === 'granted';
+  // High accuracy maps to the plugin's fine alias, so only ask for it when
+  // the fine grant exists — otherwise Android 12+ coarse-only users get the
+  // OS "upgrade to precise location" dialog on every single call.
+  let enableHighAccuracy = false;
 
-    if (!granted) {
-      const request = await Geolocation.requestPermissions();
-      if (request.location !== 'granted' && request.coarseLocation !== 'granted') {
+  if (Capacitor.isNativePlatform()) {
+    let permissions = await Geolocation.checkPermissions();
+    if (permissions.location !== 'granted' && permissions.coarseLocation !== 'granted') {
+      permissions = await Geolocation.requestPermissions();
+      if (permissions.location !== 'granted' && permissions.coarseLocation !== 'granted') {
         throw new Error('Location permission denied');
       }
     }
+    enableHighAccuracy = permissions.location === 'granted';
   }
 
   try {
     const position = await Geolocation.getCurrentPosition({
-      enableHighAccuracy: true,
+      enableHighAccuracy,
       timeout: TIMING.GEOLOCATION_HIGH_ACCURACY_TIMEOUT_MS,
       maximumAge: 0,
     });
