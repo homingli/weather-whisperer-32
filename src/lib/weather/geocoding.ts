@@ -109,18 +109,20 @@ export async function getUserLocation(): Promise<{ latitude: number; longitude: 
   try {
     const position = await Geolocation.getCurrentPosition({
       enableHighAccuracy,
-      timeout: TIMING.GEOLOCATION_HIGH_ACCURACY_TIMEOUT_MS,
+      timeout: enableHighAccuracy
+        ? TIMING.GEOLOCATION_HIGH_ACCURACY_TIMEOUT_MS
+        : TIMING.GEOLOCATION_TIMEOUT_MS,
       maximumAge: 0,
     });
     return {
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,
     };
-  } catch (highAccuracyError) {
+  } catch (firstAttemptError) {
     // Some devices (especially desktops) never deliver a GPS fix; retry
     // with coarse location and allow a slightly stale answer. Capped at the
     // standard 5s timeout so a dead GPS doesn't stretch the wait to ~25s.
-    logWarn('High accuracy location failed, falling back to basic', highAccuracyError);
+    logWarn('First location attempt failed, falling back to basic', firstAttemptError);
 
     const position = await Geolocation.getCurrentPosition({
       enableHighAccuracy: false,

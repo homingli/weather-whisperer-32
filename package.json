@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "vitest",
     "preview": "vite preview",
-    "audit:viewports": "node scripts/audit/audit-viewports.mjs"
+    "audit:viewports": "node scripts/audit/audit-viewports.mjs",
+    "cap:sync": "pnpm build && cap sync android",
+    "apk": "pnpm run cap:sync && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.2",

@@ -43,6 +43,16 @@ Other useful commands: `npm run build` (production build), `npm run lint`, and `
 
 The map uses a Carto vector basemap when `VITE_CARTO_API_KEY` is set and falls back to open tiles without it. `npm run audit:viewports` checks the app at every iPhone portrait width against layout regressions; see `scripts/audit/README.md`.
 
+### Android APK
+
+The `android/` directory is a Capacitor shell that wraps the web build into an installable APK. Requirements: a JDK (17+) with `JAVA_HOME` set, an Android SDK with platform 36, and `sdk.dir` set in `android/local.properties` (or `ANDROID_HOME` in the environment).
+
+```bash
+pnpm run apk
+```
+
+That builds the web assets, syncs them into the native shell, and runs `gradlew assembleDebug`; the APK lands at `android/app/build/outputs/apk/debug/app-debug.apk`. The sync step also regenerates the gitignored `capacitor-cordova-android-plugins/` directory that `android/settings.gradle` includes, so it must run at least once on a fresh clone before any gradle command.
+
 ## Documentation
 
 - [Architecture](./ARCHITECTURE.md) — data flow, project structure, testing strategy
