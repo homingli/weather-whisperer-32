@@ -13,7 +13,9 @@
     "preview": "vite preview",
     "audit:viewports": "node scripts/audit/audit-viewports.mjs",
     "cap:sync": "pnpm build && cap sync android",
-    "apk": "pnpm run cap:sync && cd android && ./gradlew assembleDebug"
+    "apk": "pnpm run cap:sync && cd android && ./gradlew assembleDebug",
+    "apk:release": "pnpm run cap:sync && cd android && ./gradlew assembleRelease",
+    "icons": "capacitor-assets generate --android"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.2",
@@ -47,6 +49,7 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.0.2",
     "@eslint/js": "^9.39.5",
     "@tailwindcss/typography": "^0.5.20",
