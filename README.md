@@ -45,7 +45,7 @@ The map uses a Carto vector basemap when `VITE_CARTO_API_KEY` is set and falls b
 
 ### Android APK
 
-The `android/` directory is a Capacitor shell that wraps the web build into an installable APK. Requirements: a JDK (17+) with `JAVA_HOME` set, an Android SDK with platform 36, and `sdk.dir` set in `android/local.properties` (or `ANDROID_HOME` in the environment).
+The `android/` directory is a Capacitor shell that wraps the web build into an installable APK. Requirements: a JDK (21+ — Capacitor 8's Android plugin targets Java 21), an Android SDK with platform 36, and `sdk.dir` set in `android/local.properties` (or `ANDROID_HOME` in the environment).
 
 ```bash
 pnpm run apk

@@ -86,8 +86,7 @@ export async function reverseGeocode(latitude: number, longitude: number): Promi
  *
  * Native only: runs the OS permission pre-flight, accepting either fine or
  * coarse grants (Android 12+ can hand out approximate-only). On web the
- * pre-flight is skipped entirely — Capacitor's permission plugin isn't
- * implemented there and the browser prompts during getCurrentPosition.
+ * pre-flight is skipped — the browser prompts during getCurrentPosition.
  */
 export async function getUserLocation(): Promise<{ latitude: number; longitude: number }> {
   // High accuracy maps to the plugin's fine alias, so only ask for it when
