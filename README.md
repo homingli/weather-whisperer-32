@@ -1,198 +1,52 @@
-# Weather Forecast Application
+# Weather Whisperer
 
-A modern, responsive weather application built with React and TypeScript. Features real-time weather data from multiple sources including the Hong Kong Observatory (HKO) and Open-Meteo, with support for multiple languages and a sleek glass-morphism design.
+Weather Whisperer is a weather app that answers the questions behind the forecast: Will I need an umbrella? Is a typhoon coming? When will the rain reach my street? It works anywhere in the world, and in Hong Kong it brings in official data straight from the Hong Kong Observatory — in English or Traditional Chinese, online or offline.
 
-## Features
+## Wherever you are
 
-- **Dual Weather Sources**: Switch between Open-Meteo and Hong Kong Observatory (HKO) APIs
-- **Multi-Language Support**: English and Traditional Chinese interface
-- **Location Services**: Auto-detect user location or search for any city worldwide
-- **Weather Data**: Current conditions, hourly forecasts (6 hours), and daily forecasts (7 days)
-- **Local Timezone Display**: Shows date and time in the selected location's timezone
-- **High/Low Temperatures**: Daily minimum and maximum temperatures displayed in the hero section
-- **Sun Events**: Displays sunset or sunrise times based on current day/night status
-- **Hourly Charts**: Interactive line charts showing temperature and precipitation probability with PSR (Probability of Significant Rain) labels
-- **Weather Alerts**: Real-time weather warnings and alerts (HKO source only)
-- **Responsive Design**: Optimized for mobile, tablet, and desktop devices
-- **Data Persistence**: Saves default city selection in local storage
-- **Smart Caching**: Refetches data every 5 minutes with 2-minute stale time
+**Know what today actually feels like.** See the current conditions with a "feels like" temperature, today's high and low, and whether things are warming up, cooling down, or holding steady over the next three hours.
 
-## Technology Stack
+**Get a straight answer about rain.** The app tells you plainly whether an umbrella is worth carrying. A "when will it rain?" banner tells you when rain is expected — or, if it is already raining, when it should ease — and the today-and-tomorrow strip shows each day's temperature range, with the chance of rain only when it is worth knowing about — at least one in five.
 
-- **Frontend Framework**: React 18 with TypeScript 5
-- **Build Tool**: Vite 5
-- **UI Components**: shadcn-ui with Radix UI 1.x
-- **Styling**: Tailwind CSS 3 with custom animations
-- **Data Fetching**: TanStack React Query 5
-- **Routing**: React Router 7
-- **Icons**: Lucide React
-- **Charts**: Recharts 2
-- **Date Handling**: date-fns 3
-- **Forms**: React Hook Form 7 with Zod 3 validation
+**Look ahead by hours or by week.** An interactive chart traces the temperature through the next six hours with the chance of rain behind it, and a seven-day outlook carries you through the rest of the week.
 
-## Project Structure
+**Check any city, in its own time.** Search for a place by name, let the app find you automatically, or jump back to your recent cities with one tap. Every forecast shows the local time of that city — useful when you are travelling or checking on family elsewhere.
 
-```
-src/
-├── components/         # Reusable UI components
-│   ├── ui/            # shadcn-ui components
-│   ├── CurrentWeather.tsx
-│   ├── HourlyForecast.tsx
-│   ├── DailyForecast.tsx
-│   ├── CitySearch.tsx
-│   ├── WeatherAlerts.tsx
-│   └── ...
-├── contexts/          # React Context providers
-│   ├── LanguageContext.tsx
-│   └── WeatherSourceContext.tsx
-├── lib/               # Utility functions and API clients
-│   ├── weather.ts     # Open-Meteo API integration
-│   └── hko-weather.ts # Hong Kong Observatory API integration
-├── pages/             # Page components
-│   ├── Index.tsx      # Main weather page
-│   └── NotFound.tsx   # 404 page
-├── App.tsx            # Root app component
-└── main.tsx           # Application entry point
-```
+**Make it yours.** Switch between English and Traditional Chinese, pick a light or dark theme (or one that follows the sun), and add the app to your home screen. It works like a native app: it loads fast, remembers the last forecast you saw, and keeps showing it even when you have no connection.
 
-## Getting Started
+## In Hong Kong and the Pearl River Delta
 
-### Prerequisites
+**Weather from the official source.** In Hong Kong, Weather Whisperer blends the Hong Kong Observatory's official data into the forecast, so you are reading the same warnings the Observatory itself publishes — not a watered-down feed.
 
-- Node.js (v16 or higher)
-- npm or yarn package manager
+**Warnings the moment they are issued.** Typhoon signals (T1 through T10), rainstorm alerts, and hot-weather, cold-weather and other advisories appear at the top of the page as soon as they are announced. Tap one to read the full safety guidance in your language.
 
-### Installation
+**Watch the rain coming.** An animated map shows where rainfall is expected over the next couple of hours across Hong Kong, Shenzhen, Macau and the wider Pearl River Delta. Press play and step through the coming hours frame by frame; a blue pin marks where you are.
+
+## What makes it different
+
+- **Official where it counts.** Most weather apps serve you the same generic feed everywhere. In Hong Kong this one adds the Observatory's own data, warnings, and rainfall maps.
+- **It tells you what to do.** Umbrella advice, and a rain chance that only appears when it is worth mentioning, replace the usual wall of numbers.
+- **Offline-friendly and no strings attached.** No account, no login — just weather. If your connection drops, you still get the last forecast you saw, clearly marked, with a button to refresh when you are back online.
+
+## For developers
+
+### Run it locally
 
 ```bash
-# Clone the repository
-git clone https://github.com/username/weather-whisperer.git
-
-# Navigate to project directory
-cd weather-whisperer
-
-# Install dependencies
-npm install
+git clone https://github.com/homingli/weather-whisperer-32.git
+cd weather-whisperer-32
+pnpm install --ignore-scripts   # dependencies; lifecycle scripts are not run
+npm run dev   # http://localhost:8080 with hot reload
 ```
 
-### Development
+Other useful commands: `npm run build` (production build), `npm run lint`, and `npm test` (add `--run` for a single pass). Node.js 20+ required.
 
-```bash
-# Start the development server
-npm run dev
-```
+The map uses a Carto vector basemap when `VITE_CARTO_API_KEY` is set and falls back to open tiles without it. `npm run audit:viewports` checks the app at every iPhone portrait width against layout regressions; see `scripts/audit/README.md`.
 
-The application will open at `http://localhost:5173` with hot module replacement enabled.
+## Documentation
 
-### Build
-
-```bash
-# Build for production
-npm run build
-
-# Preview production build locally
-npm run preview
-```
-
-## API Sources
-
-### Open-Meteo
-- Free, open-source weather API
-- Global coverage
-- Provides current weather, hourly, and daily forecasts
-
-### Hong Kong Observatory (HKO)
-- Official Hong Kong weather data
-- Includes weather warnings and alerts
-- Probability of Significant Rain (PSR) data
-- Station-based observations
-
-## Features Breakdown
-
-### Current Weather
-The hero section displays:
-- **Date and Time**: Current date and time formatted in the selected location's timezone
-- **Weather Icon**: Large weather icon indicating current conditions
-- **Temperature**: Current apparent temperature with "feels like" label
-- **Daily Range**: High and low temperatures for the day with visual indicators
-- **Weather Condition**: Current precipitation and humidity data
-- **Umbrella Indicator**: Shows whether an umbrella is recommended based on current rain or upcoming precipitation
-- **Sun Events**: Displays the next sunset (during day) or sunrise (during night) with exact time
-
-### Hourly Forecast
-6-hour forecast with interactive line chart showing:
-- Temperature trend (left Y-axis)
-- Precipitation probability with PSR labels (right Y-axis)
-- Hourly time slots
-
-### Daily Forecast
-7-day forecast with:
-- Min/max temperatures
-- Weather conditions
-- Precipitation probability
-- Weather icons
-
-### City Search
-Global city search with autocomplete functionality. Saves selected city as default for future visits.
-
-### Weather Alerts
-Real-time weather warnings including:
-- Typhoon signals
-- Rainstorm warnings
-- Special weather advisories
-- Other meteorological hazards (HKO only)
-
-### Language Toggle
-Switch between English and Traditional Chinese for the entire interface.
-
-### Weather Source Toggle
-Switch between Open-Meteo (global) and HKO (Hong Kong) data sources.
-
-## Local Storage
-
-The application stores:
-- Default city selection (persists across sessions)
-
-## Browser Support
-
-- Chrome/Edge (latest)
-- Firefox (latest)
-- Safari (latest)
-- Mobile browsers
-
-## Performance
-
-- Automatic data refetch every 5 minutes
-- Efficient caching with React Query
-- Optimized animations with Tailwind CSS
-- Responsive images and lazy loading
-- Production-optimized build with Vite
-
-## Customization
-
-### Adding a New Weather Source
-
-1. Create a new API integration file in `src/lib/`
-2. Export functions matching the existing API patterns
-3. Add a toggle option in the WeatherSourceContext
-4. Update the Index page to handle the new source
-
-### Styling
-
-All styles use Tailwind CSS with custom weather-themed variables defined in `src/index.css`. Modify the CSS custom properties to customize colors and animations.
-
-## Troubleshooting
-
-**Location not detected**: Ensure your browser has permission to access location services and you're on a secure (HTTPS) connection.
-
-**Weather data not loading**: Check your internet connection and ensure the selected API source is available.
-
-**UI looks broken**: Clear browser cache and ensure you're using a modern browser with JavaScript enabled.
-
-## License
-
-This project is built with Lovable and uses open-source libraries. Please refer to individual package licenses.
-
-## Support
-
-For issues and feature requests, please contact through the Lovable platform or your project repository.
+- [Architecture](./ARCHITECTURE.md) — data flow, project structure, testing strategy
+- [Feature details](./docs/features.md) — per-feature breakdown (hero, hourly/daily, alerts, nowcast maps)
+- [Local storage and caching](./docs/local-storage.md) — how offline and cached data work
+- [Performance](./docs/performance.md) — refetch cadence, lazy loading, render isolation
+- [Accessibility](./docs/accessibility.md) — WCAG 2.1 AA status and remaining work

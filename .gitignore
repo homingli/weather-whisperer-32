@@ -23,3 +23,18 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.env.*
+
+GEMINI.*
+
+# Affects Cloudflare deployment
+*.lock*
+
+# Large test data files
+data.csv
+
+# Pi session caches (local agent state, not source)
+.pi*
+
+# Viewport audit output (screenshots + results)
+scripts/audit/shots/

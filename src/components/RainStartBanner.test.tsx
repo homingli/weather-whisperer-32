@@ -1,0 +1,134 @@
+// Tests for the rain-start banner strip: verdict copy, the city-scale
+// qualifier (which leads the strip), the sparkline span label, the
+// screen-reader live region (which must NOT carry the per-minute
+// countdown), the 6-hour verdict horizon, and the hide-strip paths
+// (no-rain verdict, no usable series).
+//
+// Fake timers pin `now` so the fixtures' relative offsets stay exact.
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RainStartBanner } from './RainStartBanner';
+import { LanguageProvider } from '@/contexts/LanguageContext';
+import type { WeatherData, MinutelyPrecipitation } from '@/lib/weather';
+
+const NOW = Date.UTC(2026, 8, 17, 8, 0); // 2026-09-17 08:00 UTC
+const MIN = 60_000;
+
+function minutely(values: number[]): MinutelyPrecipitation[] {
+  return values.map((precipitation, i) => ({
+    // Interval-END stamps (value = preceding-15-min sum): first stamp sits
+    // 15 min after NOW so every window is in the future.
+    time: new Date(NOW + (i + 1) * 15 * MIN),
+    precipitation,
+  }));
+}
+
+const baseWeather: WeatherData = {
+  headline: { source: 'om' },
+  current: {
+    temperature: 20,
+    apparentTemperature: 18,
+    humidity: 60,
+    uvIndex: 5,
+    weatherCode: 0,
+    windSpeed: 25,
+    windDirection: 180,
+    precipitation: 0,
+    precipitationProbability: 0,
+    isDay: true,
+  },
+  hourly: [],
+  daily: [],
+  timezone: 'UTC',
+};
+
+function renderBanner(weather: WeatherData) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <LanguageProvider>
+        <RainStartBanner
+          weather={weather}
+          latitude={22.3}
+          longitude={114.2}
+        />
+      </LanguageProvider>
+    </QueryClientProvider>,
+  );
+}
+
+describe('RainStartBanner', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(NOW));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('renders the rain-expected verdict with countdown, qualifier and span label', () => {
+    // Stamps N+15…N+60 → the wet window is (N+30, N+45], so rain is
+    // expected at 08:30 (its start), in ~30 min.
+    renderBanner({ ...baseWeather, minutely: minutely([0, 0, 0.5, 0]) });
+    const live = screen.getByRole('status');
+    expect(live.textContent).toMatch(/Rain expected around 08:30/);
+    // Live region must stay stable across minute ticks: no countdown clause.
+    expect(live.textContent).not.toMatch(/min/);
+    expect(live.textContent).toMatch(/city-scale forecast/);
+    // The qualifier leads the strip: first visible child, before the verdict.
+    const strip = live.parentElement!;
+    expect(strip.firstElementChild!.textContent).toBe('city-scale forecast');
+    // Visible text carries the countdown, the qualifier and the sparkline's
+    // 6-hour span label.
+    expect(document.body.textContent).toMatch(/in ~30 min/);
+    expect(document.body.textContent).toMatch(/Rain expected around 08:30/);
+    expect(document.body.textContent).toMatch(/next 6 h/);
+  });
+
+  it('renders raining-now copy when the straddling window is wet', () => {
+    // First stamp N+15 covers (N, N+15] — startMs lands exactly on NOW, so
+    // the wet window straddles "now": raining, easing when the following
+    // dry window opens at N+15 (08:15).
+    renderBanner({ ...baseWeather, minutely: minutely([0.5, 0, 0]) });
+    expect(screen.getByRole('status').textContent).toMatch(/Raining now/);
+    expect(document.body.textContent).toMatch(/easing around 08:15/);
+  });
+
+  it('renders nothing when no rain is expected', () => {
+    const { container } = renderBanner({ ...baseWeather, minutely: minutely([0, 0, 0, 0]) });
+    // A no-rain verdict hides the strip entirely — the at-a-glance row
+    // carries the all-clear.
+    expect(container.textContent).toBe('');
+  });
+
+  it('renders nothing when a wet window sits beyond the 6-hour verdict horizon', () => {
+    // 96 stamps reaching N+24 h with a wet window 23 h out. The old 24 h
+    // horizon announced "rain expected" for it over an all-dry sparkline;
+    // the window is now outside the verdict horizon, so the strip hides.
+    const values = Array<number>(96).fill(0);
+    values[91] = 0.5; // window (N+22 h 45, N+23 h]
+    const { container } = renderBanner({ ...baseWeather, minutely: minutely(values) });
+    expect(container.textContent).toBe('');
+  });
+
+  it('hides the span label when the series is too short for a sparkline', () => {
+    // Single wet window straddling "now" → raining-now with one bar;
+    // Sparkline needs ≥ 2 bars, and the "next 6 h" caption must not render
+    // orphaned next to nothing.
+    renderBanner({ ...baseWeather, minutely: minutely([0.5]) });
+    const kickers = Array.from(document.querySelectorAll('.kicker')).map((k) => k.textContent);
+    expect(kickers).not.toContain('next 6 h');
+    // Verdict still renders.
+    expect(screen.getByRole('status').textContent).toMatch(/Raining now/);
+  });
+
+  it('renders nothing when no series is usable', () => {
+    const { container } = renderBanner({ ...baseWeather, minutely: undefined });
+    expect(container.querySelector('[role="status"]')).toBeNull();
+    expect(container.textContent).toBe('');
+  });
+});

@@ -1,0 +1,17 @@
+{
+  "ignoreCommand": "git diff HEAD^ HEAD --quiet -- . ':(exclude)**/*.md'",
+  "rewrites": [
+    { "source": "/hko-data/:path*", "destination": "https://data.weather.gov.hk/weatherAPI/hko_data/:path*" },
+    { "source": "/aqhi-rss/:file", "destination": "https://www.aqhi.gov.hk/epd/ddata/html/out/:file" },
+    { "source": "/assets/:file", "destination": "/assets/:file" },
+    { "source": "/favicon.ico", "destination": "/favicon.ico" },
+    { "source": "/robots.txt", "destination": "/robots.txt" },
+    { "source": "/og-preview.png", "destination": "/og-preview.png" },
+    { "source": "/placeholder.svg", "destination": "/placeholder.svg" },
+    { "source": "/sw.js", "destination": "/sw.js" },
+    { "source": "/registerSW.js", "destination": "/registerSW.js" },
+    { "source": "/manifest.webmanifest", "destination": "/manifest.webmanifest" },
+    { "source": "/workbox-:file", "destination": "/workbox-:file" },
+    { "source": "/:path", "destination": "/index.html" }
+  ]
+}

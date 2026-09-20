@@ -1,125 +1,182 @@
-@import "@fontsource/roboto/400.css";
-@import "@fontsource/roboto/500.css";
-@import "@fontsource/roboto/700.css";
+@import "@fontsource/outfit/300.css";
+@import "@fontsource/outfit/400.css";
+@import "@fontsource/outfit/500.css";
+@import "@fontsource/outfit/700.css";
+@import "@fontsource/playfair-display/latin-400.css";
+@import "@fontsource/playfair-display/latin-500.css";
+@import "@fontsource/playfair-display/latin-600.css";
+@import "@fontsource/playfair-display/latin-700.css";
+@import "@fontsource/playfair-display/latin-400-italic.css";
+
+/* Swiper carousel for mobile card deck */
+@import "swiper/css";
+@import "swiper/css/pagination";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Weather App Design System */
+/* Weather App Design System — Editorial */
 
 @layer base {
   :root {
-    /* Light mode - warm white/cream tones */
-    --background: 45 30% 96%;
-    --foreground: 222 47% 11%;
+    /* Light mode — paper cream */
+    --background: 38 38% 92%;
+    --foreground: 30 14% 12%;
 
-    --card: 45 25% 92%;
-    --card-foreground: 222 47% 11%;
+    --card: 36 32% 89%;
+    --card-foreground: 30 14% 12%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover: 36 50% 96%;
+    --popover-foreground: 30 14% 12%;
 
-    --primary: 199 89% 40%;
-    --primary-foreground: 45 30% 98%;
+    --primary: 30 14% 12%;
+    --primary-foreground: 36 50% 96%;
 
-    --secondary: 0 0% 100%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 36 32% 91%;
+    --secondary-foreground: 30 14% 12%;
 
-    --muted: 45 15% 90%;
-    --muted-foreground: 222 30% 40%;
+    --muted: 36 24% 84%;
+    --muted-foreground: 30 8% 28%;
 
-    --accent: 30 60% 55%;
-    --accent-foreground: 45 30% 98%;
+    --accent: 14 38% 38%;
+    --accent-foreground: 36 50% 96%;
 
-    --destructive: 0 84% 50%;
-    --destructive-foreground: 45 30% 98%;
+    --destructive: 0 60% 38%;
+    --destructive-foreground: 36 50% 96%;
 
-    --border: 45 15% 82%;
-    --input: 45 15% 85%;
-    --ring: 199 89% 48%;
+    --border: 30 14% 22% / 0.18;
+    --input: 30 14% 22% / 0.20;
+    --ring: 30 14% 12%;
 
-    --radius: 1rem;
+    --radius: 0.125rem;
 
-    /* Weather-specific tokens - light mode */
-    --glass: 45 25% 95% / 0.7;
-    --glass-border: 45 15% 75% / 0.4;
-    --gradient-sky-start: 200 60% 90%;
-    --gradient-sky-mid: 210 50% 85%;
-    --gradient-sky-end: 45 30% 92%;
-    
+    /* Weather-specific tokens — light mode (editorial paper) */
+    --glass: 36 50% 96% / 0.7;
+    --glass-border: 30 14% 22% / 0.18;
+    --gradient-sky-start: 38 38% 92%;
+    --gradient-sky-mid: 36 30% 88%;
+    --gradient-sky-end: 30 24% 84%;
+
     --weather-sunny: 35 90% 55%;
     --weather-cloudy: 220 20% 50%;
     --weather-rain: 200 80% 50%;
     --weather-snow: 200 30% 85%;
 
-    --sidebar-background: 45 25% 94%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 199 89% 40%;
-    --sidebar-primary-foreground: 45 30% 98%;
-    --sidebar-accent: 45 20% 88%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 45 15% 82%;
-    --sidebar-ring: 199 89% 48%;
+    /* Severity text colors - deep, high-contrast hues for the editorial
+       palette. Used by StatusBadge and inline status tones; the chip
+       backgrounds stay translucent (text/bg-severity-X with /10 alpha).
+       Each lands at at least 5.5:1 on the cream background. */
+    --severity-warning-fg: 35 92% 30%;
+    --severity-success-fg: 142 76% 22%;
+    --severity-error-fg: 0 70% 32%;
+    --severity-info-fg: 200 80% 28%;
+
+    --sidebar-background: 36 32% 91%;
+    --sidebar-foreground: 30 14% 12%;
+    --sidebar-primary: 30 14% 12%;
+    --sidebar-primary-foreground: 36 50% 96%;
+    --sidebar-accent: 36 24% 84%;
+    --sidebar-accent-foreground: 30 14% 12%;
+    --sidebar-border: 30 14% 22% / 0.18;
+    --sidebar-ring: 30 14% 12%;
+
+    /* Editorial typographic scale */
+    --font-display: "Playfair Display", "Times New Roman", Georgia, serif;
+    --font-body: "Outfit", system-ui, -apple-system, sans-serif;
   }
 
   .dark {
-    --background: 222 47% 8%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 12%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 12%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 199 89% 48%;
-    --primary-foreground: 222 47% 8%;
-    --secondary: 222 47% 18%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 222 47% 15%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 280 65% 60%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 222 47% 20%;
-    --input: 222 47% 20%;
-    --ring: 199 89% 48%;
+    /* Dark mode — newsprint black */
+    --background: 24 10% 8%;
+    --foreground: 36 32% 88%;
 
-    /* Weather-specific tokens - dark mode */
-    --glass: 222 47% 15% / 0.6;
-    --glass-border: 222 47% 30% / 0.3;
-    --gradient-sky-start: 222 47% 8%;
-    --gradient-sky-mid: 230 50% 15%;
-    --gradient-sky-end: 260 45% 20%;
+    --card: 24 10% 11%;
+    --card-foreground: 36 32% 88%;
 
-    --sidebar-background: 222 47% 10%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 199 89% 48%;
-    --sidebar-primary-foreground: 222 47% 8%;
-    --sidebar-accent: 222 47% 18%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222 47% 20%;
-    --sidebar-ring: 199 89% 48%;
+    --popover: 24 10% 11%;
+    --popover-foreground: 36 32% 88%;
+
+    --primary: 36 32% 88%;
+    --primary-foreground: 24 10% 8%;
+
+    --secondary: 24 10% 14%;
+    --secondary-foreground: 36 32% 88%;
+
+    --muted: 24 8% 16%;
+    --muted-foreground: 36 12% 52%;
+
+    --accent: 14 50% 60%;
+    --accent-foreground: 24 10% 8%;
+
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 24 10% 8%;
+
+    --border: 36 32% 88% / 0.18;
+    --input: 36 32% 88% / 0.20;
+    --ring: 36 32% 88%;
+
+    /* Weather-specific tokens — dark mode (editorial) */
+    --glass: 24 10% 14% / 0.6;
+    --glass-border: 36 32% 88% / 0.15;
+    --gradient-sky-start: 24 10% 8%;
+    --gradient-sky-mid: 24 10% 12%;
+    --gradient-sky-end: 24 10% 16%;
+
+    --sidebar-background: 24 10% 11%;
+    --sidebar-foreground: 36 32% 88%;
+    --sidebar-primary: 36 32% 88%;
+    --sidebar-primary-foreground: 24 10% 8%;
+    --sidebar-accent: 24 10% 16%;
+    --sidebar-accent-foreground: 36 32% 88%;
+    --sidebar-border: 36 32% 88% / 0.18;
+    --sidebar-ring: 36 32% 88%;
+
+    /* Severity tokens — dark mode overrides. The :root values are deep
+       hues calibrated for the cream light-mode bg; in dark mode we
+       invert toward lighter tints so they pass 4.5:1 against the
+       newsprint-black background (24 10% 8%). */
+    --severity-info-fg: 217 100% 81%;
   }
 }
 
 @layer base {
+  html, body, #root {
+    height: 100% !important;
+  }
+
+  /* Horizontal-scroll safety net is scoped to the mobile swiper below
+     (.swiper-mobile-deck + .editorial-card inside it) so the safety net only
+     bites where an off-grid slide child can actually escape — a single
+     element in the page body no longer gets its overflow clipped globally,
+     which was over-broad (clipping legitimately wide layout elements and
+     any future horizontal carousel). */
+
   * {
     @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Roboto', sans-serif;
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+    font-family: var(--font-body);
+  }
+
+  /* Editorial display type — kicker labels and big numbers */
+  .font-display {
+    font-family: var(--font-display);
+    font-feature-settings: "lnum" 1, "kern" 1;
+    letter-spacing: -0.01em;
   }
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-secondary/90 border border-border/30 rounded-2xl;
+  .editorial-card {
+    @apply bg-card border border-border rounded-none;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.02), 0 30px 60px -30px rgba(0,0,0,0.10);
+  }
+
+  .editorial-rule {
+    background-color: hsl(var(--foreground) / 0.18);
   }
 
   .gradient-sky {
@@ -131,13 +188,205 @@
     );
   }
 
-  .weather-icon-glow {
-    filter: drop-shadow(0 0 20px hsl(var(--primary) / 0.4));
+  .glass-card {
+    @apply editorial-card;
+  }
+
+  .glass-card-sub {
+    @apply bg-background/40 border border-border rounded-none;
   }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* iOS safe-area helpers for use with viewport-fit=cover. Each keeps the
+     current padding when the device reports no inset (browser tab, desktop)
+     and grows to clear the notch / Dynamic Island / home indicator in
+     standalone PWA mode. Insets are 0 until viewport-fit=cover is active,
+     so plain `px-4 pt-[10px] pb-4` would let content sit under the home
+     indicator / status bar on a full-bleed PWA. */
+  .safe-px {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .safe-top {
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .vertical-text {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+
+  /* Editorial kicker label — uppercase, tracked, sans body.
+     font-size is rem (not px) so the text-size setting rescales it too. */
+  .kicker {
+    font-family: var(--font-body);
+    text-transform: uppercase;
+    letter-spacing: 0.32em;
+    font-weight: 500;
+    font-size: 0.75rem;
+  }
+}
+
+/* ── Swiper mobile card deck ── */
+.swiper-mobile-deck {
+  @apply w-full overflow-hidden;
+  height: 100% !important;
+}
+
+/* Stretch editorial-card children to fill slide height */
+.swiper-mobile-deck .editorial-card,
+.swiper-mobile-deck .glass-card {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* Allow vertical scroll when content exceeds the slide (e.g. tiny phone
+     viewports where the precipitation + UV + humidity stack can't fit
+     alongside the hero numerals). Keep overflow-x:hidden so the rotated
+     diamond marker on the temperature gradient stays clipped to the bar. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom scrollbar inside editorial-card so the cream scrollbar doesn't
+   visually clash with the cream card background. */
+.swiper-mobile-deck .editorial-card::-webkit-scrollbar,
+.swiper-mobile-deck .glass-card::-webkit-scrollbar {
+  width: 6px;
+}
+.swiper-mobile-deck .editorial-card::-webkit-scrollbar-thumb,
+.swiper-mobile-deck .glass-card::-webkit-scrollbar-thumb {
+  background: hsl(var(--foreground) / 0.18);
+  border-radius: 3px;
+}
+.swiper-mobile-deck .editorial-card::-webkit-scrollbar-thumb:hover,
+.swiper-mobile-deck .glass-card::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--foreground) / 0.3);
+}
+
+/* RainfallMap: let the map area stretch to fill remaining card height */
+.swiper-mobile-deck .rainfall-map-area {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+.swiper-mobile-deck .rainfall-map-area .maplibregl-map {
+  height: 100% !important;
+}
+
+/* Pagination renders OUTSIDE the swiper (into #swiper-mobile-deck-pagination
+   in src/pages/Index.tsx). Neutralize swiper's default absolute positioning
+   so bullets flow inline with the chevron hint instead of overlapping card
+   content (e.g. the rainfall band's legend at the bottom of the map). */
+#swiper-mobile-deck-pagination.swiper-pagination {
+  position: static !important;
+  width: auto !important;
+  display: inline-flex;
+  gap: 0.25rem;
+  background: transparent;
+}
+
+#swiper-mobile-deck-pagination .swiper-pagination-bullet {
+  margin: 0 !important;
+  opacity: 1;
+  background-color: hsl(var(--foreground) / 0.35);
+}
+
+#swiper-mobile-deck-pagination .swiper-pagination-bullet-active {
+  background-color: hsl(var(--foreground));
+}
+
+/* ── Indeterminate progress bar ── */
+/* Used by RainfallMap when the CSV response lacks a Content-Length header
+   (mobile carriers / HTTP/2-3 / Vercel edge often strip it). The bar slides
+   across instead of filling to a known percent, signalling "downloading"
+   without lying about a percentage. */
+@keyframes progress-indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.progress-indeterminate {
+  position: absolute;
+  inset: 0;
+  width: 33.333%;
+  background-color: hsl(var(--primary) / 0.7);
+  animation: progress-indeterminate 1.4s ease-in-out infinite;
+}
+
+/* ── Reduced-motion overrides (WCAG 2.3.3) ────────────────────────── */
+/* @keyframes for entrance animations live in the @media block below so
+   they only animate when the user has not requested reduced motion (the
+   replacement for the per-component GSAP matchMedia() the previous version
+   used). This block also neutralizes Tailwind utility animations and the
+   indeterminate progress keyframe for reduce-motion users. */
+@media (prefers-reduced-motion: no-preference) {
+  /* NOTE: Class selectors in this block are intentionally global — the
+     components using them (CurrentWeather, HourlyForecast, DailyForecast)
+     are the only consumers in the app, and the `cw-` / `hf-` / `df-`
+     prefixes are the namespace. If you reuse one of these class names
+     elsewhere (e.g. a Storybook story, a test wrapper), the animation
+     will fire there too. To scope, prefix with a parent selector
+     (e.g. `.editorial-card .cw-rule`). */
+
+  /* Hairline rules: scaleX from 0, transform-origin left center so they
+     draw out left-to-right (matches the previous gsap.from(..., {scaleX:0,
+     transformOrigin:'left center'}) call). One shared @keyframes applied
+     by each component's class with per-component duration + delay. */
+  @keyframes rule-in {
+    from { transform: scaleX(0); transform-origin: left center; }
+    to   { transform: scaleX(1); transform-origin: left center; }
+  }
+  .cw-rule { animation: rule-in 1s cubic-bezier(0.65, 0, 0.35, 1) both; }
+  .hf-rule { animation: rule-in 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.2s both; }
+  .df-rule { animation: rule-in 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.25s both; }
+
+  /* Numeral/heading rise: translateY(100%) → 0. REQUIRES an
+     `overflow-hidden` parent (verified in CurrentWeather.tsx at the
+     hero numeral wrappers) so the starting position isn't visible
+     during the entrance. Replaces gsap.from(..., {yPercent:100}). */
+  @keyframes cw-rise-in {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  .cw-rise { animation: cw-rise-in 0.9s cubic-bezier(0.21, 0.71, 0.4, 1) 0.15s both; }
+
+  /* Block-level fade-in. Replaces gsap.from(..., {autoAlpha: 0}). */
+  @keyframes cw-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .cw-fade { animation: cw-fade-in 0.7s cubic-bezier(0.31, 0.74, 0.58, 1) 0.3s both; }
+
+  /* Chart containers: fade + lift 16px. Shared between Hourly and Daily
+     (one keyframes for both; identical visual spec). */
+  @keyframes chart-in {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hf-chart { animation: chart-in 0.7s cubic-bezier(0.31, 0.74, 0.58, 1) 0.4s both; }
+  .df-chart { animation: chart-in 0.7s cubic-bezier(0.31, 0.74, 0.58, 1) 0.45s both; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse,
+  .animate-ping,
+  .animate-spin,
+  .animate-warning-pulse,
+  .animate-fade-in,
+  .progress-indeterminate {
+    animation: none !important;
   }
 }
