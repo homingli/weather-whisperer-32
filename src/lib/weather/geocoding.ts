@@ -2,6 +2,7 @@
 
 import { fetchWithTimeout } from '../fetch-utils';
 import { logError, logWarn } from '../log';
+import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { TIMING } from '../constants';
 import { GeoLocation } from './types';
@@ -83,60 +84,48 @@ export async function reverseGeocode(latitude: number, longitude: number): Promi
 /**
  * Get user's current location via Capacitor Geolocation.
  *
- * On native (Android/iOS) this drives the OS permission prompt; on web the
- * permission plugin calls throw "Not implemented", which we ignore — the
- * browser prompts on its own during getCurrentPosition.
+ * Native only: runs the OS permission pre-flight, accepting either fine or
+ * coarse grants (Android 12+ can hand out approximate-only). On web the
+ * pre-flight is skipped entirely — Capacitor's permission plugin isn't
+ * implemented there and the browser prompts during getCurrentPosition.
  */
 export async function getUserLocation(): Promise<{ latitude: number; longitude: number }> {
-  try {
-    try {
-      const permissions = await Geolocation.checkPermissions();
+  if (Capacitor.isNativePlatform()) {
+    const permissions = await Geolocation.checkPermissions();
+    const granted = permissions.location === 'granted' || permissions.coarseLocation === 'granted';
 
-      if (permissions.location === 'denied') {
+    if (!granted) {
+      const request = await Geolocation.requestPermissions();
+      if (request.location !== 'granted' && request.coarseLocation !== 'granted') {
         throw new Error('Location permission denied');
       }
-
-      if (permissions.location !== 'granted') {
-        const request = await Geolocation.requestPermissions();
-        if (request.location === 'denied') {
-          throw new Error('Location permission denied');
-        }
-      }
-    } catch (permError) {
-      const isNotImplemented = permError instanceof Error && permError.message.includes('Not implemented');
-      if (!isNotImplemented) {
-        throw permError;
-      }
     }
+  }
 
-    try {
-      const position = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: TIMING.GEOLOCATION_HIGH_ACCURACY_TIMEOUT_MS,
-        maximumAge: 0,
-      });
-      return {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      };
-    } catch (highAccuracyError) {
-      // Some devices (especially desktops) never deliver a GPS fix; retry
-      // with coarse location and allow a slightly stale answer.
-      logWarn('High accuracy location failed, falling back to basic', highAccuracyError);
+  try {
+    const position = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: true,
+      timeout: TIMING.GEOLOCATION_HIGH_ACCURACY_TIMEOUT_MS,
+      maximumAge: 0,
+    });
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    };
+  } catch (highAccuracyError) {
+    // Some devices (especially desktops) never deliver a GPS fix; retry
+    // with coarse location and allow a slightly stale answer. Capped at the
+    // standard 5s timeout so a dead GPS doesn't stretch the wait to ~25s.
+    logWarn('High accuracy location failed, falling back to basic', highAccuracyError);
 
-      const position = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: false,
-        timeout: TIMING.GEOLOCATION_FALLBACK_TIMEOUT_MS,
-        maximumAge: TIMING.GEOLOCATION_FALLBACK_MAX_AGE_MS,
-      });
-      return {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      };
-    }
-  } catch (error) {
-    logError('Failed to get location', error);
-    if (error instanceof Error) throw error;
-    throw new Error('Failed to get location');
+    const position = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: false,
+      timeout: TIMING.GEOLOCATION_TIMEOUT_MS,
+      maximumAge: TIMING.GEOLOCATION_FALLBACK_MAX_AGE_MS,
+    });
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    };
   }
 }

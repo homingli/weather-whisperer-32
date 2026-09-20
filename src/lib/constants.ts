@@ -134,8 +134,6 @@ export const TIMING = {
   GEOLOCATION_TIMEOUT_MS: 5000,
   /** Geolocation high-accuracy attempt (GPS fix can take a while outdoors) */
   GEOLOCATION_HIGH_ACCURACY_TIMEOUT_MS: 10000,
-  /** Geolocation low-accuracy fallback (cell/wifi, more lenient) */
-  GEOLOCATION_FALLBACK_TIMEOUT_MS: 15000,
   /** Max age of a fallback geolocation fix before it's considered stale */
   GEOLOCATION_FALLBACK_MAX_AGE_MS: 30000,
   /** React Query staleTime for weather data */

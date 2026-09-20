@@ -5,7 +5,9 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  // android/ and ios/ hold Capacitor-generated native projects (incl. copied
+  // web assets under app/src/main/assets/public) — not lintable app source.
+  { ignores: ["dist", "android", "ios"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

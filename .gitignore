@@ -38,3 +38,4 @@ data.csv
 
 # Viewport audit output (screenshots + results)
 scripts/audit/shots/
+.zcode/

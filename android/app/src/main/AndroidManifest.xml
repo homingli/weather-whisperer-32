@@ -39,5 +39,6 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-feature android:name="android.hardware.location.gps" />
+    <!-- GPS optional: coarse location (cell/wifi) is a supported fallback -->
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 </manifest>
