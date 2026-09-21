@@ -44,6 +44,17 @@ android {
             }
         }
     }
+
+    // APK artifact name: weather-whisperer-v<versionName>.apk. Debug and
+    // release both get the name, but land in separate apk/<variant>/ dirs.
+    // versionName is captured from defaultConfig because the old variant
+    // API in AGP 9 no longer exposes it on the variant object.
+    def vName = defaultConfig.versionName
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "weather-whisperer-v${vName}.apk"
+        }
+    }
 }
 
 

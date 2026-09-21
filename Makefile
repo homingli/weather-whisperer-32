@@ -9,14 +9,17 @@
 #
 # VERSION comes from versionName in android/app/build.gradle; override inline:
 #   make upload VERSION=1.1
+# Gradle names the artifact weather-whisperer-v<VERSION>.apk (see the
+# applicationVariants block in android/app/build.gradle), so the GitHub
+# release asset carries that name too.
 
 JAVA_HOME ?= $(shell /usr/libexec/java_home 2>/dev/null || echo /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home)
 export JAVA_HOME
 
-APK_DEBUG   := android/app/build/outputs/apk/debug/app-debug.apk
-APK_RELEASE := android/app/build/outputs/apk/release/app-release.apk
 VERSION     ?= $(shell sed -n 's/.*versionName "\([^"]*\)".*/\1/p' android/app/build.gradle | head -1)
 TAG         := apk-v$(VERSION)
+APK_DEBUG   := android/app/build/outputs/apk/debug/weather-whisperer-v$(VERSION).apk
+APK_RELEASE := android/app/build/outputs/apk/release/weather-whisperer-v$(VERSION).apk
 
 .PHONY: apk apk-release upload release icons clean
 

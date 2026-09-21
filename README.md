@@ -51,7 +51,7 @@ The `android/` directory is a Capacitor shell that wraps the web build into an i
 pnpm run apk
 ```
 
-That builds the web assets, syncs them into the native shell, and runs `gradlew assembleDebug`; the APK lands at `android/app/build/outputs/apk/debug/app-debug.apk`. The sync step also regenerates the gitignored `capacitor-cordova-android-plugins/` directory that `android/settings.gradle` includes, so it must run at least once on a fresh clone before any gradle command.
+That builds the web assets, syncs them into the native shell, and runs `gradlew assembleDebug`; the APK lands at `android/app/build/outputs/apk/debug/weather-whisperer-v<version>.apk` (version = `versionName` in `android/app/build.gradle`). The sync step also regenerates the gitignored `capacitor-cordova-android-plugins/` directory that `android/settings.gradle` includes, so it must run at least once on a fresh clone before any gradle command.
 
 ## Documentation
 

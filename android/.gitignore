@@ -23,6 +23,9 @@ out/
 .gradle/
 build/
 
+# Kotlin build sessions (written by the AGP 9 / Kotlin 2.x toolchain)
+.kotlin/
+
 # Local configuration file (sdk path, etc)
 local.properties
 
