@@ -3,10 +3,12 @@
  *  Spike for issue #99. The HKO Open Data API has no `dataType=aqhi`; the
  *  authoritative AQHI source is the EPD RSS feed hosted on aqhi.gov.hk
  *  (18 stations: 15 general + 3 roadside). The feed blocks cross-origin
- *  reads (Access-Control-Allow-Origin: https://aqhi.gov.hk), so it is
- *  fetched through a same-origin proxy: the Vite dev proxy (`/aqhi-rss`)
- *  in development and a Vercel rewrite in production — the same pattern
- *  the nowcast CSV uses for `/hko-data`.
+ *  reads (Access-Control-Allow-Origin: https://aqhi.gov.hk), so on the web
+ *  it is fetched through a same-origin proxy: the Vite dev proxy
+ *  (`/aqhi-rss`) in development and a Vercel rewrite in production — the
+ *  same pattern the nowcast CSV uses for `/hko-data`. The native WebView
+ *  has no rewrite layer, so the shells fetch EPD directly over the native
+ *  HTTP stack (no CORS there) — see `native-http.ts`.
  *
  *  Parsing notes (from the live feed, Sep 2026):
  *  - EN description: "Central/Western - General Stations: 5 Moderate - Thu, ..."
@@ -20,6 +22,7 @@ import { logTiming, logFailure } from './log';
 import { logParseWarnings } from './parsers';
 import { TIMING } from './constants';
 import { getDistanceFromLatLon } from './hko-stations';
+import { isNativePlatform, nativeHttpGetText } from './native-http';
 
 export type AqhiLevel = 'low' | 'moderate' | 'high' | 'veryHigh' | 'serious';
 
@@ -138,9 +141,15 @@ export function parseAqhiRss(xml: string): { data: AqhiFeedItem[]; warnings: str
   return { data, warnings };
 }
 
-const FEED_PATHS: Record<'en' | 'tc', string> = {
-  en: '/aqhi-rss/aqhi_ind_rss_Eng.xml',
-  tc: '/aqhi-rss/aqhi_ind_rss_ChT.xml',
+const FEED_PATHS: Record<'en' | 'tc', { proxy: string; origin: string }> = {
+  en: {
+    proxy: '/aqhi-rss/aqhi_ind_rss_Eng.xml',
+    origin: 'https://www.aqhi.gov.hk/epd/ddata/html/out/aqhi_ind_rss_Eng.xml',
+  },
+  tc: {
+    proxy: '/aqhi-rss/aqhi_ind_rss_ChT.xml',
+    origin: 'https://www.aqhi.gov.hk/epd/ddata/html/out/aqhi_ind_rss_ChT.xml',
+  },
 };
 
 /** Per-language parsed-feed cache. AQHI piggybacks the app-wide 5-min
@@ -170,9 +179,18 @@ async function fetchAqhiFeed(lang: 'en' | 'tc'): Promise<AqhiFeedItem[]> {
   const fetchPromise = (async () => {
     const start = Date.now();
     try {
-      const response = await fetchWithTimeout(FEED_PATHS[lang], { timeout: TIMING.AQHI_TIMEOUT_MS });
-      if (!response.ok) throw new Error(`Failed to fetch AQHI feed: ${response.status}`);
-      const xml = await response.text();
+      let xml: string;
+      if (isNativePlatform()) {
+        // Native WebView: no same-origin proxy exists there, fetch EPD
+        // directly over the native stack (CORS doesn't apply to it).
+        xml = (await nativeHttpGetText(FEED_PATHS[lang].origin, TIMING.AQHI_TIMEOUT_MS)).text;
+      } else {
+        const response = await fetchWithTimeout(FEED_PATHS[lang].proxy, {
+          timeout: TIMING.AQHI_TIMEOUT_MS,
+        });
+        if (!response.ok) throw new Error(`Failed to fetch AQHI feed: ${response.status}`);
+        xml = await response.text();
+      }
       logTiming('EPD aqhi fetch', Date.now() - start);
 
       const { data, warnings } = parseAqhiRss(xml);

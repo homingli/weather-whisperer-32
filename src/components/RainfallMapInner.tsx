@@ -10,6 +10,7 @@ import { TIMING } from '@/lib/constants';
 import { parseRainfallCSVText, buildRainGrid, type RainGrid } from '@/lib/rainfallGrid';
 import { RAINFALL_BANDS } from '@/lib/rainfallBands';
 import { scheduleCacheWrite } from '@/lib/nowcastCache';
+import { isNativePlatform, nativeHttpGetText } from '@/lib/native-http';
 import { MapLibreMap } from './MapLibreMap';
 import { rainfallGridToGeoJson } from '@/lib/rainfallGeoJson';
 
@@ -54,10 +55,35 @@ function gridBounds(grid: RainGrid): { minLat: number; maxLat: number; minLon: n
 // instead of a stuck 0% bar for the entire 2.7 MB download.
 type ProgressCallback = (received: number, total: number | null) => void;
 
+// HKO sends no CORS header on the CSV, so web loads fetch it through the
+// same-origin proxy (Vite dev proxy / Vercel rewrite). The native WebView
+// has no rewrite layer and no service worker to cache with, so it fetches
+// HKO directly over the native HTTP stack (no CORS there) — see
+// native-http.ts for the trade-offs that path accepts.
+const NOWCAST_PROXY_PATH = '/hko-data/F3/Gridded_rainfall_nowcast.csv';
+const NOWCAST_ORIGIN_URL =
+  'https://data.weather.gov.hk/weatherAPI/hko_data/F3/Gridded_rainfall_nowcast.csv';
+
 const fetchRainfallNowcast = async (
   onProgress?: ProgressCallback,
   externalSignal?: AbortSignal,
 ): Promise<NowcastResult> => {
+  // Native path: one-shot native GET, then the same parse + cache flow as
+  // the streamed web path. No progress events (CapacitorHttp has no
+  // streaming) and no signal to forward — the timeout lives inside
+  // nativeHttpGetText.
+  if (isNativePlatform()) {
+    const { text, lastModified: lm } = await nativeHttpGetText(
+      NOWCAST_ORIGIN_URL,
+      TIMING.NOWCAST_TIMEOUT_MS,
+    );
+    const parsed = parseRainfallCSVText(text);
+    scheduleCacheWrite(text, parsed.updateTime, lm);
+    const grid = buildRainGrid(parsed.rows);
+    if (!grid) throw new Error('No rain cells in nowcast payload');
+    return { grid, updateTime: parsed.updateTime, lastModified: lm };
+  }
+
   // Manage the timeout here (not via fetchWithTimeout) so the abort stays
   // armed through the body-read loop — headers can arrive in <1s on a warm
   // connection while the body stream still takes 20+ s on slow mobile.
@@ -87,7 +113,7 @@ const fetchRainfallNowcast = async (
   })();
 
   try {
-    const response = await fetch('/hko-data/F3/Gridded_rainfall_nowcast.csv', {
+    const response = await fetch(NOWCAST_PROXY_PATH, {
       signal: controller.signal,
     });
     if (!response.ok) throw new Error('Failed to fetch gridded rainfall nowcast');
