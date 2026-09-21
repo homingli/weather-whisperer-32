@@ -4,12 +4,14 @@ Ideas parked for future sessions. Not scheduled; grab an item when starting
 the matching iteration. Keep entries terse but decision-complete — record the
 "why", not just the "what".
 
-## Share the forecast (event planning)
+## Share the forecast — text share shipped; image card parked
 
-- Share affordance on the DailyForecast card: 7-day summary via
-  `navigator.share` (mobile) with clipboard fallback (desktop).
-- Build the summary string as a pure function of `weather.daily` + units +
-  language — trivially testable, i18n on both EN/TC.
+Shipped (see CHANGELOG, "Share the forecast with friends"): the share icon
+in the daily-forecast card header builds the message with the pure
+`buildForecastShareText` (`src/lib/share-forecast.ts` — unit- and
+language-aware, EN/TC, city timezone) and hands it to `navigator.share`,
+with a clipboard fallback plus toast. Remaining:
+
 - v2 (only if text share proves useful): render the same summary into a
   branded canvas card and share as an image (`navigator.share({ files })`).
 - Deliberately rejected: sharing the nowcast map as an image. MapLibre WebGL
@@ -18,14 +20,19 @@ the matching iteration. Keep entries terse but decision-complete — record the
   hour. If rain sharing matters later, do a text nowcast summary (grid data
   is already client-side) instead of a map screenshot.
 
-## Rain threshold heads-up (current location)
+## Rain threshold heads-up — banner shipped; config + toast remain
 
-- For the current location, surface when the forecast has rain above a
-  threshold — default ~0.5 mm (or user-configurable x mm) — with the time
-  it starts: e.g. "Rain (2 mm) around 15:00".
-- Source: hourly precipitation already fetched client-side; likely a small
-  helper over `weather.hourly` + a chip/line in the hero or at-a-glance, or
-  a toast if it newly crosses the threshold while the app is open.
-- Open decisions: default threshold value, cumulative-vs-rate wording
-  (mm per hour vs total), and whether it follows the selected city or only
-  geolocated "current location".
+Shipped (see CHANGELOG, "Rain-start banner"): `RainStartBanner` above the
+at-a-glance row answers "when will it rain?" ("Rain expected around 15:30 ·
+in ~45 min" / "Raining now · easing around 17:00") from the HKO gridded
+nowcast merged with Open-Meteo minutely_15/hourly (`src/lib/rain-start.ts`),
+with a bar strip encoding per-window mm. The entry's open decisions are
+resolved: it follows the selected city (wording stays location-neutral, not
+geolocation-only), the wet-window threshold is a fixed 0.1 mm per step
+(`RAIN_THRESHOLD_MM`), and amounts show as bar heights rather than a
+"Rain (2 mm) around 15:00" text format or a mm/h rate. Remaining:
+
+- User-configurable threshold: 0.1 mm is fixed; expose an "x mm" setting
+  only if drizzle-grade windows prove too chatty in practice.
+- Toast when rain newly crosses the threshold while the app is open,
+  mirroring the warning-change toasts in `Index.tsx`.

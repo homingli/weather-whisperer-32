@@ -29,6 +29,15 @@ The hero section displays:
 - Weather conditions
 - Precipitation probability
 - Weather icons
+- Share button in the card header (see "Share the forecast" below)
+
+## Share the forecast
+
+A share icon in the daily-forecast card header composes the upcoming days into a short, chat-friendly message and opens the platform share sheet (`navigator.share`); where no share sheet exists (desktop) the message is copied with a confirmation toast instead.
+
+- The message is built by the pure `buildForecastShareText` (`src/lib/share-forecast.ts`) from `weather.daily` + units + language + the city's timezone — a header line, one line per day (icon, date, condition, temp range, rain chance when meaningful), and a link to the app. It renders in English or Traditional Chinese to match the app and respects the unit setting.
+- Share-sheet dismissal (`AbortError`) is treated as "user cancelled", not an error; any other share failure falls through to the clipboard fallback.
+- Deliberately rejected: sharing the nowcast map as an image (MapLibre WebGL canvas + cross-origin tiles → `toDataURL()` taint risk, and a 2-hour nowcast is stale within the hour). A v2 branded image card may follow if the text share proves useful (see `TODO.md`).
 
 ## Settings and navigation
 
@@ -58,6 +67,7 @@ A thin strip above the at-a-glance row (both mobile and desktop layouts) answeri
 - Merges two free sources with complementary strengths: the HKO gridded nowcast (0–2 h, ~1 km cells — district-accurate) and Open-Meteo 15-minute/hourly precipitation (up to 24 h — city-scale, ~8 km model cells, so Open-Meteo-backed copy carries a "city-wide" qualifier)
 - The Open-Meteo 15-minute series arrives inside the existing unified weather fetch (no extra request); the HKO grid segment upgrades automatically once the rain map has been loaded (it reads the shared query cache and never triggers the 2.7 MB CSV download itself)
 - Renders nothing when neither source has usable data; phrasing refreshes on a minute tick
+- Follows the selected city (wording stays location-neutral, not geolocation-only); a step counts as wet at ≥ 0.1 mm (`RAIN_THRESHOLD_MM` in `src/lib/rain-start.ts`), with amounts shown as bar heights rather than mm text
 
 ## Gridded rainfall nowcast
 

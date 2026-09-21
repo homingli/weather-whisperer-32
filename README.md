@@ -10,6 +10,8 @@ Weather Whisperer is a weather app that answers the questions behind the forecas
 
 **Look ahead by hours or by week.** An interactive chart traces the temperature through the next six hours with the chance of rain behind it, and a seven-day outlook carries you through the rest of the week.
 
+**Share the days ahead.** A share icon on the seven-day outlook turns the coming days into a short message — conditions, temperatures and rain chances, plus a link to the app — ready for the group chat planning the weekend. Phones open the native share sheet; elsewhere the message is copied, ready to paste.
+
 **Check any city, in its own time.** Search for a place by name, let the app find you automatically, or jump back to your recent cities with one tap. Every forecast shows the local time of that city — useful when you are travelling or checking on family elsewhere.
 
 **Make it yours.** Switch between English and Traditional Chinese, pick a light or dark theme (or one that follows the sun), and add the app to your home screen. It works like a native app: it loads fast, remembers the last forecast you saw, and keeps showing it even when you have no connection.
