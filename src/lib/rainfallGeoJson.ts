@@ -28,8 +28,7 @@ function bounds(grid: RainGrid, row: number, col: number): [number, number, numb
 /**
  * Convert HKO's internal [latitude, longitude] grid to GeoJSON [longitude, latitude].
  * Cells under `MIN_OVERLAY_MM` are omitted entirely — trace amounts get no
- * overlay, and skipping them keeps the feature collection small instead of
- * shipping polygons the paint style renders at zero opacity.
+ * overlay, and skipping them keeps the feature collection small.
  */
 export function rainfallGridToGeoJson(grid: RainGrid, activeStep: number): RainfallFeatureCollection {
   const step = Math.max(0, Math.min(activeStep, grid.stepCount - 1));

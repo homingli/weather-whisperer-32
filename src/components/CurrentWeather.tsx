@@ -127,7 +127,11 @@ function aqhiBandFor(index: number | null | undefined): AqhiBand {
   return AQHI_BANDS.find((b) => b.level === level) ?? AQHI_BANDS[AQHI_BANDS.length - 1];
 }
 
-/* ── Rainfall bands, mirrors the nowcast map legend ───────────────── */
+/* ── Rainfall bands ──────────────────────────────────────────────────
+   Deliberately one bucket above the nowcast map legend: the map's first
+   bucket is 0.2 – 0.5 mm, while this chart treats anything under 0.5 mm
+   as "trace" (no band lit) — an hourly-chart distinction, not a nowcast
+   threshold. Keep the two in mind when touching either. */
 type RainBand = { max: number; color: string; label: string };
 
 const RAINFALL_BANDS: RainBand[] = [
