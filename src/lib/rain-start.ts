@@ -57,8 +57,11 @@ export interface RainStartForecast {
   computedAt: number;
 }
 
-/** A window with at least this much rain counts as "rain" (mm per step). */
-export const RAIN_THRESHOLD_MM = 0.1;
+/** A window with at least this much rain counts as "rain" (mm per step).
+ *  0.2 mm matches the map overlay's trace floor (rainfallBands.MIN_OVERLAY_MM):
+ *  sub-0.2 mm amounts are radar/model noise, and announcing rain for them made
+ *  the strip fire on drizzle that never materializes. */
+export const RAIN_THRESHOLD_MM = 0.2;
 /** Default forward horizon for the "no rain" verdict. The RainStartBanner
  *  passes a tighter horizon (the sparkline's 6-h span) so its text and bars
  *  always describe the same window. */

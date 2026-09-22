@@ -113,6 +113,20 @@ describe('computeRainStart', () => {
     expect(forecast!.status).toBe('no-rain');
   });
 
+  it('keeps a 0.15 mm window dry — the floor is 0.2 mm', () => {
+    // Pins the raised floor: under the old 0.1 mm cutoff this window was wet
+    // and announced rain that never materialized.
+    const forecast = computeRainStart({
+      now: NOW,
+      minutely: seriesFromMinutely(minutelyPoints([0, 0.15, 0, 0])),
+    });
+    expect(forecast!.status).toBe('no-rain');
+  });
+
+  it('pins the minimum rain threshold at 0.2 mm', () => {
+    expect(RAIN_THRESHOLD_MM).toBe(0.2);
+  });
+
   it('detects raining-now when the current window is wet and finds the end', () => {
     // The fixture's first window ends at NOW (spanning (NOW−15, NOW]), so
     // the second window covers (NOW, NOW+15] — wet → raining now, easing
