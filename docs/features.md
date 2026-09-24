@@ -70,4 +70,4 @@ A thin strip above the at-a-glance row (both mobile and desktop layouts) answeri
 - Precise ending timestamps are derived from raw CSV `endTime` values
 - User location blue pin marker with automatic map zoom to data extent
 - Scroll wheel zoom, double-click zoom, and zoom controls
-- Legend overlay bottom-right with seven color buckets from `< 0.5 mm` to `> 30 mm`
+- Legend overlay bottom-right with seven color buckets from `0.2 - 0.5 mm` to `> 30 mm`; cells under `0.2 mm` are not drawn (trace amounts read as noise)

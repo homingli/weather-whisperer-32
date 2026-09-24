@@ -1,4 +1,5 @@
 import type { RainGrid } from './rainfallGrid';
+import { MIN_OVERLAY_MM } from './rainfallBands';
 
 export interface RainfallFeature {
   type: 'Feature';
@@ -24,7 +25,11 @@ function bounds(grid: RainGrid, row: number, col: number): [number, number, numb
   return [south, west, north, east];
 }
 
-/** Convert HKO's internal [latitude, longitude] grid to GeoJSON [longitude, latitude]. */
+/**
+ * Convert HKO's internal [latitude, longitude] grid to GeoJSON [longitude, latitude].
+ * Cells under `MIN_OVERLAY_MM` are omitted entirely — trace amounts get no
+ * overlay, and skipping them keeps the feature collection small.
+ */
 export function rainfallGridToGeoJson(grid: RainGrid, activeStep: number): RainfallFeatureCollection {
   const step = Math.max(0, Math.min(activeStep, grid.stepCount - 1));
   const features: RainfallFeature[] = [];
@@ -32,6 +37,7 @@ export function rainfallGridToGeoJson(grid: RainGrid, activeStep: number): Rainf
     for (let col = 0; col < grid.cols; col++) {
       const id = row * grid.cols + col;
       const value = grid.values[step * grid.rows * grid.cols + id];
+      if (value < MIN_OVERLAY_MM) continue;
       const [south, west, north, east] = bounds(grid, row, col);
       features.push({
         type: 'Feature',

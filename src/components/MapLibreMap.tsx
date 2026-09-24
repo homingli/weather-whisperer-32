@@ -139,7 +139,9 @@ export function MapLibreMap({ center, zoom, minZoom, maxZoom, dark, ariaLabel, i
       if (map.getSource('hko-rainfall')) (map.getSource('hko-rainfall') as maplibregl.GeoJSONSource).setData(rainfall as never);
       else {
         map.addSource('hko-rainfall', { type: 'geojson', data: rainfall as never });
-        map.addLayer({ id: 'hko-rainfall', type: 'fill', source: 'hko-rainfall', paint: { 'fill-color': ['case', ['<=', ['get', 'value'], 0.5], '#a0c4ff', ['<=', ['get', 'value'], 2], '#4facfe', ['<=', ['get', 'value'], 5], '#00f2fe', ['<=', ['get', 'value'], 10], '#43e97b', ['<=', ['get', 'value'], 20], '#f6d365', ['<=', ['get', 'value'], 30], '#ff0844', '#9d0b0b'], 'fill-opacity': ['case', ['>', ['get', 'value'], 0], 0.5, 0] } });
+        // RainfallMapInner's GeoJSON omits cells under MIN_OVERLAY_MM, so every
+        // feature here is visible rain — constant opacity, no value case needed.
+        map.addLayer({ id: 'hko-rainfall', type: 'fill', source: 'hko-rainfall', paint: { 'fill-color': ['case', ['<=', ['get', 'value'], 0.5], '#a0c4ff', ['<=', ['get', 'value'], 2], '#4facfe', ['<=', ['get', 'value'], 5], '#00f2fe', ['<=', ['get', 'value'], 10], '#43e97b', ['<=', ['get', 'value'], 20], '#f6d365', ['<=', ['get', 'value'], 30], '#ff0844', '#9d0b0b'], 'fill-opacity': 0.5 } });
       }
     };
     return installWhenStyleReady(map, install);

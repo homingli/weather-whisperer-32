@@ -55,6 +55,14 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
   the fixed chart geometry.
 
 ### Changed
+- **Trace amounts (< 0.2 mm) no longer count as rain.** The rainfall
+  nowcast map stops painting its lightest-blue cells for amounts under
+  0.2 mm — the legend's first bucket now starts at 0.2–0.5 mm, and
+  anything lighter is simply not drawn. The rain-start strip raises its
+  bar to match: a 15-minute window must reach 0.2 mm (previously
+  0.1 mm) before the banner announces "rain expected". Sub-0.2 mm
+  readings are radar/model noise, and both surfaces used to flag them
+  as rain that never materialized.
 - **At-a-glance strip: rain jumps to the nowcast, arrow removed.** The
   rain-percentage chip (shown when the chance is ≥ 20 %) is now its own
   button that takes you straight to the rainfall nowcast pane — the map
