@@ -404,7 +404,7 @@ Timeouts throw → trigger React Query retry. No `Cache-Control` headers set or 
 `weather-last-known-v2` is the new persistence layer. The app reads it synchronously on mount, clears it on city switch, and overwrites it on every successful `fetchWeather` call. The envelope's `cityId` (lat/lon rounded to 2 decimal places) prevents cross-city paint. A schema version mismatch or parse error causes a silent drop rather than a crash.
 
 ## Testing strategy
-The project uses **Vitest** with jsdom. Coverage is split across layers (**450 tests**, 34 files):
+The project uses **Vitest** with jsdom. Coverage is split across layers (**484 tests**, 35 files):
 - **Unit tests** (lib/):
   - `src/lib/weather.test.ts` (2): Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
   - `src/lib/weather/hko-codes.test.ts` (15): WMO weather-code descriptions and icons.
@@ -418,7 +418,7 @@ The project uses **Vitest** with jsdom. Coverage is split across layers (**450 t
 - **Context tests** (contexts/):
   - `src/contexts/LanguageContext.test.tsx` (12), `src/contexts/ThemeContext.test.tsx` (8), `src/contexts/UnitsContext.test.tsx` (6), `src/contexts/FontSizeContext.test.tsx` (7).
 - **Component tests** (components/):
-  - `src/components/CurrentWeather.test.tsx` (36): fixture-data render, umbrella indicator, unit conversions, HKO headline icon states, quiet-shelf behavior, today L/H + 3-hour trend caption, daylight/night sun strip.
+  - `src/components/CurrentWeather.test.tsx` (44): fixture-data render, umbrella indicator, unit conversions, HKO headline icon states, quiet-shelf behavior (AQHI ≤ 4 rests in the shelf; only 5+ renders the full chip — HML-9), today L/H + 3-hour trend caption, daylight/night sun strip.
   - `src/components/HourlyForecast.test.tsx` (8): empty forecast, chartData shape validation (mock capture), day/night `ReferenceArea` bands, sun-event `ReferenceLine` label capture, timezone propagation. Recharts is mocked because jsdom lacks ResizeObserver.
   - `src/components/DailyForecast.test.tsx` (4): Swiper carousel rendering, forecast cards, precipitation probability.
   - `src/components/LocalClock.test.tsx` (6): wide-viewport renders HH:MM:SS with 1s interval; narrow-viewport (via `matchMedia` stub) drops seconds, uses 60s interval aligned to the next minute boundary.

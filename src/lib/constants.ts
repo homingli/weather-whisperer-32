@@ -25,8 +25,10 @@ export const QUIET = {
   HUMIDITY_MAX: 60,
   /** Calm wind (raw value is always km/h) — below this, compass direction is noise. */
   WIND_KMH: 20,
-  /** AQHI in EPD's "Low" band (1–3): no health precaution needed. */
-  AQHI_MAX: 3,
+  /** AQHI at or below this value rests in the quiet shelf; only 5+ earns
+   *  the full color-coded chip (HML-9). EPD's "Low" band is 1–3, but the
+   *  moderate floor (4) is still routine air — not worth an alarm. */
+  AQHI_MAX: 4,
 } as const;
 
 // ---------------------------------------------------------------------------
