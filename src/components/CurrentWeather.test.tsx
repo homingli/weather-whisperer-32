@@ -562,6 +562,16 @@ describe('CurrentWeather Component', () => {
       expect(chip).toHaveTextContent('Air Quality (AQHI) 2 Low');
     });
 
+    it('keeps AQHI 4 quiet — only 5+ earns the full chip (HML-9)', () => {
+      // The quiet threshold sits at 4, one above EPD's Low band: the
+      // moderate floor is still routine air, so it mutes into the shelf
+      // even though the band label reads "Moderate".
+      renderWeather({ ...mockWeather, aqhiIndex: 4, aqhiStation: 'Tung Chung' });
+      const chip = screen.getByTestId('quiet-aqhi');
+      expect(chip).toHaveAttribute('aria-label', 'Air Quality (AQHI): 4 Moderate');
+      expect(chip).toHaveTextContent('Air Quality (AQHI) 4 Moderate');
+    });
+
     it('labels 7 as High and 8 as Very High (EPD five-band table)', () => {
       // Regression: an earlier draft shipped the issue body's four-band
       // table, which called 7 "Moderate" and 8 "High". EPD: High is 7 only,
