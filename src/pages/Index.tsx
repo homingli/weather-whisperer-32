@@ -14,6 +14,7 @@ import {
   useDevBaselineNonce,
 } from '@/lib/devWarningSimulator';
 import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName, getWarningIcon } from '@/lib/hko-weather';
+import { buildShareCityLabel } from '@/lib/share-forecast';
 import { PLACEHOLDER_SENTINEL, isInVancouverBox } from '@/lib/constants';
 import { prefetchMscNowcast } from '@/lib/msc-prefetch';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
@@ -108,6 +109,20 @@ const Index = () => {
       isInVancouverBox(selectedCity.latitude, selectedCity.longitude));
   const useMSCNowcast = !!selectedCity &&
     isInVancouverBox(selectedCity.latitude, selectedCity.longitude);
+
+  // Share label — what the header's location label shows, not the raw
+  // selected-city name (reverse geocoding can leave that as the
+  // "Current Location" placeholder). See buildShareCityLabel.
+  const shareCityLabel = selectedCity
+    ? buildShareCityLabel({
+        name: selectedCity.name,
+        admin1: selectedCity.admin1,
+        country: selectedCity.country,
+        isHKCovered,
+        nearestStation: weather?.nearestStation,
+        translateStation: (station) => translateStationName(station, lang),
+      })
+    : '';
 
   // MSC prefetch: once the selected city is in the Vancouver box, warm the
   // nowcast map's lazy chunk + probe tiles at idle so the map's first render
@@ -374,12 +389,12 @@ const Index = () => {
                       <div className="flex flex-col gap-3 h-full">
                         <div className="flex-1 min-h-0">
                           <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 glass-card" />}>
-                            <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={selectedCity?.name} />
+                            <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} />
                           </Suspense>
                         </div>
                         <div className="flex-1 min-h-0">
                           <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20" />}>
-                            <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={selectedCity?.name} />
+                            <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={shareCityLabel} />
                           </Suspense>
                         </div>
                       </div>
@@ -442,11 +457,11 @@ const Index = () => {
                   {/* Secondary Row: Split Forecasts */}
                   <div ref={dailySectionRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
                     <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
-                      <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={selectedCity?.name} />
+                      <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} />
                     </Suspense>
 
                     <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
-                      <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={selectedCity?.name} />
+                      <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={shareCityLabel} />
                     </Suspense>
                   </div>
 

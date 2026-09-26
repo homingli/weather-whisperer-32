@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildForecastShareText, buildHourlyForecastShareText } from './share-forecast';
+import { buildForecastShareText, buildHourlyForecastShareText, buildShareCityLabel } from './share-forecast';
 import type { DailyForecast, HourlyForecast } from '@/lib/weather';
 
 function day(overrides: Partial<DailyForecast> = {}): DailyForecast {
@@ -267,5 +267,47 @@ describe('buildHourlyForecastShareText', () => {
     });
     expect(text).toContain('3 PM');
     expect(text).not.toContain('2026-09-19T');
+  });
+});
+
+describe('buildShareCityLabel', () => {
+  it('uses the nearest station label inside HKO coverage, like the header', () => {
+    const label = buildShareCityLabel({
+      name: 'Kowloon',
+      country: 'Hong Kong',
+      isHKCovered: true,
+      nearestStation: "King's Park",
+      translateStation: (station) => (station === "King's Park" ? '京士柏' : station),
+    });
+    expect(label).toBe('京士柏');
+  });
+
+  it('composes name, admin1, and country outside HKO coverage', () => {
+    const label = buildShareCityLabel({
+      name: 'Vancouver',
+      admin1: 'British Columbia',
+      country: 'Canada',
+      isHKCovered: false,
+    });
+    expect(label).toBe('Vancouver, British Columbia, Canada');
+  });
+
+  it('drops the reverse-geocode placeholder instead of sharing "Current Location"', () => {
+    const label = buildShareCityLabel({
+      name: 'Current Location',
+      admin1: 'Kowloon',
+      country: 'Hong Kong',
+      isHKCovered: false,
+    });
+    expect(label).toBe('Kowloon, Hong Kong');
+  });
+
+  it('falls back to the raw name when nothing else identifies the place', () => {
+    const label = buildShareCityLabel({
+      name: 'Current Location',
+      country: '',
+      isHKCovered: false,
+    });
+    expect(label).toBe('Current Location');
   });
 });

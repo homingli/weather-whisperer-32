@@ -30,6 +30,7 @@ import { getWeatherIcon, weatherDescriptionKey } from '@/lib/weather';
 import { formatInTimezone, appLocale } from '@/lib/utils';
 import { toDisplayTemperature, temperatureUnitLabel, type Units } from '@/lib/units';
 import { psrToPercentage } from '@/lib/hko-psr';
+import { CURRENT_LOCATION_PLACEHOLDER } from '@/lib/parsers';
 import type { Language } from '@/contexts/LanguageContext';
 
 /** Fill the `{0}`-style placeholders used across the app's translation strings. */
@@ -191,4 +192,43 @@ export function buildHourlyForecastShareText({
   const parts = [fill(translate('share.hourlyHeader'), cityName, asOf), '', ...lines];
   if (url) parts.push('', url);
   return parts.join('\n');
+}
+
+export interface ShareCityLabelOptions {
+  /** Selected city name — may be the reverse-geocode placeholder. */
+  name: string;
+  admin1?: string;
+  country?: string;
+  /** Whether the city sits inside HKO's forecast coverage. */
+  isHKCovered: boolean;
+  /** Nearest HKO station, when the weather data carries one. */
+  nearestStation?: string;
+  /** Station-name translator (pass `(s) => translateStationName(s, lang)`). */
+  translateStation?: (station: string) => string;
+}
+
+/**
+ * The city name a share message opens with. Mirrors the location label the
+ * header renders rather than the raw selected-city name: inside HKO
+ * coverage the header shows the nearest station, and elsewhere it composes
+ * "name, admin1, country" — dropping the reverse-geocode placeholder so a
+ * failed geocode shares as "Hong Kong" instead of "Current Location,
+ * Hong Kong". Falls back to the raw name when nothing else identifies the
+ * place.
+ */
+export function buildShareCityLabel({
+  name,
+  admin1,
+  country,
+  isHKCovered,
+  nearestStation,
+  translateStation,
+}: ShareCityLabelOptions): string {
+  if (isHKCovered && nearestStation) {
+    return translateStation ? translateStation(nearestStation) : nearestStation;
+  }
+  const parts = [name === CURRENT_LOCATION_PLACEHOLDER ? '' : name, admin1, country].filter(
+    (part): part is string => !!part && part.trim() !== ''
+  );
+  return parts.length > 0 ? parts.join(', ') : name;
 }
