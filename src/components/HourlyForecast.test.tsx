@@ -95,6 +95,21 @@ describe('HourlyForecast Component', () => {
     expect(screen.getByText(/the next \d+ hours/i)).toBeInTheDocument();
   });
 
+  it('renders the share button next to the kicker — enabled with data, disabled without', () => {
+    const { rerender } = renderWithLanguage(<HourlyForecast forecast={mockHourlyData} />);
+    const share = screen.getByRole('button', { name: /share forecast/i });
+    expect(share).toBeEnabled();
+
+    rerender(
+      <LanguageProvider>
+        <UnitsProvider>
+          <HourlyForecast forecast={[]} />
+        </UnitsProvider>
+      </LanguageProvider>
+    );
+    expect(screen.getByRole('button', { name: /share forecast/i })).toBeDisabled();
+  });
+
   it('handles empty forecast gracefully — renders title and chart container without crashing', () => {
     renderWithLanguage(<HourlyForecast forecast={[]} />);
     expect(screen.getByText(/HOURLY FORECAST/i)).toBeInTheDocument();

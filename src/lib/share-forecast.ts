@@ -1,22 +1,31 @@
 /**
  * Share-forecast message builder.
  *
- * Turns the daily forecast into a short, chat-friendly text block a user can
- * paste into a conversation (or hand to the Web Share API) so friends can see
- * the weather for the days leading up to an outdoor event. Pure and
+ * Turns the daily or hourly forecast into a short, chat-friendly text block
+ * a user can paste into a conversation (or hand to the Web Share API) so
+ * friends can see the weather leading up to an outdoor event. Pure and
  * framework-free: the caller supplies a `translate` function so this module
  * never imports React or the LanguageContext.
  *
- * Message shape:
+ * Daily message shape:
  *   Weather in Hong Kong for the coming days:
  *
  *   ☀️ Sat, Sep 19 · Sunny · 24–28°C · 60% rain
  *   🌧️ Sun, Sep 20 · Rain · 23–26°C
  *
  *   https://<app-url>
+ *
+ * Hourly message shape (header carries an "as of" time — hourly forecasts
+ * go stale within hours):
+ *   Weather in Hong Kong for the coming hours (as of 2:45 PM):
+ *
+ *   ☀️ 3 PM · Sunny · 28°C · 60% rain
+ *   🌧️ 4 PM · Light rain · 26°C
+ *
+ *   https://<app-url>
  */
 
-import type { DailyForecast } from '@/lib/weather';
+import type { DailyForecast, HourlyForecast } from '@/lib/weather';
 import { getWeatherIcon, weatherDescriptionKey } from '@/lib/weather';
 import { formatInTimezone, appLocale } from '@/lib/utils';
 import { toDisplayTemperature, temperatureUnitLabel, type Units } from '@/lib/units';
@@ -85,6 +94,85 @@ export function buildForecastShareText({
   });
 
   const parts = [fill(translate('share.header'), cityName), '', ...lines];
+  if (url) parts.push('', url);
+  return parts.join('\n');
+}
+
+export interface BuildHourlyForecastShareTextOptions {
+  /** Display name of the city the forecast is for. */
+  cityName: string;
+  /** Upcoming hourly forecasts (the card shows the first ~8 hours). */
+  hours: HourlyForecast[];
+  units: Units;
+  language: Language;
+  /** IANA timezone of the forecast location; falls back to the device's. */
+  timezone?: string;
+  /** Translation lookup (pass `t` from `useLanguage()`). */
+  translate: (key: string) => string;
+  /** Link appended after the forecast (e.g. `window.location.origin`). */
+  url?: string;
+  /**
+   * Wall-clock instant the message is anchored to, formatted as the "as of"
+   * time in the header. Defaults to now — the builder runs at share time,
+   * so a recipient can tell how fresh (or stale) the hours are.
+   */
+  now?: Date;
+}
+
+/**
+ * Hourly twin of `buildForecastShareText`. Hourly forecasts go stale within
+ * hours, so the header carries an "as of" timestamp from the forecast
+ * location's timezone; each line then reads like the daily share — emoji,
+ * clock time, condition, temperature, rain chance — so the two messages
+ * feel like the same feature:
+ *
+ *   Weather in Hong Kong for the coming hours (as of 2:45 PM):
+ *
+ *   ☀️ 3 PM · Sunny · 28°C · 60% rain
+ *   🌧️ 4 PM · Light rain · 26°C
+ *
+ *   https://<app-url>
+ */
+export function buildHourlyForecastShareText({
+  cityName,
+  hours,
+  units,
+  language,
+  timezone,
+  translate,
+  url,
+  now = new Date(),
+}: BuildHourlyForecastShareTextOptions): string {
+  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const degree = temperatureUnitLabel(units);
+
+  const asOf = formatInTimezone(now, appLocale(language), {
+    timeZone: tz,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  const lines = hours.map((hour) => {
+    const emoji = getWeatherIcon(hour.weatherCode, hour.isDay);
+    // Times arrive as ISO strings from the localStorage snapshot/persister
+    // (JSON has no Date type) — same normalization the chart does.
+    const time = hour.time instanceof Date ? hour.time : new Date(hour.time);
+    const when = formatInTimezone(time, appLocale(language), {
+      timeZone: tz,
+      hour: 'numeric',
+      hour12: true,
+    });
+    const description = translate(weatherDescriptionKey(hour.weatherCode));
+    const temperature = toDisplayTemperature(hour.temperature, units);
+    const chance = hour.precipitationProbability;
+    const rain = chance > 0 ? fill(translate('share.rainChance'), chance) : '';
+    return [`${emoji} ${when} · ${description} · ${temperature}${degree}`, rain]
+      .filter(Boolean)
+      .join(' · ');
+  });
+
+  const parts = [fill(translate('share.hourlyHeader'), cityName, asOf), '', ...lines];
   if (url) parts.push('', url);
   return parts.join('\n');
 }

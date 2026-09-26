@@ -374,7 +374,7 @@ const Index = () => {
                       <div className="flex flex-col gap-3 h-full">
                         <div className="flex-1 min-h-0">
                           <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 glass-card" />}>
-                            <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} />
+                            <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={selectedCity?.name} />
                           </Suspense>
                         </div>
                         <div className="flex-1 min-h-0">
@@ -442,7 +442,7 @@ const Index = () => {
                   {/* Secondary Row: Split Forecasts */}
                   <div ref={dailySectionRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
                     <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
-                      <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} />
+                      <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={selectedCity?.name} />
                     </Suspense>
 
                     <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
