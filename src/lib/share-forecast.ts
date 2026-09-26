@@ -1,26 +1,36 @@
 /**
  * Share-forecast message builder.
  *
- * Turns the daily forecast into a short, chat-friendly text block a user can
- * paste into a conversation (or hand to the Web Share API) so friends can see
- * the weather for the days leading up to an outdoor event. Pure and
+ * Turns the daily or hourly forecast into a short, chat-friendly text block
+ * a user can paste into a conversation (or hand to the Web Share API) so
+ * friends can see the weather leading up to an outdoor event. Pure and
  * framework-free: the caller supplies a `translate` function so this module
  * never imports React or the LanguageContext.
  *
- * Message shape:
+ * Daily message shape:
  *   Weather in Hong Kong for the coming days:
  *
  *   ☀️ Sat, Sep 19 · Sunny · 24–28°C · 60% rain
  *   🌧️ Sun, Sep 20 · Rain · 23–26°C
  *
  *   https://<app-url>
+ *
+ * Hourly message shape (header carries an "as of" time anchored to the
+ * forecast's first hour — hourly forecasts go stale within hours):
+ *   Weather in Hong Kong for the coming hours (as of 2:00 PM):
+ *
+ *   ☀️ 2 PM · Sunny · 28°C · 60% rain
+ *   🌧️ 3 PM · Light rain · 26°C
+ *
+ *   https://<app-url>
  */
 
-import type { DailyForecast } from '@/lib/weather';
+import type { DailyForecast, HourlyForecast } from '@/lib/weather';
 import { getWeatherIcon, weatherDescriptionKey } from '@/lib/weather';
 import { formatInTimezone, appLocale } from '@/lib/utils';
 import { toDisplayTemperature, temperatureUnitLabel, type Units } from '@/lib/units';
 import { psrToPercentage } from '@/lib/hko-psr';
+import { CURRENT_LOCATION_PLACEHOLDER } from '@/lib/parsers';
 import type { Language } from '@/contexts/LanguageContext';
 
 /** Fill the `{0}`-style placeholders used across the app's translation strings. */
@@ -87,4 +97,138 @@ export function buildForecastShareText({
   const parts = [fill(translate('share.header'), cityName), '', ...lines];
   if (url) parts.push('', url);
   return parts.join('\n');
+}
+
+export interface BuildHourlyForecastShareTextOptions {
+  /** Display name of the city the forecast is for. */
+  cityName: string;
+  /** Upcoming hourly forecasts (the card shows the first ~8 hours). */
+  hours: HourlyForecast[];
+  units: Units;
+  language: Language;
+  /** IANA timezone of the forecast location; falls back to the device's. */
+  timezone?: string;
+  /** Translation lookup (pass `t` from `useLanguage()`). */
+  translate: (key: string) => string;
+  /** Link appended after the forecast (e.g. `window.location.origin`). */
+  url?: string;
+  /**
+   * Fallback anchor used only when `hours` carries no usable first
+   * timestamp. The header anchors to the forecast's own first hour — the
+   * card labels that hour "Now" — so a stale cache shares with the vintage
+   * it actually has instead of claiming the share-click moment.
+   */
+  now?: Date;
+}
+
+/**
+ * Hourly twin of `buildForecastShareText`. Hourly forecasts go stale within
+ * hours, so the header carries an "as of" timestamp — the first forecast
+ * hour, formatted in the forecast location's timezone; on the hourly card
+ * that hour is literally labeled "Now", so the message states the data's
+ * vintage, not when the user happened to hit share. Each line then reads
+ * like the daily share — emoji, clock time, condition, temperature, rain
+ * chance — so the two messages feel like the same feature:
+ *
+ *   Weather in Hong Kong for the coming hours (as of 2:00 PM):
+ *
+ *   ☀️ 2 PM · Sunny · 28°C · 60% rain
+ *   🌧️ 3 PM · Light rain · 26°C
+ *
+ *   https://<app-url>
+ */
+export function buildHourlyForecastShareText({
+  cityName,
+  hours,
+  units,
+  language,
+  timezone,
+  translate,
+  url,
+  now = new Date(),
+}: BuildHourlyForecastShareTextOptions): string {
+  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const degree = temperatureUnitLabel(units);
+
+  // Anchor to the first hour that parses — a malformed leading entry
+  // shouldn't cost the header its data-vintage signal. Times arrive as ISO
+  // strings from the localStorage snapshot/persister (JSON has no Date
+  // type) — same normalization the chart does.
+  const anchorTime = hours
+    .map((h) => (h.time instanceof Date ? h.time : new Date(h.time)))
+    .find((time) => !isNaN(time.getTime()));
+  const anchor = anchorTime ?? now;
+  const asOf = formatInTimezone(anchor, appLocale(language), {
+    timeZone: tz,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  const lines = hours
+    .map((hour) => {
+      const emoji = getWeatherIcon(hour.weatherCode, hour.isDay);
+      // Times arrive as ISO strings from the localStorage snapshot/persister
+      // (JSON has no Date type) — same normalization the chart does.
+      const time = hour.time instanceof Date ? hour.time : new Date(hour.time);
+      // A malformed persisted timestamp would render "Invalid Date" into
+      // the shared text — drop the line instead.
+      if (isNaN(time.getTime())) return null;
+      const when = formatInTimezone(time, appLocale(language), {
+        timeZone: tz,
+        hour: 'numeric',
+        hour12: true,
+      });
+      const description = translate(weatherDescriptionKey(hour.weatherCode));
+      const temperature = toDisplayTemperature(hour.temperature, units);
+      const chance = hour.precipitationProbability;
+      const rain = chance > 0 ? fill(translate('share.rainChance'), chance) : '';
+      return [`${emoji} ${when} · ${description} · ${temperature}${degree}`, rain]
+        .filter(Boolean)
+        .join(' · ');
+    })
+    .filter((line): line is string => line !== null);
+
+  const parts = [fill(translate('share.hourlyHeader'), cityName, asOf), '', ...lines];
+  if (url) parts.push('', url);
+  return parts.join('\n');
+}
+
+export interface ShareCityLabelOptions {
+  /** Selected city name — may be the reverse-geocode placeholder. */
+  name: string;
+  admin1?: string;
+  country?: string;
+  /** Whether the city sits inside HKO's forecast coverage. */
+  isHKCovered: boolean;
+  /** Nearest HKO station, when the weather data carries one. */
+  nearestStation?: string;
+  /** Station-name translator (pass `(s) => translateStationName(s, lang)`). */
+  translateStation?: (station: string) => string;
+}
+
+/**
+ * The city name a share message opens with. Derived from the same location
+ * inputs as the header's label, but never carries the reverse-geocode
+ * placeholder: inside HKO coverage it uses the nearest station (as the
+ * header does), and elsewhere it composes "name, admin1, country" with the
+ * placeholder dropped — so a failed geocode shares as "Kowloon, Hong Kong"
+ * instead of "Current Location, Hong Kong". Falls back to the raw name
+ * when nothing else identifies the place.
+ */
+export function buildShareCityLabel({
+  name,
+  admin1,
+  country,
+  isHKCovered,
+  nearestStation,
+  translateStation,
+}: ShareCityLabelOptions): string {
+  if (isHKCovered && nearestStation) {
+    return translateStation ? translateStation(nearestStation) : nearestStation;
+  }
+  const parts = [name === CURRENT_LOCATION_PLACEHOLDER ? '' : name, admin1, country]
+    .map((part) => part?.trim() ?? '')
+    .filter((part) => part !== '');
+  return parts.length > 0 ? parts.join(', ') : name;
 }

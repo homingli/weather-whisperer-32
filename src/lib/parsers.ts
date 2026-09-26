@@ -463,13 +463,21 @@ export function parseNominatimSearch(input: unknown): ParseResult<GeoLocation[]>
 
 // ── Nominatim reverse ─────────────────────────────────────────────────
 
+/**
+ * Placeholder name used when reverse geocoding can't resolve a real place
+ * name for the user's fix. Fine as a UI label; share messages prefer real
+ * place parts over this name (see buildShareCityLabel), falling back to it
+ * only when nothing else identifies the location.
+ */
+export const CURRENT_LOCATION_PLACEHOLDER = 'Current Location';
+
 export function parseNominatimReverse(
   input: unknown,
   fallback: { latitude: number; longitude: number },
 ): ParseResult<GeoLocation> {
   const warnings: string[] = [];
   const defaults: GeoLocation = {
-    name: 'Current Location',
+    name: CURRENT_LOCATION_PLACEHOLDER,
     latitude: fallback.latitude,
     longitude: fallback.longitude,
     country: '',
@@ -486,7 +494,7 @@ export function parseNominatimReverse(
     readOptionalString(address, 'town') ??
     readOptionalString(address, 'village') ??
     readOptionalString(address, 'municipality') ??
-    'Current Location';
+    CURRENT_LOCATION_PLACEHOLDER;
   return {
     data: {
       name,

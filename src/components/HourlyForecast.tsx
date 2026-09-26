@@ -12,14 +12,17 @@ import {
 } from "@/lib/units";
 import { formatInTimezone, appLocale } from "@/lib/utils";
 import { useMemo, useCallback, memo, useRef } from "react";
+import { ShareForecastButton } from "@/components/ShareForecastButton";
 
 interface HourlyForecastProps {
   forecast: HourlyForecastType[];
   daily?: DailyForecastType[];
   timezone?: string;
+  /** Display name of the selected city — used by the share button. */
+  cityName?: string;
 }
 
-export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecastProps) => {
+export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: HourlyForecastProps) => {
   const { language, t } = useLanguage();
   const { units } = useUnits();
   const root = useRef<HTMLDivElement>(null);
@@ -163,9 +166,12 @@ export const HourlyForecast = memo(({ forecast, daily, timezone }: HourlyForecas
         <h3 className="kicker text-muted-foreground font-display text-base">
           {t('hourly.title')}
         </h3>
-        <span className="kicker text-muted-foreground/60">
-          {formatString(t('hourly.nextNHours'), hoursData.length)}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="kicker text-muted-foreground/60">
+            {formatString(t('hourly.nextNHours'), hoursData.length)}
+          </span>
+          <ShareForecastButton cityName={cityName ?? ''} mode="hourly" hours={hoursData} timezone={timezone} />
+        </div>
       </div>
 
       <div className="hf-rule h-px editorial-rule mt-3 mb-4" />
