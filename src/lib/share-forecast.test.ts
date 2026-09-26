@@ -197,6 +197,21 @@ describe('buildHourlyForecastShareText', () => {
     expect(text).toContain('(as of 2:45 PM):');
   });
 
+  it('anchors the header to the first valid hour when a leading timestamp is malformed', () => {
+    const text = buildHourlyForecastShareText({
+      cityName: 'Hong Kong',
+      hours: [hour({ time: 'not-a-date' as unknown as Date }), hour()],
+      units: 'metric',
+      language: 'en',
+      timezone: 'Asia/Hong_Kong',
+      translate: (key) => EN_STRINGS[key] ?? key,
+      now: NOW,
+    });
+    expect(text).not.toContain('Invalid');
+    expect(text).toContain('(as of 3:00 PM):');
+    expect(text).toContain('☀️ 3 PM · Clear sky · 28°C');
+  });
+
   it('picks the day or night emoji from isDay', () => {
     const text = buildHourlyForecastShareText({
       cityName: 'Hong Kong',

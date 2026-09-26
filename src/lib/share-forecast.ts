@@ -17,7 +17,7 @@
  *
  * Hourly message shape (header carries an "as of" time anchored to the
  * forecast's first hour — hourly forecasts go stale within hours):
- *   Weather in Hong Kong for the coming hours (as of 2 PM):
+ *   Weather in Hong Kong for the coming hours (as of 2:00 PM):
  *
  *   ☀️ 2 PM · Sunny · 28°C · 60% rain
  *   🌧️ 3 PM · Light rain · 26°C
@@ -129,7 +129,7 @@ export interface BuildHourlyForecastShareTextOptions {
  * like the daily share — emoji, clock time, condition, temperature, rain
  * chance — so the two messages feel like the same feature:
  *
- *   Weather in Hong Kong for the coming hours (as of 2 PM):
+ *   Weather in Hong Kong for the coming hours (as of 2:00 PM):
  *
  *   ☀️ 2 PM · Sunny · 28°C · 60% rain
  *   🌧️ 3 PM · Light rain · 26°C
@@ -149,11 +149,14 @@ export function buildHourlyForecastShareText({
   const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const degree = temperatureUnitLabel(units);
 
-  const first = hours[0];
-  const firstTime = first
-    ? (first.time instanceof Date ? first.time : new Date(first.time))
-    : undefined;
-  const anchor = firstTime && !isNaN(firstTime.getTime()) ? firstTime : now;
+  // Anchor to the first hour that parses — a malformed leading entry
+  // shouldn't cost the header its data-vintage signal. Times arrive as ISO
+  // strings from the localStorage snapshot/persister (JSON has no Date
+  // type) — same normalization the chart does.
+  const anchorTime = hours
+    .map((h) => (h.time instanceof Date ? h.time : new Date(h.time)))
+    .find((time) => !isNaN(time.getTime()));
+  const anchor = anchorTime ?? now;
   const asOf = formatInTimezone(anchor, appLocale(language), {
     timeZone: tz,
     hour: 'numeric',
