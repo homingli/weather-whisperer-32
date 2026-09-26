@@ -282,6 +282,16 @@ describe('buildShareCityLabel', () => {
     expect(label).toBe('京士柏');
   });
 
+  it('composes parts inside HKO coverage too when no station is loaded yet', () => {
+    const label = buildShareCityLabel({
+      name: 'Hong Kong',
+      country: 'Hong Kong',
+      isHKCovered: true,
+      nearestStation: undefined,
+    });
+    expect(label).toBe('Hong Kong, Hong Kong');
+  });
+
   it('composes name, admin1, and country outside HKO coverage', () => {
     const label = buildShareCityLabel({
       name: 'Vancouver',

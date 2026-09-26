@@ -208,13 +208,13 @@ export interface ShareCityLabelOptions {
 }
 
 /**
- * The city name a share message opens with. Mirrors the location label the
- * header renders rather than the raw selected-city name: inside HKO
- * coverage the header shows the nearest station, and elsewhere it composes
- * "name, admin1, country" — dropping the reverse-geocode placeholder so a
- * failed geocode shares as "Hong Kong" instead of "Current Location,
- * Hong Kong". Falls back to the raw name when nothing else identifies the
- * place.
+ * The city name a share message opens with. Derived from the same location
+ * inputs as the header's label, but never carries the reverse-geocode
+ * placeholder: inside HKO coverage it uses the nearest station (as the
+ * header does), and elsewhere it composes "name, admin1, country" with the
+ * placeholder dropped — so a failed geocode shares as "Kowloon, Hong Kong"
+ * instead of "Current Location, Hong Kong". Falls back to the raw name
+ * when nothing else identifies the place.
  */
 export function buildShareCityLabel({
   name,
@@ -227,8 +227,8 @@ export function buildShareCityLabel({
   if (isHKCovered && nearestStation) {
     return translateStation ? translateStation(nearestStation) : nearestStation;
   }
-  const parts = [name === CURRENT_LOCATION_PLACEHOLDER ? '' : name, admin1, country].filter(
-    (part): part is string => !!part && part.trim() !== ''
-  );
+  const parts = [name === CURRENT_LOCATION_PLACEHOLDER ? '' : name, admin1, country]
+    .map((part) => part?.trim() ?? '')
+    .filter((part) => part !== '');
   return parts.length > 0 ? parts.join(', ') : name;
 }

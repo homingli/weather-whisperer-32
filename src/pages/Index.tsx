@@ -110,9 +110,9 @@ const Index = () => {
   const useMSCNowcast = !!selectedCity &&
     isInVancouverBox(selectedCity.latitude, selectedCity.longitude);
 
-  // Share label — what the header's location label shows, not the raw
-  // selected-city name (reverse geocoding can leave that as the
-  // "Current Location" placeholder). See buildShareCityLabel.
+  // Share label — same location inputs as the header's label, minus the
+  // reverse-geocode "Current Location" placeholder the raw name can carry.
+  // See buildShareCityLabel.
   const shareCityLabel = selectedCity
     ? buildShareCityLabel({
         name: selectedCity.name,

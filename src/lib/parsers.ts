@@ -465,9 +465,9 @@ export function parseNominatimSearch(input: unknown): ParseResult<GeoLocation[]>
 
 /**
  * Placeholder name used when reverse geocoding can't resolve a real place
- * name for the user's fix. Fine as a UI label; share messages swap it for
- * the location label instead (see buildShareCityLabel) so a forecast never
- * goes out addressed to "Current Location".
+ * name for the user's fix. Fine as a UI label; share messages prefer real
+ * place parts over this name (see buildShareCityLabel), falling back to it
+ * only when nothing else identifies the location.
  */
 export const CURRENT_LOCATION_PLACEHOLDER = 'Current Location';
 
