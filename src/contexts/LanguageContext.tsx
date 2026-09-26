@@ -309,6 +309,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Share forecast (ShareForecastButton / share-forecast.ts) — compose the
     // upcoming days (or hours) into a message the user can send to friends.
     'share.forecast': 'Share forecast',
+    'share.forecastHourly': 'Share hourly forecast',
     'share.title': 'Weather outlook',
     'share.header': 'Weather in {0} for the coming days:',
     'share.hourlyHeader': 'Weather in {0} for the coming hours (as of {1}):',
@@ -625,6 +626,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Share forecast（ShareForecastButton / share-forecast.ts）— 把未來數日
     // （或數小時）天氣組成訊息，方便傳給朋友。
     'share.forecast': '分享天氣預報',
+    'share.forecastHourly': '分享每小時天氣',
     'share.title': '天氣概況',
     'share.header': '{0}未來幾日天氣：',
     'share.hourlyHeader': '{0}未來幾小時天氣（截至 {1}）：',

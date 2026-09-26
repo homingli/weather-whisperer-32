@@ -97,7 +97,9 @@ describe('HourlyForecast Component', () => {
 
   it('renders the share button next to the kicker — enabled with data, disabled without', () => {
     const { rerender } = renderWithLanguage(<HourlyForecast forecast={mockHourlyData} />);
-    const share = screen.getByRole('button', { name: /share forecast/i });
+    // Distinct accessible name so the daily and hourly buttons don't blur
+    // together in a screen reader's button rotor.
+    const share = screen.getByRole('button', { name: 'Share hourly forecast' });
     expect(share).toBeEnabled();
 
     rerender(
@@ -107,7 +109,7 @@ describe('HourlyForecast Component', () => {
         </UnitsProvider>
       </LanguageProvider>
     );
-    expect(screen.getByRole('button', { name: /share forecast/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Share hourly forecast' })).toBeDisabled();
   });
 
   it('handles empty forecast gracefully — renders title and chart container without crashing', () => {

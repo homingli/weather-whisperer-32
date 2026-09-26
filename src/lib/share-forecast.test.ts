@@ -134,11 +134,13 @@ function hour(overrides: Partial<HourlyForecast> = {}): HourlyForecast {
   };
 }
 
-// Fixed "as of" instant so the header is deterministic: 2:45 PM HKT.
+// Fixed fallback instant for deterministic headers: 2:45 PM HKT. The
+// header normally anchors to the forecast's first hour; `now` only kicks
+// in when the forecast carries no usable timestamp.
 const NOW = new Date('2026-09-19T06:45:00Z');
 
 describe('buildHourlyForecastShareText', () => {
-  it('anchors the header with the as-of time, one line per hour, and the app link', () => {
+  it('anchors the header to the first forecast hour, one line per hour, and the app link', () => {
     const text = buildHourlyForecastShareText({
       cityName: 'Hong Kong',
       hours: [
@@ -155,14 +157,44 @@ describe('buildHourlyForecastShareText', () => {
       timezone: 'Asia/Hong_Kong',
       translate: (key) => EN_STRINGS[key] ?? key,
       url: 'https://example.com',
-      now: NOW,
     });
 
     const lines = text.split('\n');
-    expect(lines[0]).toBe('Weather in Hong Kong for the coming hours (as of 2:45 PM):');
+    expect(lines[0]).toBe('Weather in Hong Kong for the coming hours (as of 3:00 PM):');
     expect(lines[2]).toBe('☀️ 3 PM · Clear sky · 28°C');
     expect(lines[3]).toBe('🌧️ 4 PM · Light rain · 26°C · 60% rain');
     expect(lines[lines.length - 1]).toBe('https://example.com');
+  });
+
+  it('falls back to the given now when the forecast carries no usable first hour', () => {
+    const text = buildHourlyForecastShareText({
+      cityName: 'Hong Kong',
+      hours: [],
+      units: 'metric',
+      language: 'en',
+      timezone: 'Asia/Hong_Kong',
+      translate: (key) => EN_STRINGS[key] ?? key,
+      url: 'https://example.com',
+      now: NOW,
+    });
+    expect(text).toBe(
+      'Weather in Hong Kong for the coming hours (as of 2:45 PM):\n\n\nhttps://example.com'
+    );
+  });
+
+  it('drops malformed persisted timestamps instead of sharing "Invalid Date"', () => {
+    const text = buildHourlyForecastShareText({
+      cityName: 'Hong Kong',
+      hours: [hour({ time: 'not-a-date' as unknown as Date })],
+      units: 'metric',
+      language: 'en',
+      timezone: 'Asia/Hong_Kong',
+      translate: (key) => EN_STRINGS[key] ?? key,
+      now: NOW,
+    });
+    expect(text).not.toContain('Invalid');
+    // Header still renders, anchored to the fallback instant.
+    expect(text).toContain('(as of 2:45 PM):');
   });
 
   it('picks the day or night emoji from isDay', () => {
@@ -200,9 +232,8 @@ describe('buildHourlyForecastShareText', () => {
       language: 'tc',
       timezone: 'Asia/Hong_Kong',
       translate: (key) => TC_STRINGS[key] ?? key,
-      now: NOW,
     });
-    expect(text).toContain('香港未來幾小時天氣（截至 下午2:45）：');
+    expect(text).toContain('香港未來幾小時天氣（截至 下午3:00）：');
     expect(text).toContain('微雨');
     expect(text).toContain('降雨 60%');
     // zh-HK renders the 3 PM fixture as "下午3時"

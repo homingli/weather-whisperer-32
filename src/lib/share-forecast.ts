@@ -15,12 +15,12 @@
  *
  *   https://<app-url>
  *
- * Hourly message shape (header carries an "as of" time — hourly forecasts
- * go stale within hours):
- *   Weather in Hong Kong for the coming hours (as of 2:45 PM):
+ * Hourly message shape (header carries an "as of" time anchored to the
+ * forecast's first hour — hourly forecasts go stale within hours):
+ *   Weather in Hong Kong for the coming hours (as of 2 PM):
  *
- *   ☀️ 3 PM · Sunny · 28°C · 60% rain
- *   🌧️ 4 PM · Light rain · 26°C
+ *   ☀️ 2 PM · Sunny · 28°C · 60% rain
+ *   🌧️ 3 PM · Light rain · 26°C
  *
  *   https://<app-url>
  */
@@ -112,24 +112,27 @@ export interface BuildHourlyForecastShareTextOptions {
   /** Link appended after the forecast (e.g. `window.location.origin`). */
   url?: string;
   /**
-   * Wall-clock instant the message is anchored to, formatted as the "as of"
-   * time in the header. Defaults to now — the builder runs at share time,
-   * so a recipient can tell how fresh (or stale) the hours are.
+   * Fallback anchor used only when `hours` carries no usable first
+   * timestamp. The header anchors to the forecast's own first hour — the
+   * card labels that hour "Now" — so a stale cache shares with the vintage
+   * it actually has instead of claiming the share-click moment.
    */
   now?: Date;
 }
 
 /**
  * Hourly twin of `buildForecastShareText`. Hourly forecasts go stale within
- * hours, so the header carries an "as of" timestamp from the forecast
- * location's timezone; each line then reads like the daily share — emoji,
- * clock time, condition, temperature, rain chance — so the two messages
- * feel like the same feature:
+ * hours, so the header carries an "as of" timestamp — the first forecast
+ * hour, formatted in the forecast location's timezone; on the hourly card
+ * that hour is literally labeled "Now", so the message states the data's
+ * vintage, not when the user happened to hit share. Each line then reads
+ * like the daily share — emoji, clock time, condition, temperature, rain
+ * chance — so the two messages feel like the same feature:
  *
- *   Weather in Hong Kong for the coming hours (as of 2:45 PM):
+ *   Weather in Hong Kong for the coming hours (as of 2 PM):
  *
- *   ☀️ 3 PM · Sunny · 28°C · 60% rain
- *   🌧️ 4 PM · Light rain · 26°C
+ *   ☀️ 2 PM · Sunny · 28°C · 60% rain
+ *   🌧️ 3 PM · Light rain · 26°C
  *
  *   https://<app-url>
  */
@@ -146,31 +149,41 @@ export function buildHourlyForecastShareText({
   const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const degree = temperatureUnitLabel(units);
 
-  const asOf = formatInTimezone(now, appLocale(language), {
+  const first = hours[0];
+  const firstTime = first
+    ? (first.time instanceof Date ? first.time : new Date(first.time))
+    : undefined;
+  const anchor = firstTime && !isNaN(firstTime.getTime()) ? firstTime : now;
+  const asOf = formatInTimezone(anchor, appLocale(language), {
     timeZone: tz,
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
   });
 
-  const lines = hours.map((hour) => {
-    const emoji = getWeatherIcon(hour.weatherCode, hour.isDay);
-    // Times arrive as ISO strings from the localStorage snapshot/persister
-    // (JSON has no Date type) — same normalization the chart does.
-    const time = hour.time instanceof Date ? hour.time : new Date(hour.time);
-    const when = formatInTimezone(time, appLocale(language), {
-      timeZone: tz,
-      hour: 'numeric',
-      hour12: true,
-    });
-    const description = translate(weatherDescriptionKey(hour.weatherCode));
-    const temperature = toDisplayTemperature(hour.temperature, units);
-    const chance = hour.precipitationProbability;
-    const rain = chance > 0 ? fill(translate('share.rainChance'), chance) : '';
-    return [`${emoji} ${when} · ${description} · ${temperature}${degree}`, rain]
-      .filter(Boolean)
-      .join(' · ');
-  });
+  const lines = hours
+    .map((hour) => {
+      const emoji = getWeatherIcon(hour.weatherCode, hour.isDay);
+      // Times arrive as ISO strings from the localStorage snapshot/persister
+      // (JSON has no Date type) — same normalization the chart does.
+      const time = hour.time instanceof Date ? hour.time : new Date(hour.time);
+      // A malformed persisted timestamp would render "Invalid Date" into
+      // the shared text — drop the line instead.
+      if (isNaN(time.getTime())) return null;
+      const when = formatInTimezone(time, appLocale(language), {
+        timeZone: tz,
+        hour: 'numeric',
+        hour12: true,
+      });
+      const description = translate(weatherDescriptionKey(hour.weatherCode));
+      const temperature = toDisplayTemperature(hour.temperature, units);
+      const chance = hour.precipitationProbability;
+      const rain = chance > 0 ? fill(translate('share.rainChance'), chance) : '';
+      return [`${emoji} ${when} · ${description} · ${temperature}${degree}`, rain]
+        .filter(Boolean)
+        .join(' · ');
+    })
+    .filter((line): line is string => line !== null);
 
   const parts = [fill(translate('share.hourlyHeader'), cityName, asOf), '', ...lines];
   if (url) parts.push('', url);
