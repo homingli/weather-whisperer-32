@@ -12,6 +12,11 @@
   "env": {
     "browser": true
   },
+  "settings": {
+    "react": {
+      "version": "19.3"
+    }
+  },
   "ignorePatterns": [
     "dist",
     "android"
