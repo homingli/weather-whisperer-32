@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Map } from 'maplibre-gl';
 import { AlertCircle, RefreshCw, Play, Pause, Layers } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
@@ -9,7 +9,7 @@ import { PRD_BOUNDS } from '@/lib/hko-weather';
 import { TIMING } from '@/lib/constants';
 import { parseRainfallCSVText, buildRainGrid, type RainGrid } from '@/lib/rainfallGrid';
 import { RAINFALL_BANDS } from '@/lib/rainfallBands';
-import { scheduleCacheWrite } from '@/lib/nowcastCache';
+import { scheduleCacheWrite, touchNowcastCache, type NowcastCacheRead } from '@/lib/nowcastCache';
 import { MapLibreMap } from './MapLibreMap';
 import { rainfallGridToGeoJson } from '@/lib/rainfallGeoJson';
 
@@ -54,20 +54,35 @@ function gridBounds(grid: RainGrid): { minLat: number; maxLat: number; minLon: n
 // instead of a stuck 0% bar for the entire 2.7 MB download.
 type ProgressCallback = (received: number, total: number | null) => void;
 
+const NOWCAST_CSV_URL = '/hko-data/F3/Gridded_rainfall_nowcast.csv';
+
+/** Query cache key, hoisted so queryFn's freshness probe can read the
+ *  previous result through queryClient.getQueryData. */
+const NOWCAST_QUERY_KEY = ['hkoGriddedRainfallNowcast'] as const;
+
 const fetchRainfallNowcast = async (
   onProgress?: ProgressCallback,
   externalSignal?: AbortSignal,
 ): Promise<NowcastResult> => {
-  // Manage the timeout here (not via fetchWithTimeout) so the abort stays
-  // armed through the body-read loop — headers can arrive in <1s on a warm
-  // connection while the body stream still takes 20+ s on slow mobile.
+  // Stall-aware timeout: the abort fires when NO bytes have arrived for
+  // NOWCAST_STALL_TIMEOUT_MS — the timer resets on every chunk, so a
+  // healthy-but-slow download runs to completion. The previous fixed 30 s
+  // total deadline killed in-progress streams on slow connections, which
+  // surfaced as NS_BINDING_ABORTED and then burned a full re-download on
+  // React Query's retry (HML-43). The timer also covers the headers wait:
+  // no first byte within 10 s means the connection is dead anyway.
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    controller.abort(new DOMException(
-      `Rainfall nowcast fetch timed out after ${TIMING.NOWCAST_TIMEOUT_MS}ms`,
-      'TimeoutError'
-    ));
-  }, TIMING.NOWCAST_TIMEOUT_MS);
+  let stallTimerId: ReturnType<typeof setTimeout> | undefined;
+  const armStallTimer = () => {
+    clearTimeout(stallTimerId);
+    stallTimerId = setTimeout(() => {
+      controller.abort(new DOMException(
+        `Rainfall nowcast stalled: no bytes for ${TIMING.NOWCAST_STALL_TIMEOUT_MS}ms`,
+        'TimeoutError'
+      ));
+    }, TIMING.NOWCAST_STALL_TIMEOUT_MS);
+  };
+  armStallTimer();
 
   // Forward React Query's signal so a manual refetch / unmount / cache
   // eviction cancels the in-flight read. Without this, a refetchInterval
@@ -87,7 +102,7 @@ const fetchRainfallNowcast = async (
   })();
 
   try {
-    const response = await fetch('/hko-data/F3/Gridded_rainfall_nowcast.csv', {
+    const response = await fetch(NOWCAST_CSV_URL, {
       signal: controller.signal,
     });
     if (!response.ok) throw new Error('Failed to fetch gridded rainfall nowcast');
@@ -107,6 +122,8 @@ const fetchRainfallNowcast = async (
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        // Progress = liveness: restart the stall window on every chunk.
+        armStallTimer();
         chunks.push(value);
         received += value.length;
         onProgress?.(received, total);
@@ -126,12 +143,12 @@ const fetchRainfallNowcast = async (
 
       const csvText = new TextDecoder().decode(allChunks);
       const parsed = parseRainfallCSVText(csvText);
-      // Persist for next mount (15-min TTL). Defer the LZString compression
-      // + localStorage write to an idle slot so the React commit that
-      // releases the map lock isn't blocked by the ~300-800 ms compress
-      // cost on low-end mobile. writeNowcastCache is still exported for
-      // tests that want immediate persistence.
-      scheduleCacheWrite(csvText, parsed.updateTime, lastModified);
+      // Persist the sparse parsed rows for next mount (15-min TTL; ~10×
+      // smaller than the raw CSV since 98.8% of rows are 0.00). Deferred to
+      // an idle slot so the React commit that releases the map lock isn't
+      // blocked. writeNowcastCache is still exported for tests that want
+      // immediate persistence.
+      scheduleCacheWrite(parsed.rows, parsed.updateTime, lastModified);
       const grid = buildRainGrid(parsed.rows);
       if (!grid) throw new Error('No rain cells in nowcast payload');
       return { grid, updateTime: parsed.updateTime, lastModified };
@@ -140,26 +157,53 @@ const fetchRainfallNowcast = async (
     // Fallback: no ReadableStream (very old browsers only — HKO always sends one)
     const csvText = await response.text();
     const parsed = parseRainfallCSVText(csvText);
-    scheduleCacheWrite(csvText, parsed.updateTime, lastModified);
+    scheduleCacheWrite(parsed.rows, parsed.updateTime, lastModified);
     const grid = buildRainGrid(parsed.rows);
     if (!grid) throw new Error('No rain cells in nowcast payload');
     return { grid, updateTime: parsed.updateTime, lastModified };
   } finally {
-    clearTimeout(timeoutId);
+    clearTimeout(stallTimerId);
     detachExternal?.();
   }
 };
 
+/**
+ * HEAD-probe the nowcast CSV's Last-Modified without downloading the body
+ * (~380 KB gzipped). Used before scheduled background refetches: HKO ignores
+ * If-Modified-Since/If-None-Match (verified 2026-09-28 — both return 200
+ * with the full body), so the only cheap freshness check is a HEAD compare.
+ * Returns null when the header is missing or the probe fails — the caller
+ * then falls through to the full GET. A query-cancellation abort propagates
+ * so React Query sees the cancellation instead of a pointless full GET.
+ *
+ * The workbox SW routes only GET requests, so the HEAD passes straight
+ * through to the network on both the dev proxy and the Vercel rewrite.
+ */
+async function fetchNowcastLastModified(signal: AbortSignal): Promise<number | null> {
+  try {
+    const res = await fetch(NOWCAST_CSV_URL, { method: 'HEAD', signal });
+    if (!res.ok) return null;
+    const lm = res.headers.get('last-modified');
+    if (!lm) return null;
+    const t = new Date(lm).getTime();
+    return Number.isFinite(t) ? t : null;
+  } catch (err) {
+    if (signal.aborted) throw err;
+    return null;
+  }
+}
+
 export default function RainfallMapInner({
   userLocation,
-  initialCsv,
+  initialNowcast,
 }: {
   userLocation?: UserLocation;
-  /** Cached CSV text from the 15-min localStorage cache. When present, we
-   *  parse it once at mount and hand the result to React Query as
+  /** Cached sparse rows from the 15-min localStorage cache. When present, we
+   *  build the grid once at mount and hand the result to React Query as
    *  initialData so the first render shows the parsed grid with no network
-   *  round-trip and no loading state. */
-  initialCsv?: string | null;
+   *  round-trip and no loading state. Carries the source CSV's Last-Modified
+   *  so the first background refetch can HEAD-probe instead of downloading. */
+  initialNowcast?: NowcastCacheRead | null;
 }) {
   const mapRef = useRef<Map | null>(null);
   const viewportInit = useRef(false);
@@ -176,25 +220,28 @@ export default function RainfallMapInner({
   // the app theme whenever the theme changes.
   const [basemapIsDark, setBasemapIsDark] = useState(false);
 
-  // Parse the cached CSV once at mount. Memoized on initialCsv so subsequent
-  // renders (and subsequent refetches) don't re-parse. On parse failure we
-  // return null and let the queryFn handle it like a cold start — no special
-  // error path needed because the network fetch will overwrite the cache
-  // anyway.
+  // Build the grid from the cached rows once at mount. Memoized on
+  // initialNowcast so subsequent renders (and subsequent refetches) don't
+  // rebuild. On failure we return null and let the queryFn handle it like a
+  // cold start — no special error path needed because the network fetch will
+  // overwrite the cache anyway.
   const cachedResult = useMemo<NowcastResult | null>(() => {
-    if (!initialCsv) return null;
+    if (!initialNowcast) return null;
     try {
-      const parsed = parseRainfallCSVText(initialCsv);
-      const grid = buildRainGrid(parsed.rows);
+      const grid = buildRainGrid(initialNowcast.rows);
       if (!grid) return null;
-      // lastModified is 0 on the cache-hit path: we don't carry the HTTP
-      // Last-Modified header through, and the field is unused now that
-      // refetchInterval anchors on dataUpdatedAt.
-      return { grid, updateTime: parsed.updateTime, lastModified: 0 };
+      // Carry the real Last-Modified through (unlike the old CSV cache,
+      // which couldn't): the background refetch HEAD-probes against it to
+      // skip the ~380 KB download while the source file is unchanged.
+      return {
+        grid,
+        updateTime: initialNowcast.updateTime,
+        lastModified: initialNowcast.lastModified,
+      };
     } catch {
       return null;
     }
-  }, [initialCsv]);
+  }, [initialNowcast]);
   const { resolvedTheme } = useTheme();
   useEffect(() => {
     setBasemapIsDark(resolvedTheme === 'dark');
@@ -205,8 +252,9 @@ export default function RainfallMapInner({
   const isMobile = useIsMobile();
   const minZoom = isMobile ? 6 : 7;
 
+  const queryClient = useQueryClient();
   const { data, error, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['hkoGriddedRainfallNowcast'],
+    queryKey: NOWCAST_QUERY_KEY,
     queryFn: async ({ signal }) => {
       // Don't pre-seed progress: keep showing the spinner until the first
       // chunk actually arrives. Pre-seeding to 0 races with React 18's
@@ -214,6 +262,19 @@ export default function RainfallMapInner({
       // path (no Content-Length → no onProgress ever fires).
       setDownloadProgress(null);
       setBytesReceived(null);
+      // Freshness probe: when we already hold data and the server's file
+      // hasn't changed since, skip the ~380 KB download entirely (HML-43).
+      // Covers both the 15-min background refetch and a cache-hit mount
+      // whose localStorage TTL has lapsed. touchNowcastCache restarts the
+      // localStorage TTL so the next mount keeps hitting the cache too.
+      const prev = queryClient.getQueryData<NowcastResult>(NOWCAST_QUERY_KEY);
+      if (prev && prev.lastModified > 0) {
+        const remote = await fetchNowcastLastModified(signal);
+        if (remote !== null && remote === prev.lastModified) {
+          touchNowcastCache();
+          return prev;
+        }
+      }
       return await fetchRainfallNowcast((received, total) => {
         if (total !== null && total > 0) {
           setDownloadProgress(Math.round((received / total) * 100));

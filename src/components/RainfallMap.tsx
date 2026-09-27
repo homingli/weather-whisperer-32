@@ -97,12 +97,13 @@ const LoadingShell = () => {
 
 export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) => {
   // Sync cache read at mount: when the 15-min localStorage cache is fresh we
-  // skip the "Load Map" prompt entirely and hand the cached CSV straight to
-  // RainfallMapInner so the first render shows the parsed grid with no
-  // network round-trip. Cache read is synchronous and ~50-100 ms at worst,
+  // skip the "Load Map" prompt entirely and hand the cached sparse rows
+  // straight to RainfallMapInner so the first render shows the parsed grid
+  // with no network round-trip. Cache read is synchronous and ~50-100 ms at
+  // worst (v3 reads small rain-only rows — no 58k-line CSV re-parse),
   // acceptable for a one-time mount cost.
-  const initialCachedCsv = useMemo(() => readNowcastCache()?.csvText ?? null, []);
-  const [isLoaded, setIsLoaded] = useState(initialCachedCsv !== null);
+  const initialNowcast = useMemo(() => readNowcastCache(), []);
+  const [isLoaded, setIsLoaded] = useState(initialNowcast !== null);
   const { t } = useLanguage();
 
   // Preload the lazy chunk in parallel with the React tree render when we
@@ -110,10 +111,10 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   // Suspense mounts the inner, the chunk is usually already in memory and
   // the LoadingShell fallback never paints.
   useEffect(() => {
-    if (initialCachedCsv) {
+    if (initialNowcast) {
       void import('./RainfallMapInner');
     }
-  }, [initialCachedCsv]);
+  }, [initialNowcast]);
 
   return (
     <div className="glass-card overflow-hidden">
@@ -143,7 +144,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         ) : (
           <RainfallChunkErrorBoundary>
             <Suspense fallback={<LoadingShell />}>
-              <RainfallMapInner userLocation={userLocation} initialCsv={initialCachedCsv} />
+              <RainfallMapInner userLocation={userLocation} initialNowcast={initialNowcast} />
             </Suspense>
           </RainfallChunkErrorBoundary>
         )}
