@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { assert, describe, it, expect, vi, beforeEach } from 'vitest';
 import { fetchWeather } from './weather-manager';
 import { getWeather as getOpenMeteoWeather } from './weather';
 import { isInHongKong, getHKODailyAndWarnings, getHKOCurrentWeather, buildHKOWeatherData, fetchHKOWeatherData } from './hko-weather';
@@ -341,11 +341,12 @@ describe('fetchWeather orchestration', () => {
         (e: unknown) => e,
       );
 
-      expect((rejection as Error).message).toBe('Both Open-Meteo and HKO APIs failed');
+      assert(rejection instanceof Error);
+      expect(rejection.message).toBe('Both Open-Meteo and HKO APIs failed');
       // The wrapper chains the original failure as `cause` so the root
       // error survives diagnostics.
-      expect((rejection as Error).cause).toBeInstanceOf(Error);
-      expect(((rejection as Error).cause as Error).message).toBe('HKO current down');
+      assert(rejection.cause instanceof Error);
+      expect(rejection.cause.message).toBe('HKO current down');
     });
 
     it('uses fetchHKOWeatherData as the secondary fallback when OM and HKO-daily both fail', async () => {

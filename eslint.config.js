@@ -22,7 +22,9 @@ export default tseslint.config(
       // react-hooks v7 bundles the React-Compiler-powered rules into
       // `recommended` at error severity; they flag ~22 pre-existing sites in
       // app code. Keep them visible as warnings until a dedicated cleanup
-      // pass instead of failing lint in a toolchain-bump PR.
+      // pass instead of failing lint in a toolchain-bump PR. The lint script
+      // pairs this with `--max-warnings 33` (the current count) so new
+      // violations still fail CI until the count is ratcheted to 0.
       "react-hooks/static-components": "warn",
       "react-hooks/use-memo": "warn",
       "react-hooks/preserve-manual-memoization": "warn",
