@@ -273,14 +273,14 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
                 position="top"
                 offset={8}
                 style={{ fontSize: '15px', fill: 'hsl(var(--foreground))', fontWeight: 500 }}
-                formatter={(val: number) => formatTemperature(val, units)}
+                formatter={(val) => formatTemperature(Number(val), units)}
               />
               <LabelList
                 dataKey="temperatureMin"
                 position="bottom"
                 offset={8}
                 style={{ fontSize: '14px', fill: 'hsl(var(--muted-foreground))', fontWeight: 400 }}
-                formatter={(val: number) => formatTemperature(val, units)}
+                formatter={(val) => formatTemperature(Number(val), units)}
               />
               {chartData.map((row) => (
                 <Cell key={`cell-${row.index}`} fill={`url(#dailyTempRange-${row.index})`} />
