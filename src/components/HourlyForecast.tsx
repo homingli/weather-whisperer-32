@@ -252,7 +252,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
                 fontFamily: "'Playfair Display', serif",
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
-              labelFormatter={(value: number) => formatTooltipLabel(value)}
+              labelFormatter={(label) => formatTooltipLabel(Number(label))}
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   const data = payload[0].payload;
@@ -267,7 +267,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
                     : '';
                   return (
                     <div className="rounded-none border border-border bg-card px-3 py-2 text-sm shadow-md" style={{ backgroundColor: 'hsl(var(--card))' }}>
-                      <p className="font-medium text-foreground mb-1">{formatTooltipLabel(label)}</p>
+                      <p className="font-medium text-foreground mb-1">{formatTooltipLabel(Number(label))}</p>
                       <div className="space-y-1">
                         {/* WCAG 1.4.3 — text-weather-sunny (yellow) on bg-card
                             (cream) failed contrast. Keep the line label in
