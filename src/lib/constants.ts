@@ -47,8 +47,9 @@ export const STORAGE_KEYS = {
   RECENT_CITIES: 'weather-recent-cities',
   /** Last-known weather snapshot for cold-start first paint. Schema-versioned. */
   LAST_KNOWN: 'weather-last-known-v2',
-  /** Gridded rainfall nowcast CSV snapshot. Read at mount to skip the
-   *  "Load Map" prompt when fresh (≤ NOWCAST_CACHE_TTL_MS). Schema-versioned. */
+  /** Gridded rainfall nowcast snapshot (sparse rain-only rows). Read at mount
+   *  to skip the "Load Map" prompt when fresh (≤ NOWCAST_CACHE_TTL_MS).
+   *  Schema-versioned. */
   NOWCAST_CACHE: 'weather-nowcast-cache-v2',
 } as const;
 
@@ -63,8 +64,11 @@ export const STORAGE_KEYS = {
 export const LAST_KNOWN_SCHEMA_VERSION = 2 as const;
 
 /** Bump when the NowcastCacheEnvelope shape changes; readers drop on mismatch.
- *  v2 = LZString-compressed csvText (was raw CSV in v1). */
-export const NOWCAST_CACHE_SCHEMA_VERSION = 2 as const;
+ *  v2 = LZString-compressed csvText (was raw CSV in v1).
+ *  v3 = sparse rain-only CellRow[] instead of raw CSV (HML-43): ~10× smaller
+ *  on disk (98.8% of CSV rows are 0.00) and cache-hit mounts skip the 58k-line
+ *  CSV re-parse. v2 entries drop on read and re-fetch from the network. */
+export const NOWCAST_CACHE_SCHEMA_VERSION = 3 as const;
 
 // ---------------------------------------------------------------------------
 // MSC (Meteorological Service of Canada) nowcast — GeoMet WMS
@@ -144,9 +148,13 @@ export const TIMING = {
   THEME_AUTO_TICK_MS: 5 * 60 * 1000,
   /** Rainfall timeline autoplay step interval */
   RAINFALL_AUTOPLAY_MS: 1500,
-  /** Gridded rainfall nowcast CSV fetch timeout (30s — 2.7 MB file; covers
-   *  the body stream on slow mobile, not just headers). */
-  NOWCAST_TIMEOUT_MS: 30000,
+  /** Gridded rainfall nowcast stall timeout: abort when no bytes arrive for
+   *  this long. The timer resets on every chunk, so a healthy-but-slow
+   *  download runs to completion; only a genuinely dead connection trips it.
+   *  Replaces the old 30 s total deadline, which killed in-progress streams
+   *  (surfacing as NS_BINDING_ABORTED) and forced a full re-download on
+   *  retry (HML-43). */
+  NOWCAST_STALL_TIMEOUT_MS: 10_000,
   /** Gridded rainfall nowcast background refetch interval (matches HKO 30-min generation cadence) */
   NOWCAST_REFETCH_INTERVAL_MS: 30 * 60 * 1000,
   /** Gridded rainfall nowcast localStorage cache TTL. Within this window,
