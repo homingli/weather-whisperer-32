@@ -1,5 +1,7 @@
 # Weather Whisperer — Android APK build & release shortcuts (mobile branch)
 #
+#   make help         list targets (this is also the default)
+#   make bump         bump version — patch by default; MINOR=1, MAJOR=1, or VERSION=x.y[.z]
 #   make apk          debug APK (fast, debug-signed)
 #   make apk-release  release APK, signed via android/keystore.properties
 #   make upload       upload the release APK to a GitHub prerelease (apk-v<VERSION>)
@@ -21,16 +23,36 @@ TAG         := apk-v$(VERSION)
 APK_DEBUG   := android/app/build/outputs/apk/debug/weather-whisperer-v$(VERSION).apk
 APK_RELEASE := android/app/build/outputs/apk/release/weather-whisperer-v$(VERSION).apk
 
-.PHONY: apk apk-release upload release icons clean
+# `make bump VERSION=x.y.z` treats VERSION as an explicit set only when it came
+# from the command line — otherwise it's the current value read from build.gradle.
+BUMP_FLAGS =
+ifeq ($(origin VERSION),command line)
+BUMP_FLAGS += --set $(VERSION)
+endif
+ifneq ($(filter 1,$(MINOR)),)
+BUMP_FLAGS += --minor
+endif
+ifneq ($(filter 1,$(MAJOR)),)
+BUMP_FLAGS += --major
+endif
 
-apk:
+.PHONY: help bump apk apk-release upload release icons clean
+
+help: ## list targets
+	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) \
+		| awk '{ i = index($$0, "## "); printf "  \033[36m%-14s\033[0m %s\n", substr($$1, 1, length($$1) - 1), substr($$0, i + 3) }'
+
+bump: ## bump version (patch by default; MINOR=1, MAJOR=1, or VERSION=x.y[.z])
+	@node scripts/bump-version.mjs $(BUMP_FLAGS)
+
+apk: ## build debug APK (debug-signed)
 	pnpm run apk
 
-apk-release:
+apk-release: ## build release APK (signed via android/keystore.properties)
 	pnpm run apk:release
 
 # Creates the prerelease on first run, clobbers the APK on re-runs.
-upload:
+upload: ## upload release APK to GitHub prerelease apk-v<VERSION>
 	@test -n "$(VERSION)" || { echo "versionName not found in android/app/build.gradle; pass VERSION=x.y"; exit 1; }
 	@test -f "$(APK_RELEASE)" || { echo "no release APK — run make apk-release first"; exit 1; }
 	@gh release view "$(TAG)" >/dev/null 2>&1 \
@@ -40,12 +62,12 @@ upload:
 			--title "Weather Whisperer v$(VERSION) (Android)" \
 			--notes "Debug-tier Android build of the mobile branch. Uninstall any previously sideloaded build signed with a different key before installing."
 	@echo "----"
-	@echo "Reminder: bump versionCode/versionName in android/app/build.gradle before shipping an update."
+	@echo "Reminder: next release starts with make bump (patch) / make bump MINOR=1."
 
-release: apk-release upload
+release: apk-release upload ## apk-release + upload
 
-icons:
+icons: ## regenerate launcher icons from assets/
 	pnpm run icons
 
-clean:
+clean: ## remove gradle build outputs
 	cd android && ./gradlew --no-daemon clean
