@@ -19,7 +19,8 @@
   },
   "ignorePatterns": [
     "dist",
-    "android"
+    "android",
+    "ios"
   ],
   "rules": {
     "ban-ts-comment": "error",
