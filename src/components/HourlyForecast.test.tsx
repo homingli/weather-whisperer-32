@@ -37,7 +37,24 @@ vi.mock('recharts', async () => {
     },
     XAxis: () => <div data-testid="x-axis" />,
     YAxis: () => <div data-testid="y-axis" />,
-    Tooltip: () => null,
+    Tooltip: ({ labelFormatter, content }: MockChartProps & {
+      labelFormatter?: (label: unknown, payload?: unknown) => ReactNode;
+      content?: (props: { active: boolean; payload: unknown[]; label: unknown }) => ReactNode;
+    }) => {
+      // Recharts 3 widened the tooltip label from `number` to a renderable
+      // text/ReactNode union — exercise both callbacks through that widened
+      // shape so the component's Number() coercion stays pinned.
+      const label = 1704715200000;
+      const body = content
+        ? content({ active: true, payload: [{ payload: { temperature: 20, rainChance: 10, windSpeed: 10, windDirection: 180 } }], label })
+        : null;
+      return (
+        <div data-testid="tooltip">
+          <span data-testid="tooltip-label">{labelFormatter ? labelFormatter(label) : null}</span>
+          {body}
+        </div>
+      );
+    },
     ReferenceArea: () => <div data-testid="ref-area" />,
     ReferenceLine: ({ label }: { label?: { value: unknown } }) => {
       if (label) renderedChartData.push({ refLineLabel: label.value });
@@ -93,6 +110,23 @@ describe('HourlyForecast Component', () => {
   it('renders the localized "next N hours" kicker', () => {
     renderWithLanguage(<HourlyForecast forecast={mockHourlyData} />);
     expect(screen.getByText(/the next \d+ hours/i)).toBeInTheDocument();
+  });
+
+  it('renders the share button next to the kicker — enabled with data, disabled without', () => {
+    const { rerender } = renderWithLanguage(<HourlyForecast forecast={mockHourlyData} />);
+    // Distinct accessible name so the daily and hourly buttons don't blur
+    // together in a screen reader's button rotor.
+    const share = screen.getByRole('button', { name: 'Share hourly forecast' });
+    expect(share).toBeEnabled();
+
+    rerender(
+      <LanguageProvider>
+        <UnitsProvider>
+          <HourlyForecast forecast={[]} />
+        </UnitsProvider>
+      </LanguageProvider>
+    );
+    expect(screen.getByRole('button', { name: 'Share hourly forecast' })).toBeDisabled();
   });
 
   it('handles empty forecast gracefully — renders title and chart container without crashing', () => {
@@ -200,6 +234,21 @@ describe('HourlyForecast Component', () => {
     // Each captured sun event label is a formatted time string (e.g. "6:00 PM").
     const firstLabel = capturedSunEvents[0]?.refLineLabel;
     expect(firstLabel).toMatch(/\d{1,2}:\d{2}\s*[AP]M/i);
+  });
+
+  it('formats the tooltip label and body through the recharts 3 widened-label types', () => {
+    // Recharts 3 types labelFormatter/content labels as renderable text
+    // instead of number; the component coerces with Number(). The mock
+    // invokes both callbacks the way recharts 3 does — with the raw x
+    // timestamp and the active row — so a regression to number-typed
+    // assumptions or a broken coercion shows up here.
+    renderWithLanguage(<HourlyForecast forecast={mockHourlyData} />);
+
+    // labelFormatter output: an hour:minute + AM/PM shape, not NaN/Invalid Date.
+    expect(screen.getByTestId('tooltip-label').textContent).toMatch(/\d{1,2}:\d{2}\s*[AP]M/i);
+    // Custom body: metric row values for the active datum.
+    expect(screen.getByTestId('tooltip').textContent).toContain('20.0°C');
+    expect(screen.getByTestId('tooltip').textContent).toContain('10 km/h');
   });
 
   it('accepts and propagates timezone prop without crashing', () => {

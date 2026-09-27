@@ -55,6 +55,13 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/): each
   the fixed chart geometry.
 
 ### Changed
+- **AQHI stays quiet until it hits 5.** The air-quality display used to
+  switch to its prominent color-coded chip as soon as the index left the
+  "Low" band — an AQHI of 4 (EPD's "Moderate" floor) was enough to grab
+  the full widget. The bar is now one notch higher: only an AQHI of 5 or
+  above earns the full chip, and 4 and below rest in the small muted
+  quiet shelf alongside humidity, UV, and wind. Routine air should not
+  look like an alarm.
 - **Trace amounts (< 0.2 mm) no longer count as rain.** The rainfall
   nowcast map stops painting its lightest-blue cells for amounts under
   0.2 mm — the legend's first bucket now starts at 0.2–0.5 mm, and

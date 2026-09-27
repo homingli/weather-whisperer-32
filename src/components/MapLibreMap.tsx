@@ -1,6 +1,16 @@
 import { useEffect, useRef } from 'react';
-import maplibregl, { type Map } from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+import type { ErrorEvent as MapLibreErrorEvent, Map } from 'maplibre-gl';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
+
+// maplibre-gl v6 ships ESM-only and loads its worker from a real URL. A
+// bundler's import.meta.url can't resolve to the worker file inside the
+// module graph, so point it at the Vite-bundled worker chunk. `?worker&url`
+// (not plain `?url`) routes the file through Vite's worker pipeline and emits
+// a self-contained chunk — the dist worker imports its sibling shared chunk,
+// which a verbatim `?url` copy would omit in production builds.
+maplibregl.setWorkerUrl(workerUrl);
 import type { RainfallFeatureCollection } from '@/lib/rainfallGeoJson';
 import { cartoApiKey, cartoMapLibreRasterUrl, cartoStyleUrl } from '@/lib/carto';
 
@@ -68,7 +78,7 @@ export function MapLibreMap({ center, zoom, minZoom, maxZoom, dark, ariaLabel, i
   const mapRef = useRef<Map | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
   const fallbackRef = useRef(false);
-  const wmsErrorHandlerRef = useRef<((event: { sourceId?: string }) => void) | null>(null);
+  const wmsErrorHandlerRef = useRef<((event: MapLibreErrorEvent) => void) | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -161,8 +171,11 @@ export function MapLibreMap({ center, zoom, minZoom, maxZoom, dark, ariaLabel, i
       if (map.getSource('msc-wms')) map.removeSource('msc-wms');
       map.addSource('msc-wms', { type: 'raster', tiles: [url], tileSize: 256 });
       map.addLayer({ id: 'msc-wms', type: 'raster', source: 'msc-wms', paint: { 'raster-opacity': wms.opacity } });
-      const sourceError = (event: { sourceId?: string }) => {
-        if (event.sourceId === 'msc-wms') onOverlayError?.();
+      // Source errors bubble to the map with `sourceId` merged onto the event
+      // (Evented.fire extends the fired event with the source's parent data),
+      // but the v6 ErrorEvent class type doesn't declare it — narrow locally.
+      const sourceError = (event: MapLibreErrorEvent) => {
+        if ((event as MapLibreErrorEvent & { sourceId?: string }).sourceId === 'msc-wms') onOverlayError?.();
       };
       wmsErrorHandlerRef.current = sourceError;
       map.on('error', sourceError);

@@ -1,0 +1,120 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "react",
+    "unicorn",
+    "oxc"
+  ],
+  "categories": {
+    "correctness": "error"
+  },
+  "env": {
+    "browser": true
+  },
+  "settings": {
+    "react": {
+      "version": "19.3"
+    }
+  },
+  "ignorePatterns": [
+    "dist",
+    "android"
+  ],
+  "rules": {
+    "ban-ts-comment": "error",
+    "no-array-constructor": "error",
+    "no-duplicate-enum-values": "error",
+    "no-empty-object-type": "error",
+    "no-explicit-any": "error",
+    "no-extra-non-null-assertion": "error",
+    "no-misused-new": "error",
+    "typescript/no-namespace": "error",
+    "no-non-null-asserted-optional-chain": "error",
+    "no-require-imports": "error",
+    "no-this-alias": "error",
+    "no-unnecessary-type-constraint": "error",
+    "no-unsafe-declaration-merging": "error",
+    "no-unsafe-function-type": "error",
+    "no-unused-expressions": "error",
+    "no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ],
+    "no-wrapper-object-types": "error",
+    "prefer-as-const": "error",
+    "prefer-namespace-keyword": "error",
+    "triple-slash-reference": "error",
+    "for-direction": "error",
+    "no-async-promise-executor": "error",
+    "no-case-declarations": "error",
+    "no-compare-neg-zero": "error",
+    "no-cond-assign": "error",
+    "no-constant-binary-expression": "error",
+    "no-constant-condition": "error",
+    "no-control-regex": "error",
+    "no-debugger": "error",
+    "no-delete-var": "error",
+    "no-dupe-else-if": "error",
+    "no-duplicate-case": "error",
+    "no-empty": "error",
+    "no-empty-character-class": "error",
+    "no-empty-pattern": "error",
+    "no-empty-static-block": "error",
+    "no-ex-assign": "error",
+    "no-extra-boolean-cast": "error",
+    "no-fallthrough": "error",
+    "no-global-assign": "error",
+    "no-invalid-regexp": "error",
+    "no-irregular-whitespace": "error",
+    "no-loss-of-precision": "error",
+    "no-misleading-character-class": "error",
+    "no-nonoctal-decimal-escape": "error",
+    "no-prototype-builtins": "error",
+    "no-regex-spaces": "error",
+    "no-self-assign": "error",
+    "no-shadow-restricted-names": "error",
+    "no-sparse-arrays": "error",
+    "no-unassigned-vars": "error",
+    "no-unexpected-multiline": "error",
+    "no-unsafe-finally": "error",
+    "no-unsafe-optional-chaining": "error",
+    "no-unused-labels": "error",
+    "no-unused-private-class-members": "error",
+    "no-useless-assignment": "error",
+    "no-useless-backreference": "error",
+    "no-useless-catch": "error",
+    "no-useless-escape": "error",
+    "no-var": "error",
+    "prefer-const": "error",
+    "prefer-rest-params": "error",
+    "eslint/prefer-spread": "error",
+    "preserve-caught-error": "error",
+    "error-boundaries": "warn",
+    "exhaustive-deps": "warn",
+    "globals": "warn",
+    "immutability": "warn",
+    "incompatible-library": "warn",
+    "preserve-manual-memoization": "warn",
+    "purity": "warn",
+    "refs": "warn",
+    "rules-of-hooks": "error",
+    "set-state-in-effect": "warn",
+    "set-state-in-render": "warn",
+    "static-components": "warn",
+    "unsupported-syntax": "warn",
+    "use-memo": "warn",
+    "require-yield": "error",
+    "use-isnan": "error",
+    "valid-typeof": "error",
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ]
+  }
+}

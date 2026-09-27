@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildForecastShareText } from './share-forecast';
-import type { DailyForecast } from '@/lib/weather';
+import { buildForecastShareText, buildHourlyForecastShareText, buildShareCityLabel } from './share-forecast';
+import type { DailyForecast, HourlyForecast } from '@/lib/weather';
 
 function day(overrides: Partial<DailyForecast> = {}): DailyForecast {
   const date = new Date('2026-09-19T04:00:00Z'); // Sat Sep 19, noon HKT
@@ -22,12 +22,14 @@ const EN_STRINGS: Record<string, string> = {
   'weather.desc.clearSky': 'Clear sky',
   'weather.desc.lightRain': 'Light rain',
   'share.header': 'Weather in {0} for the coming days:',
+  'share.hourlyHeader': 'Weather in {0} for the coming hours (as of {1}):',
   'share.rainChance': '{0}% rain',
 };
 
 const TC_STRINGS: Record<string, string> = {
   'weather.desc.lightRain': '微雨',
   'share.header': '{0}未來幾日天氣：',
+  'share.hourlyHeader': '{0}未來幾小時天氣（截至 {1}）：',
   'share.rainChance': '降雨 {0}%',
 };
 
@@ -115,5 +117,207 @@ describe('buildForecastShareText', () => {
     });
     expect(text).toContain('9/19');
     expect(text).not.toContain('2026-09-19T');
+  });
+});
+
+function hour(overrides: Partial<HourlyForecast> = {}): HourlyForecast {
+  return {
+    time: new Date('2026-09-19T07:00:00Z'), // 3 PM HKT
+    temperature: 28,
+    weatherCode: 0,
+    windSpeed: 12,
+    windDirection: 90,
+    precipitationProbability: 0,
+    precipitation: 0,
+    isDay: true,
+    ...overrides,
+  };
+}
+
+// Fixed fallback instant for deterministic headers: 2:45 PM HKT. The
+// header normally anchors to the forecast's first hour; `now` only kicks
+// in when the forecast carries no usable timestamp.
+const NOW = new Date('2026-09-19T06:45:00Z');
+
+describe('buildHourlyForecastShareText', () => {
+  it('anchors the header to the first forecast hour, one line per hour, and the app link', () => {
+    const text = buildHourlyForecastShareText({
+      cityName: 'Hong Kong',
+      hours: [
+        hour(),
+        hour({
+          time: new Date('2026-09-19T08:00:00Z'),
+          weatherCode: 61,
+          temperature: 26,
+          precipitationProbability: 60,
+        }),
+      ],
+      units: 'metric',
+      language: 'en',
+      timezone: 'Asia/Hong_Kong',
+      translate: (key) => EN_STRINGS[key] ?? key,
+      url: 'https://example.com',
+    });
+
+    const lines = text.split('\n');
+    expect(lines[0]).toBe('Weather in Hong Kong for the coming hours (as of 3:00 PM):');
+    expect(lines[2]).toBe('☀️ 3 PM · Clear sky · 28°C');
+    expect(lines[3]).toBe('🌧️ 4 PM · Light rain · 26°C · 60% rain');
+    expect(lines[lines.length - 1]).toBe('https://example.com');
+  });
+
+  it('falls back to the given now when the forecast carries no usable first hour', () => {
+    const text = buildHourlyForecastShareText({
+      cityName: 'Hong Kong',
+      hours: [],
+      units: 'metric',
+      language: 'en',
+      timezone: 'Asia/Hong_Kong',
+      translate: (key) => EN_STRINGS[key] ?? key,
+      url: 'https://example.com',
+      now: NOW,
+    });
+    expect(text).toBe(
+      'Weather in Hong Kong for the coming hours (as of 2:45 PM):\n\n\nhttps://example.com'
+    );
+  });
+
+  it('drops malformed persisted timestamps instead of sharing "Invalid Date"', () => {
+    const text = buildHourlyForecastShareText({
+      cityName: 'Hong Kong',
+      hours: [hour({ time: 'not-a-date' as unknown as Date })],
+      units: 'metric',
+      language: 'en',
+      timezone: 'Asia/Hong_Kong',
+      translate: (key) => EN_STRINGS[key] ?? key,
+      now: NOW,
+    });
+    expect(text).not.toContain('Invalid');
+    // Header still renders, anchored to the fallback instant.
+    expect(text).toContain('(as of 2:45 PM):');
+  });
+
+  it('anchors the header to the first valid hour when a leading timestamp is malformed', () => {
+    const text = buildHourlyForecastShareText({
+      cityName: 'Hong Kong',
+      hours: [hour({ time: 'not-a-date' as unknown as Date }), hour()],
+      units: 'metric',
+      language: 'en',
+      timezone: 'Asia/Hong_Kong',
+      translate: (key) => EN_STRINGS[key] ?? key,
+      now: NOW,
+    });
+    expect(text).not.toContain('Invalid');
+    expect(text).toContain('(as of 3:00 PM):');
+    expect(text).toContain('☀️ 3 PM · Clear sky · 28°C');
+  });
+
+  it('picks the day or night emoji from isDay', () => {
+    const text = buildHourlyForecastShareText({
+      cityName: 'Hong Kong',
+      hours: [hour({ time: new Date('2026-09-19T16:00:00Z'), isDay: false })], // midnight HKT
+      units: 'metric',
+      language: 'en',
+      timezone: 'Asia/Hong_Kong',
+      translate: (key) => EN_STRINGS[key] ?? key,
+      now: NOW,
+    });
+    expect(text).toContain('🌙 12 AM · Clear sky · 28°C');
+  });
+
+  it('converts temperatures to the display unit system', () => {
+    const text = buildHourlyForecastShareText({
+      cityName: 'Hong Kong',
+      hours: [hour()],
+      units: 'us',
+      language: 'en',
+      timezone: 'Asia/Hong_Kong',
+      translate: (key) => EN_STRINGS[key] ?? key,
+      now: NOW,
+    });
+    expect(text).toContain('82°F');
+    expect(text).not.toContain('°C');
+  });
+
+  it('renders the message in the active language', () => {
+    const text = buildHourlyForecastShareText({
+      cityName: '香港',
+      hours: [hour({ weatherCode: 61, precipitationProbability: 60 })],
+      units: 'metric',
+      language: 'tc',
+      timezone: 'Asia/Hong_Kong',
+      translate: (key) => TC_STRINGS[key] ?? key,
+    });
+    expect(text).toContain('香港未來幾小時天氣（截至 下午3:00）：');
+    expect(text).toContain('微雨');
+    expect(text).toContain('降雨 60%');
+    // zh-HK renders the 3 PM fixture as "下午3時"
+    expect(text).toContain('下午3時');
+  });
+
+  it('formats string times from the persisted (JSON) snapshot', () => {
+    const text = buildHourlyForecastShareText({
+      cityName: 'Hong Kong',
+      hours: [hour({ time: '2026-09-19T07:00:00.000Z' as unknown as Date })],
+      units: 'metric',
+      language: 'en',
+      timezone: 'Asia/Hong_Kong',
+      translate: (key) => EN_STRINGS[key] ?? key,
+      now: NOW,
+    });
+    expect(text).toContain('3 PM');
+    expect(text).not.toContain('2026-09-19T');
+  });
+});
+
+describe('buildShareCityLabel', () => {
+  it('uses the nearest station label inside HKO coverage, like the header', () => {
+    const label = buildShareCityLabel({
+      name: 'Kowloon',
+      country: 'Hong Kong',
+      isHKCovered: true,
+      nearestStation: "King's Park",
+      translateStation: (station) => (station === "King's Park" ? '京士柏' : station),
+    });
+    expect(label).toBe('京士柏');
+  });
+
+  it('composes parts inside HKO coverage too when no station is loaded yet', () => {
+    const label = buildShareCityLabel({
+      name: 'Hong Kong',
+      country: 'Hong Kong',
+      isHKCovered: true,
+      nearestStation: undefined,
+    });
+    expect(label).toBe('Hong Kong, Hong Kong');
+  });
+
+  it('composes name, admin1, and country outside HKO coverage', () => {
+    const label = buildShareCityLabel({
+      name: 'Vancouver',
+      admin1: 'British Columbia',
+      country: 'Canada',
+      isHKCovered: false,
+    });
+    expect(label).toBe('Vancouver, British Columbia, Canada');
+  });
+
+  it('drops the reverse-geocode placeholder instead of sharing "Current Location"', () => {
+    const label = buildShareCityLabel({
+      name: 'Current Location',
+      admin1: 'Kowloon',
+      country: 'Hong Kong',
+      isHKCovered: false,
+    });
+    expect(label).toBe('Kowloon, Hong Kong');
+  });
+
+  it('falls back to the raw name when nothing else identifies the place', () => {
+    const label = buildShareCityLabel({
+      name: 'Current Location',
+      country: '',
+      isHKCovered: false,
+    });
+    expect(label).toBe('Current Location');
   });
 });

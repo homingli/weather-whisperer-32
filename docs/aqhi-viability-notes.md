@@ -20,7 +20,8 @@ A working vertical slice, all tests green (`440 passing`):
   Open-Meteo, so AQHI fields are re-attached explicitly there.
 - `src/components/CurrentWeather.tsx` — `AqhiChip` full widget (mirrors
   `UvChip`: value + colored EPD band label + five-segment band bar) and a
-  quiet chip when AQHI ≤ 3 (Low). Renders only when data exists.
+  quiet chip when AQHI ≤ 4 (HML-9: one above EPD's Low band — the full
+  color-coded chip is reserved for 5+). Renders only when data exists.
 - `vercel.json` + `vite.config.ts` — same-origin `/aqhi-rss/*` proxy (Vercel
   rewrite in prod, Vite dev proxy in dev), the same pattern as `/hko-data/*`,
   plus a service-worker NetworkFirst rule (1h, matches EPD publish cadence).

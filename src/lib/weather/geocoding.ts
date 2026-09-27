@@ -6,7 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { TIMING } from '../constants';
 import { GeoLocation } from './types';
-import { parseNominatimSearch, parseNominatimReverse, logParseWarnings } from '../parsers';
+import { parseNominatimSearch, parseNominatimReverse, logParseWarnings, CURRENT_LOCATION_PLACEHOLDER } from '../parsers';
 
 /** Search for cities by name via Open-Meteo geocoding API. The raw response
  *  is passed through `parseNominatimSearch` which validates each result row
@@ -59,7 +59,7 @@ export async function reverseGeocode(latitude: number, longitude: number): Promi
     if (!cityResponse.ok) {
       logWarn(`Reverse geocode failed with status ${cityResponse.status} after ${Date.now() - start}ms`);
       return {
-        name: 'Current Location',
+        name: CURRENT_LOCATION_PLACEHOLDER,
         latitude,
         longitude,
         country: '',
@@ -69,7 +69,7 @@ export async function reverseGeocode(latitude: number, longitude: number): Promi
     raw = await cityResponse.json();
   } catch {
     return {
-      name: 'Current Location',
+      name: CURRENT_LOCATION_PLACEHOLDER,
       latitude,
       longitude,
       country: '',
