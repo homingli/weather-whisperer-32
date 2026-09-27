@@ -176,7 +176,7 @@ function syntheticNowcastCsv() {
   const now = fmt(base);
   const plus = fmt(base + 15 * 60_000);
   const lines = ["updateTime,endTime,latitude,longitude,rainfall(mm)"];
-  let value = 12;
+  const value = 12;
   for (const [endTime, dt] of [[now, 0], [plus, 1]]) {
     for (let i = -2; i <= 2; i++) {
       for (let j = -2; j <= 2; j++) {
@@ -388,7 +388,6 @@ class RunContext {
         if (this.blockApi) return route.abort();
         if (this.blockHkoOnly) return route.abort();
         const dt = searchParams.get("dataType");
-        const lang = searchParams.get("lang");
         const map = {
           fnd: "hko-fnd-en.json", rhrread: "hko-rhrread-en.json", warnsum: "hko-warnsum-en.json",
         };
@@ -570,7 +569,6 @@ class RunContext {
       }
       // Clip check: active card content wider than the card itself.
       if (card) {
-        const inner = card.querySelector(".flex-1, main, div");
         out.cardOverflow = card.scrollWidth - card.clientWidth;
       }
       return out;
