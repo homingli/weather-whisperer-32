@@ -336,9 +336,16 @@ describe('fetchWeather orchestration', () => {
       mockGetHKOCurrent.mockRejectedValue(new Error('HKO current down'));
       mockFetchHKO.mockRejectedValue(new Error('HKO full down'));
 
-      await expect(fetchWeather(HK_LAT, HK_LON)).rejects.toThrow(
-        'Both Open-Meteo and HKO APIs failed',
+      const rejection = await fetchWeather(HK_LAT, HK_LON).then(
+        () => null,
+        (e: unknown) => e,
       );
+
+      expect((rejection as Error).message).toBe('Both Open-Meteo and HKO APIs failed');
+      // The wrapper chains the original failure as `cause` so the root
+      // error survives diagnostics.
+      expect((rejection as Error).cause).toBeInstanceOf(Error);
+      expect(((rejection as Error).cause as Error).message).toBe('HKO current down');
     });
 
     it('uses fetchHKOWeatherData as the secondary fallback when OM and HKO-daily both fail', async () => {

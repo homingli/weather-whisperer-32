@@ -156,7 +156,7 @@ export async function fetchWeather(
     } catch (err) {
       onProgress?.('hko', 'error');
       logError('HKO fallback failed too', err);
-      throw new Error('Both Open-Meteo and HKO APIs failed');
+      throw new Error('Both Open-Meteo and HKO APIs failed', { cause: err });
     }
   }
 
@@ -186,7 +186,7 @@ export async function fetchWeather(
     } catch (err) {
       onProgress?.('hko', 'error');
       logError('HKO fallback failed too', err);
-      throw new Error('Both Open-Meteo and HKO APIs failed');
+      throw new Error('Both Open-Meteo and HKO APIs failed', { cause: err });
     }
   }
 
