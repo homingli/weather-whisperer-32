@@ -1,7 +1,7 @@
 # Weather Whisperer — Android APK build & release shortcuts (mobile branch)
 #
 #   make help         list targets (this is also the default)
-#   make bump         bump version — patch by default; MINOR=1, MAJOR=1, or VERSION=x.y[.z]
+#   make bump         bump version + commit & push — patch default; MINOR=1, MAJOR=1, VERSION=x.y[.z]
 #   make apk          debug APK (fast, debug-signed)
 #   make apk-release  release APK, signed via android/keystore.properties
 #   make upload       upload the release APK to a GitHub prerelease (apk-v<VERSION>)
@@ -42,8 +42,11 @@ help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) \
 		| awk '{ i = index($$0, "## "); printf "  \033[36m%-14s\033[0m %s\n", substr($$1, 1, length($$1) - 1), substr($$0, i + 3) }'
 
-bump: ## bump version (patch by default; MINOR=1, MAJOR=1, or VERSION=x.y[.z])
+bump: ## bump version, commit & push (patch default; MINOR=1, MAJOR=1, VERSION=x.y[.z])
 	@node scripts/bump-version.mjs $(BUMP_FLAGS)
+	@git add android/app/build.gradle package.json
+	@git commit -m "chore(release): v$$(sed -n 's/.*versionName \"\([^\"]*\)\".*/\1/p' android/app/build.gradle | head -1)"
+	@git push origin mobile
 
 apk: ## build debug APK (debug-signed)
 	pnpm run apk
@@ -53,6 +56,9 @@ apk-release: ## build release APK (signed via android/keystore.properties)
 
 # Creates the prerelease on first run, clobbers the APK on re-runs.
 upload: ## upload release APK to GitHub prerelease apk-v<VERSION>
+	@git fetch origin mobile
+	@test "$$(git rev-parse mobile)" = "$$(git rev-parse origin/mobile)" \
+		|| { echo "local mobile != origin/mobile — push or pull first so the apk-v tag lands on what you upload"; exit 1; }
 	@test -n "$(VERSION)" || { echo "versionName not found in android/app/build.gradle; pass VERSION=x.y"; exit 1; }
 	@test -f "$(APK_RELEASE)" || { echo "no release APK — run make apk-release first"; exit 1; }
 	@gh release view "$(TAG)" >/dev/null 2>&1 \
