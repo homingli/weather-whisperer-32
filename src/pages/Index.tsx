@@ -26,7 +26,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AtAGlance } from '@/components/AtAGlance';
 import { RainStartBanner } from '@/components/RainStartBanner';
 
-// Lazy load heavy components. DailyForecast pulls recharts (~120 kB) and is
+// Lazy load heavy components. DailyForecast pulls recharts and is
 // below the fold on both mobile (Swiper slide 2) and desktop (split row);
 // deferring it lets recharts come out of the main chunk.
 const DailyForecast = lazy(() => import('@/components/DailyForecast').then(module => ({ default: module.DailyForecast })));
