@@ -103,8 +103,13 @@ describe('nowcastCache', () => {
         .mockImplementation(() => {
           throw new Error('QuotaExceededError');
         });
-      expect(() => writeNowcastCache(sampleRows, 't', 0)).not.toThrow();
-      setItemSpy.mockRestore();
+      try {
+        expect(() => writeNowcastCache(sampleRows, 't', 0)).not.toThrow();
+      } finally {
+        // Restore even on assertion failure so later tests don't inherit
+        // the throwing mock.
+        setItemSpy.mockRestore();
+      }
     });
   });
 
@@ -123,7 +128,9 @@ describe('nowcastCache', () => {
       // be rejected (not mis-parsed) so the next mount re-fetches.
       seedEnvelope({ v: 2, rowsJson: undefined, csvText: 'fake compressed csv' });
       expect(readNowcastCache()).toBeNull();
-    });    it('returns null for a version mismatch and does not throw', () => {
+    });
+
+    it('returns null for a version mismatch and does not throw', () => {
       seedEnvelope({ v: 999 });
       expect(readNowcastCache()).toBeNull();
     });

@@ -117,8 +117,11 @@ export function readNowcastCache(): NowcastCacheRead | null {
     return {
       cachedAt: parsed.cachedAt,
       rows,
-      updateTime: parsed.updateTime,
-      lastModified: parsed.lastModified,
+      // Degrad corrupt metadata instead of surfacing it: an empty stamp just
+      // hides the UI "updated" line; lastModified 0 disables the HEAD probe
+      // so the next refetch does a full GET (always safe, just slower).
+      updateTime: typeof parsed.updateTime === 'string' ? parsed.updateTime : '',
+      lastModified: typeof parsed.lastModified === 'number' ? parsed.lastModified : 0,
     };
   } catch (err) {
     logWarn('[nowcastCache] dropped: JSON parse error', err);

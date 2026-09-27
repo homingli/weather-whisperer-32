@@ -154,7 +154,10 @@ const fetchRainfallNowcast = async (
       return { grid, updateTime: parsed.updateTime, lastModified };
     }
 
-    // Fallback: no ReadableStream (very old browsers only — HKO always sends one)
+    // Fallback: no ReadableStream (very old browsers only — HKO always sends
+    // one). The stall timer armed before fetch() still covers this await;
+    // .text() exposes no chunk boundary, so it cannot be re-armed mid-body —
+    // a body slower than one full stall window trips the abort here.
     const csvText = await response.text();
     const parsed = parseRainfallCSVText(csvText);
     scheduleCacheWrite(parsed.rows, parsed.updateTime, lastModified);
@@ -180,16 +183,31 @@ const fetchRainfallNowcast = async (
  * through to the network on both the dev proxy and the Vercel rewrite.
  */
 async function fetchNowcastLastModified(signal: AbortSignal): Promise<number | null> {
+  // Bound the probe with the same stall budget as the GET: a HEAD that never
+  // completes must not wedge queryFn (and isFetching) open indefinitely —
+  // the exact HML-43 failure class the GET path was hardened against.
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort(new DOMException('HEAD probe timed out', 'TimeoutError'));
+  }, TIMING.NOWCAST_STALL_TIMEOUT_MS);
+  const onOuterAbort = () => controller.abort(signal.reason);
+  if (signal.aborted) controller.abort(signal.reason);
+  else signal.addEventListener('abort', onOuterAbort);
   try {
-    const res = await fetch(NOWCAST_CSV_URL, { method: 'HEAD', signal });
+    const res = await fetch(NOWCAST_CSV_URL, { method: 'HEAD', signal: controller.signal });
     if (!res.ok) return null;
     const lm = res.headers.get('last-modified');
     if (!lm) return null;
     const t = new Date(lm).getTime();
     return Number.isFinite(t) ? t : null;
   } catch (err) {
+    // Outer cancellation (query supersede / unmount) must propagate so React
+    // Query sees it; our own timeout just means "probe failed" → full GET.
     if (signal.aborted) throw err;
     return null;
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener('abort', onOuterAbort);
   }
 }
 
