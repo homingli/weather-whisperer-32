@@ -62,7 +62,7 @@ function PillToggle<T extends string>({
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const idx = options.findIndex((o) => o.value === value);
     if (idx === -1) return;
-    let next = idx;
+    let next: number;
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       next = (idx + 1) % options.length;
     } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
