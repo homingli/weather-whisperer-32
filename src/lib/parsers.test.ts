@@ -291,11 +291,11 @@ describe('logParseWarnings', () => {
     // The context label and the warning count are load-bearing; the exact
     // phrasing is not.
     expect(warnSpy.mock.calls[0][0]).toContain('test');
-    expect(warnSpy.mock.calls[0][0]).toContain('3');
+    expect(warnSpy.mock.calls[0][0]).toMatch(/\b3\b/);
   });
 
   it('caps the path list at 5 and reports overflow count', () => {
     logParseWarnings('test', ['a', 'b', 'c', 'd', 'e', 'f', 'g']);
-    expect(warnSpy.mock.calls[0][0]).toMatch(/2 more/);
+    expect(warnSpy.mock.calls[0][0]).toMatch(/\+2 more/);
   });
 });

@@ -19,6 +19,9 @@ describe('HKO_ICON_CODES enumeration', () => {
     // No exact-count pin: adding a legitimate HKO code must not false-fail.
     // The band checks below assert presence; the range table in the
     // isHKODayTime tests pins behavior across the full 50-93 range.
+    // Stray guard: every code must sit inside the documented 50-93 range —
+    // outside it, lookups fall back to the unknown-code path.
+    expect(HKO_ICON_CODES.every(code => code >= 50 && code <= 93)).toBe(true);
     expect(HKO_ICON_CODES).toEqual(
       expect.arrayContaining([50, 51, 52, 53, 54, 60, 61, 62, 63, 64, 65])
     );
