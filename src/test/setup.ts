@@ -22,7 +22,11 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 });
 
-// Mock matchMedia
+// Mock matchMedia. Defaults to matches: false on every query, which silently
+// encodes "wide viewport, light mode" for every test: LocalClock shows seconds
+// only on wide viewports (see Integration.test) and ThemeContext's
+// system-preference fallback resolves to light because of it. Stub per-test
+// (vi.stubGlobal / Object.defineProperty) if a test needs different matches.
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: vi.fn().mockImplementation(query => ({

@@ -40,7 +40,7 @@ import { logEvent } from '@/lib/log';
  * unreasonably. The timer is the only failure signal — the injected
  * registerSW.js is fire-and-forget with no catch.
  */
-const READY_TIMEOUT_MS = 30_000;
+export const READY_TIMEOUT_MS = 30_000;
 
 export type SwEventName =
   | 'sw.unsupported'
