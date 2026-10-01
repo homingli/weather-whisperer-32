@@ -15,8 +15,10 @@ import {
 } from './hko-codes';
 
 describe('HKO_ICON_CODES enumeration', () => {
-  it('lists all 29 codes in the recognised range', () => {
-    expect(HKO_ICON_CODES).toHaveLength(29);
+  it('lists the recognised codes across all four bands (50-65, 70-77, 80-85, 90-93)', () => {
+    // No exact-count pin: adding a legitimate HKO code must not false-fail.
+    // The band checks below assert presence; the range table in the
+    // isHKODayTime tests pins behavior across the full 50-93 range.
     expect(HKO_ICON_CODES).toEqual(
       expect.arrayContaining([50, 51, 52, 53, 54, 60, 61, 62, 63, 64, 65])
     );

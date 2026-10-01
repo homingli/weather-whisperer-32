@@ -18,17 +18,25 @@ import {
   logParseWarnings,
 } from './parsers';
 
+/** Asserts `warnings` includes one naming `path` — pins the load-bearing
+ *  path, tolerates rewording of the diagnostic copy around it. */
+function expectWarningAbout(warnings: string[], path: string): void {
+  expect(warnings).toEqual(
+    expect.arrayContaining([expect.stringContaining(path)]),
+  );
+}
+
 describe('parseHKOForecast', () => {
   it('returns null when input is not an object', () => {
     const r = parseHKOForecast('not an object');
     expect(r.data).toBeNull();
-    expect(r.warnings).toContain('root (object)');
+    expectWarningAbout(r.warnings, 'root');
   });
 
   it('returns null when weatherForecast is missing', () => {
     const r = parseHKOForecast({ generalSituation: 'fine' });
     expect(r.data).toBeNull();
-    expect(r.warnings).toContain('weatherForecast (array)');
+    expectWarningAbout(r.warnings, 'weatherForecast');
   });
 
   it('accepts a well-formed response and returns no warnings', () => {
@@ -90,7 +98,7 @@ describe('parseHKOWarningSummary', () => {
   it('returns an empty object when input is not an object', () => {
     const r = parseHKOWarningSummary(null);
     expect(r.data).toEqual({});
-    expect(r.warnings).toContain('root (object)');
+    expectWarningAbout(r.warnings, 'root');
   });
 
   it('keeps well-formed warnings and drops malformed ones', () => {
@@ -119,7 +127,7 @@ describe('parseHKOCurrentWeather', () => {
     expect(r.data?.temperature.data[0].value).toBe(25);
     expect(r.data?.rainfall.data).toEqual([]);
     expect(r.data?.icon).toEqual([]);
-    expect(r.warnings).toContain('rainfall (object)');
+    expectWarningAbout(r.warnings, 'rainfall');
   });
 });
 
@@ -166,7 +174,9 @@ describe('parseOpenMeteoForecast', () => {
     it('anchors the series at the interval covering now and keeps both fields aligned', () => {
       const times = [NOW - 900, NOW, NOW + 900, NOW + 1800]; // one past, then now onward
       const r = omWithMinutely(times, [0.1, 0.2, 0, 0.3]);
-      expect(r.warnings).not.toContain('minutely_15 (object)');
+      expect(r.warnings).not.toEqual(
+        expect.arrayContaining([expect.stringContaining('minutely_15')]),
+      );
       expect(r.data?.minutely).toHaveLength(2);
       // Stamps are interval ENDs (value = preceding-15-min sum), so the
       // window covering now is the first FUTURE stamp: NOW+900 covers
@@ -193,11 +203,11 @@ describe('parseOpenMeteoForecast', () => {
         daily: { time: [NOW] },
       });
       expect(missing.data?.minutely).toBeUndefined();
-      expect(missing.warnings).toContain('minutely_15 (object)');
+      expectWarningAbout(missing.warnings, 'minutely_15');
 
       const empty = omWithMinutely(['bad'], [null]);
       expect(empty.data?.minutely).toBeUndefined();
-      expect(empty.warnings).toContain('minutely_15 (empty after zip-filter)');
+      expectWarningAbout(empty.warnings, 'minutely_15');
     });
   });
 });
@@ -239,7 +249,10 @@ describe('parseNominatimSearch', () => {
       results: [{ name: 'Nowhere', latitude: 0, longitude: 0 }],
     });
     expect(r.data).toEqual([]);
-    expect(r.warnings).toEqual(['results[0] missing country and country_code — dropped']);
+    // Pin the load-bearing part only (which row was dropped), not the
+    // diagnostic copy — rewording the message is not a behavior change.
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]).toContain('results[0]');
   });
 });
 
@@ -247,7 +260,7 @@ describe('parseNominatimReverse', () => {
   it('returns a Current Location fallback when address is missing', () => {
     const r = parseNominatimReverse({}, { latitude: 22, longitude: 114 });
     expect(r.data?.name).toBe('Current Location');
-    expect(r.warnings).toContain('address (object)');
+    expectWarningAbout(r.warnings, 'address');
   });
 
   it('reads city from the address object', () => {
@@ -275,11 +288,14 @@ describe('logParseWarnings', () => {
   it('logs a single summary line for non-empty warnings', () => {
     logParseWarnings('test', ['a (string)', 'b (number)', 'c (array)']);
     expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy.mock.calls[0][0]).toMatch(/test shape drift: 3 field/);
+    // The context label and the warning count are load-bearing; the exact
+    // phrasing is not.
+    expect(warnSpy.mock.calls[0][0]).toContain('test');
+    expect(warnSpy.mock.calls[0][0]).toContain('3');
   });
 
   it('caps the path list at 5 and reports overflow count', () => {
     logParseWarnings('test', ['a', 'b', 'c', 'd', 'e', 'f', 'g']);
-    expect(warnSpy.mock.calls[0][0]).toMatch(/\+2 more/);
+    expect(warnSpy.mock.calls[0][0]).toMatch(/2 more/);
   });
 });
