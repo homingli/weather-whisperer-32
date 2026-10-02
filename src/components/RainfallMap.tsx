@@ -65,7 +65,7 @@ class RainfallChunkErrorBoundary extends Component<
               <button
                 type="button"
                 onClick={this.handleReload}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-xs font-medium"
               >
                 {ctx?.t('nowcast.tryAgain') ?? 'Try Again'}
               </button>
@@ -119,7 +119,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   return (
     <div className="glass-card overflow-hidden">
       <div className="px-6 py-4 border-b border-border/50 flex items-baseline justify-between gap-4">
-        <h2 className="kicker text-muted-foreground font-display text-base">{t('nowcast.title')}</h2>
+        <h2 className="kicker text-muted-foreground font-display leading-6">{t('nowcast.title')}</h2>
         <span className="kicker text-muted-foreground/60">{t('nowcast.stayOrGo')}</span>
       </div>
 
@@ -127,7 +127,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         className={`rainfall-map-area relative h-[min(70vh,800px)] min-h-[400px] w-full bg-muted/20${isLoaded ? ' no-swipe' : ''}`}
       >
         {!isLoaded ? (
-          <div className="absolute inset-0 z-[1000] flex flex-col items-center justify-center bg-background/85 pointer-events-none">
+          <div className="absolute inset-0 z-1000 flex flex-col items-center justify-center bg-background/85 pointer-events-none">
             <CloudRain className="w-12 h-12 text-primary mb-4 opacity-80" />
             <h3 className="text-xl font-semibold mb-2">{t('nowcast.view')}</h3>
             <p className="text-muted-foreground mb-6 text-center max-w-lg">
@@ -136,7 +136,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
             <button
               type="button"
               onClick={() => setIsLoaded(true)}
-              className="px-6 py-2.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium pointer-events-auto"
+              className="px-6 py-2.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-xs font-medium pointer-events-auto"
             >
               {t('nowcast.load')}
             </button>

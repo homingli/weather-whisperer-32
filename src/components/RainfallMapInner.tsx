@@ -466,7 +466,7 @@ export default function RainfallMapInner({
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsPlaying(!isPlaying)}
-              className="p-2.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors shadow-sm"
+              className="p-2.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors shadow-xs"
               title={isPlaying ? 'Pause' : 'Play timeline'}
               aria-label={isPlaying ? t('nowcast.pause') : t('nowcast.play')}
             >
@@ -488,7 +488,7 @@ export default function RainfallMapInner({
                 setActiveStepIndex(parseInt(e.target.value));
                 setIsPlaying(false);
               }}
-              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label={t('nowcast.slider')}
             />
             {/* Step labels: many GeoMet/HKO steps overflow a 375-440 px card,
@@ -496,7 +496,7 @@ export default function RainfallMapInner({
                 clipping against the card's overflow-x:hidden. w-max keeps the
                 flex content sized to the buttons; min-w-full + justify-between
                 spread a small step count across the full width. */}
-            <div className="overflow-x-auto text-xs font-semibold text-muted-foreground -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="overflow-x-auto text-xs font-semibold text-muted-foreground -mx-1 px-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
               <div className="flex w-max min-w-full items-center justify-between gap-x-1">
               {stepTimes.map((time, index) => (
                 <button
@@ -506,7 +506,7 @@ export default function RainfallMapInner({
                     setIsPlaying(false);
                   }}
                   aria-current={index === activeStepIndex ? 'true' : undefined}
-                  className={`px-2 py-1 whitespace-nowrap min-h-[24px] rounded hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  className={`px-2 py-1 whitespace-nowrap min-h-[24px] rounded hover:text-primary transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                     index === activeStepIndex ? 'text-primary font-bold' : ''
                   }`}
                 >
@@ -545,8 +545,8 @@ export default function RainfallMapInner({
         {/* Top-right control cluster: updated time + basemap switcher + refresh.
             Bottom-left is reserved for the swiper pagination dots on mobile, so
             these buttons live at the top-right where nothing else competes.
-            z-[600] = above the map canvas, below dialog content. */}
-        <div className="absolute top-2 right-2 z-[600] flex items-center gap-2 text-xs text-muted-foreground bg-background/90 backdrop-blur-sm p-1.5 rounded-md border border-border/50 shadow-sm">
+            z-600 = above the map canvas, below dialog content. */}
+        <div className="absolute top-2 right-2 z-600 flex items-center gap-2 text-xs text-muted-foreground bg-background/90 backdrop-blur-xs p-1.5 rounded-md border border-border/50 shadow-xs">
           {updateTime && (
             <span className="px-1 tabular-nums">{formatString(t('nowcast.updated'), updateTime)}</span>
           )}
@@ -556,14 +556,14 @@ export default function RainfallMapInner({
             // overrides the p-1 default so the small icon stays inside a
             // phone-sized hit zone. inline-flex + items-center +
             // justify-center centers the icon in the 44×44 box.
-            className="inline-flex items-center justify-center min-h-[2.75rem] min-w-[2.75rem] p-1 hover:bg-muted/50 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="inline-flex items-center justify-center min-h-11 min-w-11 p-1 hover:bg-muted/50 rounded transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label={formatString(t('nowcast.switchBasemap'), t(basemapIsDark ? 'nowcast.basemapDark' : 'nowcast.basemapLight'))}
           >
             <Layers className="w-4 h-4" />
           </button>
           <button
             onClick={() => refetch()}
-            className="inline-flex items-center justify-center min-h-[2.75rem] min-w-[2.75rem] p-1 hover:bg-muted/50 rounded transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="inline-flex items-center justify-center min-h-11 min-w-11 p-1 hover:bg-muted/50 rounded transition-colors disabled:opacity-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             disabled={isFetching}
             aria-label={t('nowcast.refreshNowcast')}
             title={t('nowcast.refreshNowcast')}
@@ -573,7 +573,7 @@ export default function RainfallMapInner({
         </div>
         {/* First load: spinner → determinate bar OR indeterminate animation */}
         {isLoading && (
-          <div className="absolute inset-0 z-[1001] flex items-center justify-center bg-background/50 backdrop-blur-sm">
+          <div className="absolute inset-0 z-1001 flex items-center justify-center bg-background/50 backdrop-blur-xs">
             {isSlow && (
               // Slow-network chip above the progress bar. Surfaces after
               // 10 s of isLoading so the spinner doesn't read as stuck on
@@ -583,7 +583,7 @@ export default function RainfallMapInner({
               <div
                 role="status"
                 aria-live="polite"
-                className="absolute top-3 left-1/2 -translate-x-1/2 z-[1002] flex items-center gap-2 text-xs bg-background/95 border border-border/60 rounded-full px-3 py-1.5 shadow-sm backdrop-blur-sm"
+                className="absolute top-3 left-1/2 -translate-x-1/2 z-1002 flex items-center gap-2 text-xs bg-background/95 border border-border/60 rounded-full px-3 py-1.5 shadow-xs backdrop-blur-xs"
               >
                 <RefreshCw className="w-3 h-3 animate-spin text-primary" />
                 <span className="text-muted-foreground">{t('nowcast.loadingSlow')}</span>
@@ -643,7 +643,7 @@ export default function RainfallMapInner({
             failed — we render a small pill instead so the map stays
             interactive instead of being trapped behind a blocking modal. */}
         {error && !data && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm p-6 text-center">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-xs p-6 text-center">
             <AlertCircle className="w-10 h-10 text-destructive mb-2" />
             <p className="text-lg font-medium text-foreground mb-1">{t('nowcast.loadFailed')}</p>
             <p className="text-muted-foreground mb-4">{t('nowcast.error')}</p>
@@ -659,12 +659,12 @@ export default function RainfallMapInner({
         {/* Stale-data indicator: previous fetch failed, current data is
             still on screen. Pinned top-left below the zoom control so it
             doesn't fight with the basemap/refresh cluster at top-right.
-            z-[600] = above the MapLibre canvas, below dialog content. */}
+            z-600 = above the MapLibre canvas, below dialog content. */}
         {error && data && (
           <div
             role="status"
             aria-live="polite"
-            className="absolute top-12 left-2 z-[600] flex items-center gap-2 max-w-[min(90%,360px)] text-xs bg-destructive/10 text-destructive border border-destructive/30 rounded-md px-2.5 py-1.5 backdrop-blur-sm shadow-sm"
+            className="absolute top-12 left-2 z-600 flex items-center gap-2 max-w-[min(90%,360px)] text-xs bg-destructive/10 text-destructive border border-destructive/30 rounded-md px-2.5 py-1.5 backdrop-blur-xs shadow-xs"
           >
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
             <div className="flex flex-col leading-tight">
@@ -674,7 +674,7 @@ export default function RainfallMapInner({
             <button
               onClick={() => refetch()}
               disabled={isFetching}
-              className="ml-1 inline-flex items-center justify-center min-h-[2rem] min-w-[2rem] p-1 rounded hover:bg-destructive/20 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="ml-1 inline-flex items-center justify-center min-h-8 min-w-8 p-1 rounded hover:bg-destructive/20 disabled:opacity-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label={t('nowcast.tryAgain')}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
@@ -696,7 +696,7 @@ export default function RainfallMapInner({
         />
 
         {!isLoading && (
-          <div className="absolute bottom-4 right-4 z-[400] bg-background/90 backdrop-blur-sm p-3 rounded-lg border border-border shadow-lg text-xs">
+          <div className="absolute bottom-4 right-4 z-400 bg-background/90 backdrop-blur-xs p-3 rounded-lg border border-border shadow-lg text-xs">
             <div className="font-semibold mb-2">{t('nowcast.legend')}</div>
             <div className="flex flex-col gap-1.5">
               {RAINFALL_BANDS.map(({ color, label }) => (

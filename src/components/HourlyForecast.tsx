@@ -163,7 +163,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
   return (
     <div ref={root} className="editorial-card p-6 md:p-8 flex flex-col h-[420px]">
       <div className="flex items-baseline justify-between gap-4">
-        <h3 className="kicker text-muted-foreground font-display text-base">
+        <h3 className="kicker text-muted-foreground font-display leading-6">
           {t('hourly.title')}
         </h3>
         <div className="flex items-center gap-2">
@@ -298,7 +298,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
                           <div className="flex items-center gap-1.5">
                             <span className="font-semibold">{windStr}</span>
                             <div style={{ transform: `rotate(${data.windDirection}deg)` }} className="inline-block transition-transform duration-500">
-                              <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[8px] border-b-sky-400" />
+                              <div className="w-0 h-0 border-l-4 border-l-transparent border-r-4 border-r-transparent border-b-8 border-b-sky-400" />
                             </div>
                           </div>
                         </div>

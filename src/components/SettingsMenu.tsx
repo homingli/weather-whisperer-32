@@ -98,10 +98,10 @@ function PillToggle<T extends string>({
               tabIndex={active ? 0 : -1}
               onClick={() => onChange(opt.value)}
               className={cn(
-                // WCAG 2.5.5 Level AAA: 44×44 CSS pixel tap target. min-h-[2.75rem]
+                // WCAG 2.5.5 Level AAA: 44×44 CSS pixel tap target. min-h-11
                 // (44px) keeps the toggle on a phone hit-zone; the icon-only
                 // actions get the same treatment.
-                'inline-flex flex-1 min-h-[2.75rem] items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'inline-flex flex-1 min-h-11 items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
                 i > 0 && 'border-l border-border',
                 active
                   ? 'bg-foreground text-background'
@@ -207,7 +207,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-full min-h-[2.75rem] sm:min-h-[3.5rem] w-12 sm:w-14 text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="icon" className="h-full min-h-11 sm:min-h-14 w-12 sm:w-14 text-muted-foreground hover:text-foreground">
             <Menu className="h-6 w-6 sm:h-7 sm:w-7" />
             <span className="sr-only">{t('settings.label')}</span>
           </Button>
@@ -222,7 +222,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
               disabled={isLocating}
               aria-label={t('search.useLocation')}
               title={t('search.useLocation')}
-              className="flex-1 min-h-[2.75rem] justify-center rounded-none px-0 text-muted-foreground focus:bg-muted/60 focus:text-foreground data-[highlighted]:bg-muted/60 data-[highlighted]:text-foreground"
+              className="flex-1 min-h-11 justify-center rounded-none px-0 text-muted-foreground focus:bg-muted/60 focus:text-foreground data-highlighted:bg-muted/60 data-highlighted:text-foreground"
             >
               <LocateFixed aria-hidden="true" className={`h-5 w-5 ${isLocating ? 'animate-spin' : ''}`} />
             </DropdownMenuItem>
@@ -230,7 +230,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
               onClick={() => setSearchOpen(true)}
               aria-label={t('search.city')}
               title={t('search.city')}
-              className="flex-1 min-h-[2.75rem] justify-center rounded-none border-l border-border px-0 text-muted-foreground focus:bg-muted/60 focus:text-foreground data-[highlighted]:bg-muted/60 data-[highlighted]:text-foreground"
+              className="flex-1 min-h-11 justify-center rounded-none border-l border-border px-0 text-muted-foreground focus:bg-muted/60 focus:text-foreground data-highlighted:bg-muted/60 data-highlighted:text-foreground"
             >
               <Search aria-hidden="true" className="h-5 w-5" />
             </DropdownMenuItem>
@@ -239,7 +239,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
               disabled={isRefreshing}
               aria-label={t('data.refresh')}
               title={t('data.refresh')}
-              className="flex-1 min-h-[2.75rem] justify-center rounded-none border-l border-border px-0 text-muted-foreground focus:bg-muted/60 focus:text-foreground data-[highlighted]:bg-muted/60 data-[highlighted]:text-foreground"
+              className="flex-1 min-h-11 justify-center rounded-none border-l border-border px-0 text-muted-foreground focus:bg-muted/60 focus:text-foreground data-highlighted:bg-muted/60 data-highlighted:text-foreground"
             >
               <RefreshCw aria-hidden="true" className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
             </DropdownMenuItem>
@@ -316,7 +316,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
         <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden">
           <DialogTitle className="sr-only">{t('search.city')}</DialogTitle>
           <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
-            <Search className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            <Search className="h-5 w-5 text-muted-foreground shrink-0" />
             <Input
               type="text"
               placeholder={t('search.placeholder')}
@@ -342,7 +342,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
                       onClick={() => handleSelectCity(city)}
                       className="w-full px-4 py-3 text-left hover:bg-secondary/50 transition-colors flex items-center gap-3"
                     >
-                      <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                      <MapPin className="h-4 w-4 text-primary shrink-0" />
                       <div>
                         <p className="font-medium">{city.name}</p>
                         <p className="text-sm text-muted-foreground">

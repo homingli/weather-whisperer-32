@@ -50,7 +50,7 @@ class MSCChunkErrorBoundary extends Component<
               <button
                 type="button"
                 onClick={this.handleReload}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-xs font-medium"
               >
                 {ctx?.t('nowcast.tryAgain') ?? 'Try Again'}
               </button>
@@ -86,7 +86,7 @@ export const MSCRainfallMap = ({ userLocation }: { userLocation?: UserLocation }
   return (
     <div className="glass-card overflow-hidden">
       <div className="px-6 py-4 border-b border-border/50 flex items-baseline justify-between gap-4">
-        <h2 className="kicker text-muted-foreground font-display text-base">{t('nowcast.title')}</h2>
+        <h2 className="kicker text-muted-foreground font-display leading-6">{t('nowcast.title')}</h2>
         <span className="kicker text-muted-foreground/60">{t('nowcast.stayOrGo')}</span>
       </div>
 

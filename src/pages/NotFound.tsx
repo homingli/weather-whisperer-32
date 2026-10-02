@@ -18,9 +18,9 @@ const NotFound = () => {
         <h1
           ref={headingRef}
           tabIndex={-1}
-          // WCAG 2.4.7 — focus-visible:outline-none so the focus ring only
+          // WCAG 2.4.7 — focus-visible:outline-hidden so the focus ring only
           // disappears for mouse users; keyboard users still see the outline.
-          className="mb-4 text-4xl font-bold focus-visible:outline-none"
+          className="mb-4 text-4xl font-bold focus-visible:outline-hidden"
         >
           {t('notFound.code')}
         </h1>

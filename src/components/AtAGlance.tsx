@@ -120,7 +120,7 @@ function DayGroup({
         type="button"
         onClick={onReveal}
         aria-label={`${label}: ${t(weatherDescriptionKey(forecast.weatherCode))}, ${t('daily.high')} ${high}, ${t('daily.low')} ${low}`}
-        className="inline-flex items-center gap-x-3 px-1.5 py-1 -mx-1.5 -my-1 rounded hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex items-center gap-x-3 px-1.5 py-1 -mx-1.5 -my-1 rounded hover:bg-muted/50 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
       >
         {separator && <span aria-hidden="true">·</span>}
         <span className="kicker">{label}</span>
@@ -179,7 +179,7 @@ function RainChip({
       onClick={onRevealNowcast}
       aria-label={formatString(t('glance.rainAria'), pct)}
       title={t('glance.rainTitle')}
-      className="inline-flex items-center gap-x-1.5 text-weather-rain px-1.5 py-1 -mx-1.5 -my-1 rounded hover:bg-weather-rain/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="inline-flex items-center gap-x-1.5 text-weather-rain px-1.5 py-1 -mx-1.5 -my-1 rounded hover:bg-weather-rain/10 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
     >
       {content}
     </button>
