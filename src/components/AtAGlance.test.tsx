@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { AtAGlance } from './AtAGlance';
 
 import type { DailyForecast as DailyForecastType } from '@/lib/weather';
+import type { HolidayCountdown } from '@/lib/holidays/nextHoliday';
 
 const today: DailyForecastType = {
   date: new Date('2024-01-08T00:00:00Z'),
@@ -230,5 +231,63 @@ describe('AtAGlance Component', () => {
     await user.click(screen.getByRole('button', { name: /Rain chance 80%/ }));
     expect(onRevealNowcast).toHaveBeenCalledTimes(1);
     expect(onReveal).not.toHaveBeenCalled();
+  });
+});
+
+describe('AtAGlance holiday chip', () => {
+  const holiday = (overrides: Partial<HolidayCountdown> = {}): HolidayCountdown => ({
+    holiday: { date: '2026-06-19', nameEn: 'Dragon Boat Festival', nameTc: '端午節' },
+    daysUntil: 12,
+    isToday: false,
+    ...overrides,
+  });
+
+  it('renders the countdown as static text (no button, no pane to open)', () => {
+    const { container } = renderWithProviders(
+      <AtAGlance today={today} tomorrow={tomorrow} onReveal={noop} holiday={holiday()} />
+    );
+
+    expect(screen.getByText('12 days to Dragon Boat Festival')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Dragon Boat Festival/ })).toBeNull();
+    // The chip carries its own leading separator, like the rain chip.
+    expect(strip(container)).toHaveTextContent('80%·');
+  });
+
+  it('flips to the Today phrasing on the holiday itself', () => {
+    renderWithProviders(
+      <AtAGlance
+        today={today}
+        tomorrow={tomorrow}
+        onReveal={noop}
+        holiday={holiday({ daysUntil: 0, isToday: true })}
+      />
+    );
+
+    expect(screen.getByText('Today: Dragon Boat Festival')).toBeInTheDocument();
+  });
+
+  it('uses the Tomorrow phrasing for a 1-day countdown (no "1 days")', () => {
+    renderWithProviders(
+      <AtAGlance today={today} tomorrow={tomorrow} onReveal={noop} holiday={holiday({ daysUntil: 1 })} />
+    );
+
+    expect(screen.getByText('Tomorrow: Dragon Boat Festival')).toBeInTheDocument();
+    expect(screen.queryByText(/1 days/)).toBeNull();
+  });
+
+  it('uses the active UI language and the holiday’s own translated name', () => {
+    localStorage.setItem('weather-language', 'tc');
+    renderWithProviders(
+      <AtAGlance today={today} tomorrow={tomorrow} onReveal={noop} holiday={holiday()} />
+    );
+
+    // 仲有{0}天到{1} — 天 not 日, no spaces around the number.
+    expect(screen.getByText('仲有12天到端午節')).toBeInTheDocument();
+  });
+
+  it('stays hidden when no holiday data is passed (loading / failure / non-HK)', () => {
+    renderWithProviders(<AtAGlance today={today} tomorrow={tomorrow} onReveal={noop} />);
+
+    expect(screen.queryByText(/days to/)).toBeNull();
   });
 });

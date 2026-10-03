@@ -9,6 +9,7 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
 import { useWarningChangeDetector } from '@/hooks/useWarningChangeDetector';
+import { useNextHoliday } from '@/hooks/useNextHoliday';
 import {
   useDevSimulatedWarnings,
   useDevBaselineNonce,
@@ -108,6 +109,9 @@ const Index = () => {
 
   // Determine if selected city is in Hong Kong coverage area
   const isHKCovered = selectedCity ? isInHongKong(selectedCity.latitude, selectedCity.longitude) : false;
+  // HK-only: countdown to the next public holiday. Self-hides while loading,
+  // on failure, and for cities outside HK; day math uses the city's timezone.
+  const holidayCountdown = useNextHoliday(isHKCovered, weather?.timezone);
   // Nowcast map region: PRD (HKO) or Vancouver (MSC). Vancouver wins the
   // split when both are true (the boxes don't overlap).
   const nowcastVisible = !!selectedCity &&
@@ -374,6 +378,7 @@ const Index = () => {
                       tomorrow={weather.daily?.[1]}
                       onReveal={revealDailyForecast}
                       onRevealNowcast={nowcastVisible ? revealNowcast : undefined}
+                      holiday={holidayCountdown}
                     />
                   </div>
                   {/* Each child is one slide's content; MobileSwiperDeck wraps
@@ -461,6 +466,7 @@ const Index = () => {
                     tomorrow={weather.daily?.[1]}
                     onReveal={revealDailyForecast}
                     onRevealNowcast={nowcastVisible ? revealNowcast : undefined}
+                    holiday={holidayCountdown}
                   />
 
                   {/* Secondary Row: Split Forecasts */}
