@@ -47,7 +47,7 @@ Other useful commands: `npm run build` (production build), `npm run lint`, and `
 
 The map uses a Carto vector basemap when `VITE_CARTO_API_KEY` is set and falls back to open tiles without it. `npm run audit:viewports` checks the app at every iPhone portrait width against layout regressions; see `scripts/audit/README.md`.
 
-The in-app feedback form (`api/feedback.ts`) files submissions as Linear issues and needs `LINEAR_API_KEY` in the Vercel project environment (all environments); without it the endpoint responds `not_configured` and the app shows an error toast.
+The in-app feedback form (`api/feedback.ts`) files submissions as Linear issues and needs `LINEAR_API_KEY` in the Vercel project environment (all environments); without it the endpoint responds `not_configured` and the app shows an error toast. Native (Capacitor) builds must also set `VITE_API_BASE=https://weather-whisperer.vercel.app` so the form reaches the deployed endpoint cross-origin — web builds leave it unset and use the same-origin path.
 
 ## Documentation
 

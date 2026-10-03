@@ -25,6 +25,15 @@
 
 const LINEAR_GRAPHQL_ENDPOINT = 'https://api.linear.app/graphql';
 
+/**
+ * CORS: native Capacitor builds call this endpoint from their webview
+ * origins (`https://localhost` on Android, `capacitor://localhost` on
+ * iOS) — reachable only inside the app sandbox. `*` is safe here: no
+ * credentials are accepted and every response body is a fixed status
+ * envelope, so there is nothing origin-specific to protect.
+ */
+const CORS_HEADERS: Record<string, string> = { 'Access-Control-Allow-Origin': '*' };
+
 /** SUPPORT team (Linear). Not a secret — it appears in issue URLs. */
 const SUPPORT_TEAM_ID = '6bcd0f7f-8512-4408-8320-57a308f753ca';
 
@@ -43,7 +52,24 @@ const MAX_TITLE_LENGTH = 120;
 function jsonResponse(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+  });
+}
+
+/**
+ * Preflight for the native-app webviews: the JSON POST is
+ * non-simple (Content-Type: application/json), so the browser sends an
+ * OPTIONS request first and the function must answer it.
+ */
+export async function OPTIONS(): Promise<Response> {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      ...CORS_HEADERS,
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '86400',
+    },
   });
 }
 

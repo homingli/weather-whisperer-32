@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 // Named HTTP-method export — the Web fetch-style contract the Vercel Node
 // runtime honours (a default export is read as the legacy (req, res)
 // signature there and hangs). Aliased to `handler` to keep the tests terse.
-import { POST as handler } from './feedback';
+import { OPTIONS, POST as handler } from './feedback';
 
 const SUPPORT_TEAM_ID = '6bcd0f7f-8512-4408-8320-57a308f753ca';
 const LINEAR_OK = {
@@ -37,6 +37,19 @@ describe('api/feedback (HML-44)', () => {
 
   // Non-POST methods are rejected by the platform itself (named method
   // export ⇒ automatic 405 with Allow), so there is nothing to test here.
+
+  it('answers the CORS preflight from native-app webviews', async () => {
+    const res = await OPTIONS();
+    expect(res.status).toBe(204);
+    expect(res.headers.get('access-control-allow-origin')).toBe('*');
+    expect(res.headers.get('access-control-allow-methods')).toContain('POST');
+    expect(res.headers.get('access-control-allow-headers')).toContain('content-type');
+  });
+
+  it('marks every response as CORS-readable from the native origins', async () => {
+    const res = await post(valid);
+    expect(res.headers.get('access-control-allow-origin')).toBe('*');
+  });
 
   it('returns not_configured without LINEAR_API_KEY', async () => {
     vi.stubEnv('LINEAR_API_KEY', '');

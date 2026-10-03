@@ -15,7 +15,14 @@ import { track } from '@vercel/analytics';
 import { logEvent } from '@/lib/log';
 import { collectFeedbackDiagnostics } from '@/lib/feedback-diagnostics';
 
-export const FEEDBACK_ENDPOINT = '/api/feedback';
+/**
+ * Web builds leave VITE_API_BASE unset and call the same-origin endpoint.
+ * Native Capacitor builds (APK/IPA) serve the bundle from an internal
+ * localhost origin, where a relative path would hit the app's own server —
+ * they set VITE_API_BASE to the deployed site URL (see README).
+ */
+const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+export const FEEDBACK_ENDPOINT = `${API_BASE}/api/feedback`;
 
 /**
  * Kept in sync with MAX_MESSAGE_LENGTH (api/feedback.ts) — the equality is
