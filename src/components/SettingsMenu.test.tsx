@@ -410,6 +410,6 @@ describe('SettingsMenu feedback entry (HML-44)', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Feedback' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Bug report' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /send email/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
   });
 });
