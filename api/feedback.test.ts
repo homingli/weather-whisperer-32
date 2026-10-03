@@ -32,9 +32,10 @@ describe('api/feedback (HML-44)', () => {
     vi.unstubAllEnvs();
   });
 
-  it('rejects non-POST requests', async () => {
+  it('rejects non-POST requests with an Allow header', async () => {
     const res = await handler(new Request('https://app.test/api/feedback', { method: 'GET' }));
     expect(res.status).toBe(405);
+    expect(res.headers.get('allow')).toBe('POST');
   });
 
   it('returns not_configured without LINEAR_API_KEY', async () => {
@@ -75,15 +76,19 @@ describe('api/feedback (HML-44)', () => {
     expect(payload.variables.input.description).toContain('App: test');
   });
 
-  it('maps Linear HTTP failures to 502', async () => {
+  it('maps Linear HTTP failures to an opaque 502', async () => {
     fetchMock.mockResolvedValue(new Response('boom', { status: 500 }));
-    expect((await post(valid)).status).toBe(502);
+    const res = await post(valid);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: 'linear_error' });
   });
 
-  it('maps GraphQL-level errors to 502', async () => {
+  it('maps GraphQL-level errors to an opaque 502', async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ errors: [{ message: 'validation' }] }), { status: 200 }),
     );
-    expect((await post(valid)).status).toBe(502);
+    const res = await post(valid);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: 'linear_error' });
   });
 });

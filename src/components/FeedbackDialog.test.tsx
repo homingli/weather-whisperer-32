@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import userEvent, { PointerEventsCheckLevel, type UserEvent } from '@testing-library/user-event';
 import { LanguageProvider } from '@/contexts/LanguageProvider';
+import { FEEDBACK_MAX_MESSAGE_LENGTH } from '@/lib/feedback';
+import { MAX_MESSAGE_LENGTH } from '../../api/feedback';
 import { FeedbackDialog } from './FeedbackDialog';
 
 const OK_RESPONSE = () => new Response(JSON.stringify({ ok: true }), { status: 200 });
@@ -38,6 +40,10 @@ describe('FeedbackDialog (HML-44)', () => {
     expect(screen.getByRole('radio', { name: 'Question' })).not.toBeChecked();
   });
 
+  it('keeps the client message cap in sync with the server cap', () => {
+    expect(FEEDBACK_MAX_MESSAGE_LENGTH).toBe(MAX_MESSAGE_LENGTH);
+  });
+
   it('disables Send until a message is typed', async () => {
     renderDialog();
     const send = screen.getByRole('button', { name: 'Send' });
@@ -59,7 +65,7 @@ describe('FeedbackDialog (HML-44)', () => {
     const body = JSON.parse(String(init.body));
     expect(body.type).toBe('feature');
     expect(body.message).toBe('Add tide times');
-    expect(body.language).toBe('en');
+    expect(body.website).toBe(''); // honeypot transmitted, empty for real users
     expect(body.diagnostics).toContain('App: Weather Whisperer');
 
     expect(onOpenChange).toHaveBeenCalledWith(false);

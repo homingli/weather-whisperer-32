@@ -1,7 +1,7 @@
 /**
  * Vercel Serverless Function: in-app feedback submission (HML-44).
  *
- * POST /api/feedback   { type, message, language, diagnostics, website? }
+ * POST /api/feedback   { type, message, diagnostics, website? }
  *
  * Files the message as an issue in the SUPPORT team via the Linear API —
  * the same destination as the team's intake email, with no mail client
@@ -28,14 +28,19 @@ const SUBJECT_PREFIX: Record<string, string> = {
   question: '[Question]',
 };
 
-const MAX_MESSAGE_LENGTH = 5000;
+/** Must stay in sync with FEEDBACK_MAX_MESSAGE_LENGTH (src/lib/feedback.ts). */
+export const MAX_MESSAGE_LENGTH = 5000;
 const MAX_DIAGNOSTICS_LENGTH = 6000;
 const MAX_TITLE_LENGTH = 120;
 
-function jsonResponse(status: number, body: Record<string, unknown>): Response {
+function jsonResponse(
+  status: number,
+  body: Record<string, unknown>,
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
   });
 }
 
@@ -45,7 +50,7 @@ function firstLine(text: string): string {
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') {
-    return jsonResponse(405, { error: 'method_not_allowed' });
+    return jsonResponse(405, { error: 'method_not_allowed' }, { Allow: 'POST' });
   }
 
   const apiKey = process.env.LINEAR_API_KEY;
@@ -73,6 +78,9 @@ export default async function handler(req: Request): Promise<Response> {
   if (!(type in SUBJECT_PREFIX) || message.length === 0 || message.length > MAX_MESSAGE_LENGTH) {
     return jsonResponse(400, { error: 'invalid_input' });
   }
+  // `language` is intentionally not validated or used: it only existed in
+  // early drafts of the payload, and the diagnostics block already carries
+  // the user's language.
 
   const title =
     `${SUBJECT_PREFIX[type]} ${firstLine(message)}`.slice(0, MAX_TITLE_LENGTH).trim() ||
@@ -104,7 +112,8 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (!linearResponse.ok) {
-    return jsonResponse(502, { error: 'linear_error', status: linearResponse.status });
+    // Deliberately opaque: the upstream status is Linear's business.
+    return jsonResponse(502, { error: 'linear_error' });
   }
 
   let payload: { data?: { issueCreate?: { success?: boolean } } };

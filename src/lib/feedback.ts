@@ -17,7 +17,10 @@ import { collectFeedbackDiagnostics } from '@/lib/feedback-diagnostics';
 
 export const FEEDBACK_ENDPOINT = '/api/feedback';
 
-/** Kept in sync with MAX_MESSAGE_LENGTH in api/feedback.ts. */
+/**
+ * Kept in sync with MAX_MESSAGE_LENGTH (api/feedback.ts) — the equality is
+ * pinned by a test in FeedbackDialog.test.tsx.
+ */
 export const FEEDBACK_MAX_MESSAGE_LENGTH = 5000;
 
 export type FeedbackType = 'bug' | 'feature' | 'question';
@@ -43,6 +46,8 @@ export interface SubmitFeedbackInput {
   type: FeedbackType;
   message: string;
   language: string;
+  /** Honeypot field value — always empty for real users (see the dialog). */
+  website?: string;
 }
 
 /**
@@ -50,14 +55,19 @@ export interface SubmitFeedbackInput {
  * attached here so the dialog never has to build them eagerly. Throws on
  * any failure — the caller owns the error UX.
  */
-export async function submitFeedback({ type, message, language }: SubmitFeedbackInput): Promise<void> {
+export async function submitFeedback({
+  type,
+  message,
+  language,
+  website = '',
+}: SubmitFeedbackInput): Promise<void> {
   const response = await fetch(FEEDBACK_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       type,
       message,
-      language,
+      website,
       diagnostics: collectFeedbackDiagnostics(language),
     }),
   });

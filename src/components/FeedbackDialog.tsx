@@ -9,7 +9,7 @@
  * A hidden `website` honeypot field rides along: bots that autofill it are
  * silently dropped server-side.
  */
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Copy, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,6 +46,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  const websiteRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) reportFeedbackEvent('feedback.open');
@@ -71,7 +72,12 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
     if (!canSend) return;
     setIsSending(true);
     try {
-      await submitFeedback({ type, message: trimmedMessage, language });
+      await submitFeedback({
+        type,
+        message: trimmedMessage,
+        language,
+        website: websiteRef.current?.value ?? '',
+      });
     } catch (error) {
       logWarn('[feedback] submit failed', error);
       toast.error(t('feedback.sendFailed'));
