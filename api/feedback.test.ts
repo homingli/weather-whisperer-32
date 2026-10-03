@@ -43,11 +43,13 @@ describe('api/feedback (HML-44)', () => {
     expect(res.status).toBe(204);
     expect(res.headers.get('access-control-allow-origin')).toBe('*');
     expect(res.headers.get('access-control-allow-methods')).toContain('POST');
-    expect(res.headers.get('access-control-allow-headers')).toContain('content-type');
+    expect(res.headers.get('access-control-allow-headers')).toContain('Content-Type');
   });
 
   it('marks every response as CORS-readable from the native origins', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify(LINEAR_OK), { status: 200 }));
     const res = await post(valid);
+    expect(res.status).toBe(200);
     expect(res.headers.get('access-control-allow-origin')).toBe('*');
   });
 
