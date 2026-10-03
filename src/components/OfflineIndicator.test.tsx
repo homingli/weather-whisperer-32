@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { act, render, screen } from '@testing-library/react';
 import { OfflineIndicator } from './OfflineIndicator';
-import { LanguageProvider } from '@/contexts/LanguageContext';
+
 
 // The component reads `useOnlineStatus`, which initializes from
 // `navigator.onLine` (true in jsdom) and then listens for window

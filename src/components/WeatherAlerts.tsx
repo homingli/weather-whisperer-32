@@ -113,7 +113,7 @@ export const WeatherAlerts = memo(function WeatherAlerts({
                 /* WCAG 2.5.5 Level AAA: 44×44 CSS pixel tap target. Mobile 44×44
                    (w-11 h-11) keeps the header row compact on 360px viewports;
                    desktop matches the 56×56 hamburger button. */
-                'min-h-[2.75rem] w-11 h-11 sm:min-h-[3.5rem] sm:w-14 sm:h-14 flex items-center justify-center rounded-md transition-colors hover:bg-red-500/10',
+                'min-h-11 w-11 h-11 sm:min-h-14 sm:w-14 sm:h-14 flex items-center justify-center rounded-md transition-colors hover:bg-red-500/10',
                 shouldPulse && 'animate-warning-pulse',
               )}
               title={t(`warnings.${warning.code}`, warning.name)}
@@ -122,7 +122,7 @@ export const WeatherAlerts = memo(function WeatherAlerts({
               <img
                 src={getWarningIcon(warning.code)}
                 alt={warning.name}
-                className="object-contain w-7 h-7 sm:w-8 sm:h-8 drop-shadow-sm"
+                className="object-contain w-7 h-7 sm:w-8 sm:h-8 drop-shadow-xs"
               />
             </button>
           );

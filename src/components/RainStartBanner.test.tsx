@@ -7,10 +7,11 @@
 // Fake timers pin `now` so the fixtures' relative offsets stay exact.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RainStartBanner } from './RainStartBanner';
-import { LanguageProvider } from '@/contexts/LanguageContext';
+
 import type { WeatherData, MinutelyPrecipitation } from '@/lib/weather';
 
 const NOW = Date.UTC(2026, 8, 17, 8, 0); // 2026-09-17 08:00 UTC

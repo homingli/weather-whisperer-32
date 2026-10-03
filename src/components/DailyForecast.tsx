@@ -132,7 +132,7 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
     });
 
     return { chartData: rows, yDomainMin: yMin, yDomainMax: yMax };
-  }, [forecast, formatDayLine1, formatDayLine2]);
+  }, [forecast, formatDayLine1, formatDayLine2, language]);
 
   // Entrance animation handled by @keyframes in src/index.css
   // (.df-rule, .df-chart) under @media (prefers-reduced-motion: no-preference).
@@ -140,11 +140,11 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
   return (
     <div ref={root} className="editorial-card p-6 md:p-8 flex flex-col h-[420px]">
       <div className="flex items-baseline justify-between gap-4">
-        <h3 className="kicker text-muted-foreground font-display text-lg">
+        <h3 className="kicker text-muted-foreground font-display leading-7">
           {t("daily.title")}
         </h3>
         <div className="flex items-center gap-2">
-          <span className="kicker text-muted-foreground/60 text-sm">
+          <span className="kicker text-muted-foreground/60 leading-5">
             {t('daily.lookAhead')}
           </span>
           <ShareForecastButton cityName={cityName ?? ''} days={forecast} timezone={timezone} />

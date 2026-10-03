@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { UnitsProvider } from '@/contexts/UnitsProvider';
 import { render, act } from '@testing-library/react';
-import { UnitsProvider, useUnits } from '@/contexts/UnitsContext';
+import { useUnits } from '@/contexts/UnitsContext';
 
 type UnitsValue = ReturnType<typeof useUnits>;
 

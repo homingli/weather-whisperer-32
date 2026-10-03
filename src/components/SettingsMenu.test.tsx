@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { FontSizeProvider } from '@/contexts/FontSizeProvider';
+import { UnitsProvider } from '@/contexts/UnitsProvider';
+import { ThemeProvider } from '@/contexts/ThemeProvider';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { render, screen, within } from '@testing-library/react';
 import userEvent, { PointerEventsCheckLevel, type UserEvent } from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SettingsMenu } from './SettingsMenu';
-import { LanguageProvider } from '@/contexts/LanguageContext';
-import { ThemeProvider } from '@/contexts/ThemeContext';
-import { UnitsProvider } from '@/contexts/UnitsContext';
-import { FontSizeProvider, FONT_SIZE_ROOT_PERCENT } from '@/contexts/FontSizeContext';
+
+import { FONT_SIZE_ROOT_PERCENT } from '@/contexts/FontSizeContext';
 import { GeoLocation } from '@/lib/weather';
 
 const noCity: GeoLocation | null = null;

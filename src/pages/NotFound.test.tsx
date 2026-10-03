@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { LanguageProvider } from '@/contexts/LanguageContext';
+
 import NotFound from './NotFound';
 
 function render404() {
@@ -42,14 +43,14 @@ describe('NotFound page (WCAG 2.4.4 / 2.4.6 / 3.1.1)', () => {
     expect(heading).toHaveFocus();
   });
 
-  it('uses focus-visible:outline-none so mouse focus does not show a ring (WCAG 2.4.7)', () => {
+  it('uses focus-visible:outline-hidden so mouse focus does not show a ring (WCAG 2.4.7)', () => {
     render404();
     const heading = screen.getByRole('heading', { level: 1 });
-    // focus-visible:outline-none class is present (Tailwind emits the class;
+    // focus-visible:outline-hidden class is present (Tailwind emits the class;
     // we just verify the class string is on the element so the focus ring
     // does not appear for mouse users while staying intact for keyboard).
-    expect(heading.className).toContain('focus-visible:outline-none');
-    expect(heading.className).not.toContain('focus:outline-none ');
+    expect(heading.className).toContain('focus-visible:outline-hidden');
+    expect(heading.className).not.toContain('focus:outline-hidden ');
   });
 });
 

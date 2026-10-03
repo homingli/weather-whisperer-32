@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { ThemeProvider } from '@/contexts/ThemeProvider';
 import { render, act } from '@testing-library/react';
-import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { TIMING } from '@/lib/constants';
 
 type ThemeValue = ReturnType<typeof useTheme>;

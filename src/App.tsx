@@ -1,13 +1,14 @@
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { StatusRegionProvider } from '@/lib/StatusRegionProvider';
+import { FontSizeProvider } from '@/contexts/FontSizeProvider';
+import { UnitsProvider } from '@/contexts/UnitsProvider';
+import { ThemeProvider } from '@/contexts/ThemeProvider';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { persistQueryClient } from "@tanstack/query-persist-client-core";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { SpeedInsights } from "@vercel/speed-insights/react";
-import { LanguageProvider } from "@/contexts/LanguageContext";
-import { ThemeProvider } from "@/contexts/ThemeContext";
-import { UnitsProvider } from "@/contexts/UnitsContext";
-import { FontSizeProvider } from "@/contexts/FontSizeContext";
-import { StatusRegionProvider } from "@/lib/aria-utils";
+
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { TIMING } from "@/lib/constants";

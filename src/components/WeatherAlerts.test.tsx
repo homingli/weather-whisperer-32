@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { render, screen, act } from '@testing-library/react';
 import { WeatherAlerts } from './WeatherAlerts';
-import { LanguageProvider } from '@/contexts/LanguageContext';
+
 import type { HKOWarning } from '@/lib/hko-types';
 import warnsumEn from '@/lib/__fixtures__/hko-warnsum-2026-07-31-en.json';
 import warnsumTc from '@/lib/__fixtures__/hko-warnsum-2026-07-31-tc.json';

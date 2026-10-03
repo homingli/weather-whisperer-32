@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { FontSizeProvider } from '@/contexts/FontSizeProvider';
 import { render, act } from '@testing-library/react';
-import { FontSizeProvider, useFontSize, FONT_SIZE_ROOT_PERCENT } from '@/contexts/FontSizeContext';
+import { useFontSize, FONT_SIZE_ROOT_PERCENT } from '@/contexts/FontSizeContext';
 
 type FontSizeValue = ReturnType<typeof useFontSize>;
 
