@@ -8,6 +8,13 @@
  * involved. LINEAR_API_KEY (project env var) is the only secret and never
  * reaches the client.
  *
+ * Exported as a named HTTP method (`POST`) — that is the Web fetch-style
+ * contract this runtime supports. A default-exported `Request → Response`
+ * handler is interpreted here as the legacy Node `(req, res)` signature:
+ * the returned Response is ignored and every request hangs to the 300 s
+ * timeout (caught on the first preview deploy; other methods get the
+ * platform's automatic 405).
+ *
  * The endpoint is public, so abuse is bounded by:
  *   - a honeypot field (`website`) that silently 200s for bots,
  *   - hard length caps on every free-text field,
@@ -33,14 +40,10 @@ export const MAX_MESSAGE_LENGTH = 5000;
 const MAX_DIAGNOSTICS_LENGTH = 6000;
 const MAX_TITLE_LENGTH = 120;
 
-function jsonResponse(
-  status: number,
-  body: Record<string, unknown>,
-  extraHeaders: Record<string, string> = {},
-): Response {
+function jsonResponse(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json', ...extraHeaders },
+    headers: { 'Content-Type': 'application/json' },
   });
 }
 
@@ -48,11 +51,7 @@ function firstLine(text: string): string {
   return text.trim().split(/\r?\n/, 1)[0] ?? '';
 }
 
-export default async function handler(req: Request): Promise<Response> {
-  if (req.method !== 'POST') {
-    return jsonResponse(405, { error: 'method_not_allowed' }, { Allow: 'POST' });
-  }
-
+export async function POST(req: Request): Promise<Response> {
   const apiKey = process.env.LINEAR_API_KEY;
   if (!apiKey) {
     // Misconfiguration — stable code the client can surface in logs.

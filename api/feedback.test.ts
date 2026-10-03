@@ -1,6 +1,9 @@
 // @vitest-environment node
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import handler from './feedback';
+// Named HTTP-method export — the Web fetch-style contract the Vercel Node
+// runtime honours (a default export is read as the legacy (req, res)
+// signature there and hangs). Aliased to `handler` to keep the tests terse.
+import { POST as handler } from './feedback';
 
 const SUPPORT_TEAM_ID = '6bcd0f7f-8512-4408-8320-57a308f753ca';
 const LINEAR_OK = {
@@ -32,11 +35,8 @@ describe('api/feedback (HML-44)', () => {
     vi.unstubAllEnvs();
   });
 
-  it('rejects non-POST requests with an Allow header', async () => {
-    const res = await handler(new Request('https://app.test/api/feedback', { method: 'GET' }));
-    expect(res.status).toBe(405);
-    expect(res.headers.get('allow')).toBe('POST');
-  });
+  // Non-POST methods are rejected by the platform itself (named method
+  // export ⇒ automatic 405 with Allow), so there is nothing to test here.
 
   it('returns not_configured without LINEAR_API_KEY', async () => {
     vi.stubEnv('LINEAR_API_KEY', '');
