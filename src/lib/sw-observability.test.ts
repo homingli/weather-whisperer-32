@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { initSwObservability, reportSwEvent } from './sw-observability';
+import { initSwObservability, reportSwEvent, READY_TIMEOUT_MS } from './sw-observability';
 import { logEvent } from '@/lib/log';
 import { track } from '@vercel/analytics';
 
@@ -12,6 +12,9 @@ vi.mock('@vercel/analytics', () => ({
 
 const mockedLogEvent = vi.mocked(logEvent);
 const mockedTrack = vi.mocked(track);
+
+/** How far before the timeout the late-settle race resolves sw.ready. */
+const SETTLE_MARGIN_MS = 1_000;
 
 type Listener = (ev: Event) => void;
 
@@ -183,7 +186,7 @@ describe('initSwObservability', () => {
     initSwObservability();
     expect(loggedEvents('sw.register-error')).toHaveLength(0);
 
-    vi.advanceTimersByTime(30_000);
+    vi.advanceTimersByTime(READY_TIMEOUT_MS);
 
     expect(loggedEvents('sw.register-error')).toHaveLength(1);
     expect(String(loggedEvents('sw.register-error')[0]?.detail)).toContain(
@@ -202,11 +205,11 @@ describe('initSwObservability', () => {
 
     // Timer budget passes before load: nothing may fire yet — register()
     // (and therefore sw.ready) has not even started.
-    vi.advanceTimersByTime(30_000);
+    vi.advanceTimersByTime(READY_TIMEOUT_MS);
     expect(loggedEvents('sw.register-error')).toHaveLength(0);
 
     window.dispatchEvent(new Event('load'));
-    vi.advanceTimersByTime(30_000);
+    vi.advanceTimersByTime(READY_TIMEOUT_MS);
     expect(loggedEvents('sw.register-error')).toHaveLength(1);
   });
 
@@ -217,7 +220,7 @@ describe('initSwObservability', () => {
     vi.useFakeTimers();
 
     initSwObservability();
-    vi.advanceTimersByTime(30_000);
+    vi.advanceTimersByTime(READY_TIMEOUT_MS);
 
     expect(loggedEvents('sw.register-error')).toHaveLength(0);
     expect(loggedEvents('sw.registered')).toHaveLength(0);
@@ -241,10 +244,10 @@ describe('initSwObservability', () => {
     // sw.ready .then (settled = true + clearTimeout) runs before the
     // remaining timer budget advances — with fake timers, pending
     // microtasks do not run while the test stays synchronous.
-    vi.advanceTimersByTime(29_000);
+    vi.advanceTimersByTime(READY_TIMEOUT_MS - SETTLE_MARGIN_MS);
     resolveReady(makeRegistration());
     await Promise.resolve();
-    vi.advanceTimersByTime(1_000);
+    vi.advanceTimersByTime(SETTLE_MARGIN_MS);
 
     expect(loggedEvents('sw.register-error')).toHaveLength(0);
   });

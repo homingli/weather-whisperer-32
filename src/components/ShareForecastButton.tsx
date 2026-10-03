@@ -81,7 +81,7 @@ export function ShareForecastButton(props: ShareForecastButtonProps) {
       disabled={count === 0}
       aria-label={isHourly ? t('share.forecastHourly') : t('share.forecast')}
       title={isHourly ? t('share.forecastHourly') : t('share.forecast')}
-      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
     >
       <Share2 className="h-4 w-4" aria-hidden />
     </button>

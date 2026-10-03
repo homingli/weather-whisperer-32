@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
+import { UnitsProvider } from '@/contexts/UnitsProvider';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import type { ReactElement, ReactNode } from 'react';
 import { render } from '@testing-library/react';
 import { HourlyForecast } from '@/components/HourlyForecast';
 import { DailyForecast } from '@/components/DailyForecast';
-import { LanguageProvider } from '@/contexts/LanguageContext';
-import { UnitsProvider } from '@/contexts/UnitsContext';
+
 import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from '@/lib/weather';
 
 // The per-component chart tests mock recharts away because jsdom has no SVG

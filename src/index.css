@@ -1,20 +1,219 @@
-@import "@fontsource/outfit/300.css";
-@import "@fontsource/outfit/400.css";
-@import "@fontsource/outfit/500.css";
-@import "@fontsource/outfit/700.css";
-@import "@fontsource/playfair-display/latin-400.css";
-@import "@fontsource/playfair-display/latin-500.css";
-@import "@fontsource/playfair-display/latin-600.css";
-@import "@fontsource/playfair-display/latin-700.css";
-@import "@fontsource/playfair-display/latin-400-italic.css";
+@import '@fontsource/outfit/300.css' layer(base);
+@import '@fontsource/outfit/400.css' layer(base);
+@import '@fontsource/outfit/500.css' layer(base);
+@import '@fontsource/outfit/700.css' layer(base);
+@import '@fontsource/playfair-display/latin-400.css' layer(base);
+@import '@fontsource/playfair-display/latin-500.css' layer(base);
+@import '@fontsource/playfair-display/latin-600.css' layer(base);
+@import '@fontsource/playfair-display/latin-700.css' layer(base);
+@import '@fontsource/playfair-display/latin-400-italic.css' layer(base);
 
 /* Swiper carousel for mobile card deck */
-@import "swiper/css";
-@import "swiper/css/pagination";
+@import 'swiper/css' layer(base);
+@import 'swiper/css/pagination' layer(base);
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+  @media (width >= --theme(--breakpoint-sm)) {
+    max-width: none;
+  }
+  @media (width >= 1400px) {
+    max-width: 1400px;
+  }
+}
+
+@theme {
+  --font-sans: Outfit, sans-serif;
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-weather-sunny: hsl(var(--weather-sunny));
+  --color-weather-cloudy: hsl(var(--weather-cloudy));
+  --color-weather-rain: hsl(var(--weather-rain));
+  --color-weather-snow: hsl(var(--weather-snow));
+
+  --color-severity-warning: hsl(var(--severity-warning-fg));
+  --color-severity-success: hsl(var(--severity-success-fg));
+  --color-severity-error: hsl(var(--severity-error-fg));
+  --color-severity-info: hsl(var(--severity-info-fg));
+
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in: fade-in 0.5s ease-out forwards;
+  --animate-warning-pulse: warning-pulse 1.5s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes warning-pulse {
+    0% {
+      transform: scale(1);
+      filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0));
+    }
+    50% {
+      transform: scale(1.15);
+      filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.8));
+    }
+    100% {
+      transform: scale(1);
+      filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0));
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility editorial-card {
+  @apply bg-card border border-border rounded-none;
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.02),
+    0 30px 60px -30px rgba(0, 0, 0, 0.1);
+}
+
+@utility editorial-rule {
+  background-color: hsl(var(--foreground) / 0.18);
+}
+
+@utility gradient-sky {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--gradient-sky-start)) 0%,
+    hsl(var(--gradient-sky-mid)) 50%,
+    hsl(var(--gradient-sky-end)) 100%
+  );
+}
+
+@utility glass-card {
+  @apply editorial-card;
+}
+
+@utility glass-card-sub {
+  @apply bg-background/40 border border-border rounded-none;
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+@utility safe-px {
+  /* iOS safe-area helpers for use with viewport-fit=cover. Each keeps the
+     current padding when the device reports no inset (browser tab, desktop)
+     and grows to clear the notch / Dynamic Island / home indicator in
+     standalone PWA mode. Insets are 0 until viewport-fit=cover is active,
+     so plain `px-4 pt-[10px] pb-4` would let content sit under the home
+     indicator / status bar on a full-bleed PWA. */
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+@utility safe-top {
+  padding-top: max(10px, env(safe-area-inset-top));
+}
+
+@utility safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+@utility vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+@utility kicker {
+  /* Editorial kicker label — uppercase, tracked, sans body.
+     font-size is rem (not px) so the text-size setting rescales it too.
+     TW4 caveat: kicker owns font-size — pairing it with a text-* size class
+     would override it (custom utilities sort before built-ins). Pair
+     leading-* instead when a line-height is needed. */
+  font-family: var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.32em;
+  font-weight: 500;
+  font-size: 0.75rem;
+}
 
 /* Weather App Design System — Editorial */
 
@@ -166,74 +365,6 @@
     font-family: var(--font-display);
     font-feature-settings: "lnum" 1, "kern" 1;
     letter-spacing: -0.01em;
-  }
-}
-
-@layer components {
-  .editorial-card {
-    @apply bg-card border border-border rounded-none;
-    box-shadow: 0 1px 0 rgba(0,0,0,0.02), 0 30px 60px -30px rgba(0,0,0,0.10);
-  }
-
-  .editorial-rule {
-    background-color: hsl(var(--foreground) / 0.18);
-  }
-
-  .gradient-sky {
-    background: linear-gradient(
-      180deg,
-      hsl(var(--gradient-sky-start)) 0%,
-      hsl(var(--gradient-sky-mid)) 50%,
-      hsl(var(--gradient-sky-end)) 100%
-    );
-  }
-
-  .glass-card {
-    @apply editorial-card;
-  }
-
-  .glass-card-sub {
-    @apply bg-background/40 border border-border rounded-none;
-  }
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  /* iOS safe-area helpers for use with viewport-fit=cover. Each keeps the
-     current padding when the device reports no inset (browser tab, desktop)
-     and grows to clear the notch / Dynamic Island / home indicator in
-     standalone PWA mode. Insets are 0 until viewport-fit=cover is active,
-     so plain `px-4 pt-[10px] pb-4` would let content sit under the home
-     indicator / status bar on a full-bleed PWA. */
-  .safe-px {
-    padding-left: max(1rem, env(safe-area-inset-left));
-    padding-right: max(1rem, env(safe-area-inset-right));
-  }
-
-  .safe-top {
-    padding-top: max(10px, env(safe-area-inset-top));
-  }
-
-  .safe-bottom {
-    padding-bottom: max(1rem, env(safe-area-inset-bottom));
-  }
-
-  .vertical-text {
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-  }
-
-  /* Editorial kicker label — uppercase, tracked, sans body.
-     font-size is rem (not px) so the text-size setting rescales it too. */
-  .kicker {
-    font-family: var(--font-body);
-    text-transform: uppercase;
-    letter-spacing: 0.32em;
-    font-weight: 500;
-    font-size: 0.75rem;
   }
 }
 

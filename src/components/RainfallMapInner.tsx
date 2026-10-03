@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Map } from 'maplibre-gl';
 import { AlertCircle, RefreshCw, Play, Pause, Layers } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
@@ -9,7 +9,7 @@ import { PRD_BOUNDS } from '@/lib/hko-weather';
 import { TIMING } from '@/lib/constants';
 import { parseRainfallCSVText, buildRainGrid, type RainGrid } from '@/lib/rainfallGrid';
 import { RAINFALL_BANDS } from '@/lib/rainfallBands';
-import { scheduleCacheWrite } from '@/lib/nowcastCache';
+import { scheduleCacheWrite, touchNowcastCache, type NowcastCacheRead } from '@/lib/nowcastCache';
 import { isNativePlatform, nativeHttpGetText } from '@/lib/native-http';
 import { MapLibreMap } from './MapLibreMap';
 import { rainfallGridToGeoJson } from '@/lib/rainfallGeoJson';
@@ -55,14 +55,19 @@ function gridBounds(grid: RainGrid): { minLat: number; maxLat: number; minLon: n
 // instead of a stuck 0% bar for the entire 2.7 MB download.
 type ProgressCallback = (received: number, total: number | null) => void;
 
+const NOWCAST_CSV_URL = '/hko-data/F3/Gridded_rainfall_nowcast.csv';
+
 // HKO sends no CORS header on the CSV, so web loads fetch it through the
 // same-origin proxy (Vite dev proxy / Vercel rewrite). The native WebView
 // has no rewrite layer and no service worker to cache with, so it fetches
 // HKO directly over the native HTTP stack (no CORS there) — see
 // native-http.ts for the trade-offs that path accepts.
-const NOWCAST_PROXY_PATH = '/hko-data/F3/Gridded_rainfall_nowcast.csv';
 const NOWCAST_ORIGIN_URL =
   'https://data.weather.gov.hk/weatherAPI/hko_data/F3/Gridded_rainfall_nowcast.csv';
+
+/** Query cache key, hoisted so queryFn's freshness probe can read the
+ *  previous result through queryClient.getQueryData. */
+const NOWCAST_QUERY_KEY = ['hkoGriddedRainfallNowcast'] as const;
 
 const fetchRainfallNowcast = async (
   onProgress?: ProgressCallback,
@@ -71,29 +76,39 @@ const fetchRainfallNowcast = async (
   // Native path: one-shot native GET, then the same parse + cache flow as
   // the streamed web path. No progress events (CapacitorHttp has no
   // streaming) and no signal to forward — the timeout lives inside
-  // nativeHttpGetText.
+  // nativeHttpGetText. The stall-aware path below is web-only: the native
+  // stack neither streams nor aborts the way fetch does.
   if (isNativePlatform()) {
     const { text, lastModified: lm } = await nativeHttpGetText(
       NOWCAST_ORIGIN_URL,
       TIMING.NOWCAST_TIMEOUT_MS,
     );
     const parsed = parseRainfallCSVText(text);
-    scheduleCacheWrite(text, parsed.updateTime, lm);
+    scheduleCacheWrite(parsed.rows, parsed.updateTime, lm);
     const grid = buildRainGrid(parsed.rows);
     if (!grid) throw new Error('No rain cells in nowcast payload');
     return { grid, updateTime: parsed.updateTime, lastModified: lm };
   }
 
-  // Manage the timeout here (not via fetchWithTimeout) so the abort stays
-  // armed through the body-read loop — headers can arrive in <1s on a warm
-  // connection while the body stream still takes 20+ s on slow mobile.
+  // Stall-aware timeout: the abort fires when NO bytes have arrived for
+  // NOWCAST_STALL_TIMEOUT_MS — the timer resets on every chunk, so a
+  // healthy-but-slow download runs to completion. The previous fixed 30 s
+  // total deadline killed in-progress streams on slow connections, which
+  // surfaced as NS_BINDING_ABORTED and then burned a full re-download on
+  // React Query's retry (HML-43). The timer also covers the headers wait:
+  // no first byte within 10 s means the connection is dead anyway.
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    controller.abort(new DOMException(
-      `Rainfall nowcast fetch timed out after ${TIMING.NOWCAST_TIMEOUT_MS}ms`,
-      'TimeoutError'
-    ));
-  }, TIMING.NOWCAST_TIMEOUT_MS);
+  let stallTimerId: ReturnType<typeof setTimeout> | undefined;
+  const armStallTimer = () => {
+    clearTimeout(stallTimerId);
+    stallTimerId = setTimeout(() => {
+      controller.abort(new DOMException(
+        `Rainfall nowcast stalled: no bytes for ${TIMING.NOWCAST_STALL_TIMEOUT_MS}ms`,
+        'TimeoutError'
+      ));
+    }, TIMING.NOWCAST_STALL_TIMEOUT_MS);
+  };
+  armStallTimer();
 
   // Forward React Query's signal so a manual refetch / unmount / cache
   // eviction cancels the in-flight read. Without this, a refetchInterval
@@ -113,7 +128,7 @@ const fetchRainfallNowcast = async (
   })();
 
   try {
-    const response = await fetch(NOWCAST_PROXY_PATH, {
+    const response = await fetch(NOWCAST_CSV_URL, {
       signal: controller.signal,
     });
     if (!response.ok) throw new Error('Failed to fetch gridded rainfall nowcast');
@@ -133,6 +148,8 @@ const fetchRainfallNowcast = async (
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        // Progress = liveness: restart the stall window on every chunk.
+        armStallTimer();
         chunks.push(value);
         received += value.length;
         onProgress?.(received, total);
@@ -152,40 +169,85 @@ const fetchRainfallNowcast = async (
 
       const csvText = new TextDecoder().decode(allChunks);
       const parsed = parseRainfallCSVText(csvText);
-      // Persist for next mount (15-min TTL). Defer the LZString compression
-      // + localStorage write to an idle slot so the React commit that
-      // releases the map lock isn't blocked by the ~300-800 ms compress
-      // cost on low-end mobile. writeNowcastCache is still exported for
-      // tests that want immediate persistence.
-      scheduleCacheWrite(csvText, parsed.updateTime, lastModified);
+      // Persist the sparse parsed rows for next mount (15-min TTL; ~10×
+      // smaller than the raw CSV since 98.8% of rows are 0.00). Deferred to
+      // an idle slot so the React commit that releases the map lock isn't
+      // blocked. writeNowcastCache is still exported for tests that want
+      // immediate persistence.
+      scheduleCacheWrite(parsed.rows, parsed.updateTime, lastModified);
       const grid = buildRainGrid(parsed.rows);
       if (!grid) throw new Error('No rain cells in nowcast payload');
       return { grid, updateTime: parsed.updateTime, lastModified };
     }
 
-    // Fallback: no ReadableStream (very old browsers only — HKO always sends one)
+    // Fallback: no ReadableStream (very old browsers only — HKO always sends
+    // one). The stall timer armed before fetch() still covers this await;
+    // .text() exposes no chunk boundary, so it cannot be re-armed mid-body —
+    // a body slower than one full stall window trips the abort here.
     const csvText = await response.text();
     const parsed = parseRainfallCSVText(csvText);
-    scheduleCacheWrite(csvText, parsed.updateTime, lastModified);
+    scheduleCacheWrite(parsed.rows, parsed.updateTime, lastModified);
     const grid = buildRainGrid(parsed.rows);
     if (!grid) throw new Error('No rain cells in nowcast payload');
     return { grid, updateTime: parsed.updateTime, lastModified };
   } finally {
-    clearTimeout(timeoutId);
+    clearTimeout(stallTimerId);
     detachExternal?.();
   }
 };
 
+/**
+ * HEAD-probe the nowcast CSV's Last-Modified without downloading the body
+ * (~380 KB gzipped). Used before scheduled background refetches: HKO ignores
+ * If-Modified-Since/If-None-Match (verified 2026-09-28 — both return 200
+ * with the full body), so the only cheap freshness check is a HEAD compare.
+ * Returns null when the header is missing or the probe fails — the caller
+ * then falls through to the full GET. A query-cancellation abort propagates
+ * so React Query sees the cancellation instead of a pointless full GET.
+ *
+ * The workbox SW routes only GET requests, so the HEAD passes straight
+ * through to the network on both the dev proxy and the Vercel rewrite.
+ */
+async function fetchNowcastLastModified(signal: AbortSignal): Promise<number | null> {
+  // Bound the probe with the same stall budget as the GET: a HEAD that never
+  // completes must not wedge queryFn (and isFetching) open indefinitely —
+  // the exact HML-43 failure class the GET path was hardened against.
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort(new DOMException('HEAD probe timed out', 'TimeoutError'));
+  }, TIMING.NOWCAST_STALL_TIMEOUT_MS);
+  const onOuterAbort = () => controller.abort(signal.reason);
+  if (signal.aborted) controller.abort(signal.reason);
+  else signal.addEventListener('abort', onOuterAbort);
+  try {
+    const res = await fetch(NOWCAST_CSV_URL, { method: 'HEAD', signal: controller.signal });
+    if (!res.ok) return null;
+    const lm = res.headers.get('last-modified');
+    if (!lm) return null;
+    const t = new Date(lm).getTime();
+    return Number.isFinite(t) ? t : null;
+  } catch (err) {
+    // Outer cancellation (query supersede / unmount) must propagate so React
+    // Query sees it; our own timeout just means "probe failed" → full GET.
+    if (signal.aborted) throw err;
+    return null;
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener('abort', onOuterAbort);
+  }
+}
+
 export default function RainfallMapInner({
   userLocation,
-  initialCsv,
+  initialNowcast,
 }: {
   userLocation?: UserLocation;
-  /** Cached CSV text from the 15-min localStorage cache. When present, we
-   *  parse it once at mount and hand the result to React Query as
+  /** Cached sparse rows from the 15-min localStorage cache. When present, we
+   *  build the grid once at mount and hand the result to React Query as
    *  initialData so the first render shows the parsed grid with no network
-   *  round-trip and no loading state. */
-  initialCsv?: string | null;
+   *  round-trip and no loading state. Carries the source CSV's Last-Modified
+   *  so the first background refetch can HEAD-probe instead of downloading. */
+  initialNowcast?: NowcastCacheRead | null;
 }) {
   const mapRef = useRef<Map | null>(null);
   const viewportInit = useRef(false);
@@ -202,25 +264,28 @@ export default function RainfallMapInner({
   // the app theme whenever the theme changes.
   const [basemapIsDark, setBasemapIsDark] = useState(false);
 
-  // Parse the cached CSV once at mount. Memoized on initialCsv so subsequent
-  // renders (and subsequent refetches) don't re-parse. On parse failure we
-  // return null and let the queryFn handle it like a cold start — no special
-  // error path needed because the network fetch will overwrite the cache
-  // anyway.
+  // Build the grid from the cached rows once at mount. Memoized on
+  // initialNowcast so subsequent renders (and subsequent refetches) don't
+  // rebuild. On failure we return null and let the queryFn handle it like a
+  // cold start — no special error path needed because the network fetch will
+  // overwrite the cache anyway.
   const cachedResult = useMemo<NowcastResult | null>(() => {
-    if (!initialCsv) return null;
+    if (!initialNowcast) return null;
     try {
-      const parsed = parseRainfallCSVText(initialCsv);
-      const grid = buildRainGrid(parsed.rows);
+      const grid = buildRainGrid(initialNowcast.rows);
       if (!grid) return null;
-      // lastModified is 0 on the cache-hit path: we don't carry the HTTP
-      // Last-Modified header through, and the field is unused now that
-      // refetchInterval anchors on dataUpdatedAt.
-      return { grid, updateTime: parsed.updateTime, lastModified: 0 };
+      // Carry the real Last-Modified through (unlike the old CSV cache,
+      // which couldn't): the background refetch HEAD-probes against it to
+      // skip the ~380 KB download while the source file is unchanged.
+      return {
+        grid,
+        updateTime: initialNowcast.updateTime,
+        lastModified: initialNowcast.lastModified,
+      };
     } catch {
       return null;
     }
-  }, [initialCsv]);
+  }, [initialNowcast]);
   const { resolvedTheme } = useTheme();
   useEffect(() => {
     setBasemapIsDark(resolvedTheme === 'dark');
@@ -231,8 +296,9 @@ export default function RainfallMapInner({
   const isMobile = useIsMobile();
   const minZoom = isMobile ? 6 : 7;
 
+  const queryClient = useQueryClient();
   const { data, error, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['hkoGriddedRainfallNowcast'],
+    queryKey: NOWCAST_QUERY_KEY,
     queryFn: async ({ signal }) => {
       // Don't pre-seed progress: keep showing the spinner until the first
       // chunk actually arrives. Pre-seeding to 0 races with React 18's
@@ -240,6 +306,19 @@ export default function RainfallMapInner({
       // path (no Content-Length → no onProgress ever fires).
       setDownloadProgress(null);
       setBytesReceived(null);
+      // Freshness probe: when we already hold data and the server's file
+      // hasn't changed since, skip the ~380 KB download entirely (HML-43).
+      // Covers both the 15-min background refetch and a cache-hit mount
+      // whose localStorage TTL has lapsed. touchNowcastCache restarts the
+      // localStorage TTL so the next mount keeps hitting the cache too.
+      const prev = queryClient.getQueryData<NowcastResult>(NOWCAST_QUERY_KEY);
+      if (prev && prev.lastModified > 0) {
+        const remote = await fetchNowcastLastModified(signal);
+        if (remote !== null && remote === prev.lastModified) {
+          touchNowcastCache();
+          return prev;
+        }
+      }
       return await fetchRainfallNowcast((received, total) => {
         if (total !== null && total > 0) {
           setDownloadProgress(Math.round((received / total) * 100));
@@ -413,7 +492,7 @@ export default function RainfallMapInner({
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsPlaying(!isPlaying)}
-              className="p-2.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors shadow-sm"
+              className="p-2.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors shadow-xs"
               title={isPlaying ? 'Pause' : 'Play timeline'}
               aria-label={isPlaying ? t('nowcast.pause') : t('nowcast.play')}
             >
@@ -435,7 +514,7 @@ export default function RainfallMapInner({
                 setActiveStepIndex(parseInt(e.target.value));
                 setIsPlaying(false);
               }}
-              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label={t('nowcast.slider')}
             />
             {/* Step labels: many GeoMet/HKO steps overflow a 375-440 px card,
@@ -443,7 +522,7 @@ export default function RainfallMapInner({
                 clipping against the card's overflow-x:hidden. w-max keeps the
                 flex content sized to the buttons; min-w-full + justify-between
                 spread a small step count across the full width. */}
-            <div className="overflow-x-auto text-xs font-semibold text-muted-foreground -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="overflow-x-auto text-xs font-semibold text-muted-foreground -mx-1 px-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
               <div className="flex w-max min-w-full items-center justify-between gap-x-1">
               {stepTimes.map((time, index) => (
                 <button
@@ -453,7 +532,7 @@ export default function RainfallMapInner({
                     setIsPlaying(false);
                   }}
                   aria-current={index === activeStepIndex ? 'true' : undefined}
-                  className={`px-2 py-1 whitespace-nowrap min-h-[24px] rounded hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  className={`px-2 py-1 whitespace-nowrap min-h-6 rounded hover:text-primary transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                     index === activeStepIndex ? 'text-primary font-bold' : ''
                   }`}
                 >
@@ -492,8 +571,8 @@ export default function RainfallMapInner({
         {/* Top-right control cluster: updated time + basemap switcher + refresh.
             Bottom-left is reserved for the swiper pagination dots on mobile, so
             these buttons live at the top-right where nothing else competes.
-            z-[600] = above the map canvas, below dialog content. */}
-        <div className="absolute top-2 right-2 z-[600] flex items-center gap-2 text-xs text-muted-foreground bg-background/90 backdrop-blur-sm p-1.5 rounded-md border border-border/50 shadow-sm">
+            z-600 = above the map canvas, below dialog content. */}
+        <div className="absolute top-2 right-2 z-600 flex items-center gap-2 text-xs text-muted-foreground bg-background/90 backdrop-blur-xs p-1.5 rounded-md border border-border/50 shadow-xs">
           {updateTime && (
             <span className="px-1 tabular-nums">{formatString(t('nowcast.updated'), updateTime)}</span>
           )}
@@ -503,14 +582,14 @@ export default function RainfallMapInner({
             // overrides the p-1 default so the small icon stays inside a
             // phone-sized hit zone. inline-flex + items-center +
             // justify-center centers the icon in the 44×44 box.
-            className="inline-flex items-center justify-center min-h-[2.75rem] min-w-[2.75rem] p-1 hover:bg-muted/50 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="inline-flex items-center justify-center min-h-11 min-w-11 p-1 hover:bg-muted/50 rounded transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label={formatString(t('nowcast.switchBasemap'), t(basemapIsDark ? 'nowcast.basemapDark' : 'nowcast.basemapLight'))}
           >
             <Layers className="w-4 h-4" />
           </button>
           <button
             onClick={() => refetch()}
-            className="inline-flex items-center justify-center min-h-[2.75rem] min-w-[2.75rem] p-1 hover:bg-muted/50 rounded transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="inline-flex items-center justify-center min-h-11 min-w-11 p-1 hover:bg-muted/50 rounded transition-colors disabled:opacity-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             disabled={isFetching}
             aria-label={t('nowcast.refreshNowcast')}
             title={t('nowcast.refreshNowcast')}
@@ -520,7 +599,7 @@ export default function RainfallMapInner({
         </div>
         {/* First load: spinner → determinate bar OR indeterminate animation */}
         {isLoading && (
-          <div className="absolute inset-0 z-[1001] flex items-center justify-center bg-background/50 backdrop-blur-sm">
+          <div className="absolute inset-0 z-1001 flex items-center justify-center bg-background/50 backdrop-blur-xs">
             {isSlow && (
               // Slow-network chip above the progress bar. Surfaces after
               // 10 s of isLoading so the spinner doesn't read as stuck on
@@ -530,7 +609,7 @@ export default function RainfallMapInner({
               <div
                 role="status"
                 aria-live="polite"
-                className="absolute top-3 left-1/2 -translate-x-1/2 z-[1002] flex items-center gap-2 text-xs bg-background/95 border border-border/60 rounded-full px-3 py-1.5 shadow-sm backdrop-blur-sm"
+                className="absolute top-3 left-1/2 -translate-x-1/2 z-1002 flex items-center gap-2 text-xs bg-background/95 border border-border/60 rounded-full px-3 py-1.5 shadow-xs backdrop-blur-xs"
               >
                 <RefreshCw className="w-3 h-3 animate-spin text-primary" />
                 <span className="text-muted-foreground">{t('nowcast.loadingSlow')}</span>
@@ -590,7 +669,7 @@ export default function RainfallMapInner({
             failed — we render a small pill instead so the map stays
             interactive instead of being trapped behind a blocking modal. */}
         {error && !data && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm p-6 text-center">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-xs p-6 text-center">
             <AlertCircle className="w-10 h-10 text-destructive mb-2" />
             <p className="text-lg font-medium text-foreground mb-1">{t('nowcast.loadFailed')}</p>
             <p className="text-muted-foreground mb-4">{t('nowcast.error')}</p>
@@ -606,12 +685,12 @@ export default function RainfallMapInner({
         {/* Stale-data indicator: previous fetch failed, current data is
             still on screen. Pinned top-left below the zoom control so it
             doesn't fight with the basemap/refresh cluster at top-right.
-            z-[600] = above the MapLibre canvas, below dialog content. */}
+            z-600 = above the MapLibre canvas, below dialog content. */}
         {error && data && (
           <div
             role="status"
             aria-live="polite"
-            className="absolute top-12 left-2 z-[600] flex items-center gap-2 max-w-[min(90%,360px)] text-xs bg-destructive/10 text-destructive border border-destructive/30 rounded-md px-2.5 py-1.5 backdrop-blur-sm shadow-sm"
+            className="absolute top-12 left-2 z-600 flex items-center gap-2 max-w-[min(90%,360px)] text-xs bg-destructive/10 text-destructive border border-destructive/30 rounded-md px-2.5 py-1.5 backdrop-blur-xs shadow-xs"
           >
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
             <div className="flex flex-col leading-tight">
@@ -621,7 +700,7 @@ export default function RainfallMapInner({
             <button
               onClick={() => refetch()}
               disabled={isFetching}
-              className="ml-1 inline-flex items-center justify-center min-h-[2rem] min-w-[2rem] p-1 rounded hover:bg-destructive/20 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="ml-1 inline-flex items-center justify-center min-h-8 min-w-8 p-1 rounded hover:bg-destructive/20 disabled:opacity-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label={t('nowcast.tryAgain')}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
@@ -643,7 +722,7 @@ export default function RainfallMapInner({
         />
 
         {!isLoading && (
-          <div className="absolute bottom-4 right-4 z-[400] bg-background/90 backdrop-blur-sm p-3 rounded-lg border border-border shadow-lg text-xs">
+          <div className="absolute bottom-4 right-4 z-400 bg-background/90 backdrop-blur-xs p-3 rounded-lg border border-border shadow-lg text-xs">
             <div className="font-semibold mb-2">{t('nowcast.legend')}</div>
             <div className="flex flex-col gap-1.5">
               {RAINFALL_BANDS.map(({ color, label }) => (

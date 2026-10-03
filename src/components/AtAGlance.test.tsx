@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { UnitsProvider } from '@/contexts/UnitsProvider';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AtAGlance } from './AtAGlance';
-import { LanguageProvider } from '@/contexts/LanguageContext';
-import { UnitsProvider } from '@/contexts/UnitsContext';
+
 import type { DailyForecast as DailyForecastType } from '@/lib/weather';
 
 const today: DailyForecastType = {

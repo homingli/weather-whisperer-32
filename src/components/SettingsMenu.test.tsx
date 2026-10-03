@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { FontSizeProvider } from '@/contexts/FontSizeProvider';
+import { UnitsProvider } from '@/contexts/UnitsProvider';
+import { ThemeProvider } from '@/contexts/ThemeProvider';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { render, screen, within } from '@testing-library/react';
 import userEvent, { PointerEventsCheckLevel, type UserEvent } from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SettingsMenu } from './SettingsMenu';
-import { LanguageProvider } from '@/contexts/LanguageContext';
-import { ThemeProvider } from '@/contexts/ThemeContext';
-import { UnitsProvider } from '@/contexts/UnitsContext';
-import { FontSizeProvider, FONT_SIZE_ROOT_PERCENT } from '@/contexts/FontSizeContext';
+
+import { FONT_SIZE_ROOT_PERCENT } from '@/contexts/FontSizeContext';
 import { GeoLocation } from '@/lib/weather';
 
 const noCity: GeoLocation | null = null;
@@ -376,5 +378,38 @@ describe('SettingsMenu font-size pill toggle', () => {
     const sizeGroup = screen.getByRole('radiogroup', { name: '字體大小' });
     const radios = within(sizeGroup).getAllByRole('radio');
     expect(radios.map((r) => r.textContent)).toEqual(['細', '標準', '大']);
+  });
+});
+
+describe('SettingsMenu feedback entry (HML-44)', () => {
+  let user: UserEvent;
+
+  beforeEach(() => {
+    localStorage.clear();
+    user = userEvent.setup({ pointerEventsCheck: PointerEventsCheckLevel.Never });
+  });
+
+  const renderMenu = () =>
+    render(
+      <TestProviders>
+        <ThemeProvider>
+          <LanguageProvider>
+            <UnitsProvider>
+              <FontSizeProvider>
+                <SettingsMenu currentCity={noCity} recentCities={noRecent} onCitySelect={() => {}} />
+              </FontSizeProvider>
+            </UnitsProvider>
+          </LanguageProvider>
+        </ThemeProvider>
+      </TestProviders>,
+    );
+
+  it('opens the feedback dialog from the menu item above the data-source credit', async () => {
+    renderMenu();
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('menuitem', { name: 'Feedback' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Bug report' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
   });
 });

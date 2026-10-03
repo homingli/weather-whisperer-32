@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { ThemeProvider } from '@/contexts/ThemeProvider';
 import { render, act } from '@testing-library/react';
-import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { TIMING } from '@/lib/constants';
 
 type ThemeValue = ReturnType<typeof useTheme>;
 
@@ -154,7 +156,7 @@ describe('ThemeContext auto mode + sunTimes', () => {
     // Cross sunrise and advance past the next interval tick.
     vi.setSystemTime(new Date('2024-06-15T06:01:00Z'));
     act(() => {
-      vi.advanceTimersByTime(5 * 60 * 1000);
+      vi.advanceTimersByTime(TIMING.THEME_AUTO_TICK_MS);
     });
     expect(readTheme().resolvedTheme).toBe('light');
   });

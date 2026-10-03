@@ -1,7 +1,8 @@
 import { lazy, Suspense, useState, useEffect, useMemo, Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { CloudRain, RefreshCw } from 'lucide-react';
-import { LanguageContext, useLanguage } from '@/contexts/LanguageContext';
+import { LanguageContext } from '@/contexts/language-context';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { readNowcastCache } from '@/lib/nowcastCache';
 import { logFailure } from '@/lib/log';
 
@@ -65,7 +66,7 @@ class RainfallChunkErrorBoundary extends Component<
               <button
                 type="button"
                 onClick={this.handleReload}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-xs font-medium"
               >
                 {ctx?.t('nowcast.tryAgain') ?? 'Try Again'}
               </button>
@@ -97,12 +98,13 @@ const LoadingShell = () => {
 
 export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) => {
   // Sync cache read at mount: when the 15-min localStorage cache is fresh we
-  // skip the "Load Map" prompt entirely and hand the cached CSV straight to
-  // RainfallMapInner so the first render shows the parsed grid with no
-  // network round-trip. Cache read is synchronous and ~50-100 ms at worst,
+  // skip the "Load Map" prompt entirely and hand the cached sparse rows
+  // straight to RainfallMapInner so the first render shows the parsed grid
+  // with no network round-trip. Cache read is synchronous and ~50-100 ms at
+  // worst (v3 reads small rain-only rows — no 58k-line CSV re-parse),
   // acceptable for a one-time mount cost.
-  const initialCachedCsv = useMemo(() => readNowcastCache()?.csvText ?? null, []);
-  const [isLoaded, setIsLoaded] = useState(initialCachedCsv !== null);
+  const initialNowcast = useMemo(() => readNowcastCache(), []);
+  const [isLoaded, setIsLoaded] = useState(initialNowcast !== null);
   const { t } = useLanguage();
 
   // Preload the lazy chunk in parallel with the React tree render when we
@@ -110,15 +112,15 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
   // Suspense mounts the inner, the chunk is usually already in memory and
   // the LoadingShell fallback never paints.
   useEffect(() => {
-    if (initialCachedCsv) {
+    if (initialNowcast) {
       void import('./RainfallMapInner');
     }
-  }, [initialCachedCsv]);
+  }, [initialNowcast]);
 
   return (
     <div className="glass-card overflow-hidden">
       <div className="px-6 py-4 border-b border-border/50 flex items-baseline justify-between gap-4">
-        <h2 className="kicker text-muted-foreground font-display text-base">{t('nowcast.title')}</h2>
+        <h2 className="kicker text-muted-foreground font-display leading-6">{t('nowcast.title')}</h2>
         <span className="kicker text-muted-foreground/60">{t('nowcast.stayOrGo')}</span>
       </div>
 
@@ -126,7 +128,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         className={`rainfall-map-area relative h-[min(70vh,800px)] min-h-[400px] w-full bg-muted/20${isLoaded ? ' no-swipe' : ''}`}
       >
         {!isLoaded ? (
-          <div className="absolute inset-0 z-[1000] flex flex-col items-center justify-center bg-background/85 pointer-events-none">
+          <div className="absolute inset-0 z-1000 flex flex-col items-center justify-center bg-background/85 pointer-events-none">
             <CloudRain className="w-12 h-12 text-primary mb-4 opacity-80" />
             <h3 className="text-xl font-semibold mb-2">{t('nowcast.view')}</h3>
             <p className="text-muted-foreground mb-6 text-center max-w-lg">
@@ -135,7 +137,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
             <button
               type="button"
               onClick={() => setIsLoaded(true)}
-              className="px-6 py-2.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium pointer-events-auto"
+              className="px-6 py-2.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-xs font-medium pointer-events-auto"
             >
               {t('nowcast.load')}
             </button>
@@ -143,7 +145,7 @@ export const RainfallMap = ({ userLocation }: { userLocation?: UserLocation }) =
         ) : (
           <RainfallChunkErrorBoundary>
             <Suspense fallback={<LoadingShell />}>
-              <RainfallMapInner userLocation={userLocation} initialCsv={initialCachedCsv} />
+              <RainfallMapInner userLocation={userLocation} initialNowcast={initialNowcast} />
             </Suspense>
           </RainfallChunkErrorBoundary>
         )}

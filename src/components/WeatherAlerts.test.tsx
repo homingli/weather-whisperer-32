@@ -1,7 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { render, screen, act } from '@testing-library/react';
 import { WeatherAlerts } from './WeatherAlerts';
-import { LanguageProvider } from '@/contexts/LanguageContext';
+
 import type { HKOWarning } from '@/lib/hko-types';
 import warnsumEn from '@/lib/__fixtures__/hko-warnsum-2026-07-31-en.json';
 import warnsumTc from '@/lib/__fixtures__/hko-warnsum-2026-07-31-tc.json';
@@ -19,6 +20,12 @@ const renderWithLanguage = (ui: React.ReactElement) =>
   render(<LanguageProvider>{ui}</LanguageProvider>);
 
 describe('WeatherAlerts', () => {
+  // Safety net if the fake-timer test fails mid-way: leaked fake timers
+  // would otherwise cascade into confusing failures in the tests below.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('renders nothing when there are no active warnings', () => {
     const { container } = renderWithLanguage(<WeatherAlerts warnings={[]} />);
     expect(container.firstChild).toBeNull();
@@ -132,7 +139,6 @@ describe('WeatherAlerts', () => {
       vi.advanceTimersByTime(1600);
     });
     expect(container.querySelector('button')?.className).not.toContain('animate-warning-pulse');
-    vi.useRealTimers();
   });
 
   it('opens modal when selectedWarningCode matches a warning and fires onConsumed', () => {

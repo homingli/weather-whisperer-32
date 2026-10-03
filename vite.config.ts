@@ -2,6 +2,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { readFileSync } from "node:fs";
 import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
@@ -10,6 +11,14 @@ export default defineConfig(({ mode }) => {
   if (mode === 'production' && !env.VITE_CARTO_API_KEY?.trim()) {
     throw new Error('VITE_CARTO_API_KEY is required for production builds');
   }
+
+  // Build identity for feedback diagnostics (see feedback-diagnostics.ts).
+  // Read via node:fs (not a JSON import) to keep tsconfig.node.json as-is;
+  // the build timestamp matters more than the version here — package.json
+  // sits at 0.0.0 and stale-PWA reports are the bug class to pin down.
+  const pkg = JSON.parse(
+    readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
+  ) as { version: string };
 
   return ({
   server: {
@@ -178,6 +187,10 @@ export default defineConfig(({ mode }) => {
       },
     }),
   ],
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

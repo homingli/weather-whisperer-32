@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { WeatherBanners } from './WeatherBanners';
-import { LanguageProvider } from '@/contexts/LanguageContext';
+
 import type { WeatherData, SourceState } from '@/lib/weather';
 
 function makeWeather(overrides: Partial<WeatherData> = {}): WeatherData {

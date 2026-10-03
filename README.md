@@ -30,6 +30,10 @@ Weather Whisperer is a weather app that answers the questions behind the forecas
 - **It tells you what to do.** Umbrella advice, and a rain chance that only appears when it is worth mentioning, replace the usual wall of numbers.
 - **Offline-friendly and no strings attached.** No account, no login — just weather. If your connection drops, you still get the last forecast you saw, clearly marked, with a button to refresh when you are back online.
 
+## Feedback and support
+
+Found a bug, or have an idea? Open the menu (☰) inside the app and choose **Feedback** — submit right there in the app; your message lands as a tracked issue in the maintainer's support inbox, with device details attached automatically so reports are actionable. Prefer email? Write to [support-13d2337ddb2d@intake.linear.app](mailto:support-13d2337ddb2d@intake.linear.app) — it reaches the same inbox.
+
 ## For developers
 
 ### Run it locally
@@ -44,6 +48,8 @@ npm run dev   # http://localhost:8080 with hot reload
 Other useful commands: `npm run build` (production build), `npm run lint`, and `npm test` (add `--run` for a single pass). Node.js 20+ required.
 
 The map uses a Carto vector basemap when `VITE_CARTO_API_KEY` is set and falls back to open tiles without it. `npm run audit:viewports` checks the app at every iPhone portrait width against layout regressions; see `scripts/audit/README.md`.
+
+The in-app feedback form (`api/feedback.ts`) files submissions as Linear issues and needs `LINEAR_API_KEY` in the Vercel project environment (all environments); without it the endpoint responds `not_configured` and the app shows an error toast. Native (Capacitor) builds must also set `VITE_API_BASE=https://weather-whisperer.vercel.app` so the form reaches the deployed endpoint cross-origin — web builds leave it unset and use the same-origin path.
 
 ### Android APK
 

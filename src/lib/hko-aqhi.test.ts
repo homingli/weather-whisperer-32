@@ -7,6 +7,7 @@ import {
   resetAqhiFeedCacheForTests,
   EPD_AQHI_STATIONS,
 } from './hko-aqhi';
+import { TIMING } from './constants';
 
 /** Trimmed from the live feed (https://www.aqhi.gov.hk/epd/ddata/html/out/
  *  aqhi_ind_rss_Eng.xml, 17 Sep 2026 09:30 HKT). Structure and casing are
@@ -166,7 +167,7 @@ describe('getHKOAQHI', () => {
     expect(reading).toBeNull();
   });
 
-  it('serves repeat calls from the 15-min cache (one fetch across the 5-min weather loop)', async () => {
+  it('serves repeat calls from the TTL cache (one fetch across the 5-min weather loop)', async () => {
     const fetchMock = mockFeedResponse(EN_FEED);
     vi.stubGlobal('fetch', fetchMock);
     await getHKOAQHI('en', 22.3180, 114.1700);
@@ -175,16 +176,18 @@ describe('getHKOAQHI', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('refetches after the TTL expires (15 min)', async () => {
+  it('refetches after the TTL expires', async () => {
     vi.useFakeTimers();
     try {
       const fetchMock = mockFeedResponse(EN_FEED);
       vi.stubGlobal('fetch', fetchMock);
       await getHKOAQHI('en', 22.3180, 114.1700);
-      vi.advanceTimersByTime(14 * 60 * 1000);
+      // Just inside the TTL: still served from cache.
+      vi.advanceTimersByTime(TIMING.AQHI_TTL_MS - 60_000);
       await getHKOAQHI('en', 22.3180, 114.1700);
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      vi.advanceTimersByTime(2 * 60 * 1000); // Now past 15 min
+      // Cross the TTL boundary: refetch.
+      vi.advanceTimersByTime(2 * 60 * 1000);
       await getHKOAQHI('en', 22.3180, 114.1700);
       expect(fetchMock).toHaveBeenCalledTimes(2);
     } finally {

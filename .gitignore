@@ -38,4 +38,10 @@ data.csv
 
 # Viewport audit output (screenshots + results)
 scripts/audit/shots/
+
+# Local agent workspace state (not source)
 .zcode/
+
+# Capacitor Android build (generated; contains keystore + machine-local paths)
+android/
+scripts/audit/shots-baseline/

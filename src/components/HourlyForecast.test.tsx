@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { UnitsProvider } from '@/contexts/UnitsProvider';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import type { ReactNode } from 'react';
 import { render, screen, act } from '@testing-library/react';
 import { HourlyForecast } from './HourlyForecast';
-import { LanguageProvider } from '@/contexts/LanguageContext';
-import { UnitsProvider, useUnits } from '@/contexts/UnitsContext';
+
+import { useUnits } from '@/contexts/UnitsContext';
 import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from '@/lib/weather';
 import { MockChartProps } from '@/test/mockChartProps';
 

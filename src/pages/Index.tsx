@@ -259,7 +259,7 @@ const Index = () => {
               <button
                 onClick={install}
                 aria-label={t('pwa.install')}
-                className="h-full min-h-[3rem] px-3 flex items-center gap-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                className="h-full min-h-12 px-3 flex items-center gap-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                 title={t('pwa.install')}
               >
                 <Download className="h-5 w-5" />
