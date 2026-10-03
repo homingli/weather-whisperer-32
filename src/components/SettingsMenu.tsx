@@ -1,5 +1,5 @@
 import { useState, KeyboardEvent } from 'react';
-import { Menu, Sun, Moon, SunMoon, Search, LocateFixed, MapPin, RefreshCw, type LucideIcon } from 'lucide-react';
+import { Menu, Sun, Moon, SunMoon, Search, LocateFixed, MapPin, RefreshCw, MessageSquarePlus, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -19,6 +19,7 @@ import { isInHongKong } from '@/lib/hko-weather';
 import { cn } from '@/lib/utils';
 import { GeoLocation, getUserLocation, reverseGeocode, setDefaultCity } from '@/lib/weather';
 import { logWarn } from '@/lib/log';
+import { FeedbackDialog } from '@/components/FeedbackDialog';
 import { toast } from 'sonner';
 
 const languages: { value: Language; label: string }[] = [
@@ -124,6 +125,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
   const { units, setUnits } = useUnits();
   const { fontSize, setFontSize } = useFontSize();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [query, setQuery] = useState('');
   const { data: results, isFetching, isPlaceholderData } = useCitySearch(query);
   const [isLocating, setIsLocating] = useState(false);
@@ -299,6 +301,16 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
 
           <DropdownMenuSeparator />
 
+          {/* Feedback entry (HML-44) — prefilled mailto to the Linear
+              SUPPORT intake address; see FeedbackDialog. Sits just above
+              the data-source credit so the menu ends with attribution. */}
+          <DropdownMenuItem onClick={() => setFeedbackOpen(true)} className="gap-2.5 py-3">
+            <MessageSquarePlus className="h-5 w-5" />
+            {t('settings.feedback')}
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+
           {/* Data-source credit — lives at the bottom of the menu instead of
               a page footer so the forecast cards can use the full viewport
               height. Mirrors the credit the page footer used to show: both
@@ -359,6 +371,8 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
           </div>
         </DialogContent>
       </Dialog>
+
+      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
     </>
   );
 }

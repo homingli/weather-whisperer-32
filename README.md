@@ -28,6 +28,10 @@ Weather Whisperer is a weather app that answers the questions behind the forecas
 - **It tells you what to do.** Umbrella advice, and a rain chance that only appears when it is worth mentioning, replace the usual wall of numbers.
 - **Offline-friendly and no strings attached.** No account, no login — just weather. If your connection drops, you still get the last forecast you saw, clearly marked, with a button to refresh when you are back online.
 
+## Feedback and support
+
+Found a bug, or have an idea? Open the menu (☰) inside the app and choose **Feedback** — your email app opens with the device details pre-filled, and your message lands straight in the project's support inbox. You can also email [support-13d2337ddb2d@intake.linear.app](mailto:support-13d2337ddb2d@intake.linear.app) directly; every message becomes a tracked issue the maintainer triages.
+
 ## For developers
 
 ### Run it locally

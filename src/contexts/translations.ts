@@ -285,6 +285,21 @@ export const translations: Record<Language, Record<string, string>> = {
     // Settings menu
     'settings.label': 'Settings',
 
+    // Feedback dialog (FeedbackDialog / feedback.ts, HML-44) — prefilled
+    // mailto to the Linear SUPPORT intake address. Diagnostics keys in
+    // feedback-diagnostics.ts stay English by design (developer-facing).
+    'settings.feedback': 'Feedback',
+    'feedback.title': 'Send feedback',
+    'feedback.description': 'Your email app opens with device details pre-filled — your message goes straight to the developer.',
+    'feedback.type': 'What is it about?',
+    'feedback.type.bug': 'Bug report',
+    'feedback.type.feature': 'Feature request',
+    'feedback.type.question': 'Question',
+    'feedback.send': 'Send email',
+    'feedback.copy': 'Copy details',
+    'feedback.copied': 'Details copied',
+    'feedback.copyFailed': 'Could not copy the details',
+
     // Hourly / daily chart kickers
     'hourly.nextNHours': 'The next {0} hours',
     'daily.lookAhead': 'A look ahead',
@@ -601,6 +616,21 @@ export const translations: Record<Language, Record<string, string>> = {
 
     // Settings menu
     'settings.label': '設定',
+
+    // 意見回饋（FeedbackDialog / feedback.ts，HML-44）— 以預填電郵寄到
+    // Linear SUPPORT 收件地址。feedback-diagnostics.ts 的診斷鍵值維持
+    // 英文（開發者閱讀）。
+    'settings.feedback': '意見回饋',
+    'feedback.title': '傳送意見回饋',
+    'feedback.description': '會開啟你的電郵應用程式並預先填好裝置資料，訊息會直接交給開發者。',
+    'feedback.type': '關於哪一類？',
+    'feedback.type.bug': '回報問題',
+    'feedback.type.feature': '功能建議',
+    'feedback.type.question': '查詢',
+    'feedback.send': '傳送電郵',
+    'feedback.copy': '複製詳情',
+    'feedback.copied': '已複製詳情',
+    'feedback.copyFailed': '無法複製詳情',
 
     // Hourly / daily chart kickers
     'hourly.nextNHours': '未來 {0} 小時',
