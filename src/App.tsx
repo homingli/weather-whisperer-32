@@ -9,10 +9,6 @@ import { persistQueryClient } from "@tanstack/query-persist-client-core";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
-
-
-
-
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { TIMING } from "@/lib/constants";

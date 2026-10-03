@@ -8,8 +8,6 @@ import userEvent, { PointerEventsCheckLevel, type UserEvent } from '@testing-lib
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SettingsMenu } from './SettingsMenu';
 
-
-
 import { FONT_SIZE_ROOT_PERCENT } from '@/contexts/FontSizeContext';
 import { GeoLocation } from '@/lib/weather';
 

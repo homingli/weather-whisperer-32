@@ -5,7 +5,6 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AtAGlance } from './AtAGlance';
 
-
 import type { DailyForecast as DailyForecastType } from '@/lib/weather';
 
 const today: DailyForecastType = {

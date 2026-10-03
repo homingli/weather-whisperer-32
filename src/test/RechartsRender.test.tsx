@@ -6,7 +6,6 @@ import { render } from '@testing-library/react';
 import { HourlyForecast } from '@/components/HourlyForecast';
 import { DailyForecast } from '@/components/DailyForecast';
 
-
 import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from '@/lib/weather';
 
 // The per-component chart tests mock recharts away because jsdom has no SVG

@@ -6,7 +6,6 @@ import { CurrentWeather } from '@/components/CurrentWeather';
 import { HourlyForecast } from '@/components/HourlyForecast';
 import { LocalClock } from '@/components/LocalClock';
 
-
 import { CurrentWeather as CurrentWeatherType, HourlyForecast as HourlyForecastType } from '@/lib/weather';
 
 const mockWeather: CurrentWeatherType = {

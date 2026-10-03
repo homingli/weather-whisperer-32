@@ -506,7 +506,7 @@ export default function RainfallMapInner({
                     setIsPlaying(false);
                   }}
                   aria-current={index === activeStepIndex ? 'true' : undefined}
-                  className={`px-2 py-1 whitespace-nowrap min-h-[24px] rounded hover:text-primary transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  className={`px-2 py-1 whitespace-nowrap min-h-6 rounded hover:text-primary transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                     index === activeStepIndex ? 'text-primary font-bold' : ''
                   }`}
                 >
