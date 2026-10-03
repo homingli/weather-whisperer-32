@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent, { PointerEventsCheckLevel, type UserEvent } from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { ThemeProvider } from '@/contexts/ThemeProvider';
 import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { CitySearch } from './CitySearch';
@@ -104,6 +105,7 @@ describe('CitySearch (landing empty-state search, HML-58)', () => {
   it('shows an error and recovers when reverse geocoding finds nothing', async () => {
     vi.mocked(getUserLocation).mockResolvedValue({ latitude: 0, longitude: 0 });
     vi.mocked(reverseGeocode).mockResolvedValue(null);
+    const errorSpy = vi.spyOn(toast, 'error');
     renderSearch();
 
     const locateButton = screen.getByRole('button', { name: /use current location/i });
@@ -111,6 +113,7 @@ describe('CitySearch (landing empty-state search, HML-58)', () => {
 
     await waitFor(() => expect(locateButton).not.toBeDisabled());
     expect(onCitySelect).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
   });
 
   it('keeps the panel usable when geolocation fails', async () => {

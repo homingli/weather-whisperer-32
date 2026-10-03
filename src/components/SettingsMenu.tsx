@@ -18,7 +18,7 @@ import { useCitySearch } from '@/hooks/useCitySearch';
 import { useLocateCity } from '@/hooks/useLocateCity';
 import { isInHongKong } from '@/lib/hko-weather';
 import { cn } from '@/lib/utils';
-import { GeoLocation, setDefaultCity } from '@/lib/weather';
+import { GeoLocation } from '@/lib/weather';
 import { FeedbackDialog } from '@/components/FeedbackDialog';
 import { toast } from 'sonner';
 
@@ -156,8 +156,9 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
     auto: language === 'tc' ? '自動' : 'Auto',
   };
 
+  // onCitySelect (handleCitySelect) persists the default city, so no
+  // separate setDefaultCity call here either.
   const handleSelectCity = (city: GeoLocation) => {
-    setDefaultCity(city);
     onCitySelect(city);
     setSearchOpen(false);
     setQuery('');
