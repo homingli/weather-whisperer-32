@@ -40,6 +40,12 @@ const MSCRainfallMap = lazy(() => import('@/components/MSCRainfallMap').then(mod
 const SettingsMenu = lazy(() => import('@/components/SettingsMenu').then(module => ({ default: module.SettingsMenu })));
 const WeatherBanners = lazy(() => import('@/components/WeatherBanners').then(module => ({ default: module.WeatherBanners })));
 const WeatherAlerts = lazy(() => import('@/components/WeatherAlerts').then(module => ({ default: module.WeatherAlerts })));
+// CitySearch backs the landing empty state (HML-58): when the geolocation
+// prompt is denied the page must offer an inline search, not a dead welcome
+// card. Lazy like SettingsMenu so the Input primitive and the CitySearch
+// module itself stay out of the initial chunk (the geocoding helpers are
+// already in it via the eager useSelectedCity import).
+const CitySearch = lazy(() => import('@/components/CitySearch').then(module => ({ default: module.CitySearch })));
 // The mobile swipe deck (swiper/react + Pagination, ~27 kB gzip) is only
 // rendered at <=1080px. Isolating it in its own lazy chunk keeps swiper out
 // of the initial bundle for desktop users; the deck is the only module that
@@ -321,12 +327,15 @@ const Index = () => {
               </p>
             </div>
           ) : !selectedCity ? (
-            <div className="text-center py-20 animate-fade-in">
+            <div className="text-center py-10 sm:py-20 animate-fade-in">
               <CloudRain className="h-20 w-20 mx-auto mb-4 text-primary" />
               <h2 className="text-3xl font-semibold mb-2">{t('loading.welcome')}</h2>
               <p className="text-lg text-muted-foreground">
                 {t('loading.searchPrompt')}
               </p>
+              <Suspense fallback={null}>
+                <CitySearch recentCities={recentCities} onCitySelect={handleCitySelect} className="mt-8" />
+              </Suspense>
             </div>
           ) : isLoading ? (
             <FetchingStatus loadProgress={loadProgress} isHKCovered={isHKCovered} />
