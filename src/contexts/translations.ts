@@ -160,6 +160,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'search.useLocation': 'Use current location',
     'search.locationUpdated': 'Location updated to {0}',
     'search.locationError': 'Could not get your location. Please check permissions.',
+    'search.recent': 'Recent',
     
     // Loading states
     'loading.fetchingData': 'Loading Weather Data...',
@@ -502,6 +503,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'search.useLocation': '使用目前位置',
     'search.locationUpdated': '位置已更新至 {0}',
     'search.locationError': '無法取得位置，請檢查權限設定。',
+    'search.recent': '最近',
     
     // Loading states
     'loading.fetchingData': '正在載入天氣數據...',
