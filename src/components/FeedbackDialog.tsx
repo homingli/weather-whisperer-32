@@ -155,8 +155,10 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
           </div>
 
           {/* Honeypot — visually hidden and out of the tab order; bots that
-              autofill by field name are dropped server-side. */}
+              autofill by field name are dropped server-side. The value rides
+              to the API via websiteRef (submitFeedback). */}
           <input
+            ref={websiteRef}
             type="text"
             name="website"
             tabIndex={-1}

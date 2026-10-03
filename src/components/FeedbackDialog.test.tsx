@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent, { PointerEventsCheckLevel, type UserEvent } from '@testing-library/user-event';
 import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { FEEDBACK_MAX_MESSAGE_LENGTH } from '@/lib/feedback';
@@ -85,6 +85,19 @@ describe('FeedbackDialog (HML-44)', () => {
     const honeypot = document.querySelector('input[name="website"]');
     expect(honeypot).not.toBeNull();
     expect(honeypot).toHaveValue('');
+  });
+
+  it('transmits a filled honeypot value so the server can drop bots', async () => {
+    fetchMock.mockResolvedValue(OK_RESPONSE());
+    renderDialog();
+    // Simulate headless autofill: the field is display:none, so drive the
+    // DOM directly instead of user-event.
+    const honeypot = document.querySelector('input[name="website"]') as HTMLInputElement;
+    fireEvent.change(honeypot, { target: { value: 'https://spam.example' } });
+    await fillAndSend(user);
+
+    const body = JSON.parse(String((fetchMock.mock.calls[0] as [string, RequestInit])[1].body));
+    expect(body.website).toBe('https://spam.example');
   });
 
   it('gates Send on connectivity with an offline hint', async () => {

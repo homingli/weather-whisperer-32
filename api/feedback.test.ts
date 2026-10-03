@@ -6,7 +6,7 @@ const SUPPORT_TEAM_ID = '6bcd0f7f-8512-4408-8320-57a308f753ca';
 const LINEAR_OK = {
   data: { issueCreate: { success: true, issue: { id: 'i1', identifier: 'SUP-1' } } },
 };
-const valid = { type: 'bug', message: 'Rain map is blank', language: 'en', diagnostics: 'App: test' };
+const valid = { type: 'bug', message: 'Rain map is blank', diagnostics: 'App: test' };
 
 function post(body: unknown): Promise<Response> {
   return handler(
