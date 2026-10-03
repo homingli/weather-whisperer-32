@@ -4,10 +4,11 @@
  *
  * Boots a dev-mode build of the app through `vite preview`, then walks the
  * target matrix at 9 portrait widths (375 → 440 CSS px) across the main
- * route, the rainfall-map swiper slide (HK + Vancouver), the settings
- * dropdown, and the offline/cache banner state — asserting no page-level
- * horizontal overflow, no unexpected console errors, and no overlapping
- * interactive controls, and capturing screenshots for visual review.
+ * route, the hourly / 7-day / rainfall-map swiper slides (HK + Vancouver
+ * for the map), the settings dropdown, and the offline/cache banner state —
+ * asserting no page-level horizontal overflow, no unexpected console errors,
+ * and no overlapping interactive controls, and capturing screenshots for
+ * visual review.
  *
  * Everything the app fetches (Open-Meteo, HKO, Carto basemap, GeoMet WMS,
  * the HKO nowcast CSV) is stubbed from recorded fixtures so the run is

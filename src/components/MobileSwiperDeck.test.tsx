@@ -39,6 +39,10 @@ const slides = (container: HTMLElement) => Array.from(container.querySelectorAll
 // jsdom does no layout, so every element measures 0 and swiper collapses all
 // snap points into one (single bullet). Fake fixed dimensions so swiper
 // computes one snap point per slide, matching a real 390 px viewport.
+const originalDims = ['offsetWidth', 'offsetHeight', 'clientWidth', 'clientHeight'].map(
+  (prop) => [prop, Object.getOwnPropertyDescriptor(HTMLElement.prototype, prop)] as const,
+);
+
 beforeEach(() => {
   const dims = { offsetWidth: 390, offsetHeight: 640, clientWidth: 390, clientHeight: 640 };
   for (const [prop, value] of Object.entries(dims)) {
@@ -47,8 +51,12 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  for (const prop of ['offsetWidth', 'offsetHeight', 'clientWidth', 'clientHeight']) {
-    delete (HTMLElement.prototype as unknown as Record<string, unknown>)[prop];
+  for (const [prop, descriptor] of originalDims) {
+    if (descriptor) {
+      Object.defineProperty(HTMLElement.prototype, prop, descriptor);
+    } else {
+      delete (HTMLElement.prototype as unknown as Record<string, unknown>)[prop];
+    }
   }
 });
 
