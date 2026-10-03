@@ -162,6 +162,10 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
         setDefaultCity(location);
         onCitySelect(location);
         toast.success(formatString(t('search.locationUpdated'), location.name));
+      } else {
+        // reverseGeocode can return null (reverse lookup found nothing);
+        // surface that instead of silently no-oping the button press.
+        toast.error(t('search.locationError'));
       }
     } catch (error) {
       // Browser geolocation API failures (permission denied, timeout,

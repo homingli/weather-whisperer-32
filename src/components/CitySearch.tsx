@@ -55,9 +55,10 @@ export function CitySearch({ recentCities = [], onCitySelect, className }: CityS
         toast.error(t('search.locationError'));
       }
     } catch (error) {
-      // Browser geolocation API failures (permission denied, timeout,
-      // unavailable) don't go through the fetch layer, so log here.
-      logWarn('[city-search] getUserLocation failed', error);
+      // Browser geolocation and reverse-geocode failures (permission
+      // denied, timeout, unavailable) don't go through the fetch layer,
+      // so log here.
+      logWarn('[city-search] locate failed', error);
       toast.error(t('search.locationError'));
     } finally {
       setIsLocating(false);
@@ -77,7 +78,6 @@ export function CitySearch({ recentCities = [], onCitySelect, className }: CityS
           onChange={(e) => setQuery(e.target.value)}
           aria-label={t('search.placeholder')}
           className="border-0 bg-transparent p-0 h-auto text-foreground placeholder:text-muted-foreground"
-          autoFocus
         />
       </div>
 
