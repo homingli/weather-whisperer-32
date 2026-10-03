@@ -42,8 +42,8 @@ scripts/audit/shots/
 # Local agent workspace state (not source)
 .zcode/
 
-# Capacitor Android build (generated; contains keystore + machine-local paths)
-android/
+# android/ is tracked source on this branch; machine-local files inside it
+# (keystore.properties, local.properties, build output) are ignored by android/.gitignore.
 scripts/audit/shots-baseline/
 
 # Vitest run artifacts (JSON reporter output)
