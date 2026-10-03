@@ -285,6 +285,27 @@ export const translations: Record<Language, Record<string, string>> = {
     // Settings menu
     'settings.label': 'Settings',
 
+    // Feedback dialog (FeedbackDialog / feedback.ts, HML-44) — in-app
+    // submission via the /api/feedback function into the Linear SUPPORT
+    // team. Diagnostics keys in feedback-diagnostics.ts stay English by
+    // design (developer-facing).
+    'settings.feedback': 'Feedback',
+    'feedback.title': 'Send feedback',
+    'feedback.description': 'Your message goes straight to the developer — device details are attached automatically.',
+    'feedback.type': 'What is it about?',
+    'feedback.type.bug': 'Bug report',
+    'feedback.type.feature': 'Feature request',
+    'feedback.type.question': 'Question',
+    'feedback.message': 'Your message',
+    'feedback.placeholder': 'Describe what happened, or what you wish the app did…',
+    'feedback.send': 'Send',
+    'feedback.sent': 'Feedback sent — thank you!',
+    'feedback.sendFailed': 'Sending failed — try again, or use Copy details',
+    'feedback.offlineHint': 'You are offline — reconnect to send, or copy the details for later.',
+    'feedback.copy': 'Copy details',
+    'feedback.copied': 'Details copied',
+    'feedback.copyFailed': 'Could not copy the details',
+
     // Hourly / daily chart kickers
     'hourly.nextNHours': 'The next {0} hours',
     'daily.lookAhead': 'A look ahead',
@@ -601,6 +622,26 @@ export const translations: Record<Language, Record<string, string>> = {
 
     // Settings menu
     'settings.label': '設定',
+
+    // 意見回饋（FeedbackDialog / feedback.ts，HML-44）— 透過 /api/feedback
+    // 直接在應用程式內提交至 Linear SUPPORT 團隊。
+    // feedback-diagnostics.ts 的診斷鍵值維持英文（開發者閱讀）。
+    'settings.feedback': '意見回饋',
+    'feedback.title': '傳送意見回饋',
+    'feedback.description': '訊息會直接交給開發者，並自動附上裝置資料。',
+    'feedback.type': '關於哪一類？',
+    'feedback.type.bug': '回報問題',
+    'feedback.type.feature': '功能建議',
+    'feedback.type.question': '查詢',
+    'feedback.message': '你的訊息',
+    'feedback.placeholder': '描述遇到的問題，或想要的功能…',
+    'feedback.send': '傳送',
+    'feedback.sent': '已傳送意見，多謝！',
+    'feedback.sendFailed': '傳送失敗 — 請重試，或改用「複製詳情」。',
+    'feedback.offlineHint': '目前離線 — 重新連線後即可傳送，或先複製詳情。',
+    'feedback.copy': '複製詳情',
+    'feedback.copied': '已複製詳情',
+    'feedback.copyFailed': '無法複製詳情',
 
     // Hourly / daily chart kickers
     'hourly.nextNHours': '未來 {0} 小時',

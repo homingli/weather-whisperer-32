@@ -380,3 +380,36 @@ describe('SettingsMenu font-size pill toggle', () => {
     expect(radios.map((r) => r.textContent)).toEqual(['細', '標準', '大']);
   });
 });
+
+describe('SettingsMenu feedback entry (HML-44)', () => {
+  let user: UserEvent;
+
+  beforeEach(() => {
+    localStorage.clear();
+    user = userEvent.setup({ pointerEventsCheck: PointerEventsCheckLevel.Never });
+  });
+
+  const renderMenu = () =>
+    render(
+      <TestProviders>
+        <ThemeProvider>
+          <LanguageProvider>
+            <UnitsProvider>
+              <FontSizeProvider>
+                <SettingsMenu currentCity={noCity} recentCities={noRecent} onCitySelect={() => {}} />
+              </FontSizeProvider>
+            </UnitsProvider>
+          </LanguageProvider>
+        </ThemeProvider>
+      </TestProviders>,
+    );
+
+  it('opens the feedback dialog from the menu item above the data-source credit', async () => {
+    renderMenu();
+    await user.click(screen.getByRole('button', { name: /settings/i }));
+    await user.click(screen.getByRole('menuitem', { name: 'Feedback' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Bug report' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
+  });
+});
