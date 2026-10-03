@@ -56,17 +56,17 @@ const WIDTHS = [
 ];
 
 const CITIES = {
-  // Hong Kong — HKO + OM merge, 3 swiper slides (HK rainfall map), PRD box.
+  // Hong Kong — HKO + OM merge, 4 swiper slides (HK rainfall map), PRD box.
   hk: { name: "Hong Kong", latitude: 22.32, longitude: 114.17, country: "HK", admin1: "" },
-  // Vancouver — in the MSC rainfall region, 3 slides (MSC map).
+  // Vancouver — in the MSC rainfall region, 4 slides (MSC map).
   van: { name: "Vancouver", latitude: 49.25, longitude: -123.12, country: "CA", admin1: "BC" },
-  // San Francisco — non-region control, 2 slides, OM-only.
+  // San Francisco — non-region control, 3 slides, OM-only.
   sf: { name: "San Francisco", latitude: 37.77, longitude: -122.42, country: "US", admin1: "California" },
 };
 
 /* City key per state — used to seed localStorage before the app boots. */
 const STATE_CITY = {
-  "hk-main": "hk", "hk-map": "hk", "hk-settings": "hk", "hk-alerts": "hk", "hk-cache-banner": "hk",
+  "hk-main": "hk", "hk-map": "hk", "hk-hourly": "hk", "hk-daily": "hk", "hk-settings": "hk", "hk-alerts": "hk", "hk-cache-banner": "hk",
   "van-main": "van", "van-map": "van",
   "sf-main": "sf", "sf-cache-banner": "sf",
 };
@@ -74,13 +74,15 @@ const STATE_CITY = {
 /* STATES × city mapping. Each state is a page-load script that returns
  * nothing; the caller measures + screenshots after it resolves. */
 const STATES = {
-  "hk-main": async (ctx) => ctx.go(CITIES.hk, { slides: 3 }),
-  "van-main": async (ctx) => ctx.go(CITIES.van, { slides: 3 }),
-  "sf-main": async (ctx) => ctx.go(CITIES.sf, { slides: 2 }),
-  "hk-map": async (ctx) => { await ctx.go(CITIES.hk, { slides: 3 }); await ctx.slideTo(2); },
-  "van-map": async (ctx) => { await ctx.go(CITIES.van, { slides: 3 }); await ctx.slideTo(2); },
-  "hk-settings": async (ctx) => { await ctx.go(CITIES.hk, { slides: 3 }); await ctx.openSettings(); },
-  "hk-alerts": async (ctx) => { await ctx.go(CITIES.hk, { slides: 3 }); await ctx.addDevWarnings(); },
+  "hk-main": async (ctx) => ctx.go(CITIES.hk, { slides: 4 }),
+  "van-main": async (ctx) => ctx.go(CITIES.van, { slides: 4 }),
+  "sf-main": async (ctx) => ctx.go(CITIES.sf, { slides: 3 }),
+  "hk-map": async (ctx) => { await ctx.go(CITIES.hk, { slides: 4 }); await ctx.slideTo(3); },
+  "van-map": async (ctx) => { await ctx.go(CITIES.van, { slides: 4 }); await ctx.slideTo(3); },
+  "hk-hourly": async (ctx) => { await ctx.go(CITIES.hk, { slides: 4 }); await ctx.slideTo(1); },
+  "hk-daily": async (ctx) => { await ctx.go(CITIES.hk, { slides: 4 }); await ctx.slideTo(2); },
+  "hk-settings": async (ctx) => { await ctx.go(CITIES.hk, { slides: 4 }); await ctx.openSettings(); },
+  "hk-alerts": async (ctx) => { await ctx.go(CITIES.hk, { slides: 4 }); await ctx.addDevWarnings(); },
   "hk-cache-banner": async (ctx) => { await ctx.primeThenGoOffline(CITIES.hk); },
   "sf-cache-banner": async (ctx) => { await ctx.primeThenGoOffline(CITIES.sf); },
 };
@@ -545,6 +547,9 @@ class RunContext {
       // elements that can push the page itself wider are offenders.
       for (const el of document.querySelectorAll("body *")) {
         if (el.closest(".swiper-slide:not(.swiper-slide-active)")) continue;
+        // sr-only content is visually clipped by design; its geometry
+        // (a table can't shrink below min-content width) is not user-visible.
+        if (el.closest(".sr-only")) continue;
         const rect = el.getBoundingClientRect();
         if (rect.width < 2 || rect.height < 2) continue;
         const cs = getComputedStyle(el);

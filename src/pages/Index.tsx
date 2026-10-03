@@ -68,6 +68,12 @@ const PLACEHOLDER_CURRENT = {
   weatherCode: 3,
 };
 
+// Mobile deck slide indices — must match the child order passed to
+// MobileSwiperDeck below (0 = current weather, 1 = hourly, 2 = 7-day,
+// 3 = rainfall map when the city is inside nowcast coverage).
+const DECK_DAILY_SLIDE = 2;
+const DECK_NOWCAST_SLIDE = 3;
+
 const Index = () => {
   const { language, t } = useLanguage();
   // API/content lang is 'tc' for Traditional Chinese, 'en' for everything else.
@@ -200,21 +206,21 @@ const Index = () => {
 
   const revealDailyForecast = useCallback(() => {
     if (isMobile) {
-      mobileSwiperRef.current?.slideTo(1, 400);
+      mobileSwiperRef.current?.slideTo(DECK_DAILY_SLIDE, 400);
       return;
     }
     dailySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [isMobile]);
 
-  // The glance strip's rain chips jump to the nowcast pane instead: deck
-  // slide 3 on mobile (index 2), the bottom map section on desktop. Only
-  // wired when the city is inside nowcast coverage — elsewhere the chips
-  // degrade to static text.
+  // The glance strip's rain chips jump to the nowcast pane instead: the map
+  // slide on mobile (index 3), the bottom map section on desktop. Only wired
+  // when the city is inside nowcast coverage — elsewhere the chips degrade
+  // to static text.
   const nowcastSectionRef = useRef<HTMLDivElement | null>(null);
 
   const revealNowcast = useCallback(() => {
     if (isMobile) {
-      mobileSwiperRef.current?.slideTo(2, 400);
+      mobileSwiperRef.current?.slideTo(DECK_NOWCAST_SLIDE, 400);
       return;
     }
     nowcastSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -399,21 +405,19 @@ const Index = () => {
                         headline={weather.headline}
                       />
 
-                      {/* Slide 2: Hourly (top) + 7-day (bottom) split 50/50 */}
-                      <div className="flex flex-col gap-3 h-full">
-                        <div className="flex-1 min-h-0">
-                          <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 glass-card" />}>
-                            <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} />
-                          </Suspense>
-                        </div>
-                        <div className="flex-1 min-h-0">
-                          <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20" />}>
-                            <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={shareCityLabel} />
-                          </Suspense>
-                        </div>
-                      </div>
+                      {/* Slide 2: Hourly forecast, full height */}
+                      <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 glass-card" />}>
+                        <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} />
+                      </Suspense>
 
-                      {/* Slide 3: Rainfall map (PRD or Vancouver) */}
+                      {/* Slide 3: 7-day forecast, full height (own slide so the
+                          7-column strip keeps enough width at 320–390 px
+                          instead of squeezing beside/above hourly) */}
+                      <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20" />}>
+                        <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={shareCityLabel} />
+                      </Suspense>
+
+                      {/* Slide 4: Rainfall map (PRD or Vancouver) */}
                       {nowcastVisible && (
                         <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 glass-card" />}>
                           {useMSCNowcast ? (
