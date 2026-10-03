@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { LanguageProvider, useLanguage } from './LanguageContext';
+import { useLanguage } from './LanguageContext';
+import { LanguageProvider } from './LanguageProvider';
 
 describe('LanguageContext.t', () => {
   beforeEach(() => {

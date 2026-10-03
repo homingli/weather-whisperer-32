@@ -132,7 +132,7 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
     });
 
     return { chartData: rows, yDomainMin: yMin, yDomainMax: yMax };
-  }, [forecast, formatDayLine1, formatDayLine2]);
+  }, [forecast, formatDayLine1, formatDayLine2, language]);
 
   // Entrance animation handled by @keyframes in src/index.css
   // (.df-rule, .df-chart) under @media (prefers-reduced-motion: no-preference).

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { render, screen, act } from '@testing-library/react';
 import { LocalClock } from './LocalClock';
-import { LanguageProvider } from '@/contexts/LanguageContext';
+
 
 const renderWithLanguage = (ui: React.ReactElement) =>
   render(<LanguageProvider>{ui}</LanguageProvider>);

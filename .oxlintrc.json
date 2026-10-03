@@ -21,6 +21,21 @@
     "dist",
     "android"
   ],
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "set-state-in-effect": "off",
+        "set-state-in-render": "off",
+        "globals": "off",
+        "refs": "off",
+        "purity": "off",
+        "immutability": "off",
+        "static-components": "off",
+        "react/only-export-components": "off"
+      }
+    }
+  ],
   "rules": {
     "ban-ts-comment": "error",
     "no-array-constructor": "error",

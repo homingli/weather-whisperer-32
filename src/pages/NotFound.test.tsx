@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { LanguageProvider } from '@/contexts/LanguageContext';
+
 import NotFound from './NotFound';
 
 function render404() {

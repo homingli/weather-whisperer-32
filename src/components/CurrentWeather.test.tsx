@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { UnitsProvider } from '@/contexts/UnitsProvider';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { render, screen, act } from '@testing-library/react';
 import { CurrentWeather } from './CurrentWeather';
-import { LanguageProvider } from '@/contexts/LanguageContext';
-import { UnitsProvider, useUnits } from '@/contexts/UnitsContext';
+
+import { useUnits } from '@/contexts/UnitsContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { CurrentWeather as CurrentWeatherType, HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from '@/lib/weather';
 

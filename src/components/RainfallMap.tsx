@@ -1,7 +1,8 @@
 import { lazy, Suspense, useState, useEffect, useMemo, Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { CloudRain, RefreshCw } from 'lucide-react';
-import { LanguageContext, useLanguage } from '@/contexts/LanguageContext';
+import { LanguageContext } from '@/contexts/language-context';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { readNowcastCache } from '@/lib/nowcastCache';
 import { logFailure } from '@/lib/log';
 

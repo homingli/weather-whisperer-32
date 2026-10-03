@@ -1,7 +1,8 @@
 import { lazy, Suspense, Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { CloudRain } from 'lucide-react';
-import { LanguageContext, useLanguage } from '@/contexts/LanguageContext';
+import { LanguageContext } from '@/contexts/language-context';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { logFailure } from '@/lib/log';
 
 // The MSC map pulls MapLibre into the lazy chunk so the map bundle is only fetched

@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { UnitsProvider } from '@/contexts/UnitsProvider';
+import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { render, screen } from '@testing-library/react';
 import { CurrentWeather } from '@/components/CurrentWeather';
 import { HourlyForecast } from '@/components/HourlyForecast';
 import { LocalClock } from '@/components/LocalClock';
-import { LanguageProvider } from '@/contexts/LanguageContext';
-import { UnitsProvider } from '@/contexts/UnitsContext';
+
+
 import { CurrentWeather as CurrentWeatherType, HourlyForecast as HourlyForecastType } from '@/lib/weather';
 
 const mockWeather: CurrentWeatherType = {
