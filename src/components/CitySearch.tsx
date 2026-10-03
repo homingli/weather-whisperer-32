@@ -2,11 +2,10 @@ import { useState } from 'react';
 import { LocateFixed, MapPin, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useCitySearch } from '@/hooks/useCitySearch';
-import { useLanguage, formatString } from '@/contexts/LanguageContext';
-import { GeoLocation, getUserLocation, reverseGeocode } from '@/lib/weather';
-import { logWarn } from '@/lib/log';
+import { useLocateCity } from '@/hooks/useLocateCity';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { GeoLocation } from '@/lib/weather';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 
 interface CitySearchProps {
   /** Saved recent cities offered as one-tap shortcuts before any query. */
@@ -26,7 +25,7 @@ interface CitySearchProps {
 export function CitySearch({ recentCities = [], onCitySelect, className }: CitySearchProps) {
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
-  const [isLocating, setIsLocating] = useState(false);
+  const { isLocating, locate } = useLocateCity(onCitySelect);
   const { data: results, isFetching, isPlaceholderData } = useCitySearch(query);
 
   // Used by both the spinner show-if and the empty-state show-if below;
@@ -40,31 +39,10 @@ export function CitySearch({ recentCities = [], onCitySelect, className }: CityS
     setQuery('');
   };
 
-  const handleUseLocation = async () => {
-    if (isLocating) return;
-    setIsLocating(true);
-    try {
-      const coords = await getUserLocation();
-      const location = await reverseGeocode(coords.latitude, coords.longitude);
-      if (location) {
-        onCitySelect(location);
-        toast.success(formatString(t('search.locationUpdated'), location.name));
-      } else {
-        // reverseGeocode can return null (reverse lookup found nothing);
-        // surface that instead of silently no-oping the button press.
-        toast.error(t('search.locationError'));
-      }
-    } catch (error) {
-      // Browser geolocation and reverse-geocode failures (permission
-      // denied, timeout, unavailable) don't go through the fetch layer,
-      // so log here.
-      logWarn('[city-search] locate failed', error);
-      toast.error(t('search.locationError'));
-    } finally {
-      setIsLocating(false);
-    }
-  };
-
+  // Recents are unreachable in the live app today — useSelectedCity always
+  // sets recentCities together with a selected city, so the empty state only
+  // ever sees an empty list. Kept per HML-58 spec so the panel works
+  // unchanged once a "clear saved location" path exists.
   const recents = recentCities.slice(0, 3);
 
   return (
@@ -127,7 +105,7 @@ export function CitySearch({ recentCities = [], onCitySelect, className }: CityS
             </div>
           )}
           <button
-            onClick={handleUseLocation}
+            onClick={() => locate()}
             disabled={isLocating}
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
           >

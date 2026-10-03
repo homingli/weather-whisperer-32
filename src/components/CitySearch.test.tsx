@@ -101,6 +101,18 @@ describe('CitySearch (landing empty-state search, HML-58)', () => {
     await waitFor(() => expect(onCitySelect).toHaveBeenCalledWith(hongKong));
   });
 
+  it('shows an error and recovers when reverse geocoding finds nothing', async () => {
+    vi.mocked(getUserLocation).mockResolvedValue({ latitude: 0, longitude: 0 });
+    vi.mocked(reverseGeocode).mockResolvedValue(null);
+    renderSearch();
+
+    const locateButton = screen.getByRole('button', { name: /use current location/i });
+    await user.click(locateButton);
+
+    await waitFor(() => expect(locateButton).not.toBeDisabled());
+    expect(onCitySelect).not.toHaveBeenCalled();
+  });
+
   it('keeps the panel usable when geolocation fails', async () => {
     vi.mocked(getUserLocation).mockRejectedValue(new Error('denied'));
     renderSearch();

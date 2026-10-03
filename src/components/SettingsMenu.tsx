@@ -15,10 +15,10 @@ import { useLanguage, Language, formatString } from '@/contexts/LanguageContext'
 import { useUnits, Units } from '@/contexts/UnitsContext';
 import { useFontSize, FontSize } from '@/contexts/FontSizeContext';
 import { useCitySearch } from '@/hooks/useCitySearch';
+import { useLocateCity } from '@/hooks/useLocateCity';
 import { isInHongKong } from '@/lib/hko-weather';
 import { cn } from '@/lib/utils';
-import { GeoLocation, getUserLocation, reverseGeocode, setDefaultCity } from '@/lib/weather';
-import { logWarn } from '@/lib/log';
+import { GeoLocation, setDefaultCity } from '@/lib/weather';
 import { FeedbackDialog } from '@/components/FeedbackDialog';
 import { toast } from 'sonner';
 
@@ -128,7 +128,10 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [query, setQuery] = useState('');
   const { data: results, isFetching, isPlaceholderData } = useCitySearch(query);
-  const [isLocating, setIsLocating] = useState(false);
+  // Shared with the landing CitySearch (HML-58) — one locate flow, no drift.
+  // onCitySelect (handleCitySelect) persists the default city, so no separate
+  // setDefaultCity call here.
+  const { isLocating, locate } = useLocateCity(onCitySelect);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefreshData = async () => {
@@ -151,30 +154,6 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
     light: language === 'tc' ? '淺色' : 'Light',
     dark: language === 'tc' ? '深色' : 'Dark',
     auto: language === 'tc' ? '自動' : 'Auto',
-  };
-
-  const handleRefreshLocation = async () => {
-    setIsLocating(true);
-    try {
-      const coords = await getUserLocation();
-      const location = await reverseGeocode(coords.latitude, coords.longitude);
-      if (location) {
-        setDefaultCity(location);
-        onCitySelect(location);
-        toast.success(formatString(t('search.locationUpdated'), location.name));
-      } else {
-        // reverseGeocode can return null (reverse lookup found nothing);
-        // surface that instead of silently no-oping the button press.
-        toast.error(t('search.locationError'));
-      }
-    } catch (error) {
-      // Browser geolocation API failures (permission denied, timeout,
-      // unavailable) don't go through the fetch layer, so log here.
-      logWarn('[settings] getUserLocation failed', error);
-      toast.error(t('search.locationError'));
-    } finally {
-      setIsLocating(false);
-    }
   };
 
   const handleSelectCity = (city: GeoLocation) => {
@@ -224,7 +203,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
               Units/Language pills below). */}
           <div className="mx-2 mb-1 flex overflow-hidden rounded-md border border-border bg-background">
             <DropdownMenuItem
-              onClick={handleRefreshLocation}
+              onClick={() => locate()}
               disabled={isLocating}
               aria-label={t('search.useLocation')}
               title={t('search.useLocation')}
@@ -349,7 +328,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
                 results during a query-key change, the prior results stay
                 visible — no spinner blink. */}
             {isFetching && !isPlaceholderData && trimmedLen >= 2 ? (
-                <div className="p-4 text-center text-muted-foreground">{t('search.searching')}</div>
+                <div className="p-4 text-center text-muted-foreground" role="status">{t('search.searching')}</div>
               ) : results.length > 0 ? (
               <ul className="divide-y divide-border/30">
                 {results.map((city, index) => (
@@ -370,7 +349,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
                 ))}
               </ul>
               ) : trimmedLen >= 2 ? (
-                <div className="p-4 text-center text-muted-foreground">{t('search.noResults')}</div>
+                <div className="p-4 text-center text-muted-foreground" role="status">{t('search.noResults')}</div>
               ) : null}
           </div>
         </DialogContent>
