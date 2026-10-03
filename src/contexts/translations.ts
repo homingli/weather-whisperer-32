@@ -352,6 +352,12 @@ export const translations: Record<Language, Record<string, string>> = {
     // At-a-glance rain chip — jumps to the nowcast pane (see AtAGlance).
     'glance.rainAria': 'Rain chance {0}%. View the rainfall nowcast map.',
     'glance.rainTitle': 'View rainfall nowcast',
+
+    // At-a-glance holiday chip — static countdown (see AtAGlance).
+    // "Tomorrow" has its own phrasing so {0} in holidayIn is always ≥ 2.
+    'glance.holidayIn': '{0} days to {1}',
+    'glance.holidayTomorrow': 'Tomorrow: {0}',
+    'glance.holidayToday': 'Today: {0}',
   },
   tc: {
     // Header
@@ -688,5 +694,11 @@ export const translations: Record<Language, Record<string, string>> = {
     // At-a-glance 降雨標籤 — 跳至降雨即時預報面板（見 AtAGlance）。
     'glance.rainAria': '降雨機率 {0}%。查看降雨即時預報地圖。',
     'glance.rainTitle': '查看降雨即時預報',
+
+    // At-a-glance 假期標籤 — 靜態倒數（見 AtAGlance）。
+    // 「明日」獨立措辭，holidayIn 的 {0} 只會是 ≥ 2。
+    'glance.holidayIn': '仲有{0}天到{1}',
+    'glance.holidayTomorrow': '明日：{0}',
+    'glance.holidayToday': '今日：{0}',
   },
 };

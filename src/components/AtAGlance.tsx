@@ -9,7 +9,8 @@ import { useUnits } from '@/contexts/UnitsContext';
 import { formatTemperature } from '@/lib/units';
 import type { Units } from '@/lib/units';
 import { SENTINEL_THRESHOLD } from '@/lib/constants';
-import { Droplets } from 'lucide-react';
+import { Droplets, PartyPopper } from 'lucide-react';
+import type { HolidayCountdown } from '@/lib/holidays/nextHoliday';
 
 /**
  * "Today + tomorrow at a glance" — a thin, low-weight strip summarising
@@ -34,9 +35,12 @@ import { Droplets } from 'lucide-react';
  * (aria-hidden) so a wrapped line never ends with a dangling dot. Buttons
  * carry full-sentence `aria-label`s so screen readers never hear a bare
  * "80 %" without context.
+ *
+ * An optional HK-only holiday countdown (see HolidayChip) rides at the end
+ * of the row as static text, carrying its own leading `·`.
  */
 export const AtAGlance = memo(
-  ({ today, tomorrow, onReveal, onRevealNowcast }: AtAGlanceProps) => {
+  ({ today, tomorrow, onReveal, onRevealNowcast, holiday }: AtAGlanceProps) => {
     const { t } = useLanguage();
     const { units } = useUnits();
 
@@ -68,6 +72,7 @@ export const AtAGlance = memo(
             onRevealNowcast={onRevealNowcast}
           />
         ))}
+        {holiday && <HolidayChip holiday={holiday} />}
       </div>
     );
   },
@@ -85,6 +90,9 @@ interface AtAGlanceProps {
   /** Jumps to the nowcast pane (map slide / section scroll). Absent when the
    *  city is outside nowcast coverage — rain chips then render as static text. */
   onRevealNowcast?: () => void;
+  /** HK-only holiday countdown. Undefined (non-HK city, loading, or fetch
+   *  failure) hides the chip — same self-hiding contract as the AQHI data. */
+  holiday?: HolidayCountdown;
 }
 
 /** One day's strip content: a temperature button (kicker, icon, low/high)
@@ -183,5 +191,31 @@ function RainChip({
     >
       {content}
     </button>
+  );
+}
+
+/** The HK holiday countdown chip: static text (there is no pane it could
+ *  open), reading the holiday name in the active UI language. "Tomorrow"
+ *  gets its own phrasing so the plural template only ever sees ≥ 2. The
+ *  leading `·` travels with the chip like the rain chip's does. */
+function HolidayChip({ holiday }: { holiday: HolidayCountdown }) {
+  const { t, language } = useLanguage();
+  const name = language === 'tc' ? holiday.holiday.nameTc : holiday.holiday.nameEn;
+  const text = holiday.isToday
+    ? formatString(t('glance.holidayToday'), name)
+    : holiday.daysUntil === 1
+      ? formatString(t('glance.holidayTomorrow'), name)
+      : formatString(t('glance.holidayIn'), holiday.daysUntil, name);
+
+  return (
+    <span className="inline-flex items-center gap-x-1.5 text-foreground/90">
+      <span aria-hidden="true">·</span>
+      <PartyPopper
+        className="h-3.5 w-3.5"
+        strokeWidth={1.75}
+        aria-hidden="true"
+      />
+      {text}
+    </span>
   );
 }
