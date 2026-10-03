@@ -56,6 +56,8 @@ describe('FeedbackDialog (HML-44)', () => {
     expect(body).toContain('App: Weather Whisperer');
     expect(body).toContain('Language: en');
     expect(body).toContain('Platform:'); // user agent line
+    expect(body).toContain('\r\n'); // RFC 6068 — CRLF, not bare LF
+    expect(body).not.toMatch(/[^\r]\n/); // no stray bare-LF lines survive
   });
 
   it('copies the diagnostics block to the clipboard', async () => {

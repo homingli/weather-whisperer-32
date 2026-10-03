@@ -40,9 +40,13 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
     if (open) reportFeedbackEvent('feedback.open');
   }, [open]);
 
-  const draft = buildFeedbackDraft(type, language);
+  // Build only while open — the dialog stays mounted under SettingsMenu, so
+  // an unconditional build would re-run (and re-timestamp) on every parent
+  // render while closed.
+  const draft = open ? buildFeedbackDraft(type, language) : null;
 
   const handleCopy = async () => {
+    if (!draft) return;
     try {
       if (!navigator.clipboard) throw new Error('Clipboard API unavailable');
       await navigator.clipboard.writeText(draft.diagnostics);
@@ -91,7 +95,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button asChild className="min-h-11 flex-1">
-            <a href={draft.href} onClick={() => reportFeedbackEvent('feedback.email', type)}>
+            <a href={draft?.href ?? '#'} onClick={() => reportFeedbackEvent('feedback.email', type)}>
               <Mail aria-hidden="true" />
               {t('feedback.send')}
             </a>

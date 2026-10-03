@@ -21,33 +21,38 @@ function isStandalone(): boolean {
 
 /**
  * Collect the device context and render it as a plain-text block, ready
- * for a mailto body or the clipboard. Never throws — a missing API (e.g.
- * matchMedia in some embedded webviews) degrades that line, not the flow.
+ * for a mailto body or the clipboard. Never throws — an exotic webview
+ * missing an API degrades the whole block to a one-line marker rather
+ * than breaking the feedback flow.
  */
 export function collectFeedbackDiagnostics(language: string): string {
-  // Build identity: the build timestamp matters more than the version here
-  // (package.json sits at 0.0.0) — stale-PWA reports are the bug class to
-  // pin down, and the timestamp tells a stale install at a glance.
-  const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'unknown';
-  const buildTime = typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'unknown';
-  const timezone = (() => {
-    try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown';
-    } catch {
-      return 'unknown';
-    }
-  })();
+  try {
+    // Build identity: the build timestamp matters more than the version here
+    // (package.json sits at 0.0.0) — stale-PWA reports are the bug class to
+    // pin down, and the timestamp tells a stale install at a glance.
+    const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'unknown';
+    const buildTime = typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'unknown';
+    const timezone = (() => {
+      try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown';
+      } catch {
+        return 'unknown';
+      }
+    })();
 
-  return [
-    '--- Auto-filled device details (please keep) ---',
-    `App: Weather Whisperer ${appVersion} (built ${buildTime})`,
-    `Language: ${language}`,
-    `Online: ${navigator.onLine ? 'yes' : 'no'}`,
-    `Display: ${isStandalone() ? 'installed app' : 'browser tab'}`,
-    `Viewport: ${window.innerWidth}x${window.innerHeight} @${window.devicePixelRatio}x`,
-    `Platform: ${navigator.userAgent}`,
-    `Timezone: ${timezone}`,
-    `Page: ${window.location.href}`,
-    `Sent: ${new Date().toISOString()}`,
-  ].join('\n');
+    return [
+      '--- Auto-filled device details (please keep) ---',
+      `App: Weather Whisperer ${appVersion} (built ${buildTime})`,
+      `Language: ${language}`,
+      `Online: ${navigator.onLine ? 'yes' : 'no'}`,
+      `Display: ${isStandalone() ? 'installed app' : 'browser tab'}`,
+      `Viewport: ${window.innerWidth}x${window.innerHeight} @${window.devicePixelRatio}x`,
+      `Platform: ${navigator.userAgent}`,
+      `Timezone: ${timezone}`,
+      `Page: ${window.location.href}`,
+      `Sent: ${new Date().toISOString()}`,
+    ].join('\n');
+  } catch {
+    return '--- Device details unavailable (collection failed) ---';
+  }
 }

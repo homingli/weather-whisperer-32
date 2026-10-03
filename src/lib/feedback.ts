@@ -39,8 +39,9 @@ export function buildFeedbackDraft(type: FeedbackType, language: string): Feedba
   const subject = `${SUBJECT_PREFIX[type]} Weather Whisperer`;
   // Leave the top of the body empty — that is where the user types. Encode
   // manually (not URLSearchParams) so spaces stay %20; some mail clients
-  // render a literal '+' from query-encoded spaces.
-  const body = `\n\n———\n${diagnostics}`;
+  // render a literal '+' from query-encoded spaces. RFC 6068 requires CRLF
+  // line breaks: bare LF collapses to one line in Outlook desktop.
+  const body = `\n\n———\n${diagnostics}`.replace(/\n/g, '\r\n');
   return {
     href: `mailto:${LINEAR_INTAKE_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
     diagnostics,
