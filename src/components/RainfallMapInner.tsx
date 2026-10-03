@@ -81,7 +81,7 @@ const fetchRainfallNowcast = async (
   if (isNativePlatform()) {
     const { text, lastModified: lm } = await nativeHttpGetText(
       NOWCAST_ORIGIN_URL,
-      TIMING.NOWCAST_TIMEOUT_MS,
+      TIMING.NOWCAST_STALL_TIMEOUT_MS,
     );
     const parsed = parseRainfallCSVText(text);
     scheduleCacheWrite(parsed.rows, parsed.updateTime, lm);
