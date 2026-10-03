@@ -1,6 +1,7 @@
 # Weather Whisperer — Android APK build & release shortcuts (mobile branch)
 #
 #   make help         list targets (this is also the default)
+#   make all          bump + release — full flow; patch default; MINOR=1, MAJOR=1, VERSION=x.y[.z]
 #   make bump         bump version + commit & push — patch default; MINOR=1, MAJOR=1, VERSION=x.y[.z]
 #   make apk          debug APK (fast, debug-signed)
 #   make apk-release  release APK, signed via android/keystore.properties
@@ -36,11 +37,20 @@ ifneq ($(filter 1,$(MAJOR)),)
 BUMP_FLAGS += --major
 endif
 
-.PHONY: help bump apk apk-release upload release icons clean
+.PHONY: help all bump apk apk-release upload release icons clean
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) \
 		| awk '{ i = index($$0, "## "); printf "  \033[36m%-14s\033[0m %s\n", substr($$1, 1, length($$1) - 1), substr($$0, i + 3) }'
+
+# Sub-makes on purpose: VERSION is parsed from build.gradle when make starts,
+# so `release` must be a fresh make run AFTER bump rewrites it — a prerequisite
+# chain (`all: bump release`) would build and upload the pre-bump version.
+# Sub-makes also keep the ordering safe under `make -j`, and MINOR/MAJOR/VERSION
+# from the command line flow into both via MAKEFLAGS.
+all: ## bump (patch default; MINOR=1, MAJOR=1, VERSION=x.y[.z]) then release
+	$(MAKE) bump
+	$(MAKE) release
 
 bump: ## bump version, commit & push (patch default; MINOR=1, MAJOR=1, VERSION=x.y[.z])
 	@node scripts/bump-version.mjs $(BUMP_FLAGS)
