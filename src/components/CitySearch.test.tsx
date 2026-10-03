@@ -74,6 +74,14 @@ describe('CitySearch (landing empty-state search, HML-58)', () => {
     expect(screen.queryByRole('button', { name: /London England, GB/i })).not.toBeInTheDocument();
   });
 
+  it('does not query the geocoding API below the 2-character gate', async () => {
+    vi.mocked(searchCities).mockResolvedValue([]);
+    renderSearch();
+
+    await user.type(screen.getByRole('textbox', { name: /search for a city/i }), 'x');
+    expect(searchCities).not.toHaveBeenCalled();
+  });
+
   it('shows a no-results message when the search finds nothing', async () => {
     vi.mocked(searchCities).mockResolvedValue([]);
     renderSearch();

@@ -49,6 +49,10 @@ export function CitySearch({ recentCities = [], onCitySelect, className }: CityS
       if (location) {
         onCitySelect(location);
         toast.success(formatString(t('search.locationUpdated'), location.name));
+      } else {
+        // reverseGeocode can return null (reverse lookup found nothing);
+        // surface that instead of silently no-oping the button press.
+        toast.error(t('search.locationError'));
       }
     } catch (error) {
       // Browser geolocation API failures (permission denied, timeout,
@@ -101,7 +105,7 @@ export function CitySearch({ recentCities = [], onCitySelect, className }: CityS
           ))}
         </ul>
       ) : trimmedLen >= 2 ? (
-        <div className="py-4 text-center text-muted-foreground">{t('search.noResults')}</div>
+        <div className="py-4 text-center text-muted-foreground" role="status">{t('search.noResults')}</div>
       ) : null}
 
       {/* Shortcuts only make sense before a query narrows the results. */}

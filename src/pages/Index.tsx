@@ -42,8 +42,9 @@ const WeatherBanners = lazy(() => import('@/components/WeatherBanners').then(mod
 const WeatherAlerts = lazy(() => import('@/components/WeatherAlerts').then(module => ({ default: module.WeatherAlerts })));
 // CitySearch backs the landing empty state (HML-58): when the geolocation
 // prompt is denied the page must offer an inline search, not a dead welcome
-// card. Lazy like SettingsMenu so the Input primitive + geocoding helpers
-// stay out of the initial chunk.
+// card. Lazy like SettingsMenu so the Input primitive and the CitySearch
+// module itself stay out of the initial chunk (the geocoding helpers are
+// already in it via the eager useSelectedCity import).
 const CitySearch = lazy(() => import('@/components/CitySearch').then(module => ({ default: module.CitySearch })));
 // The mobile swipe deck (swiper/react + Pagination, ~27 kB gzip) is only
 // rendered at <=1080px. Isolating it in its own lazy chunk keeps swiper out
