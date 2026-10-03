@@ -1,12 +1,10 @@
-@import '@fontsource/outfit/300.css' layer(base);
-@import '@fontsource/outfit/400.css' layer(base);
-@import '@fontsource/outfit/500.css' layer(base);
-@import '@fontsource/outfit/700.css' layer(base);
-@import '@fontsource/playfair-display/latin-400.css' layer(base);
-@import '@fontsource/playfair-display/latin-500.css' layer(base);
-@import '@fontsource/playfair-display/latin-600.css' layer(base);
-@import '@fontsource/playfair-display/latin-700.css' layer(base);
-@import '@fontsource/playfair-display/latin-400-italic.css' layer(base);
+/*
+ * Fontsource fonts are imported in main.tsx, not here. Tailwind v4's PostCSS
+ * plugin inlines CSS @imports but does not rewrite or emit the nested
+ * url(./files/*.woff2) references, so fonts imported this way 404 in dev and
+ * prod and the CSS ships dangling @font-face rules. JS imports go through
+ * Vite's own CSS pipeline, which resolves the paths and emits hashed assets.
+ */
 
 /* Swiper carousel for mobile card deck */
 @import 'swiper/css' layer(base);

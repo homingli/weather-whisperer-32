@@ -45,3 +45,6 @@ scripts/audit/shots/
 # Capacitor Android build (generated; contains keystore + machine-local paths)
 android/
 scripts/audit/shots-baseline/
+
+# Vitest run artifacts (JSON reporter output)
+.vitest/
