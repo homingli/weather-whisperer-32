@@ -72,7 +72,7 @@ function SeverityBanner({
   const c = SEVERITY_CLASSES[severity];
   return (
     <div
-      className={`glass-card ${c.border} ${c.bg} p-4 rounded-xl flex items-start gap-3 ${c.text} animate-fade-in`}
+      className={`editorial-card ${c.border} ${c.bg} p-4 rounded-xl flex items-start gap-3 ${c.text} animate-fade-in`}
       data-testid={testId}
       role={role}
     >
