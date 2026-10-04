@@ -47,7 +47,7 @@ export function CitySearch({ recentCities = [], onCitySelect, className }: CityS
 
   return (
     <div className={cn('w-full max-w-md mx-auto text-left', className)}>
-      <div className="flex items-center gap-3 glass-card rounded-xl px-4 py-3">
+      <div className="flex items-center gap-3 editorial-card rounded-xl px-4 py-3">
         <Search className="h-5 w-5 text-muted-foreground shrink-0" aria-hidden="true" />
         <Input
           type="text"
@@ -64,7 +64,7 @@ export function CitySearch({ recentCities = [], onCitySelect, className }: CityS
       {isFetching && !isPlaceholderData && trimmedLen >= 2 ? (
         <div className="py-4 text-center text-muted-foreground" role="status">{t('search.searching')}</div>
       ) : results.length > 0 ? (
-        <ul className="glass-card rounded-xl mt-2 divide-y divide-border/30 overflow-hidden">
+        <ul className="editorial-card rounded-xl mt-2 divide-y divide-border/30 overflow-hidden">
           {results.map((city, index) => (
             <li key={`${city.name}-${city.latitude}-${city.longitude}-${index}`}>
               <button

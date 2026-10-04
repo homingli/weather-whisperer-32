@@ -350,7 +350,7 @@ const Index = () => {
           ) : isLoading ? (
             <FetchingStatus loadProgress={loadProgress} isHKCovered={isHKCovered} />
           ) : !weather && error ? (
-            <div className="text-center py-20 glass-card">
+            <div className="text-center py-20 editorial-card">
               <p className="text-lg text-destructive mb-2">{t('loading.failed')}</p>
               <p className="text-base text-muted-foreground">{t('loading.tryAgain')}</p>
             </div>
@@ -406,7 +406,7 @@ const Index = () => {
                       />
 
                       {/* Slide 2: Hourly forecast, full height */}
-                      <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 glass-card" />}>
+                      <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 editorial-card" />}>
                         <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} />
                       </Suspense>
 
@@ -419,7 +419,7 @@ const Index = () => {
 
                       {/* Slide 4: Rainfall map (PRD or Vancouver) */}
                       {nowcastVisible && (
-                        <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 glass-card" />}>
+                        <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 editorial-card" />}>
                           {useMSCNowcast ? (
                             <MSCRainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
                           ) : (

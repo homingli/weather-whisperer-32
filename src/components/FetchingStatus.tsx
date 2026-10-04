@@ -14,7 +14,7 @@ export function FetchingStatus({ loadProgress, isHKCovered }: FetchingStatusProp
 
   return (
     <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
-      <div className="glass-card p-8 border border-primary/10 w-full max-w-lg flex flex-col items-center gap-6">
+      <div className="editorial-card p-8 border border-primary/10 w-full max-w-lg flex flex-col items-center gap-6">
         {/* Animated cloud icon */}
         <div className="relative">
           <CloudRain className="h-16 w-16 text-primary animate-pulse" />

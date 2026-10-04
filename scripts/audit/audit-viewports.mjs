@@ -509,7 +509,7 @@ class RunContext {
       const body = document.body;
       const iw = window.innerWidth;
       const activeSlide = document.querySelector(".swiper-slide-active");
-      const card = activeSlide?.querySelector(".editorial-card, .glass-card");
+      const card = activeSlide?.querySelector(".editorial-card");
       const activeRect = activeSlide ? activeSlide.getBoundingClientRect() : null;
       const out = {
         innerWidth: iw,

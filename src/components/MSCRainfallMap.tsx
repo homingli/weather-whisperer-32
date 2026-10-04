@@ -85,7 +85,7 @@ export const MSCRainfallMap = ({ userLocation }: { userLocation?: UserLocation }
   const { t } = useLanguage();
 
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="editorial-card overflow-hidden">
       <div className="px-6 py-4 border-b border-border/50 flex items-baseline justify-between gap-4">
         <h2 className="kicker text-muted-foreground font-display leading-6">{t('nowcast.title')}</h2>
         <span className="kicker text-muted-foreground/60">{t('nowcast.stayOrGo')}</span>
