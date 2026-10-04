@@ -295,23 +295,26 @@ const Index = () => {
           </div>
           {selectedCity && (
             <div className="flex items-center gap-2 text-muted-foreground flex-wrap min-w-0">
-              <MapPin className="h-5 w-5 shrink-0" />
+              <MapPin className="h-4 w-4 shrink-0" />
               <div className="flex items-center flex-wrap gap-2">
                 {isHKCovered ? (
                   weather?.nearestStation && (
-                    <span className="text-base font-medium text-foreground">
+                    <span className="text-sm font-medium text-foreground">
                       {translateStationName(weather.nearestStation, lang)}
                     </span>
                   )
                 ) : (
-                  <span className="text-base font-medium text-foreground">
+                  <span className="text-sm font-medium text-foreground">
                     {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
                   </span>
                 )}
                 {weather?.nearestDistrict && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                    {translateDistrictName(weather.nearestDistrict, lang)}
-                  </span>
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span className="text-xs text-muted-foreground">
+                      {translateDistrictName(weather.nearestDistrict, lang)}
+                    </span>
+                  </>
                 )}
               </div>
               {isFetching && weather && !isLoading && (
