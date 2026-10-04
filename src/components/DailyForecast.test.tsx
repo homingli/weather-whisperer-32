@@ -94,7 +94,7 @@ describe('DailyForecast', () => {
     // temperatureMax 25°C, temperatureMin 18°C
     const { container } = renderWithProviders(<DailyForecast forecast={mockForecast} />);
     // sr-only table reads °C directly from chartData.
-    const srTable = container.querySelector('table.sr-only');
+    const srTable = container.querySelector('div.sr-only table');
     expect(srTable).toBeTruthy();
     expect(srTable!.textContent).toContain('25°C');
     expect(srTable!.textContent).toContain('18°C');
@@ -119,7 +119,7 @@ describe('DailyForecast', () => {
       </LanguageProvider>,
     );
 
-    const srTable = container.querySelector('table.sr-only');
+    const srTable = container.querySelector('div.sr-only table');
     expect(srTable).toBeTruthy();
     // Metric mode: raw °C values.
     expect(srTable!.textContent).toContain('25°C');
