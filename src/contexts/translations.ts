@@ -353,11 +353,15 @@ export const translations: Record<Language, Record<string, string>> = {
     'glance.rainAria': 'Rain chance {0}%. View the rainfall nowcast map.',
     'glance.rainTitle': 'View rainfall nowcast',
 
-    // At-a-glance holiday chip — static countdown (see AtAGlance).
-    // "Tomorrow" has its own phrasing so {0} in holidayIn is always ≥ 2.
+    // Holiday countdown badge in the header (see HolidayBadge) — "Tomorrow"
+    // has its own phrasing so {0} in holidayIn is always ≥ 2.
     'glance.holidayIn': '{0} days to {1}',
     'glance.holidayTomorrow': 'Tomorrow: {0}',
     'glance.holidayToday': 'Today: {0}',
+    'glance.holidayDetails': 'View holiday details',
+    // Full badge label: the localized countdown sentence + the affordance.
+    'glance.holidayBadgeAria': '{0}. View holiday details.',
+    'glance.holidayRegion': 'Hong Kong public holiday',
   },
   tc: {
     // Header
@@ -695,10 +699,13 @@ export const translations: Record<Language, Record<string, string>> = {
     'glance.rainAria': '降雨機率 {0}%。查看降雨即時預報地圖。',
     'glance.rainTitle': '查看降雨即時預報',
 
-    // At-a-glance 假期標籤 — 靜態倒數（見 AtAGlance）。
-    // 「明日」獨立措辭，holidayIn 的 {0} 只會是 ≥ 2。
+    // 假期倒數徽章（見 HolidayBadge）—「明日」獨立措辭，holidayIn 的 {0} 只會是 ≥ 2。
     'glance.holidayIn': '仲有{0}天到{1}',
     'glance.holidayTomorrow': '明日：{0}',
     'glance.holidayToday': '今日：{0}',
+    'glance.holidayDetails': '查看假期詳情',
+    // 徽章完整標籤：倒數句子 + 互動說明。
+    'glance.holidayBadgeAria': '{0}，查看假期詳情。',
+    'glance.holidayRegion': '香港公眾假期',
   },
 };
