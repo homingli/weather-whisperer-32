@@ -66,8 +66,9 @@ describe('Location and Time Integration', () => {
       </LanguageProvider>
     );
 
-    // UTC noon + Tokyo UTC+9 = 21:00 local = 9 PM.
-    expect(screen.getByText(/09:00:00\s*PM/i)).toBeInTheDocument();
+    // UTC noon + Tokyo UTC+9 = 21:00 local = 9 PM (minutes only — the clock
+    // never shows seconds).
+    expect(screen.getByText(/0?9:00\s*PM/i)).toBeInTheDocument();
     
     // Hourly Title should be present
     expect(screen.getByText(/HOURLY FORECAST/i)).toBeInTheDocument();
