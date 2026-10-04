@@ -294,30 +294,35 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
       </div>
 
       {/* Screen-reader-only data table — accessible alternative to the chart.
-          Mirrors the chartData rows. */}
-      <table className="sr-only">
-        <caption>{t('daily.chartLabel')}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{language === 'tc' ? '日期' : 'Date'}</th>
-            <th scope="col">{t('daily.low')}</th>
-            <th scope="col">{t('daily.high')}</th>
-            <th scope="col">{t('daily.precip')}</th>
-            <th scope="col">{t('weather.wind')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {chartData.map((row, i) => (
-            <tr key={`sr-day-${i}`}>
-              <th scope="row">{`${row.line1} ${row.line2}`}</th>
-              <td>{formatTemperature(row.temperatureMin, units)}</td>
-              <td>{formatTemperature(row.temperatureMax, units)}</td>
-              <td>{row.precipLabel ?? '—'}</td>
-              <td>{`${formatWindSpeed(row.windSpeedMax, units)} ${windSpeedUnitLabel(units)}`}</td>
+          Mirrors the chartData rows. sr-only wraps a div, not the table
+          itself: tables treat width/height as minimums (the 1px sr-only box
+          grows to content size) and WebKit doesn't clip table boxes with
+          clip-path, so the caption painted over the card's kicker on iOS. */}
+      <div className="sr-only">
+        <table>
+          <caption>{t('daily.chartLabel')}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{language === 'tc' ? '日期' : 'Date'}</th>
+              <th scope="col">{t('daily.low')}</th>
+              <th scope="col">{t('daily.high')}</th>
+              <th scope="col">{t('daily.precip')}</th>
+              <th scope="col">{t('weather.wind')}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {chartData.map((row, i) => (
+              <tr key={`sr-day-${i}`}>
+                <th scope="row">{`${row.line1} ${row.line2}`}</th>
+                <td>{formatTemperature(row.temperatureMin, units)}</td>
+                <td>{formatTemperature(row.temperatureMax, units)}</td>
+                <td>{row.precipLabel ?? '—'}</td>
+                <td>{`${formatWindSpeed(row.windSpeedMax, units)} ${windSpeedUnitLabel(units)}`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 });

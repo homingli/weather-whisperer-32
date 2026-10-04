@@ -331,33 +331,39 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
 
       {/* Screen-reader-only data table — accessible alternative to the chart.
           Keyboard/screen-reader users get the same data without the visual
-          encoding. Mirrors the chartData rows. */}
-      <table className="sr-only">
-        <caption>{t('hourly.chartLabel')}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{language === 'tc' ? '時間' : 'Time'}</th>
-            <th scope="col">{t('hourly.temperature')}</th>
-            <th scope="col">{t('hourly.rainChance')}</th>
-            <th scope="col">{t('weather.wind')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {chartData.map((row, i) => (
-            <tr key={`sr-hour-${i}`}>
-              <th scope="row">{row.displayTime}</th>
-              <td>{Math.round(row.temperature)}{temperatureUnitLabel(units)}</td>
-              <td>
-                {row.rainChance}%
-                {row.rainIntensity > 0 ? ` (${units === 'us' ? row.rainIntensity.toFixed(2) : row.rainIntensity.toFixed(1)} ${precipitationUnitLabel(units)})` : ''}
-              </td>
-              <td>
-                {Math.round(row.windSpeed)} {windSpeedUnitLabel(units)}
-              </td>
+          encoding. Mirrors the chartData rows. The sr-only div (not on the
+          table itself) matters: tables treat width/height as minimums, so the
+          1px sr-only box grows to content size, and WebKit doesn't clip table
+          boxes with clip-path — the caption then paints over the card's
+          kicker on iOS. A wrapping div is a block box that clips reliably. */}
+      <div className="sr-only">
+        <table>
+          <caption>{t('hourly.chartLabel')}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{language === 'tc' ? '時間' : 'Time'}</th>
+              <th scope="col">{t('hourly.temperature')}</th>
+              <th scope="col">{t('hourly.rainChance')}</th>
+              <th scope="col">{t('weather.wind')}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {chartData.map((row, i) => (
+              <tr key={`sr-hour-${i}`}>
+                <th scope="row">{row.displayTime}</th>
+                <td>{Math.round(row.temperature)}{temperatureUnitLabel(units)}</td>
+                <td>
+                  {row.rainChance}%
+                  {row.rainIntensity > 0 ? ` (${units === 'us' ? row.rainIntensity.toFixed(2) : row.rainIntensity.toFixed(1)} ${precipitationUnitLabel(units)})` : ''}
+                </td>
+                <td>
+                  {Math.round(row.windSpeed)} {windSpeedUnitLabel(units)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 });

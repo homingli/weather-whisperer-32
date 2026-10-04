@@ -284,7 +284,7 @@ describe('HourlyForecast Component', () => {
       </LanguageProvider>
     );
     // Metric: "20°C" and "km/h" appear in sr-only cells.
-    const srTable = container.querySelector('table.sr-only');
+    const srTable = container.querySelector('div.sr-only table');
     expect(srTable).toBeTruthy();
     expect(srTable!.textContent).toContain('20°C');
     expect(srTable!.textContent).toContain('km/h');
