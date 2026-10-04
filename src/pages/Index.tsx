@@ -309,12 +309,10 @@ const Index = () => {
                   </span>
                 )}
                 {weather?.nearestDistrict && (
-                  <>
+                  <span className="inline-flex items-center gap-x-1.5 text-xs text-muted-foreground">
                     <span aria-hidden="true">·</span>
-                    <span className="text-xs text-muted-foreground">
-                      {translateDistrictName(weather.nearestDistrict, lang)}
-                    </span>
-                  </>
+                    {translateDistrictName(weather.nearestDistrict, lang)}
+                  </span>
                 )}
               </div>
               {isFetching && weather && !isLoading && (

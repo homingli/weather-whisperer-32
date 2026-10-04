@@ -21,10 +21,26 @@ const MINUTE_MS = 60_000;
  * re-renders than a seconds display. The first tick is aligned to the next
  * minute boundary so the displayed minute flips exactly when the wall clock
  * does, not 0–59s after mount.
+ *
+ * Background tabs throttle timers, so on every wake (visibilitychange) the
+ * display is refreshed immediately and the timer chain is torn down and
+ * rebuilt — re-aligned to the minute boundary instead of ticking a stale
+ * phase for up to a minute.
  */
 export const LocalClock = memo(({ timezone }: LocalClockProps) => {
   const { language } = useLanguage();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [wakeCount, setWakeCount] = useState(0);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      setCurrentTime(new Date());
+      setWakeCount((c) => c + 1);
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
 
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | undefined;
@@ -37,7 +53,7 @@ export const LocalClock = memo(({ timezone }: LocalClockProps) => {
       if (timeoutId) clearTimeout(timeoutId);
       if (intervalId) clearInterval(intervalId);
     };
-  }, []);
+  }, [wakeCount]);
 
   const locale = appLocale(language);
   const hour12 = language !== 'tc';
@@ -59,7 +75,7 @@ export const LocalClock = memo(({ timezone }: LocalClockProps) => {
         minute: '2-digit',
         hour12,
       })
-    : currentTime.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12 });
+    : currentTime.toLocaleTimeString(appLocale(language), { hour: '2-digit', minute: '2-digit', hour12 });
 
   // Compact date for narrow viewports — the full weekday + date doesn't fit
   // in the header row when warnings + settings are pinned to the right on a

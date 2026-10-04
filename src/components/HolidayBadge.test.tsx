@@ -34,6 +34,7 @@ describe('HolidayBadge', () => {
     });
     expect(badge).toHaveTextContent('5d');
   });
+
   it('opens a details dialog with the name, date, and countdown', async () => {
     const user = userEvent.setup();
     renderWithProviders(<HolidayBadge holiday={holiday()} />);

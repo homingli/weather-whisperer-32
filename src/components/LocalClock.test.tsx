@@ -54,4 +54,31 @@ describe('LocalClock Component', () => {
     });
     expect(screen.getByText(/12:01 PM/i)).toBeInTheDocument();
   });
+
+  it('re-syncs the displayed minute when the tab becomes visible again', () => {
+    renderWithLanguage(<LocalClock timezone="Europe/London" />);
+
+    expect(screen.getByText(/12:00 PM/i)).toBeInTheDocument();
+
+    // First minute tick lands normally (London = UTC in January).
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByText(/12:01 PM/i)).toBeInTheDocument();
+
+    // 3h pass while the tab is hidden with timers throttled; waking must
+    // repaint immediately, not wait for the next (stale-phase) tick.
+    act(() => {
+      vi.setSystemTime(new Date(Date.UTC(2024, 0, 8, 15, 5, 30)));
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(screen.getByText(/3:05 PM/i)).toBeInTheDocument();
+
+    // The timer chain also re-aligns: next tick fires at the real minute
+    // boundary (30s away), not on the pre-sleep phase.
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(screen.getByText(/3:06 PM/i)).toBeInTheDocument();
+  });
 });
