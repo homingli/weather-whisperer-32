@@ -159,11 +159,14 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
           const Icon = getWeatherIconNode(day.weatherCode, true);
           return (
             <div key={row.index} className="flex flex-col items-center gap-1 min-w-0 px-0.5">
-              <div className="flex flex-col items-center leading-tight">
-                <span className="text-[0.8125rem] font-medium text-muted-foreground">
+              {/* w-full pins children to the 1fr cell so truncate can engage —
+                  without it, content-sized children (e.g. "Tomorrow", "Med Low")
+                  paint over the neighboring column at 320–390 px. */}
+              <div className="flex w-full flex-col items-center leading-tight min-w-0">
+                <span className="truncate max-w-full text-[0.8125rem] font-medium text-muted-foreground">
                   {row.line1}
                 </span>
-                <span className="text-[0.6875rem] font-medium text-muted-foreground/70">
+                <span className="truncate max-w-full text-[0.6875rem] font-medium text-muted-foreground/70">
                   {row.line2}
                 </span>
               </div>
@@ -175,7 +178,7 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
                 <Icon className="h-8 w-8 md:h-9 md:w-9" strokeWidth={1.25} />
               </span>
               {row.precipLabel && (
-                <div className="flex items-center justify-center gap-0.5 text-xs leading-tight text-weather-rain">
+                <div className="flex w-full min-w-0 items-center justify-center gap-0.5 text-xs leading-tight text-weather-rain">
                   <Droplets className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   <span className="truncate max-w-full">{row.precipLabel}</span>
                 </div>
@@ -291,30 +294,35 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
       </div>
 
       {/* Screen-reader-only data table — accessible alternative to the chart.
-          Mirrors the chartData rows. */}
-      <table className="sr-only">
-        <caption>{t('daily.chartLabel')}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{language === 'tc' ? '日期' : 'Date'}</th>
-            <th scope="col">{t('daily.low')}</th>
-            <th scope="col">{t('daily.high')}</th>
-            <th scope="col">{t('daily.precip')}</th>
-            <th scope="col">{t('weather.wind')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {chartData.map((row, i) => (
-            <tr key={`sr-day-${i}`}>
-              <th scope="row">{`${row.line1} ${row.line2}`}</th>
-              <td>{formatTemperature(row.temperatureMin, units)}</td>
-              <td>{formatTemperature(row.temperatureMax, units)}</td>
-              <td>{row.precipLabel ?? '—'}</td>
-              <td>{`${formatWindSpeed(row.windSpeedMax, units)} ${windSpeedUnitLabel(units)}`}</td>
+          Mirrors the chartData rows. sr-only wraps a div, not the table
+          itself: tables treat width/height as minimums (the 1px sr-only box
+          grows to content size) and WebKit doesn't clip table boxes with
+          clip-path, so the caption painted over the card's kicker on iOS. */}
+      <div className="sr-only">
+        <table>
+          <caption>{t('daily.chartLabel')}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{language === 'tc' ? '日期' : 'Date'}</th>
+              <th scope="col">{t('daily.low')}</th>
+              <th scope="col">{t('daily.high')}</th>
+              <th scope="col">{t('daily.precip')}</th>
+              <th scope="col">{t('weather.wind')}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {chartData.map((row, i) => (
+              <tr key={`sr-day-${i}`}>
+                <th scope="row">{`${row.line1} ${row.line2}`}</th>
+                <td>{formatTemperature(row.temperatureMin, units)}</td>
+                <td>{formatTemperature(row.temperatureMax, units)}</td>
+                <td>{row.precipLabel ?? '—'}</td>
+                <td>{`${formatWindSpeed(row.windSpeedMax, units)} ${windSpeedUnitLabel(units)}`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 });

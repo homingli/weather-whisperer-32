@@ -9,6 +9,7 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
 import { useWarningChangeDetector } from '@/hooks/useWarningChangeDetector';
+import { useNextHoliday } from '@/hooks/useNextHoliday';
 import {
   useDevSimulatedWarnings,
   useDevBaselineNonce,
@@ -27,7 +28,7 @@ import { AtAGlance } from '@/components/AtAGlance';
 import { RainStartBanner } from '@/components/RainStartBanner';
 
 // Lazy load heavy components. DailyForecast pulls recharts and is
-// below the fold on both mobile (Swiper slide 2) and desktop (split row);
+// below the fold on both mobile (Swiper slide 3) and desktop (split row);
 // deferring it lets recharts come out of the main chunk.
 const DailyForecast = lazy(() => import('@/components/DailyForecast').then(module => ({ default: module.DailyForecast })));
 const HourlyForecast = lazy(() => import('@/components/HourlyForecast').then(module => ({ default: module.HourlyForecast })));
@@ -40,6 +41,11 @@ const MSCRainfallMap = lazy(() => import('@/components/MSCRainfallMap').then(mod
 const SettingsMenu = lazy(() => import('@/components/SettingsMenu').then(module => ({ default: module.SettingsMenu })));
 const WeatherBanners = lazy(() => import('@/components/WeatherBanners').then(module => ({ default: module.WeatherBanners })));
 const WeatherAlerts = lazy(() => import('@/components/WeatherAlerts').then(module => ({ default: module.WeatherAlerts })));
+// HolidayBadge (header countdown + details dialog) stays lazy so the Dialog
+// primitives it drags in keep out of the initial chunk, like SettingsMenu.
+// The badge appears once the holiday query resolves anyway, so the lazy
+// hop costs nothing visible.
+const HolidayBadge = lazy(() => import('@/components/HolidayBadge').then(module => ({ default: module.HolidayBadge })));
 // CitySearch backs the landing empty state (HML-58): when the geolocation
 // prompt is denied the page must offer an inline search, not a dead welcome
 // card. Lazy like SettingsMenu so the Input primitive and the CitySearch
@@ -66,6 +72,12 @@ const PLACEHOLDER_CURRENT = {
   isDay: false,
   weatherCode: 3,
 };
+
+// Mobile deck slide indices — must match the child order passed to
+// MobileSwiperDeck below (0 = current weather, 1 = hourly, 2 = 7-day,
+// 3 = rainfall map when the city is inside nowcast coverage).
+const DECK_DAILY_SLIDE = 2;
+const DECK_NOWCAST_SLIDE = 3;
 
 const Index = () => {
   const { language, t } = useLanguage();
@@ -108,6 +120,9 @@ const Index = () => {
 
   // Determine if selected city is in Hong Kong coverage area
   const isHKCovered = selectedCity ? isInHongKong(selectedCity.latitude, selectedCity.longitude) : false;
+  // HK-only: countdown to the next public holiday. Self-hides while loading,
+  // on failure, and for cities outside HK; day math uses the city's timezone.
+  const holidayCountdown = useNextHoliday(isHKCovered, weather?.timezone);
   // Nowcast map region: PRD (HKO) or Vancouver (MSC). Vancouver wins the
   // split when both are true (the boxes don't overlap).
   const nowcastVisible = !!selectedCity &&
@@ -196,21 +211,21 @@ const Index = () => {
 
   const revealDailyForecast = useCallback(() => {
     if (isMobile) {
-      mobileSwiperRef.current?.slideTo(1, 400);
+      mobileSwiperRef.current?.slideTo(DECK_DAILY_SLIDE, 400);
       return;
     }
     dailySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [isMobile]);
 
-  // The glance strip's rain chips jump to the nowcast pane instead: deck
-  // slide 3 on mobile (index 2), the bottom map section on desktop. Only
-  // wired when the city is inside nowcast coverage — elsewhere the chips
-  // degrade to static text.
+  // The glance strip's rain chips jump to the nowcast pane instead: the map
+  // slide on mobile (index 3), the bottom map section on desktop. Only wired
+  // when the city is inside nowcast coverage — elsewhere the chips degrade
+  // to static text.
   const nowcastSectionRef = useRef<HTMLDivElement | null>(null);
 
   const revealNowcast = useCallback(() => {
     if (isMobile) {
-      mobileSwiperRef.current?.slideTo(2, 400);
+      mobileSwiperRef.current?.slideTo(DECK_NOWCAST_SLIDE, 400);
       return;
     }
     nowcastSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -242,6 +257,11 @@ const Index = () => {
             {weather?.timezone && (
               <LocalClock timezone={weather.timezone} />
             )}
+            {/* Holiday countdown rides on the date line (calendar metadata);
+                details dialog on tap. Self-hides for non-HK cities. */}
+            <Suspense fallback={null}>
+              <HolidayBadge holiday={holidayCountdown} />
+            </Suspense>
             {/* Direct import (not lazy): must be visible on the first paint
                 of a cold start that begins offline. */}
             <OfflineIndicator />
@@ -275,21 +295,22 @@ const Index = () => {
           </div>
           {selectedCity && (
             <div className="flex items-center gap-2 text-muted-foreground flex-wrap min-w-0">
-              <MapPin className="h-5 w-5 shrink-0" />
+              <MapPin className="h-4 w-4 shrink-0" />
               <div className="flex items-center flex-wrap gap-2">
                 {isHKCovered ? (
                   weather?.nearestStation && (
-                    <span className="text-base font-medium text-foreground">
+                    <span className="text-sm font-medium text-foreground">
                       {translateStationName(weather.nearestStation, lang)}
                     </span>
                   )
                 ) : (
-                  <span className="text-base font-medium text-foreground">
+                  <span className="text-sm font-medium text-foreground">
                     {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
                   </span>
                 )}
                 {weather?.nearestDistrict && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                  <span className="inline-flex items-center gap-x-1.5 text-xs text-muted-foreground">
+                    <span aria-hidden="true">·</span>
                     {translateDistrictName(weather.nearestDistrict, lang)}
                   </span>
                 )}
@@ -340,7 +361,7 @@ const Index = () => {
           ) : isLoading ? (
             <FetchingStatus loadProgress={loadProgress} isHKCovered={isHKCovered} />
           ) : !weather && error ? (
-            <div className="text-center py-20 glass-card">
+            <div className="text-center py-20 editorial-card">
               <p className="text-lg text-destructive mb-2">{t('loading.failed')}</p>
               <p className="text-base text-muted-foreground">{t('loading.tryAgain')}</p>
             </div>
@@ -394,23 +415,21 @@ const Index = () => {
                         headline={weather.headline}
                       />
 
-                      {/* Slide 2: Hourly (top) + 7-day (bottom) split 50/50 */}
-                      <div className="flex flex-col gap-3 h-full">
-                        <div className="flex-1 min-h-0">
-                          <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 glass-card" />}>
-                            <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} />
-                          </Suspense>
-                        </div>
-                        <div className="flex-1 min-h-0">
-                          <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20" />}>
-                            <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={shareCityLabel} />
-                          </Suspense>
-                        </div>
-                      </div>
+                      {/* Slide 2: Hourly forecast, full height */}
+                      <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 editorial-card" />}>
+                        <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} />
+                      </Suspense>
 
-                      {/* Slide 3: Rainfall map (PRD or Vancouver) */}
+                      {/* Slide 3: 7-day forecast, full height (own slide so the
+                          7-column strip keeps enough width at 320–390 px
+                          instead of squeezing beside/above hourly) */}
+                      <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20" />}>
+                        <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={shareCityLabel} />
+                      </Suspense>
+
+                      {/* Slide 4: Rainfall map (PRD or Vancouver) */}
                       {nowcastVisible && (
-                        <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 glass-card" />}>
+                        <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 editorial-card" />}>
                           {useMSCNowcast ? (
                             <MSCRainfallMap userLocation={{ latitude: selectedCity.latitude, longitude: selectedCity.longitude }} />
                           ) : (

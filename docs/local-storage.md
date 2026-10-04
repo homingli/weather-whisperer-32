@@ -10,6 +10,8 @@ The application persists the following to `localStorage`:
 - `weather-font-size`: UI text scale (`'small' | 'medium'` (default) `| 'large'`), applied as a percentage root font-size. Read at `FontSizeContext` mount, written on change.
 - `weather-nowcast-cache-v2`: schema-versioned, LZString-compressed snapshot of the gridded rainfall nowcast CSV (~2.7 MB raw). Read at mount to skip the "Load Map" prompt when fresh (15-min TTL).
 
+Persisted React Query entries include the holiday list (`['holidays', 'HK', year]`, `staleTime: Infinity` — the data is immutable per year, so it refetches at most once per persistence window; failures fall back to a bundled snapshot).
+
 Cache strategy is a three-tier design:
 
 1. **`localStorage` last-known snapshot.** Synchronous read at mount, lz-string compressed, cleared on city switch
