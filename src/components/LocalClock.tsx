@@ -75,7 +75,7 @@ export const LocalClock = memo(({ timezone }: LocalClockProps) => {
         minute: '2-digit',
         hour12,
       })
-    : currentTime.toLocaleTimeString(appLocale(language), { hour: '2-digit', minute: '2-digit', hour12 });
+    : currentTime.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12 });
 
   // Compact date for narrow viewports — the full weekday + date doesn't fit
   // in the header row when warnings + settings are pinned to the right on a
