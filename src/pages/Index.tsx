@@ -41,6 +41,11 @@ const MSCRainfallMap = lazy(() => import('@/components/MSCRainfallMap').then(mod
 const SettingsMenu = lazy(() => import('@/components/SettingsMenu').then(module => ({ default: module.SettingsMenu })));
 const WeatherBanners = lazy(() => import('@/components/WeatherBanners').then(module => ({ default: module.WeatherBanners })));
 const WeatherAlerts = lazy(() => import('@/components/WeatherAlerts').then(module => ({ default: module.WeatherAlerts })));
+// HolidayBadge (header countdown + details dialog) stays lazy so the Dialog
+// primitives it drags in keep out of the initial chunk, like SettingsMenu.
+// The badge appears once the holiday query resolves anyway, so the lazy
+// hop costs nothing visible.
+const HolidayBadge = lazy(() => import('@/components/HolidayBadge').then(module => ({ default: module.HolidayBadge })));
 // CitySearch backs the landing empty state (HML-58): when the geolocation
 // prompt is denied the page must offer an inline search, not a dead welcome
 // card. Lazy like SettingsMenu so the Input primitive and the CitySearch
@@ -252,6 +257,11 @@ const Index = () => {
             {weather?.timezone && (
               <LocalClock timezone={weather.timezone} />
             )}
+            {/* Holiday countdown rides on the date line (calendar metadata);
+                details dialog on tap. Self-hides for non-HK cities. */}
+            <Suspense fallback={null}>
+              <HolidayBadge holiday={holidayCountdown} />
+            </Suspense>
             {/* Direct import (not lazy): must be visible on the first paint
                 of a cold start that begins offline. */}
             <OfflineIndicator />
@@ -285,21 +295,22 @@ const Index = () => {
           </div>
           {selectedCity && (
             <div className="flex items-center gap-2 text-muted-foreground flex-wrap min-w-0">
-              <MapPin className="h-5 w-5 shrink-0" />
+              <MapPin className="h-4 w-4 shrink-0" />
               <div className="flex items-center flex-wrap gap-2">
                 {isHKCovered ? (
                   weather?.nearestStation && (
-                    <span className="text-base font-medium text-foreground">
+                    <span className="text-sm font-medium text-foreground">
                       {translateStationName(weather.nearestStation, lang)}
                     </span>
                   )
                 ) : (
-                  <span className="text-base font-medium text-foreground">
+                  <span className="text-sm font-medium text-foreground">
                     {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
                   </span>
                 )}
                 {weather?.nearestDistrict && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                  <span className="inline-flex items-center gap-x-1.5 text-xs text-muted-foreground">
+                    <span aria-hidden="true">·</span>
                     {translateDistrictName(weather.nearestDistrict, lang)}
                   </span>
                 )}
@@ -384,7 +395,6 @@ const Index = () => {
                       tomorrow={weather.daily?.[1]}
                       onReveal={revealDailyForecast}
                       onRevealNowcast={nowcastVisible ? revealNowcast : undefined}
-                      holiday={holidayCountdown}
                     />
                   </div>
                   {/* Each child is one slide's content; MobileSwiperDeck wraps
@@ -470,7 +480,6 @@ const Index = () => {
                     tomorrow={weather.daily?.[1]}
                     onReveal={revealDailyForecast}
                     onRevealNowcast={nowcastVisible ? revealNowcast : undefined}
-                    holiday={holidayCountdown}
                   />
 
                   {/* Secondary Row: Split Forecasts */}
