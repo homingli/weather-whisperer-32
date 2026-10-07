@@ -12,6 +12,9 @@ import { MockChartProps } from '@/test/mockChartProps';
 // Track chart renders so we can assert on the data passed to Recharts.
 type ChartCapture = Record<string, unknown>;
 const renderedChartData: ChartCapture[] = [];
+// Last `data` the ComposedChart mock saw — lets the XAxis mock invoke a
+// function `tick` with a real payload.value (the first hour's timestamp).
+let lastChartData: ChartCapture[] = [];
 
 vi.mock('recharts', async () => {
   const React = (await import('react')) as typeof import('react');
@@ -21,6 +24,7 @@ vi.mock('recharts', async () => {
     ResponsiveContainer: ({ children }: MockChartProps) => <div data-testid="chart-container">{children}</div>,
     ComposedChart: ({ data, children, ticks }: MockChartProps) => {
       renderedChartData.push(...((data ?? []) as ChartCapture[]));
+      lastChartData = (data ?? []) as ChartCapture[];
       if (ticks) renderedChartData.push({ ticks });
       // Use React.Children to properly render all child elements.
       const renderedChildren: ReactNode[] = [];
@@ -37,7 +41,15 @@ vi.mock('recharts', async () => {
       renderedChartData.push({ barDataKey: dataKey });
       return null;
     },
-    XAxis: () => <div data-testid="x-axis" />,
+    XAxis: ({ tick }: MockChartProps & { tick?: (props: { x?: number; y?: number; payload?: { value?: number | string } }) => ReactNode }) => {
+      // Exercise the custom strong-wind tick the way recharts would: with a
+      // real payload.value (the first hour's timestamp) from the chart data.
+      const first = lastChartData[0];
+      if (typeof tick === 'function' && first && typeof first.time === 'number') {
+        return <div data-testid="x-axis">{tick({ x: 10, y: 0, payload: { value: first.time } })}</div>;
+      }
+      return <div data-testid="x-axis" />;
+    },
     YAxis: () => <div data-testid="y-axis" />,
     Tooltip: ({ labelFormatter, content }: MockChartProps & {
       labelFormatter?: (label: unknown, payload?: unknown) => ReactNode;
@@ -93,9 +105,15 @@ const mockGustyHourlyData: HourlyForecastType[] = [
   mockHourlyData[1], // no gust field — annotation and value stay hidden
 ];
 
+const mockModerateGustHourlyData: HourlyForecastType[] = [
+  { ...mockHourlyData[0], windGust: 30 }, // gust data, but below the threshold
+  mockHourlyData[1],
+];
+
 describe('HourlyForecast Component', () => {
   beforeEach(() => {
     renderedChartData.length = 0;
+    lastChartData = [];
     localStorage.clear();
   });
 
@@ -326,5 +344,22 @@ describe('HourlyForecast Component', () => {
     // Pre-gust data keeps the original four-column table.
     const { container: plain } = renderWithLanguage(<HourlyForecast forecast={mockHourlyData} />);
     expect(plain.querySelector('div.sr-only table')!.textContent).not.toContain('Gusts');
+  });
+
+  it('annotates strong-wind hours on the time tick, gated at the strong-gust threshold', () => {
+    // 55 km/h ≥ STRONG_WIND_GUST_KMH: the custom two-line tick renders the
+    // gust glyph under the first hour's time label.
+    const { container } = renderWithLanguage(<HourlyForecast forecast={mockGustyHourlyData} />);
+    const tick = container.querySelector('[data-testid="x-axis"]');
+    expect(tick!.textContent).toContain('↑ 55');
+
+    // 30 km/h is real gust data but below the threshold: same two-line tick
+    // path (the window has gust data), no glyph.
+    const { container: moderate } = renderWithLanguage(<HourlyForecast forecast={mockModerateGustHourlyData} />);
+    expect(moderate.querySelector('[data-testid="x-axis"]')!.textContent).not.toContain('↑');
+
+    // No gust data at all: the default single-line tick object renders.
+    const { container: plain } = renderWithLanguage(<HourlyForecast forecast={mockHourlyData} />);
+    expect(plain.querySelector('[data-testid="x-axis"]')!.textContent).not.toContain('↑');
   });
 });

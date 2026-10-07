@@ -231,11 +231,11 @@ export async function fetchWeather(
     hkoCurrentData?.temperature.data[0];
   const hkoCurrentTemperature = hkoTempReading?.value;
 
-  // Same precedence for wind: the nearest station's 10-minute mean wins over
-  // the OM model grid; keep OM when the feed has no reading at all.
-  const hkoWindReading =
-    hkoCurrentData?.wind?.data.find((w) => w.place === hkoData.nearestStation) ||
-    hkoCurrentData?.wind?.data[0];
+  // Wind gets exact-station matching only (no first-reading fallback): wind
+  // varies 2–3× across HK stations, so grafting an arbitrary station's
+  // reading onto the user's compass misleads worse than the OM grid it would
+  // replace. Temperature keeps its fallback — temperature is spatially flat.
+  const hkoWindReading = hkoCurrentData?.wind?.data.find((w) => w.place === hkoData.nearestStation);
 
   // HKO seeds sunrise/sunset with epoch-0 sentinels and wind with 0
   // (HKO daily doesn't publish either); replace the placeholders with the OM
@@ -254,7 +254,7 @@ export async function fetchWeather(
     current: {
       ...omData!.current,
       ...(hkoCurrentTemperature != null ? { temperature: hkoCurrentTemperature } : {}),
-      ...(hkoWindReading ? {
+      ...(hkoWindReading && hkoWindReading.speed != null && hkoWindReading.direction != null ? {
         windSpeed: hkoWindReading.speed,
         windDirection: hkoWindReading.direction,
       } : {}),
