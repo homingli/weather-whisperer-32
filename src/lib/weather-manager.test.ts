@@ -303,6 +303,24 @@ describe('fetchWeather orchestration', () => {
       expect(result.current.windDirection).toBe(omData.current.windDirection);
     });
 
+    it('backfills OM daily gust/UV maxima into HKO daily rows in the merged path', async () => {
+      mockIsInHK.mockReturnValue(true);
+      const omData = makeOpenMeteoData();
+      omData.daily = omData.daily.map((d, i) =>
+        i === 0 ? { ...d, windGustMax: 70, uvIndexMax: 9.4 } : d,
+      );
+      mockGetOpenMeteo.mockResolvedValue(omData);
+      // HKO daily rows never carry gust/UV fields — without the backfill the
+      // daily surfaces would go dark for every HK user.
+      mockGetHKODaily.mockResolvedValue(makeHkoDaily());
+      mockGetHKOCurrent.mockResolvedValue(makeHkoCurrent());
+
+      const result = await fetchWeather(HK_LAT, HK_LON);
+
+      expect(result.daily[0].windGustMax).toBe(70);
+      expect(result.daily[0].uvIndexMax).toBe(9.4);
+    });
+
     it('reports hkoFailed: true when OM succeeds but HKO daily fails', async () => {
       mockIsInHK.mockReturnValue(true);
       mockGetOpenMeteo.mockResolvedValue(makeOpenMeteoData());

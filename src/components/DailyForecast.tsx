@@ -276,7 +276,7 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
                         day carries a peak, since "peak 9" is actionable even
                         when the current-hour reading is quiet. */}
                     {row.windGustMax != null && row.windGustMax >= STRONG_WIND_GUST_KMH && (
-                      <p className="text-sky-400 mt-1 text-sm">
+                      <p className="text-foreground mt-1 text-sm">
                         {t('weather.windGust')}: {formatWindSpeed(row.windGustMax, units)} {windSpeedUnitLabel(units)}
                       </p>
                     )}

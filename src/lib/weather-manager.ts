@@ -272,6 +272,10 @@ export async function fetchWeather(
         ...day,
         windSpeedMax: hasHkoWind ? day.windSpeedMax : (omDay?.windSpeedMax ?? 0),
         windDirectionDominant: hasHkoWind ? day.windDirectionDominant : (omDay?.windDirectionDominant ?? 0),
+        // HKO daily rows never carry these OM-parsed fields; without the
+        // backfill the daily gust/UV surfaces go dark for every HK user.
+        windGustMax: day.windGustMax ?? omDay?.windGustMax,
+        uvIndexMax: day.uvIndexMax ?? omDay?.uvIndexMax,
         sunrise: isValidDate(day.sunrise) ? day.sunrise : (isValidDate(omSunrise) ? omSunrise : day.sunrise),
         sunset: isValidDate(day.sunset) ? day.sunset : (isValidDate(omSunset) ? omSunset : day.sunset),
       };
