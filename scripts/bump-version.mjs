@@ -71,5 +71,26 @@ try {
   console.warn(`warn: could not sync version into ${PKG}`);
 }
 
+// Scaffold the release's notes section so `make upload` has something to
+// publish; an empty section makes release-notes.mjs fail until it's filled in.
+const MOBILE_CHANGELOG = "CHANGELOG.mobile.md";
+try {
+  const changelog = readFileSync(MOBILE_CHANGELOG, "utf8");
+  if (changelog.includes(`## v${next}`)) {
+    console.warn(`warn: ${MOBILE_CHANGELOG} already has a v${next} section`);
+  } else {
+    const section = `## v${next}\n\n`;
+    const first = changelog.indexOf("\n## ");
+    writeFileSync(
+      MOBILE_CHANGELOG,
+      first === -1
+        ? `${changelog.trimEnd()}\n\n${section}`
+        : `${changelog.slice(0, first + 1)}${section}${changelog.slice(first + 1)}`,
+    );
+  }
+} catch {
+  console.warn(`warn: could not scaffold ${MOBILE_CHANGELOG}`);
+}
+
 console.log(`${name} → ${next} (versionCode ${code} → ${versionCode})`);
-console.log("next: make apk | make apk-release | make release (build + upload)");
+console.log(`next: add notes under "## v${next}" in ${MOBILE_CHANGELOG}, then make release`);

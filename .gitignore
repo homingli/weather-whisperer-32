@@ -48,3 +48,6 @@ scripts/audit/shots-baseline/
 
 # Vitest run artifacts (JSON reporter output)
 .vitest/
+
+# Release notes extracted from CHANGELOG.mobile.md by make upload
+.release-notes.md

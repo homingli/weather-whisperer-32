@@ -5,7 +5,9 @@
 #   make bump         bump version + commit & push — patch default; MINOR=1, MAJOR=1, VERSION=x.y[.z]
 #   make apk          debug APK (fast, debug-signed)
 #   make apk-release  release APK, signed via android/keystore.properties
-#   make upload       upload the release APK to a GitHub prerelease (apk-v<VERSION>)
+#   make upload       upload the release APK to a GitHub prerelease (apk-v<VERSION>),
+#                     with the "## v<VERSION>" section of CHANGELOG.mobile.md as
+#                     the release description (fails if that section is missing/empty)
 #   make release      apk-release + upload
 #   make icons        regenerate launcher icons from assets/
 #   make clean        clean gradle build outputs
@@ -23,6 +25,7 @@ VERSION     ?= $(shell sed -n 's/.*versionName "\([^"]*\)".*/\1/p' android/app/b
 TAG         := apk-v$(VERSION)
 APK_DEBUG   := android/app/build/outputs/apk/debug/weather-whisperer-v$(VERSION).apk
 APK_RELEASE := android/app/build/outputs/apk/release/weather-whisperer-v$(VERSION).apk
+NOTES_FILE  := .release-notes.md
 
 # `make bump VERSION=x.y.z` treats VERSION as an explicit set only when it came
 # from the command line — otherwise it's the current value read from build.gradle.
@@ -64,19 +67,24 @@ apk: ## build debug APK (debug-signed)
 apk-release: ## build release APK (signed via android/keystore.properties)
 	pnpm run apk:release
 
-# Creates the prerelease on first run, clobbers the APK on re-runs.
-upload: ## upload release APK to GitHub prerelease apk-v<VERSION>
+# Creates the prerelease on first run; clobbers the APK and refreshes the
+# description from CHANGELOG.mobile.md on re-runs.
+upload: ## upload release APK + versioned notes to GitHub prerelease apk-v<VERSION>
 	@git fetch origin mobile
 	@test "$$(git rev-parse mobile)" = "$$(git rev-parse origin/mobile)" \
 		|| { echo "local mobile != origin/mobile — push or pull first so the apk-v tag lands on what you upload"; exit 1; }
 	@test -n "$(VERSION)" || { echo "versionName not found in android/app/build.gradle; pass VERSION=x.y"; exit 1; }
 	@test -f "$(APK_RELEASE)" || { echo "no release APK — run make apk-release first"; exit 1; }
-	@gh release view "$(TAG)" >/dev/null 2>&1 \
-		&& gh release upload "$(TAG)" "$(APK_RELEASE)" --clobber \
-		|| gh release create "$(TAG)" "$(APK_RELEASE)" \
+	@node scripts/release-notes.mjs --version "$(VERSION)" > "$(NOTES_FILE)"
+	@if gh release view "$(TAG)" >/dev/null 2>&1; then \
+		gh release upload "$(TAG)" "$(APK_RELEASE)" --clobber; \
+		gh release edit "$(TAG)" --notes-file "$(NOTES_FILE)"; \
+	else \
+		gh release create "$(TAG)" "$(APK_RELEASE)" \
 			--target mobile --prerelease \
 			--title "Weather Whisperer v$(VERSION) (Android)" \
-			--notes "Debug-tier Android build of the mobile branch. Uninstall any previously sideloaded build signed with a different key before installing."
+			--notes-file "$(NOTES_FILE)"; \
+	fi
 	@echo "----"
 	@echo "Reminder: next release starts with make bump (patch) / make bump MINOR=1."
 
