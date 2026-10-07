@@ -15,4 +15,4 @@ What's in place today:
 - **Quiet shelf.** Below-threshold metric chips (precip, humidity, UV, wind) use `aria-label` to carry full values; tap/toggle reveals detail on focus (WCAG 1.4.13)
 - **At-a-glance strip.** Each day's temperature button and each rain-chance chip (≥ 20 %) carries a full-sentence `aria-label` (condition, high, low; "Rain chance 80%. View the rainfall nowcast map.") so screen readers never hear a bare "80 %"
 
-Remaining work: non-color cues inside visualization widgets, `prefers-reduced-motion` guards on all animations, and Playwright + `@axe-core` e2e coverage.
+Remaining work: non-color cues inside visualization widgets; JS-driven motion outside the CSS reduced-motion guard (the HourlyForecast Recharts chart animates on mount — DailyForecast already sets `isAnimationActive={false}`, so mirror that); and Playwright + `@axe-core` e2e coverage.
