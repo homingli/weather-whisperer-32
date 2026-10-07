@@ -11,6 +11,7 @@ import {
   precipitationUnitLabel,
 } from "@/lib/units";
 import { formatInTimezone, appLocale } from "@/lib/utils";
+import { STRONG_WIND_GUST_KMH } from "@/lib/constants";
 import { useMemo, useCallback, memo, useRef } from "react";
 import { ShareForecastButton } from "@/components/ShareForecastButton";
 
@@ -57,9 +58,23 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
     rainChance: hour.precipitationProbability,
     rainIntensity: units === 'us' ? mmToInches(hour.precipitation) : hour.precipitation,
     windSpeed: units === 'us' ? kmhToMph(hour.windSpeed) : hour.windSpeed,
+    // Gust kept in both scales: `windGustKmh` is the transport unit the
+    // strong-wind threshold compares against, `windGust` is display-converted.
+    windGustKmh: hour.windGust,
+    windGust: hour.windGust != null ? (units === 'us' ? kmhToMph(hour.windGust) : hour.windGust) : undefined,
     windDirection: hour.windDirection,
     isDay: hour.isDay,
   }));
+
+  // An hour whose forecast gust reaches Beaufort 7 territory earns a visible
+  // annotation under its time tick (see renderXAxisTick below); the full
+  // "Gusts: 55 km/h" label lives in the tooltip and the sr-only table, so
+  // the tick stays a bare glyph that eight ~40px columns can hold at 320px.
+  const hasStrongGustHours = chartData.some((d) => (d.windGustKmh ?? 0) >= STRONG_WIND_GUST_KMH);
+  // The sr-only gust column renders only when the window carries any gust
+  // data at all — snapshots written before the field existed keep the
+  // original four-column table.
+  const hasGustData = chartData.some((d) => d.windGust != null);
 
   // Format sunrise/sunset time in the city's timezone
   const formatSunTime = useCallback((date: Date) => {
@@ -147,6 +162,31 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
     return formatTimeInTimezone(new Date(timestamp));
   }, [t, formatTimeInTimezone]);
 
+  // Two-line tick used only when at least one hour in the window has strong
+  // gusts (otherwise the default single-line tick renders unchanged). The
+  // extra bottom margin reserves room for the gust line. x/y/payload mirror
+  // Recharts' `XAxisTickContentProps` (x/y widen to string in their types).
+  const renderXAxisTick = useCallback((props: { x?: number | string; y?: number | string; payload?: { value?: number | string } }) => {
+    const value = props.payload?.value;
+    if (value == null) return <g />;
+    const index = chartData.findIndex((d) => d.time === value);
+    const row = chartData[index];
+    if (!row) return <g />;
+    const showGust = row.windGust != null && (row.windGustKmh ?? 0) >= STRONG_WIND_GUST_KMH;
+    return (
+      <g transform={`translate(${props.x ?? 0},${props.y ?? 0})`}>
+        <text x={0} y={0} dy={12} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={14}>
+          {formatXAxisTick(Number(value), index)}
+        </text>
+        {showGust && (
+          <text x={0} y={0} dy={26} textAnchor="middle" fill="hsl(var(--foreground))" fontSize={11} fontWeight={600}>
+            {`↑ ${Math.round(row.windGust!)}`}
+          </text>
+        )}
+      </g>
+    );
+  }, [chartData, formatXAxisTick]);
+
   // Format time for tooltip label
   const formatTooltipLabel = useCallback((timestamp: number) => {
     return formatInTimezone(new Date(timestamp), locale, {
@@ -185,7 +225,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
               The temp line renders after the bars so it stays on top; bars are
               translucent so a hot + stormy hour (80% bar running up behind a
               temp peak) never hides the trace. */}
-          <ComposedChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 10 }}>
+          <ComposedChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: hasStrongGustHours ? 28 : 10 }}>
             {/* Day/night background areas */}
             {dayNightAreas.map((area, index) => (
               <ReferenceArea
@@ -221,7 +261,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
               domain={['dataMin', 'dataMax']}
               axisLine={false}
               tickLine={false}
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 14 }}
+              tick={hasStrongGustHours ? renderXAxisTick : { fill: 'hsl(var(--muted-foreground))', fontSize: 14 }}
               tickFormatter={formatXAxisTick}
               ticks={chartData.map(d => d.time)}
             />
@@ -302,6 +342,12 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
                             </div>
                           </div>
                         </div>
+                        {data.windGust != null && (
+                          <div className="text-foreground flex justify-between gap-4">
+                            <span>{t('weather.windGust')}:</span>
+                            <span className="font-semibold">{`${Math.round(data.windGust)} ${windLabel}`}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -309,12 +355,17 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
                 return null;
               }}
             />
+            {/* isAnimationActive={false} — Recharts animates on mount with
+                JS, outside the CSS prefers-reduced-motion guard in index.css
+                (the .hf-chart entrance IS guarded; this internal one wasn't).
+                DailyForecast already disabled its bar animation. */}
             <Bar
               yAxisId="right"
               dataKey="rainChance"
               fill="hsl(var(--weather-rain))"
               fillOpacity={0.22}
               maxBarSize={24}
+              isAnimationActive={false}
             />
             <Line
               yAxisId="left"
@@ -324,6 +375,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
               strokeWidth={2}
               dot={{ fill: 'hsl(var(--weather-sunny))', strokeWidth: 0, r: 4 }}
               activeDot={{ r: 6, fill: 'hsl(var(--weather-sunny))' }}
+              isAnimationActive={false}
             />
           </ComposedChart>
         </ResponsiveContainer>
@@ -345,6 +397,9 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
               <th scope="col">{t('hourly.temperature')}</th>
               <th scope="col">{t('hourly.rainChance')}</th>
               <th scope="col">{t('weather.wind')}</th>
+              {/* Column only when any row carries gust data — pre-gust cached
+                  snapshots render the exact table that shipped before. */}
+              {hasGustData && <th scope="col">{t('weather.windGust')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -359,6 +414,11 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
                 <td>
                   {Math.round(row.windSpeed)} {windSpeedUnitLabel(units)}
                 </td>
+                {hasGustData && (
+                  <td>
+                    {row.windGust != null ? `${Math.round(row.windGust)} ${windSpeedUnitLabel(units)}` : '—'}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

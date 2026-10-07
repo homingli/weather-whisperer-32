@@ -138,4 +138,23 @@ describe('DailyForecast', () => {
     expect(srTable!.textContent).not.toContain('25°C');
     expect(srTable!.textContent).not.toContain('10 km/h');
   });
+
+  it('adds sr-only gust/UV columns only when the week carries that data', () => {
+    const mockGustyForecast: DailyForecastType[] = mockForecast.map((d, i) =>
+      i === 0 ? { ...d, windGustMax: 70, uvIndexMax: 9.4 } : d,
+    );
+    const { container } = renderWithProviders(<DailyForecast forecast={mockGustyForecast} />);
+    const srTable = container.querySelector('div.sr-only table');
+    expect(srTable).toBeTruthy();
+    expect(srTable!.textContent).toContain('Gusts');
+    expect(srTable!.textContent).toContain('70 km/h');
+    expect(srTable!.textContent).toContain('UV Index');
+    expect(srTable!.textContent).toContain('9');
+
+    // Pre-gust data keeps the original five-column table.
+    const { container: plain } = renderWithProviders(<DailyForecast forecast={mockForecast} />);
+    const plainTable = plain.querySelector('div.sr-only table');
+    expect(plainTable!.textContent).not.toContain('Gusts');
+    expect(plainTable!.textContent).not.toContain('UV Index');
+  });
 });

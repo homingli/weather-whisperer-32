@@ -272,6 +272,37 @@ describe('fetchWeather orchestration', () => {
       expect((result as { hkoFailed?: boolean }).hkoFailed).toBeUndefined();
     });
 
+    it('overlays the HKO station wind onto current wind in the merged path', async () => {
+      mockIsInHK.mockReturnValue(true);
+      const omData = makeOpenMeteoData(); // model-grid wind 10 km/h / 180°
+      mockGetOpenMeteo.mockResolvedValue(omData);
+      mockGetHKODaily.mockResolvedValue(makeHkoDaily());
+      const hkoCurrent = makeHkoCurrent();
+      hkoCurrent.wind = { data: [{ place: "King's Park", speed: 23, direction: 90 }] };
+      mockGetHKOCurrent.mockResolvedValue(hkoCurrent);
+
+      const result = await fetchWeather(HK_LAT, HK_LON);
+
+      // The Observatory's 10-minute station mean wins for the wind compass.
+      expect(result.current.windSpeed).toBe(23);
+      expect(result.current.windDirection).toBe(90);
+      // Temperature precedence is unchanged.
+      expect(result.current.temperature).toBe(25);
+    });
+
+    it('keeps OM current wind when the HKO current feed has no wind reading', async () => {
+      mockIsInHK.mockReturnValue(true);
+      const omData = makeOpenMeteoData();
+      mockGetOpenMeteo.mockResolvedValue(omData);
+      mockGetHKODaily.mockResolvedValue(makeHkoDaily());
+      mockGetHKOCurrent.mockResolvedValue(makeHkoCurrent()); // no `wind` field
+
+      const result = await fetchWeather(HK_LAT, HK_LON);
+
+      expect(result.current.windSpeed).toBe(omData.current.windSpeed);
+      expect(result.current.windDirection).toBe(omData.current.windDirection);
+    });
+
     it('reports hkoFailed: true when OM succeeds but HKO daily fails', async () => {
       mockIsInHK.mockReturnValue(true);
       mockGetOpenMeteo.mockResolvedValue(makeOpenMeteoData());

@@ -219,6 +219,7 @@ export const translations: Record<Language, Record<string, string>> = {
     // Current weather
     'weather.feelsLike': 'Feels like',
     'weather.wind': 'Wind',
+    'weather.windGust': 'Gusts',
     'weather.windSpeed': 'Wind Speed',
     'weather.windDirection': 'Wind Direction',
     'weather.humidity': 'Humidity',
@@ -572,6 +573,7 @@ export const translations: Record<Language, Record<string, string>> = {
     // Current weather
     'weather.feelsLike': '體感溫度',
     'weather.wind': '風',
+    'weather.windGust': '陣風',
     'weather.windSpeed': '風速',
     'weather.windDirection': '風向',
     'weather.humidity': '濕度',

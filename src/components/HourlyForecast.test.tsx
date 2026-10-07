@@ -48,7 +48,7 @@ vi.mock('recharts', async () => {
       // shape so the component's Number() coercion stays pinned.
       const label = 1704715200000;
       const body = content
-        ? content({ active: true, payload: [{ payload: { temperature: 20, rainChance: 10, windSpeed: 10, windDirection: 180 } }], label })
+        ? content({ active: true, payload: [{ payload: { temperature: 20, rainChance: 10, windSpeed: 10, windDirection: 180, windGust: 55 } }], label })
         : null;
       return (
         <div data-testid="tooltip">
@@ -86,6 +86,11 @@ const mockHourlyData: HourlyForecastType[] = [
     precipitation: 0,
     isDay: true,
   },
+];
+
+const mockGustyHourlyData: HourlyForecastType[] = [
+  { ...mockHourlyData[0], windGust: 55 }, // ≥ STRONG_WIND_GUST_KMH — strong-wind hour
+  mockHourlyData[1], // no gust field — annotation and value stay hidden
 ];
 
 describe('HourlyForecast Component', () => {
@@ -251,6 +256,9 @@ describe('HourlyForecast Component', () => {
     // Custom body: metric row values for the active datum.
     expect(screen.getByTestId('tooltip').textContent).toContain('20.0°C');
     expect(screen.getByTestId('tooltip').textContent).toContain('10 km/h');
+    // Gust row renders when the active hour carries gust data.
+    expect(screen.getByTestId('tooltip').textContent).toContain('Gusts');
+    expect(screen.getByTestId('tooltip').textContent).toContain('55 km/h');
   });
 
   it('accepts and propagates timezone prop without crashing', () => {
@@ -294,5 +302,29 @@ describe('HourlyForecast Component', () => {
     });
     expect(srTable!.textContent).toContain('68°F');
     expect(srTable!.textContent).toContain('mph');
+  });
+
+  it('carries gust data into chart rows in both scales (display unit + km/h threshold)', () => {
+    renderWithLanguage(<HourlyForecast forecast={mockGustyHourlyData} />);
+    expect(renderedChartData).toEqual(
+      expect.arrayContaining([
+        // windGust: display value (metric here); windGustKmh: transport unit
+        // the STRONG_WIND_GUST_KMH annotation threshold compares against.
+        expect.objectContaining({ windGustKmh: 55, windGust: 55 }),
+        expect.objectContaining({ windGustKmh: undefined, windGust: undefined }),
+      ]),
+    );
+  });
+
+  it('adds the sr-only gust column only when the window carries gust data', () => {
+    const { container } = renderWithLanguage(<HourlyForecast forecast={mockGustyHourlyData} />);
+    const srTable = container.querySelector('div.sr-only table');
+    expect(srTable).toBeTruthy();
+    expect(srTable!.textContent).toContain('Gusts');
+    expect(srTable!.textContent).toContain('55 km/h');
+
+    // Pre-gust data keeps the original four-column table.
+    const { container: plain } = renderWithLanguage(<HourlyForecast forecast={mockHourlyData} />);
+    expect(plain.querySelector('div.sr-only table')!.textContent).not.toContain('Gusts');
   });
 });

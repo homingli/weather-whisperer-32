@@ -210,10 +210,11 @@ export async function fetchWeather(
 
   // Both succeeded — combine. HKO wins for daily (OM backfills its
   // sunrise/sunset and wind placeholders) and supplies warnings/station/
-  // district; HKO also wins for the
-  // current temperature when its current-weather fetch succeeds (the today
-  // temperature bar / marker uses this value). OM keeps current/hourly for
-  // everything else.
+  // district; HKO also wins for the current temperature and wind when its
+  // current-weather fetch succeeds (the station's 10-minute mean is the
+  // Observatory's own reading; the today temperature bar / marker and the
+  // wind compass use these values). OM keeps current/hourly for everything
+  // else.
   const hkoData = hkoResult.data!;
   const hkoNow: SourceState = {
     ok: true,
@@ -229,6 +230,12 @@ export async function fetchWeather(
     hkoCurrentData?.temperature.data.find((t) => t.place === hkoData.nearestStation) ||
     hkoCurrentData?.temperature.data[0];
   const hkoCurrentTemperature = hkoTempReading?.value;
+
+  // Same precedence for wind: the nearest station's 10-minute mean wins over
+  // the OM model grid; keep OM when the feed has no reading at all.
+  const hkoWindReading =
+    hkoCurrentData?.wind?.data.find((w) => w.place === hkoData.nearestStation) ||
+    hkoCurrentData?.wind?.data[0];
 
   // HKO seeds sunrise/sunset with epoch-0 sentinels and wind with 0
   // (HKO daily doesn't publish either); replace the placeholders with the OM
@@ -247,6 +254,10 @@ export async function fetchWeather(
     current: {
       ...omData!.current,
       ...(hkoCurrentTemperature != null ? { temperature: hkoCurrentTemperature } : {}),
+      ...(hkoWindReading ? {
+        windSpeed: hkoWindReading.speed,
+        windDirection: hkoWindReading.direction,
+      } : {}),
       ...(aqhi ? {
         aqhiIndex: aqhi.index,
         aqhiStation: aqhi.station,

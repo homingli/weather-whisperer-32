@@ -4,6 +4,7 @@ import { Droplets } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
 import { formatTemperature, formatWindSpeed, windSpeedUnitLabel } from "@/lib/units";
+import { STRONG_WIND_GUST_KMH } from "@/lib/constants";
 import { translatePsr } from "@/lib/hko-weather";
 import { getDateTimeFormatter, formatInTimezone, appLocale } from "@/lib/utils";
 import { useMemo, useCallback, memo, useRef } from "react";
@@ -121,6 +122,9 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
         weatherCode: day.weatherCode,
         windSpeedMax: Math.round(day.windSpeedMax),
         windDirectionDominant: day.windDirectionDominant,
+        // Raw km/h / index — converted at the label layer like the temps.
+        windGustMax: day.windGustMax,
+        uvIndexMax: day.uvIndexMax,
         precipLabel: showPSR
           ? translatePsr(day.precipitationProbabilityRaw, language as 'en' | 'tc')
           : showPercentage
@@ -133,6 +137,11 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
 
     return { chartData: rows, yDomainMin: yMin, yDomainMax: yMax };
   }, [forecast, formatDayLine1, formatDayLine2, language]);
+
+  // The sr-only gust/UV columns render only when the week carries that data
+  // — snapshots written before the fields existed keep the original table.
+  const hasGustData = forecast.some((d) => d.windGustMax != null);
+  const hasUvData = forecast.some((d) => d.uvIndexMax != null);
 
   // Entrance animation handled by @keyframes in src/index.css
   // (.df-rule, .df-chart) under @media (prefers-reduced-motion: no-preference).
@@ -262,6 +271,20 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
                         <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[6px] border-b-sky-400" />
                       </div>
                     </div>
+                    {/* Gusts only when they reach strong-wind territory — the
+                        sustained max already reads above. UV shows whenever the
+                        day carries a peak, since "peak 9" is actionable even
+                        when the current-hour reading is quiet. */}
+                    {row.windGustMax != null && row.windGustMax >= STRONG_WIND_GUST_KMH && (
+                      <p className="text-sky-400 mt-1 text-sm">
+                        {t('weather.windGust')}: {formatWindSpeed(row.windGustMax, units)} {windSpeedUnitLabel(units)}
+                      </p>
+                    )}
+                    {row.uvIndexMax != null && (
+                      <p className="text-foreground mt-1 text-sm">
+                        {t('weather.uvIndex')}: {Math.round(row.uvIndexMax)}
+                      </p>
+                    )}
                   </div>
                 );
               }}
@@ -308,6 +331,10 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
               <th scope="col">{t('daily.high')}</th>
               <th scope="col">{t('daily.precip')}</th>
               <th scope="col">{t('weather.wind')}</th>
+              {/* Columns only when the week carries the data — pre-gust cached
+                  snapshots render the exact table that shipped before. */}
+              {hasGustData && <th scope="col">{t('weather.windGust')}</th>}
+              {hasUvData && <th scope="col">{t('weather.uvIndex')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -318,6 +345,14 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
                 <td>{formatTemperature(row.temperatureMax, units)}</td>
                 <td>{row.precipLabel ?? '—'}</td>
                 <td>{`${formatWindSpeed(row.windSpeedMax, units)} ${windSpeedUnitLabel(units)}`}</td>
+                {hasGustData && (
+                  <td>
+                    {row.windGustMax != null ? `${formatWindSpeed(row.windGustMax, units)} ${windSpeedUnitLabel(units)}` : '—'}
+                  </td>
+                )}
+                {hasUvData && (
+                  <td>{row.uvIndexMax != null ? Math.round(row.uvIndexMax) : '—'}</td>
+                )}
               </tr>
             ))}
           </tbody>
