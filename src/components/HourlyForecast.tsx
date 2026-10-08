@@ -102,8 +102,10 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
     const ranges = strongGustAreas
       .map((a) => {
         const from = formatTimeInTimezone(new Date(a.x1));
-        const lastInRun = [...chartData].reverse().find((d) => d.time >= a.x1 && d.time < a.x2);
-        const to = formatTimeInTimezone(new Date((lastInRun ?? chartData[chartData.length - 1]).time));
+        // A band only exists because a chart point is in [x1, x2), so the
+        // lookup always lands.
+        const lastInRun = [...chartData].reverse().find((d) => d.time >= a.x1 && d.time < a.x2)!;
+        const to = formatTimeInTimezone(new Date(lastInRun.time));
         return from === to ? from : `${from}–${to}`;
       })
       .join(language === 'tc' ? '，' : ', ');
