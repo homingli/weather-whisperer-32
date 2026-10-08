@@ -106,6 +106,11 @@ const mockModerateGustHourlyData: HourlyForecastType[] = [
   mockHourlyData[1],
 ];
 
+const mockFinalStrongHourlyData: HourlyForecastType[] = [
+  mockHourlyData[0], // not strong — the run opens at the window's last hour
+  { ...mockHourlyData[1], windGust: 65 },
+];
+
 describe('HourlyForecast Component', () => {
   beforeEach(() => {
     renderedChartData.length = 0;
@@ -208,6 +213,13 @@ describe('HourlyForecast Component', () => {
     // dayNightAreas produces at least one ReferenceArea.
     const refAreas = screen.getAllByTestId('ref-area');
     expect(refAreas.length).toBeGreaterThan(0);
+    // Every ReferenceArea must bind to the chart's actual Y axis
+    // ('left'). recharts binds Reference* to axis id 0 by default and
+    // silently drops a mismatched one — the exact regression 2bf05aa
+    // fixed (day/night bands invisible in production).
+    for (const area of refAreas) {
+      expect(area.getAttribute('data-y-axis-id')).toBe('left');
+    }
   });
 
   it('renders sunrise/sunset ReferenceLine markers when daily covers the forecast window', () => {
@@ -365,5 +377,16 @@ describe('HourlyForecast Component', () => {
     const moderateBands = Array.from(moderate.querySelectorAll('[data-testid="ref-area"]'));
     expect(moderateBands.some((el) => el.getAttribute('data-fill')?.includes('208 24% 42%'))).toBe(false);
     expect(moderate.querySelector('[role="img"]')!.getAttribute('aria-label')).not.toContain('Strong gusts');
+  });
+
+  it('extends a strong-gust run that reaches the window’s final hour past the last stamp', () => {
+    // A run still open at the last hour shades to nextHour-stamp+1h —
+    // ifOverflow=extendDomain widens the domain instead of clipping it.
+    const { container } = renderWithLanguage(<HourlyForecast forecast={mockFinalStrongHourlyData} />);
+    const bands = Array.from(container.querySelectorAll('[data-testid="ref-area"]'));
+    const gustBand = bands.find((el) => el.getAttribute('data-fill')?.includes('208 24% 42%'));
+    expect(gustBand).toBeTruthy();
+    expect(gustBand!.getAttribute('data-x1')).toBe(String(mockFinalStrongHourlyData[1].time.getTime()));
+    expect(gustBand!.getAttribute('data-x2')).toBe(String(mockFinalStrongHourlyData[1].time.getTime() + 3_600_000));
   });
 });
