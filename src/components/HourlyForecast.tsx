@@ -66,15 +66,49 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
     isDay: hour.isDay,
   }));
 
-  // An hour whose forecast gust reaches Beaufort 7 territory earns a visible
-  // annotation under its time tick (see renderXAxisTick below); the full
-  // "Gusts: 55 km/h" label lives in the tooltip and the sr-only table, so
-  // the tick stays a bare glyph that eight ~40px columns can hold at 320px.
-  const hasStrongGustHours = chartData.some((d) => (d.windGustKmh ?? 0) >= STRONG_WIND_GUST_KMH);
-  // The sr-only gust column renders only when the window carries any gust
-  // data at all — snapshots written before the field existed keep the
-  // original four-column table.
+  // An hour whose forecast gust reaches Beaufort 7 territory shades the
+  // chart for that span (see strongGustAreas below); the exact values live
+  // in the tooltip and the sr-only table.
   const hasGustData = chartData.some((d) => d.windGust != null);
+
+  // Contiguous strong-gust spans, as [startMs, endMs) chart coordinates.
+  // A run of strong hours shades stamp-to-stamp like the day/night bands,
+  // so adjacent hours merge into one region; the final hour's run extends
+  // one hour past the last stamp (ifOverflow=extendDomain widens the domain
+  // rather than clipping it).
+  const strongGustAreas = useMemo(() => {
+    const areas: { x1: number; x2: number }[] = [];
+    let runStart: number | null = null;
+    for (let i = 0; i < chartData.length; i++) {
+      const d = chartData[i];
+      const strong = (d.windGustKmh ?? 0) >= STRONG_WIND_GUST_KMH;
+      if (strong && runStart == null) runStart = d.time;
+      const isLast = i === chartData.length - 1;
+      if (runStart != null && (!strong || isLast)) {
+        // Only a run that still includes the final hour extends past the
+        // last stamp; a run closed by a non-strong final hour ends there.
+        areas.push({ x1: runStart, x2: isLast && strong ? d.time + 3_600_000 : d.time });
+        runStart = null;
+      }
+    }
+    return areas;
+  }, [chartData]);
+
+  // The band is a color-only cue — the chart's aria-label names the ranges
+  // ("Strong gusts 2 PM–4 PM, 7 PM–8 PM") so the information doesn't ride
+  // on hue alone. (SR users also get the gust column in the sr-only table.)
+  const chartAriaLabel = useMemo(() => {
+    if (strongGustAreas.length === 0) return t('hourly.chartLabel');
+    const ranges = strongGustAreas
+      .map((a) => {
+        const from = formatTimeInTimezone(new Date(a.x1));
+        const lastInRun = [...chartData].reverse().find((d) => d.time >= a.x1 && d.time < a.x2);
+        const to = formatTimeInTimezone(new Date((lastInRun ?? chartData[chartData.length - 1]).time));
+        return from === to ? from : `${from}–${to}`;
+      })
+      .join(language === 'tc' ? '，' : ', ');
+    return `${t('hourly.chartLabel')}. ${formatString(t('hourly.strongGusts'), ranges)}`;
+  }, [t, language, strongGustAreas, chartData, formatTimeInTimezone]);
 
   // Format sunrise/sunset time in the city's timezone
   const formatSunTime = useCallback((date: Date) => {
@@ -162,31 +196,6 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
     return formatTimeInTimezone(new Date(timestamp));
   }, [t, formatTimeInTimezone]);
 
-  // Two-line tick used only when at least one hour in the window has strong
-  // gusts (otherwise the default single-line tick renders unchanged). The
-  // extra bottom margin reserves room for the gust line. x/y/payload mirror
-  // Recharts' `XAxisTickContentProps` (x/y widen to string in their types).
-  const renderXAxisTick = useCallback((props: { x?: number | string; y?: number | string; payload?: { value?: number | string } }) => {
-    const value = props.payload?.value;
-    if (value == null) return <g />;
-    const index = chartData.findIndex((d) => d.time === value);
-    const row = chartData[index];
-    if (!row) return <g />;
-    const showGust = row.windGust != null && (row.windGustKmh ?? 0) >= STRONG_WIND_GUST_KMH;
-    return (
-      <g transform={`translate(${props.x ?? 0},${props.y ?? 0})`}>
-        <text x={0} y={0} dy={12} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={14}>
-          {formatXAxisTick(Number(value), index)}
-        </text>
-        {showGust && (
-          <text x={0} y={0} dy={26} textAnchor="middle" fill="hsl(var(--foreground))" fontSize={11} fontWeight={600}>
-            {`↑ ${Math.round(row.windGust!)}`}
-          </text>
-        )}
-      </g>
-    );
-  }, [chartData, formatXAxisTick]);
-
   // Format time for tooltip label
   const formatTooltipLabel = useCallback((timestamp: number) => {
     return formatInTimezone(new Date(timestamp), locale, {
@@ -216,7 +225,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
 
       <div className="hf-rule h-px editorial-rule mt-3 mb-4" />
 
-      <div className="hf-chart flex-1 w-full min-h-0 touch-pan-y" aria-label={t('hourly.chartLabel')} role="img">
+      <div className="hf-chart flex-1 w-full min-h-0 touch-pan-y" aria-label={chartAriaLabel} role="img">
         <ResponsiveContainer width="100%" height="100%">
           {/* Rain chance is a per-hour probability, not a continuous series —
               encoding it as a second line on its own axis invites false
@@ -225,7 +234,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
               The temp line renders after the bars so it stays on top; bars are
               translucent so a hot + stormy hour (80% bar running up behind a
               temp peak) never hides the trace. */}
-          <ComposedChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: hasStrongGustHours ? 28 : 10 }}>
+          <ComposedChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 10 }}>
             {/* Day/night background areas */}
             {dayNightAreas.map((area, index) => (
               <ReferenceArea
@@ -234,6 +243,21 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
                 x2={area.x2}
                 fill={area.isDay ? "hsl(48 96% 53% / 0.55)" : "hsl(222 47% 30% / 0.55)"}
                 fillOpacity={1}
+              />
+            ))}
+            {/* Strong-gust bands — rendered after the day/night areas so the
+                warm tint stacks on top of either. Hardcoded hue (like the
+                day/night fills): the severity-warning token is tuned for
+                text contrast and vanishes as a fill on the dark card. Gated
+                at STRONG_WIND_GUST_KMH; exact values in tooltip + sr table. */}
+            {strongGustAreas.map((area, index) => (
+              <ReferenceArea
+                key={`gust-${index}`}
+                x1={area.x1}
+                x2={area.x2}
+                fill="hsl(28 90% 52% / 0.18)"
+                fillOpacity={1}
+                ifOverflow="extendDomain"
               />
             ))}
             {/* Sunrise/sunset markers */}
@@ -261,7 +285,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
               domain={['dataMin', 'dataMax']}
               axisLine={false}
               tickLine={false}
-              tick={hasStrongGustHours ? renderXAxisTick : { fill: 'hsl(var(--muted-foreground))', fontSize: 14 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 14 }}
               tickFormatter={formatXAxisTick}
               ticks={chartData.map(d => d.time)}
             />

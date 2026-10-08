@@ -63,6 +63,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'hourly.temperature': 'Temperature',
     'hourly.rainChance': 'Rain Chance',
     'hourly.chartLabel': 'Hourly temperature and rain probability chart',
+    'hourly.strongGusts': 'Strong gusts {0}',
     
     // Daily forecast
     'daily.title': '7-DAY FORECAST',
@@ -414,6 +415,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'hourly.temperature': '溫度',
     'hourly.rainChance': '降雨機率',
     'hourly.chartLabel': '每小時溫度與降雨機率圖表',
+    'hourly.strongGusts': '強陣風 {0}',
     
     // Daily forecast
     'daily.title': '7日天氣預報',

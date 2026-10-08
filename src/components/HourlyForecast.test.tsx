@@ -12,9 +12,6 @@ import { MockChartProps } from '@/test/mockChartProps';
 // Track chart renders so we can assert on the data passed to Recharts.
 type ChartCapture = Record<string, unknown>;
 const renderedChartData: ChartCapture[] = [];
-// Last `data` the ComposedChart mock saw — lets the XAxis mock invoke a
-// function `tick` with a real payload.value (the first hour's timestamp).
-let lastChartData: ChartCapture[] = [];
 
 vi.mock('recharts', async () => {
   const React = (await import('react')) as typeof import('react');
@@ -24,7 +21,6 @@ vi.mock('recharts', async () => {
     ResponsiveContainer: ({ children }: MockChartProps) => <div data-testid="chart-container">{children}</div>,
     ComposedChart: ({ data, children, ticks }: MockChartProps) => {
       renderedChartData.push(...((data ?? []) as ChartCapture[]));
-      lastChartData = (data ?? []) as ChartCapture[];
       if (ticks) renderedChartData.push({ ticks });
       // Use React.Children to properly render all child elements.
       const renderedChildren: ReactNode[] = [];
@@ -41,15 +37,7 @@ vi.mock('recharts', async () => {
       renderedChartData.push({ barDataKey: dataKey });
       return null;
     },
-    XAxis: ({ tick }: MockChartProps & { tick?: (props: { x?: number; y?: number; payload?: { value?: number | string } }) => ReactNode }) => {
-      // Exercise the custom strong-wind tick the way recharts would: with a
-      // real payload.value (the first hour's timestamp) from the chart data.
-      const first = lastChartData[0];
-      if (typeof tick === 'function' && first && typeof first.time === 'number') {
-        return <div data-testid="x-axis">{tick({ x: 10, y: 0, payload: { value: first.time } })}</div>;
-      }
-      return <div data-testid="x-axis" />;
-    },
+    XAxis: () => <div data-testid="x-axis" />,
     YAxis: () => <div data-testid="y-axis" />,
     Tooltip: ({ labelFormatter, content }: MockChartProps & {
       labelFormatter?: (label: unknown, payload?: unknown) => ReactNode;
@@ -69,7 +57,14 @@ vi.mock('recharts', async () => {
         </div>
       );
     },
-    ReferenceArea: () => <div data-testid="ref-area" />,
+    ReferenceArea: ({ x1, x2, fill }: MockChartProps & { x1?: number | string; x2?: number | string; fill?: string }) => (
+      <div
+        data-testid="ref-area"
+        data-x1={x1 != null ? String(x1) : undefined}
+        data-x2={x2 != null ? String(x2) : undefined}
+        data-fill={fill}
+      />
+    ),
     ReferenceLine: ({ label }: { label?: { value: unknown } }) => {
       if (label) renderedChartData.push({ refLineLabel: label.value });
       return <svg data-testid="ref-line" />;
@@ -113,7 +108,6 @@ const mockModerateGustHourlyData: HourlyForecastType[] = [
 describe('HourlyForecast Component', () => {
   beforeEach(() => {
     renderedChartData.length = 0;
-    lastChartData = [];
     localStorage.clear();
   });
 
@@ -346,20 +340,25 @@ describe('HourlyForecast Component', () => {
     expect(plain.querySelector('div.sr-only table')!.textContent).not.toContain('Gusts');
   });
 
-  it('annotates strong-wind hours on the time tick, gated at the strong-gust threshold', () => {
-    // 55 km/h ≥ STRONG_WIND_GUST_KMH: the custom two-line tick renders the
-    // gust glyph under the first hour's time label.
+  it('shades strong-gust hours with a band and names the range in the chart label', () => {
     const { container } = renderWithLanguage(<HourlyForecast forecast={mockGustyHourlyData} />);
-    const tick = container.querySelector('[data-testid="x-axis"]');
-    expect(tick!.textContent).toContain('↑ 55');
 
-    // 30 km/h is real gust data but below the threshold: same two-line tick
-    // path (the window has gust data), no glyph.
+    // The strong hour shades as a warm band; pin it by its fill and span.
+    const bands = Array.from(container.querySelectorAll('[data-testid="ref-area"]'));
+    const gustBand = bands.find((el) => el.getAttribute('data-fill')?.includes('28 90% 52%'));
+    expect(gustBand).toBeTruthy();
+    expect(gustBand!.getAttribute('data-x1')).toBe(String(mockGustyHourlyData[0].time.getTime()));
+    // The band reaches the next hour's stamp (the fixture's last).
+    expect(gustBand!.getAttribute('data-x2')).toBe(String(mockGustyHourlyData[1].time.getTime()));
+
+    // The band is a color-only cue — the chart's aria-label carries the
+    // range in words.
+    expect(container.querySelector('[role="img"]')!.getAttribute('aria-label')).toContain('Strong gusts');
+
+    // Gust data below the threshold: no band, and the label stays base.
     const { container: moderate } = renderWithLanguage(<HourlyForecast forecast={mockModerateGustHourlyData} />);
-    expect(moderate.querySelector('[data-testid="x-axis"]')!.textContent).not.toContain('↑');
-
-    // No gust data at all: the default single-line tick object renders.
-    const { container: plain } = renderWithLanguage(<HourlyForecast forecast={mockHourlyData} />);
-    expect(plain.querySelector('[data-testid="x-axis"]')!.textContent).not.toContain('↑');
+    const moderateBands = Array.from(moderate.querySelectorAll('[data-testid="ref-area"]'));
+    expect(moderateBands.some((el) => el.getAttribute('data-fill')?.includes('28 90% 52%'))).toBe(false);
+    expect(moderate.querySelector('[role="img"]')!.getAttribute('aria-label')).not.toContain('Strong gusts');
   });
 });
