@@ -191,7 +191,7 @@ describe('HourlyForecast Component', () => {
     expect(typeof firstEntry.temperature).toBe('number');
   });
 
-  it('renders day/night ReferenceArea bands when daily prop is provided', () => {
+  it('shades night spans only (day stays transparent) and binds areas to the left axis', () => {
     // daily with sunrise before noon and sunset after noon for the forecast window.
     const mockDaily: DailyForecastType[] = [
       {
@@ -206,13 +206,18 @@ describe('HourlyForecast Component', () => {
         sunset: new Date('2024-01-08T18:00:00Z'),
       },
     ];
+    // Day hour → night hour: only the night span renders a band (the day
+    // side stays on the card ground by design).
+    const mockDayNightHourly: HourlyForecastType[] = [
+      { ...mockHourlyData[0], isDay: true },
+      { ...mockHourlyData[1], isDay: false },
+    ];
 
-    renderWithLanguage(<HourlyForecast forecast={mockHourlyData} daily={mockDaily} />);
+    renderWithLanguage(<HourlyForecast forecast={mockDayNightHourly} daily={mockDaily} />);
 
-    // With hourly isDay data spanning 12–13 UTC and sunrise at 06:00 UTC,
-    // dayNightAreas produces at least one ReferenceArea.
     const refAreas = screen.getAllByTestId('ref-area');
-    expect(refAreas.length).toBeGreaterThan(0);
+    expect(refAreas).toHaveLength(1);
+    expect(refAreas[0].getAttribute('data-fill')).toContain('222 47% 30%');
     // Every ReferenceArea must bind to the chart's actual Y axis
     // ('left'). recharts binds Reference* to axis id 0 by default and
     // silently drops a mismatched one — the exact regression 2bf05aa
@@ -233,7 +238,8 @@ describe('HourlyForecast Component', () => {
       windDirection: 180,
       precipitationProbability: 10,
       precipitation: 0,
-      isDay: true,
+      // Sunset (18:00 UTC) falls between hours 6 and 7 — night after it.
+      isDay: i < 6,
     }));
     // sunrise at 06:00 UTC (before the 12:00 window start) and sunset at 18:00 UTC (inside).
     const mockDaily: DailyForecastType[] = [

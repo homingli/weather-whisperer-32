@@ -237,33 +237,35 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
               translucent so a hot + stormy hour (80% bar running up behind a
               temp peak) never hides the trace. */}
           <ComposedChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 10 }}>
-            {/* Day/night background areas. yAxisId is required: recharts
-                binds every Reference* to axis id 0 by default, and this
-                chart's axes are 'left'/'right' — without it the areas are
-                silently dropped (this regressed the day/night bands). */}
-            {dayNightAreas.map((area, index) => (
+            {/* Night shading only — the day side stays on the card ground
+                (the yellow wash wasn't earning its place). Night keeps a
+                low tint so the day/night boundary still reads. yAxisId is
+                required: recharts binds every Reference* to axis id 0 by
+                default, and this chart's axes are 'left'/'right' — without
+                it the areas are silently dropped (this regressed the
+                day/night bands once). */}
+            {dayNightAreas.filter((area) => !area.isDay).map((area, index) => (
               <ReferenceArea
                 key={index}
                 x1={area.x1}
                 x2={area.x2}
                 yAxisId="left"
-                fill={area.isDay ? "hsl(48 96% 53% / 0.18)" : "hsl(222 47% 30% / 0.30)"}
+                fill="hsl(222 47% 30% / 0.12)"
                 fillOpacity={1}
               />
             ))}
-            {/* Strong-gust bands — rendered after the day/night areas so the
-                tint stacks on top of either. Hardcoded blue-gray (like the
-                day/night fills) — the wind tone in this chart is already
-                blue, and a desaturated slate stays distinct from the
-                saturated rain bars while reading on both themes. Gated at
-                STRONG_WIND_GUST_KMH; exact values in tooltip + sr table. */}
+            {/* Strong-gust bands — rendered after the night areas so the
+                tint stacks on top. 15% blue-gray slate (user-tuned): quiet
+                enough to sit under the rain bars, which recharts z-orders
+                above reference areas. Gated at STRONG_WIND_GUST_KMH;
+                exact values in tooltip + sr table. */}
             {strongGustAreas.map((area, index) => (
               <ReferenceArea
                 key={`gust-${index}`}
                 x1={area.x1}
                 x2={area.x2}
                 yAxisId="left"
-                fill="hsl(208 24% 42% / 0.42)"
+                fill="hsl(208 24% 42% / 0.15)"
                 fillOpacity={1}
                 ifOverflow="extendDomain"
               />
