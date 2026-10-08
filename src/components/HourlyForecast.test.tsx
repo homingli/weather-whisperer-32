@@ -191,8 +191,10 @@ describe('HourlyForecast Component', () => {
     expect(typeof firstEntry.temperature).toBe('number');
   });
 
-  it('shades night spans only (day stays transparent) and binds areas to the left axis', () => {
-    // daily with sunrise before noon and sunset after noon for the forecast window.
+  it('shades night from the real sun times — the band starts at the sunset line, not the next hour stamp', () => {
+    // Window 12:00–13:00 UTC; sunset falls mid-window at 12:30. The night
+    // band must start exactly at the sunset stamp (what the marker line
+    // draws), not at the next whole-hour is_day flip.
     const mockDaily: DailyForecastType[] = [
       {
         date: new Date('2024-01-08'),
@@ -203,25 +205,35 @@ describe('HourlyForecast Component', () => {
         windDirectionDominant: 180,
         precipitationProbabilityMax: 20,
         sunrise: new Date('2024-01-08T06:00:00Z'),
-        sunset: new Date('2024-01-08T18:00:00Z'),
+        sunset: new Date('2024-01-08T12:30:00Z'),
+      },
+      {
+        date: new Date('2024-01-09'),
+        temperatureMax: 28,
+        temperatureMin: 22,
+        weatherCode: 0,
+        windSpeedMax: 10,
+        windDirectionDominant: 180,
+        precipitationProbabilityMax: 20,
+        sunrise: new Date('2024-01-09T06:00:00Z'),
+        sunset: new Date('2024-01-09T12:30:00Z'),
       },
     ];
-    // Day hour → night hour: only the night span renders a band (the day
-    // side stays on the card ground by design).
-    const mockDayNightHourly: HourlyForecastType[] = [
-      { ...mockHourlyData[0], isDay: true },
-      { ...mockHourlyData[1], isDay: false },
-    ];
 
-    renderWithLanguage(<HourlyForecast forecast={mockDayNightHourly} daily={mockDaily} />);
+    renderWithLanguage(<HourlyForecast forecast={mockHourlyData} daily={mockDaily} />);
 
     const refAreas = screen.getAllByTestId('ref-area');
     expect(refAreas).toHaveLength(1);
+    const sunsetMs = new Date('2024-01-08T12:30:00Z').getTime();
+    expect(refAreas[0].getAttribute('data-x1')).toBe(String(sunsetMs));
+    // Clipped to the window's last stamp — tomorrow's 06:00 sunrise is
+    // outside it.
+    expect(refAreas[0].getAttribute('data-x2')).toBe(String(mockHourlyData[1].time.getTime()));
     expect(refAreas[0].getAttribute('data-fill')).toContain('222 47% 30%');
     // Every ReferenceArea must bind to the chart's actual Y axis
     // ('left'). recharts binds Reference* to axis id 0 by default and
     // silently drops a mismatched one — the exact regression 2bf05aa
-    // fixed (day/night bands invisible in production).
+    // fixed (night bands invisible in production).
     for (const area of refAreas) {
       expect(area.getAttribute('data-y-axis-id')).toBe('left');
     }

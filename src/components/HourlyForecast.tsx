@@ -161,36 +161,42 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
     return events;
   }, [daily, hoursData, formatSunTime]);
 
-  // Calculate day/night periods for reference areas based on isDay from hourly data
-  const dayNightAreas = useMemo(() => {
-    const areas: { x1: number; x2: number; isDay: boolean }[] = [];
-    const dataPoints = chartData;
-
-    if (dataPoints.length < 2) return [];
-
-    let currentPeriodStart = 0;
-    let currentIsDay = dataPoints[0].isDay;
-
-    for (let i = 1; i < dataPoints.length; i++) {
-      if (dataPoints[i].isDay !== currentIsDay) {
-        areas.push({
-          x1: dataPoints[currentPeriodStart].time,
-          x2: dataPoints[i - 1].time,
-          isDay: currentIsDay,
-        });
-        currentPeriodStart = i;
-        currentIsDay = dataPoints[i].isDay;
-      }
+  // Night spans from the actual sun times (daily sunrise/sunset) rather
+  // than the hourly is_day flags: is_day can only flip on whole-hour
+  // stamps, so a flag-driven band starts at e.g. 7 PM while the drawn
+  // sunset marker says 6:04 PM. Anchoring to the sun times makes the
+  // shading begin exactly at that marker line. Intervals are clipped to
+  // the chart window, so no domain extension is needed.
+  const nightAreas = useMemo(() => {
+    if (!daily || daily.length === 0 || chartData.length === 0) return [];
+    const winStart = chartData[0].time;
+    const winEnd = chartData[chartData.length - 1].time;
+    // HKO fallback seeds sunrise/sunset with epoch-0 sentinels; treat
+    // non-finite and pre-1971 stamps alike as "no data".
+    const toMs = (d: Date | string): number | null => {
+      const t = (d instanceof Date) ? d.getTime() : new Date(d).getTime();
+      return Number.isNaN(t) || t <= 0 ? null : t;
+    };
+    const areas: { x1: number; x2: number }[] = [];
+    // Pre-dawn window: last night's sunset isn't in `daily` (it starts
+    // today), so shade from the window start until today's sunrise.
+    const sunrise0 = toMs(daily[0].sunrise);
+    if (sunrise0 != null && sunrise0 > winStart) {
+      areas.push({ x1: winStart, x2: Math.min(sunrise0, winEnd) });
     }
-
-    areas.push({
-      x1: dataPoints[currentPeriodStart].time,
-      x2: dataPoints[dataPoints.length - 1].time,
-      isDay: currentIsDay,
-    });
-
+    // Each evening: sunset_i → sunrise_{i+1}. The next-day sunrise is
+    // optional (daily carries 7 days in practice, but the last evening has
+    // no follower) — it clips to the window end instead.
+    for (let i = 0; i < daily.length; i++) {
+      const set = toMs(daily[i].sunset);
+      if (set == null) continue;
+      const rise = toMs(daily[i + 1]?.sunrise);
+      const x1 = Math.max(set, winStart);
+      const x2 = Math.min(rise ?? winEnd, winEnd);
+      if (x2 > x1) areas.push({ x1, x2 });
+    }
     return areas;
-  }, [chartData]);
+  }, [daily, chartData]);
 
   // Custom tick formatter for x-axis
   const formatXAxisTick = useCallback((timestamp: number, index: number) => {
@@ -237,14 +243,13 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
               translucent so a hot + stormy hour (80% bar running up behind a
               temp peak) never hides the trace. */}
           <ComposedChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 10 }}>
-            {/* Night shading only — the day side stays on the card ground
-                (the yellow wash wasn't earning its place). Night keeps a
-                low tint so the day/night boundary still reads. yAxisId is
-                required: recharts binds every Reference* to axis id 0 by
-                default, and this chart's axes are 'left'/'right' — without
-                it the areas are silently dropped (this regressed the
-                day/night bands once). */}
-            {dayNightAreas.filter((area) => !area.isDay).map((area, index) => (
+            {/* Night shading, anchored to the real sunset/sunrise times so
+                the band starts at the drawn marker line instead of the next
+                full-hour stamp. yAxisId is required: recharts binds every
+                Reference* to axis id 0 by default, and this chart's axes
+                are 'left'/'right' — without it the areas are silently
+                dropped (this regressed the night bands once). */}
+            {nightAreas.map((area, index) => (
               <ReferenceArea
                 key={index}
                 x1={area.x1}
