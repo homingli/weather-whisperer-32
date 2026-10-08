@@ -57,12 +57,13 @@ vi.mock('recharts', async () => {
         </div>
       );
     },
-    ReferenceArea: ({ x1, x2, fill }: MockChartProps & { x1?: number | string; x2?: number | string; fill?: string }) => (
+    ReferenceArea: ({ x1, x2, fill, yAxisId }: MockChartProps & { x1?: number | string; x2?: number | string; fill?: string; yAxisId?: string }) => (
       <div
         data-testid="ref-area"
         data-x1={x1 != null ? String(x1) : undefined}
         data-x2={x2 != null ? String(x2) : undefined}
         data-fill={fill}
+        data-y-axis-id={yAxisId}
       />
     ),
     ReferenceLine: ({ label }: { label?: { value: unknown } }) => {
@@ -343,13 +344,17 @@ describe('HourlyForecast Component', () => {
   it('shades strong-gust hours with a band and names the range in the chart label', () => {
     const { container } = renderWithLanguage(<HourlyForecast forecast={mockGustyHourlyData} />);
 
-    // The strong hour shades as a warm band; pin it by its fill and span.
+    // The strong hour shades as a blue-gray band; pin it by fill and span.
     const bands = Array.from(container.querySelectorAll('[data-testid="ref-area"]'));
-    const gustBand = bands.find((el) => el.getAttribute('data-fill')?.includes('28 90% 52%'));
+    const gustBand = bands.find((el) => el.getAttribute('data-fill')?.includes('208 24% 42%'));
     expect(gustBand).toBeTruthy();
     expect(gustBand!.getAttribute('data-x1')).toBe(String(mockGustyHourlyData[0].time.getTime()));
     // The band reaches the next hour's stamp (the fixture's last).
     expect(gustBand!.getAttribute('data-x2')).toBe(String(mockGustyHourlyData[1].time.getTime()));
+    // Reference* binds to axis id 0 by default; this chart's axes are
+    // 'left'/'right', so a missing yAxisId silently drops the area in real
+    // recharts (this regressed the day/night bands once).
+    expect(gustBand!.getAttribute('data-y-axis-id')).toBe('left');
 
     // The band is a color-only cue — the chart's aria-label carries the
     // range in words.
@@ -358,7 +363,7 @@ describe('HourlyForecast Component', () => {
     // Gust data below the threshold: no band, and the label stays base.
     const { container: moderate } = renderWithLanguage(<HourlyForecast forecast={mockModerateGustHourlyData} />);
     const moderateBands = Array.from(moderate.querySelectorAll('[data-testid="ref-area"]'));
-    expect(moderateBands.some((el) => el.getAttribute('data-fill')?.includes('28 90% 52%'))).toBe(false);
+    expect(moderateBands.some((el) => el.getAttribute('data-fill')?.includes('208 24% 42%'))).toBe(false);
     expect(moderate.querySelector('[role="img"]')!.getAttribute('aria-label')).not.toContain('Strong gusts');
   });
 });

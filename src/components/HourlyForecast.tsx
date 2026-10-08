@@ -237,27 +237,33 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
               translucent so a hot + stormy hour (80% bar running up behind a
               temp peak) never hides the trace. */}
           <ComposedChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 10 }}>
-            {/* Day/night background areas */}
+            {/* Day/night background areas. yAxisId is required: recharts
+                binds every Reference* to axis id 0 by default, and this
+                chart's axes are 'left'/'right' — without it the areas are
+                silently dropped (this regressed the day/night bands). */}
             {dayNightAreas.map((area, index) => (
               <ReferenceArea
                 key={index}
                 x1={area.x1}
                 x2={area.x2}
-                fill={area.isDay ? "hsl(48 96% 53% / 0.55)" : "hsl(222 47% 30% / 0.55)"}
+                yAxisId="left"
+                fill={area.isDay ? "hsl(48 96% 53% / 0.18)" : "hsl(222 47% 30% / 0.30)"}
                 fillOpacity={1}
               />
             ))}
             {/* Strong-gust bands — rendered after the day/night areas so the
-                warm tint stacks on top of either. Hardcoded hue (like the
-                day/night fills): the severity-warning token is tuned for
-                text contrast and vanishes as a fill on the dark card. Gated
-                at STRONG_WIND_GUST_KMH; exact values in tooltip + sr table. */}
+                tint stacks on top of either. Hardcoded blue-gray (like the
+                day/night fills) — the wind tone in this chart is already
+                blue, and a desaturated slate stays distinct from the
+                saturated rain bars while reading on both themes. Gated at
+                STRONG_WIND_GUST_KMH; exact values in tooltip + sr table. */}
             {strongGustAreas.map((area, index) => (
               <ReferenceArea
                 key={`gust-${index}`}
                 x1={area.x1}
                 x2={area.x2}
-                fill="hsl(28 90% 52% / 0.18)"
+                yAxisId="left"
+                fill="hsl(208 24% 42% / 0.42)"
                 fillOpacity={1}
                 ifOverflow="extendDomain"
               />
