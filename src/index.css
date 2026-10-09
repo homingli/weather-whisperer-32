@@ -386,6 +386,17 @@
   }
   .hf-chart { animation: chart-in 0.7s cubic-bezier(0.31, 0.74, 0.58, 1) 0.4s both; }
   .df-chart { animation: chart-in 0.7s cubic-bezier(0.31, 0.74, 0.58, 1) 0.45s both; }
+
+  /* Easter egg confetti (HolidayConfetti): pieces drop from above the
+     viewport with a spin, fading near the bottom. Duration/delay are set
+     per-piece via inline style; the component unmounts the layer after 6s.
+     Keyframes live in this block so reduced-motion users get no animation
+     at all (the component also skips mounting the layer via matchMedia). */
+  @keyframes confetti-fall {
+    0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+    85%  { opacity: 1; }
+    100% { transform: translateY(105vh) rotate(540deg); opacity: 0; }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

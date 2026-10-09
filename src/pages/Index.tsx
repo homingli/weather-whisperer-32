@@ -10,13 +10,14 @@ import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
 import { useWarningChangeDetector } from '@/hooks/useWarningChangeDetector';
 import { useNextHoliday } from '@/hooks/useNextHoliday';
+import { useKeySequence } from '@/hooks/useKeySequence';
 import {
   useDevSimulatedWarnings,
   useDevBaselineNonce,
 } from '@/lib/devWarningSimulator';
 import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName, getWarningIcon } from '@/lib/hko-weather';
 import { buildShareCityLabel } from '@/lib/share-forecast';
-import { PLACEHOLDER_SENTINEL, isInVancouverBox } from '@/lib/constants';
+import { PLACEHOLDER_SENTINEL, isInVancouverBox, STORAGE_KEYS } from '@/lib/constants';
 import { prefetchMscNowcast } from '@/lib/msc-prefetch';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -46,6 +47,9 @@ const WeatherAlerts = lazy(() => import('@/components/WeatherAlerts').then(modul
 // The badge appears once the holiday query resolves anyway, so the lazy
 // hop costs nothing visible.
 const HolidayBadge = lazy(() => import('@/components/HolidayBadge').then(module => ({ default: module.HolidayBadge })));
+// HolidayConfetti (easter egg burst) stays lazy for the same reason — its
+// Dialog-free chunk is tiny, but there is no reason to pay for it upfront.
+const HolidayConfetti = lazy(() => import('@/components/HolidayConfetti').then(module => ({ default: module.HolidayConfetti })));
 // CitySearch backs the landing empty state (HML-58): when the geolocation
 // prompt is denied the page must offer an inline search, not a dead welcome
 // card. Lazy like SettingsMenu so the Input primitive and the CitySearch
@@ -78,6 +82,11 @@ const PLACEHOLDER_CURRENT = {
 // 3 = rainfall map when the city is inside nowcast coverage).
 const DECK_DAILY_SLIDE = 2;
 const DECK_NOWCAST_SLIDE = 3;
+
+// Desktop konami for the confetti egg: c-c-f-f, each press within 1.5s of
+// the previous. Module-level so useKeySequence's effect deps stay stable.
+const EGG_SEQUENCE = ['c', 'c', 'f', 'f'] as const;
+const EGG_SEQUENCE_GAP_MS = 1500;
 
 const Index = () => {
   const { language, t } = useLanguage();
@@ -203,6 +212,37 @@ const Index = () => {
   // matchMedia listener (useIsMobile).
   const isMobile = useIsMobile();
 
+  // ── Easter egg: confetti ──
+  // Plays once per app open when the shown day IS a HK public holiday
+  // (the play key is derived, not effect-set: Math.max keeps any earlier
+  // manual burst), and replays on the desktop c-c-f-f konami. The toast
+  // fires at most once per holiday date across reloads (localStorage
+  // guard); storage failures only cost the toast, never the confetti.
+  const [manualBursts, setManualBursts] = useState(0);
+  const confettiPlayKey = holidayCountdown?.isToday
+    ? Math.max(manualBursts, 1)
+    : manualBursts;
+  useEffect(() => {
+    if (!holidayCountdown?.isToday) return;
+    const holidayDate = holidayCountdown.holiday.date;
+    try {
+      if (localStorage.getItem(STORAGE_KEYS.EGG_HOLIDAY_TOAST) !== holidayDate) {
+        localStorage.setItem(STORAGE_KEYS.EGG_HOLIDAY_TOAST, holidayDate);
+        const name = lang === 'tc'
+          ? holidayCountdown.holiday.nameTc
+          : holidayCountdown.holiday.nameEn;
+        toast(formatString(t('glance.holidayEggToast'), name), { icon: '🎉' });
+      }
+    } catch {
+      // localStorage unavailable (private mode) — confetti still plays.
+    }
+  }, [holidayCountdown, lang, t]);
+
+  const triggerConfettiBurst = useCallback(() => {
+    setManualBursts(count => count + 1);
+  }, []);
+  useKeySequence(EGG_SEQUENCE, EGG_SEQUENCE_GAP_MS, triggerConfettiBurst, !isMobile);
+
   // Reveal target for the glance strip: desktop scrolls the secondary row
   // (hourly/daily) into view; mobile advances the swipe deck to the slide
   // that holds the DailyForecast.
@@ -258,10 +298,14 @@ const Index = () => {
               <LocalClock timezone={weather.timezone} />
             )}
             {/* Holiday countdown rides on the date line (calendar metadata);
-                details dialog on tap. Self-hides for non-HK cities. */}
-            <Suspense fallback={null}>
-              <HolidayBadge holiday={holidayCountdown} />
-            </Suspense>
+                details dialog on tap. Self-hides for non-HK cities. On mobile
+                it moves to the deck's pagination row instead (below) to keep
+                the slim date row uncluttered. */}
+            {!isMobile && (
+              <Suspense fallback={null}>
+                <HolidayBadge holiday={holidayCountdown} />
+              </Suspense>
+            )}
             {/* Direct import (not lazy): must be visible on the first paint
                 of a cold start that begins offline. */}
             <OfflineIndicator />
@@ -443,10 +487,26 @@ const Index = () => {
                   {/* Swipe hint + pagination — bullets render here (outside the swiper
                       so they don't overlap the rainfall band's legend). CSS overrides
                       in src/index.css neutralize swiper's default absolute positioning
-                      so the dots flow inline with the chevrons. */}
-                  <div id="swiper-mobile-deck-pagination" className="flex items-center justify-center gap-3 py-2 text-muted-foreground/50 shrink-0">
-                    <ChevronLeft className="h-3 w-3" />
-                    <ChevronRight className="h-3 w-3" />
+                      so the dots flow inline with the chevrons.
+
+                      The holiday badge floats centered OVER the dot row as a small
+                      chip. It MUST stay a sibling of the pagination div, never a
+                      child: Swiper's pagination render() wipes the container's
+                      children (setInnerHTML), so anything mounted inside gets
+                      deleted. Gated on holidayCountdown — the badge self-hides for
+                      non-HK cities and the chip must not leave an empty box. */}
+                  <div className="relative shrink-0">
+                    <div id="swiper-mobile-deck-pagination" className="flex items-center justify-center gap-3 py-2 text-muted-foreground/50">
+                      <ChevronLeft className="h-3 w-3" />
+                      <ChevronRight className="h-3 w-3" />
+                    </div>
+                    {holidayCountdown && (
+                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-background/95 shadow-sm px-1">
+                        <Suspense fallback={null}>
+                          <HolidayBadge holiday={holidayCountdown} />
+                        </Suspense>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -517,6 +577,11 @@ const Index = () => {
         {/* No page footer — the forecast cards use the full viewport height.
             The data-source credit moved into the bottom of the settings
             (hamburger) menu; see SettingsMenu. */}
+        {/* Easter egg confetti layer — fixed-position and pointer-events-none,
+            so tree placement is irrelevant; lives here to cover both layouts. */}
+        <Suspense fallback={null}>
+          <HolidayConfetti playKey={confettiPlayKey} />
+        </Suspense>
       </div>
     </div>
   );
