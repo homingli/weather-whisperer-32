@@ -684,7 +684,7 @@ export default function RainfallMapInner({
 
         <MapLibreMap
           center={[114.10, 22.40]}
-          zoom={9}
+          zoom={12}
           minZoom={minZoom}
           maxZoom={17}
           dark={basemapIsDark}

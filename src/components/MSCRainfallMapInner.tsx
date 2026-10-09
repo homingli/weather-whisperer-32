@@ -483,7 +483,7 @@ export default function MSCRainfallMapInner({
 
         <MapLibreMap
           center={[VANCOUVER_CENTER[1], VANCOUVER_CENTER[0]]}
-          zoom={9}
+          zoom={12}
           minZoom={minZoom}
           maxZoom={17}
           dark={basemapIsDark}
