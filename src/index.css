@@ -316,6 +316,15 @@
   background-color: hsl(var(--foreground));
 }
 
+/* Holiday-chip hole (see MobileSwiperDeck's renderBullet): the bullet after
+   the gap carries a wide left margin so bullets 2 and 3 flank the floating
+   chip with no extra child element (Swiper resolves clicked bullets by
+   child index, so the container must hold bullets only). !important + later
+   position out-ranks the margin reset above for the longhand property. */
+#swiper-mobile-deck-pagination .swiper-bullet-after-gap {
+  margin-left: 60px !important;
+}
+
 /* ── Indeterminate progress bar ── */
 /* Used by RainfallMap when the CSV response lacks a Content-Length header
    (mobile carriers / HTTP/2-3 / Vercel edge often strip it). The bar slides
@@ -386,6 +395,17 @@
   }
   .hf-chart { animation: chart-in 0.7s cubic-bezier(0.31, 0.74, 0.58, 1) 0.4s both; }
   .df-chart { animation: chart-in 0.7s cubic-bezier(0.31, 0.74, 0.58, 1) 0.45s both; }
+
+  /* Easter egg confetti (HolidayConfetti): pieces drop from above the
+     viewport with a spin, fading near the bottom. Duration/delay are set
+     per-piece via inline style; the component unmounts the layer after 6s.
+     Keyframes live in this block so reduced-motion users get no animation
+     at all (the component also skips mounting the layer via matchMedia). */
+  @keyframes confetti-fall {
+    0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+    85%  { opacity: 1; }
+    100% { transform: translateY(105vh) rotate(540deg); opacity: 0; }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

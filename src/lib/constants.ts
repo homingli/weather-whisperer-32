@@ -32,6 +32,18 @@ export const QUIET = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Strong-weather thresholds (forecast surfacing)
+// ---------------------------------------------------------------------------
+/** Hourly/daily wind gust at or above this (km/h, transport unit) earns a
+ *  visible annotation: a shaded band over the strong-gust hours in the
+ *  hourly chart and the "gusts" row in the daily tooltip. 50 km/h is
+ *  Beaufort 7 territory — umbrellas become hard to hold and walking takes
+ *  effort; below this the sustained wind number already tells the story.
+ *  Sits under Signal No. 3's 41–62 km/h sustained band, whose gusts
+ *  typically run ~1.4× the mean. */
+export const STRONG_WIND_GUST_KMH = 50;
+
+// ---------------------------------------------------------------------------
 // localStorage keys
 // ---------------------------------------------------------------------------
 export const STORAGE_KEYS = {
@@ -51,6 +63,10 @@ export const STORAGE_KEYS = {
    *  to skip the "Load Map" prompt when fresh (≤ NOWCAST_CACHE_TTL_MS).
    *  Schema-versioned. */
   NOWCAST_CACHE: 'weather-nowcast-cache-v2',
+  /** Easter egg: `yyyy-MM-dd` of the last HK holiday the confetti toast fired
+   *  for (see Index's holiday effect). Keeps the celebration a once-per-day
+   *  surprise rather than a once-per-reload nag. */
+  EGG_HOLIDAY_TOAST: 'weather-egg-holiday-toast',
 } as const;
 
 /** Bump when the LastKnownEnvelope shape changes; readers drop on mismatch.

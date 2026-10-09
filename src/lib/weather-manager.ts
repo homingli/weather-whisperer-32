@@ -210,10 +210,11 @@ export async function fetchWeather(
 
   // Both succeeded — combine. HKO wins for daily (OM backfills its
   // sunrise/sunset and wind placeholders) and supplies warnings/station/
-  // district; HKO also wins for the
-  // current temperature when its current-weather fetch succeeds (the today
-  // temperature bar / marker uses this value). OM keeps current/hourly for
-  // everything else.
+  // district; HKO also wins for the current temperature and wind when its
+  // current-weather fetch succeeds (the station's 10-minute mean is the
+  // Observatory's own reading; the today temperature bar / marker and the
+  // wind compass use these values). OM keeps current/hourly for everything
+  // else.
   const hkoData = hkoResult.data!;
   const hkoNow: SourceState = {
     ok: true,
@@ -229,6 +230,12 @@ export async function fetchWeather(
     hkoCurrentData?.temperature.data.find((t) => t.place === hkoData.nearestStation) ||
     hkoCurrentData?.temperature.data[0];
   const hkoCurrentTemperature = hkoTempReading?.value;
+
+  // Wind gets exact-station matching only (no first-reading fallback): wind
+  // varies 2–3× across HK stations, so grafting an arbitrary station's
+  // reading onto the user's compass misleads worse than the OM grid it would
+  // replace. Temperature keeps its fallback — temperature is spatially flat.
+  const hkoWindReading = hkoCurrentData?.wind?.data.find((w) => w.place === hkoData.nearestStation);
 
   // HKO seeds sunrise/sunset with epoch-0 sentinels and wind with 0
   // (HKO daily doesn't publish either); replace the placeholders with the OM
@@ -247,6 +254,10 @@ export async function fetchWeather(
     current: {
       ...omData!.current,
       ...(hkoCurrentTemperature != null ? { temperature: hkoCurrentTemperature } : {}),
+      ...(hkoWindReading && hkoWindReading.speed != null && hkoWindReading.direction != null ? {
+        windSpeed: hkoWindReading.speed,
+        windDirection: hkoWindReading.direction,
+      } : {}),
       ...(aqhi ? {
         aqhiIndex: aqhi.index,
         aqhiStation: aqhi.station,
@@ -261,6 +272,10 @@ export async function fetchWeather(
         ...day,
         windSpeedMax: hasHkoWind ? day.windSpeedMax : (omDay?.windSpeedMax ?? 0),
         windDirectionDominant: hasHkoWind ? day.windDirectionDominant : (omDay?.windDirectionDominant ?? 0),
+        // HKO daily rows never carry these OM-parsed fields; without the
+        // backfill the daily gust/UV surfaces go dark for every HK user.
+        windGustMax: day.windGustMax ?? omDay?.windGustMax,
+        uvIndexMax: day.uvIndexMax ?? omDay?.uvIndexMax,
         sunrise: isValidDate(day.sunrise) ? day.sunrise : (isValidDate(omSunrise) ? omSunrise : day.sunrise),
         sunset: isValidDate(day.sunset) ? day.sunset : (isValidDate(omSunset) ? omSunset : day.sunset),
       };

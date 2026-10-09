@@ -151,6 +151,32 @@ describe('parseOpenMeteoForecast', () => {
     expect(r.data?.minutely).toBeUndefined();
   });
 
+  it('parses hourly gusts and daily gust/UV maxima when present', () => {
+    const r = parseOpenMeteoForecast({
+      current: { temperature_2m: 20 },
+      hourly: { time: [0, 3600], temperature_2m: [20, 21], wind_gusts_10m: [45, 62] },
+      daily: { time: [0], wind_gusts_10m_max: [70], uv_index_max: [9.4] },
+    });
+    expect(r.data?.hourly[0].windGust).toBe(45);
+    expect(r.data?.hourly[1].windGust).toBe(62);
+    expect(r.data?.daily[0].windGustMax).toBe(70);
+    expect(r.data?.daily[0].uvIndexMax).toBe(9.4);
+  });
+
+  it('leaves gust/UV fields undefined with a warning when the arrays are absent', () => {
+    const r = parseOpenMeteoForecast({
+      current: { temperature_2m: 20 },
+      hourly: { time: [0], temperature_2m: [20] },
+      daily: { time: [0] },
+    });
+    // Optional fields degrade to undefined, never a misleading 0.
+    expect(r.data?.hourly[0].windGust).toBeUndefined();
+    expect(r.data?.daily[0].windGustMax).toBeUndefined();
+    expect(r.data?.daily[0].uvIndexMax).toBeUndefined();
+    expectWarningAbout(r.warnings, 'wind_gusts_10m');
+    expectWarningAbout(r.warnings, 'uv_index_max');
+  });
+
   describe('minutely_15', () => {
     const NOW = Date.UTC(2026, 8, 17, 8, 0) / 1000; // 2026-09-17 08:00 UTC
 

@@ -63,6 +63,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'hourly.temperature': 'Temperature',
     'hourly.rainChance': 'Rain Chance',
     'hourly.chartLabel': 'Hourly temperature and rain probability chart',
+    'hourly.strongGusts': 'Strong gusts {0}',
     
     // Daily forecast
     'daily.title': '7-DAY FORECAST',
@@ -219,6 +220,7 @@ export const translations: Record<Language, Record<string, string>> = {
     // Current weather
     'weather.feelsLike': 'Feels like',
     'weather.wind': 'Wind',
+    'weather.windGust': 'Gusts',
     'weather.windSpeed': 'Wind Speed',
     'weather.windDirection': 'Wind Direction',
     'weather.humidity': 'Humidity',
@@ -250,7 +252,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'nowcast.downloading': 'Downloading nowcast data...',
     'nowcast.error': 'Could not load gridded rainfall data.',
     'nowcast.view': 'View Rainfall Map',
-    'nowcast.desc': 'Load the real-time gridded rainfall nowcast to see if rain is approaching in the next 2 hours.',
+    'nowcast.desc': 'See if rain is coming within 2 hours.',
     'nowcast.legend': 'Rainfall (mm)',
     'nowcast.updated': 'Updated: {0}',
     'nowcast.mapLabel': 'Gridded rainfall nowcast map',
@@ -362,6 +364,8 @@ export const translations: Record<Language, Record<string, string>> = {
     // Full badge label: the localized countdown sentence + the affordance.
     'glance.holidayBadgeAria': '{0}. View holiday details.',
     'glance.holidayRegion': 'Hong Kong public holiday',
+    // Easter egg toast fired once on the holiday itself (see Index).
+    'glance.holidayEggToast': '{0} — enjoy the day off!',
   },
   tc: {
     // Header
@@ -413,6 +417,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'hourly.temperature': '溫度',
     'hourly.rainChance': '降雨機率',
     'hourly.chartLabel': '每小時溫度與降雨機率圖表',
+    'hourly.strongGusts': '強陣風 {0}',
     
     // Daily forecast
     'daily.title': '7日天氣預報',
@@ -572,6 +577,7 @@ export const translations: Record<Language, Record<string, string>> = {
     // Current weather
     'weather.feelsLike': '體感溫度',
     'weather.wind': '風',
+    'weather.windGust': '陣風',
     'weather.windSpeed': '風速',
     'weather.windDirection': '風向',
     'weather.humidity': '濕度',
@@ -602,7 +608,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'nowcast.downloading': '正在下載雨量預報數據...',
     'nowcast.error': '無法載入雨量預報數據。',
     'nowcast.view': '查看降雨地圖',
-    'nowcast.desc': '載入即時雨雲預報地圖，以查看未來兩小時是否有降雨接近。',
+    'nowcast.desc': '即時掌握未來兩小時雨區動向。',
     'nowcast.legend': '降雨量 (毫米)',
     'nowcast.updated': '更新時間: {0}',
     'nowcast.mapLabel': '網格雨量預報地圖',
@@ -707,5 +713,7 @@ export const translations: Record<Language, Record<string, string>> = {
     // 徽章完整標籤：倒數句子 + 互動說明。
     'glance.holidayBadgeAria': '{0}，查看假期詳情。',
     'glance.holidayRegion': '香港公眾假期',
+    // 假日彩蛋提示：當日只會彈一次（見 Index）。
+    'glance.holidayEggToast': '{0}快樂！好好享受假期。',
   },
 };
