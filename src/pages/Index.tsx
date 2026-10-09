@@ -83,8 +83,8 @@ const PLACEHOLDER_CURRENT = {
 const DECK_DAILY_SLIDE = 2;
 const DECK_NOWCAST_SLIDE = 3;
 
-// Desktop konami for the confetti egg: c-c-f-f, each press within 1.5s of
-// the previous. Module-level so useKeySequence's effect deps stay stable.
+// Konami for the confetti egg: c-c-f-f, each press within 1.5s of the
+// previous. Module-level so useKeySequence's effect deps stay stable.
 const EGG_SEQUENCE = ['c', 'c', 'f', 'f'] as const;
 const EGG_SEQUENCE_GAP_MS = 1500;
 
@@ -214,8 +214,10 @@ const Index = () => {
 
   // ── Easter egg: confetti ──
   // Plays once per app open when the shown day IS a HK public holiday, and
-  // replays on EVERY desktop c-c-f-f konami: the play key is a sum, so a
-  // manual burst after the auto one is never swallowed by Math.max. The
+  // replays on EVERY c-c-f-f konami: the play key is a sum, so a manual
+  // burst after the auto one is never swallowed by Math.max. The keyboard
+  // listener runs at every viewport width — touch-only devices simply never
+  // see keydowns, so the egg stays desktop/hybrid-keyboard territory. The
   // toast fires at most once per holiday date across reloads (localStorage
   // guard); storage failures only cost the toast, never the confetti.
   const [manualBursts, setManualBursts] = useState(0);
@@ -239,7 +241,7 @@ const Index = () => {
   const triggerConfettiBurst = useCallback(() => {
     setManualBursts(count => count + 1);
   }, []);
-  useKeySequence(EGG_SEQUENCE, EGG_SEQUENCE_GAP_MS, triggerConfettiBurst, !isMobile);
+  useKeySequence(EGG_SEQUENCE, EGG_SEQUENCE_GAP_MS, triggerConfettiBurst);
 
   // Reveal target for the glance strip: desktop scrolls the secondary row
   // (hourly/daily) into view; mobile advances the swipe deck to the slide
@@ -506,7 +508,7 @@ const Index = () => {
                       <ChevronRight className="h-3 w-3" />
                     </div>
                     {holidayCountdown && (
-                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-background/95 shadow-sm px-1">
+                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-1">
                         <Suspense fallback={null}>
                           <HolidayBadge holiday={holidayCountdown} />
                         </Suspense>

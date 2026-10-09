@@ -11,8 +11,7 @@ import { useCallback, useEffect, useRef } from 'react';
  *
  * Keystrokes are ignored while a text field owns focus (city search,
  * settings inputs) and `repeat` auto-repeats are dropped, so typing can
- * never satisfy the sequence. `enabled` lets callers scope the listener
- * (Index mounts it desktop-only).
+ * never satisfy the sequence. `enabled` lets callers scope the listener.
  */
 export function useKeySequence(
   sequence: readonly string[],

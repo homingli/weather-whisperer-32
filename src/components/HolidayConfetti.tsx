@@ -4,7 +4,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
  * HolidayConfetti — the app's one easter egg visual: a short confetti
  * burst over the sky gradient. Each change of a nonzero `playKey` replays
  * the burst (Index sets it once on a real HK public holiday, and on every
- * desktop c-c-f-f konami); the layer hides itself until the next key.
+ * c-c-f-f konami); the layer hides itself until the next key.
  * The layer is keyed by `playKey`, so a replay that lands mid-burst
  * remounts the particles and restarts the CSS animation instead of
  * no-oping against spans that already animated.
