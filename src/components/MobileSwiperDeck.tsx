@@ -1,4 +1,4 @@
-import { Children, forwardRef, useImperativeHandle, useRef } from 'react';
+import { Children, forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination } from 'swiper/modules';
@@ -10,10 +10,13 @@ export interface MobileSwiperDeckHandle {
 interface MobileSwiperDeckProps {
   children: ReactNode;
   /**
-   * Insert an inert spacer (60px) after this bullet index, carving a real
+   * Widen the left margin of this bullet index (0-based) to carve a real
    * hole in the dot row — used by Index to seat the holiday chip between
-   * bullets 2 and 3 without covering any clickable dot. Undefined renders
-   * the plain uniform row (non-HK cities, or badge hidden).
+   * bullets 2 and 3 without covering any clickable dot. The gap is a MARGIN
+   * CLASS on the bullet itself, never a spacer child: Swiper resolves
+   * clicked bullets by child index (elementIndex over parentNode.children),
+   * so the container must hold bullets only. Undefined renders the plain
+   * uniform row (non-HK cities, or badge hidden).
    */
   bulletGapAfterIndex?: number;
 }
@@ -51,6 +54,24 @@ export const MobileSwiperDeck = forwardRef<MobileSwiperDeckHandle, MobileSwiperD
     // conditional map slide (`{nowcastVisible && ...}`) disappears cleanly.
     const slides = Children.toArray(children);
 
+    // renderBullet reads the gap through a ref so the pagination params can
+    // stay referentially stable: swiper/react merges pagination params on
+    // update WITHOUT re-rendering bullets, and a merge cannot delete a key
+    // that the new params object omits — a conditionally-present renderBullet
+    // would go stale. The effect re-renders the bullets when the gap
+    // appears/disappears after mount (e.g. holidayCountdown resolving late
+    // on a warm start); Swiper only rebuilds bullets on its own events or
+    // this effect, both of which run after the ref is current.
+    const gapRef = useRef(bulletGapAfterIndex);
+
+    useEffect(() => {
+      gapRef.current = bulletGapAfterIndex;
+      const swiper = instanceRef.current;
+      if (!swiper) return;
+      swiper.pagination?.render();
+      swiper.pagination?.update();
+    }, [bulletGapAfterIndex]);
+
     return (
       <Swiper
         modules={[Pagination]}
@@ -60,17 +81,14 @@ export const MobileSwiperDeck = forwardRef<MobileSwiperDeckHandle, MobileSwiperD
         pagination={{
           el: '#swiper-mobile-deck-pagination',
           clickable: true,
-          // renderBullet output is concatenated into the container's innerHTML
-          // and Swiper re-collects bullets by class, so the spacer (no bullet
-          // class) is inert decoration: not clickable, not a slide indicator.
-          ...(bulletGapAfterIndex !== undefined
-            ? {
-                renderBullet: (index: number, className: string) =>
-                  index === bulletGapAfterIndex
-                    ? `<span class="${className}"></span><span class="swiper-bullet-gap" style="display:inline-block;width:60px" aria-hidden="true"></span>`
-                    : `<span class="${className}"></span>`,
-              }
-            : {}),
+          renderBullet: (index: number, className: string) => {
+            // The margin class goes on the bullet AFTER the gap (gap-after-1
+            // ⇒ bullet 2 carries it), so bullets 2 and 3 flank the chip.
+            const gapBullet = gapRef.current === undefined ? -1 : gapRef.current + 1;
+            return index === gapBullet
+              ? `<span class="${className} swiper-bullet-after-gap"></span>`
+              : `<span class="${className}"></span>`;
+          },
         }}
         spaceBetween={16}
         slidesPerView={1}

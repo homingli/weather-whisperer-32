@@ -484,7 +484,8 @@ const Index = () => {
                           )}
                         </Suspense>
                       )}
-                    </MobileSwiperDeck>                  </Suspense>
+                    </MobileSwiperDeck>
+                  </Suspense>
 
                   {/* Swipe hint + pagination — bullets render here (outside the swiper
                       so they don't overlap the rainfall band's legend). CSS overrides
