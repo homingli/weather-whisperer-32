@@ -5,6 +5,9 @@ import { memo, useEffect, useMemo, useState } from 'react';
  * burst over the sky gradient. Each change of a nonzero `playKey` replays
  * the burst (Index sets it once on a real HK public holiday, and on every
  * desktop c-c-f-f konami); the layer hides itself until the next key.
+ * The layer is keyed by `playKey`, so a replay that lands mid-burst
+ * remounts the particles and restarts the CSS animation instead of
+ * no-oping against spans that already animated.
  *
  * Pure CSS: ~30 absolutely-positioned spans animated by the `confetti-fall`
  * keyframes in index.css, which live inside the prefers-reduced-motion
@@ -44,10 +47,11 @@ export const HolidayConfetti = memo(({ playKey }: HolidayConfettiProps) => {
     [],
   );
 
-  if (!visible) return null;
+  if (!visible || playKey === 0) return null;
 
   return (
     <div
+      key={playKey}
       className="pointer-events-none fixed inset-0 z-50 overflow-hidden motion-reduce:hidden"
       aria-hidden="true"
     >

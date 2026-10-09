@@ -213,15 +213,13 @@ const Index = () => {
   const isMobile = useIsMobile();
 
   // ── Easter egg: confetti ──
-  // Plays once per app open when the shown day IS a HK public holiday
-  // (the play key is derived, not effect-set: Math.max keeps any earlier
-  // manual burst), and replays on the desktop c-c-f-f konami. The toast
-  // fires at most once per holiday date across reloads (localStorage
+  // Plays once per app open when the shown day IS a HK public holiday, and
+  // replays on EVERY desktop c-c-f-f konami: the play key is a sum, so a
+  // manual burst after the auto one is never swallowed by Math.max. The
+  // toast fires at most once per holiday date across reloads (localStorage
   // guard); storage failures only cost the toast, never the confetti.
   const [manualBursts, setManualBursts] = useState(0);
-  const confettiPlayKey = holidayCountdown?.isToday
-    ? Math.max(manualBursts, 1)
-    : manualBursts;
+  const confettiPlayKey = manualBursts + (holidayCountdown?.isToday ? 1 : 0);
   useEffect(() => {
     if (!holidayCountdown?.isToday) return;
     const holidayDate = holidayCountdown.holiday.date;
@@ -446,7 +444,12 @@ const Index = () => {
                       swiper/react, keeping the ~27 kB gzip deck out of the
                       initial bundle for desktop users. */}
                   <Suspense fallback={<Skeleton className="swiper-mobile-deck rounded-xl bg-muted/20" />}>
-                    <MobileSwiperDeck ref={mobileSwiperRef}>
+                    <MobileSwiperDeck
+                      ref={mobileSwiperRef}
+                      // Carve a hole between bullets 2 and 3 for the holiday
+                      // chip below; only while the badge has something to show.
+                      bulletGapAfterIndex={holidayCountdown ? 1 : undefined}
+                    >
                       {/* Slide 1: Current weather */}
                       <CurrentWeather
                         compact
@@ -481,20 +484,21 @@ const Index = () => {
                           )}
                         </Suspense>
                       )}
-                    </MobileSwiperDeck>
-                  </Suspense>
+                    </MobileSwiperDeck>                  </Suspense>
 
                   {/* Swipe hint + pagination — bullets render here (outside the swiper
                       so they don't overlap the rainfall band's legend). CSS overrides
                       in src/index.css neutralize swiper's default absolute positioning
                       so the dots flow inline with the chevrons.
 
-                      The holiday badge floats centered OVER the dot row as a small
+                      The holiday badge floats centered in a hole the deck carves
+                      between bullets 2 and 3 (bulletGapAfterIndex above) — a real
+                      gap in the bullet row, so no clickable dot sits under the
                       chip. It MUST stay a sibling of the pagination div, never a
                       child: Swiper's pagination render() wipes the container's
                       children (setInnerHTML), so anything mounted inside gets
-                      deleted. Gated on holidayCountdown — the badge self-hides for
-                      non-HK cities and the chip must not leave an empty box. */}
+                      deleted. Gated on holidayCountdown — the badge self-hides
+                      for non-HK cities and the chip must not leave an empty box. */}
                   <div className="relative shrink-0">
                     <div id="swiper-mobile-deck-pagination" className="flex items-center justify-center gap-3 py-2 text-muted-foreground/50">
                       <ChevronLeft className="h-3 w-3" />

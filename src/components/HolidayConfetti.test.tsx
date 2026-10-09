@@ -47,6 +47,29 @@ describe('HolidayConfetti', () => {
     expect(layer(document.body)!.querySelectorAll('span')).toHaveLength(30);
   });
 
+  it('remounts the particles when playKey changes mid-burst, so the animation restarts', () => {
+    const { container, rerender } = render(<HolidayConfetti playKey={1} />);
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    const firstSpan = container.querySelector('span');
+
+    rerender(<HolidayConfetti playKey={2} />);
+
+    const secondSpan = container.querySelector('span');
+    expect(secondSpan).not.toBeNull();
+    expect(secondSpan).not.toBe(firstSpan);
+    expect(container.querySelectorAll('span')).toHaveLength(30);
+  });
+
+  it('hides immediately when playKey returns to 0', () => {
+    const { container, rerender } = render(<HolidayConfetti playKey={1} />);
+    expect(layer(container)).not.toBeNull();
+
+    rerender(<HolidayConfetti playKey={0} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('mounts nothing for prefers-reduced-motion users', () => {
     vi.stubGlobal(
       'matchMedia',

@@ -9,6 +9,13 @@ export interface MobileSwiperDeckHandle {
 
 interface MobileSwiperDeckProps {
   children: ReactNode;
+  /**
+   * Insert an inert spacer (60px) after this bullet index, carving a real
+   * hole in the dot row — used by Index to seat the holiday chip between
+   * bullets 2 and 3 without covering any clickable dot. Undefined renders
+   * the plain uniform row (non-HK cities, or badge hidden).
+   */
+  bulletGapAfterIndex?: number;
 }
 
 /**
@@ -27,7 +34,7 @@ interface MobileSwiperDeckProps {
  * rainfall map legend; the config below targets that external element.
  */
 export const MobileSwiperDeck = forwardRef<MobileSwiperDeckHandle, MobileSwiperDeckProps>(
-  function MobileSwiperDeck({ children }, ref) {
+  function MobileSwiperDeck({ children, bulletGapAfterIndex }, ref) {
     const instanceRef = useRef<{ slideTo(index: number, speed?: number): void } | null>(null);
 
     useImperativeHandle(
@@ -50,7 +57,21 @@ export const MobileSwiperDeck = forwardRef<MobileSwiperDeckHandle, MobileSwiperD
         onSwiper={(instance) => {
           instanceRef.current = instance;
         }}
-        pagination={{ el: '#swiper-mobile-deck-pagination', clickable: true }}
+        pagination={{
+          el: '#swiper-mobile-deck-pagination',
+          clickable: true,
+          // renderBullet output is concatenated into the container's innerHTML
+          // and Swiper re-collects bullets by class, so the spacer (no bullet
+          // class) is inert decoration: not clickable, not a slide indicator.
+          ...(bulletGapAfterIndex !== undefined
+            ? {
+                renderBullet: (index: number, className: string) =>
+                  index === bulletGapAfterIndex
+                    ? `<span class="${className}"></span><span class="swiper-bullet-gap" style="display:inline-block;width:60px" aria-hidden="true"></span>`
+                    : `<span class="${className}"></span>`,
+              }
+            : {}),
+        }}
         spaceBetween={16}
         slidesPerView={1}
         className="swiper-mobile-deck"
