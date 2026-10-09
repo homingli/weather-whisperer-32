@@ -414,7 +414,7 @@ Timeouts throw → trigger React Query retry. No `Cache-Control` headers set or 
 `weather-last-known-v2` is the new persistence layer. The app reads it synchronously on mount, clears it on city switch, and overwrites it on every successful `fetchWeather` call. The envelope's `cityId` (lat/lon rounded to 2 decimal places) prevents cross-city paint. A schema version mismatch or parse error causes a silent drop rather than a crash.
 
 ## Testing strategy
-The project uses **Vitest** with jsdom. Coverage is split across layers (**560 tests**, 43 files):
+The project uses **Vitest** with jsdom. Coverage is split across layers (**578 tests**, 45 files):
 - **Unit tests** (lib/):
   - `src/lib/weather.test.ts` (2): Open-Meteo client parsing, WMO weather-code mapping, recent-cities helpers.
   - `src/lib/weather/hko-codes.test.ts` (15): WMO weather-code descriptions and icons.
@@ -428,6 +428,7 @@ The project uses **Vitest** with jsdom. Coverage is split across layers (**560 t
 - **Hook tests** (hooks/):
   - `src/hooks/useWarningChangeDetector.test.ts` (18): diff semantics, baseline reset on `resetKey`, case-insensitive `CANCEL` filtering, `Reissue` no-diff.
   - `src/hooks/useNextHoliday.test.tsx` (4): holiday fetch + next-holiday computation.
+  - `src/hooks/useKeySequence.test.tsx` (10): sequence match within the gap, gap/wrong-key resets with first-key restart, repeat + modifier + focused-input guards, case-insensitive keys, disabled binds no listener.
 - **Context tests** (contexts/):
   - `src/contexts/LanguageContext.test.tsx` (12), `src/contexts/ThemeContext.test.tsx` (8), `src/contexts/UnitsContext.test.tsx` (6), `src/contexts/FontSizeContext.test.tsx` (7).
 - **Component tests** (components/):
@@ -440,7 +441,8 @@ The project uses **Vitest** with jsdom. Coverage is split across layers (**560 t
   - `src/components/OfflineIndicator.test.tsx` (5): hidden while online, badge appears on `offline` event / offline-at-mount, hides on `online` event, Traditional Chinese string.
   - `src/components/WeatherAlerts.test.tsx` (12): HKO warning rendering, modal open/close, warning detail display, cancellation filter (mixed-case + uppercase `CANCEL`), live-fixture replay of the 2026-07-31 cancelled amber rainstorm regression (EN + TC), TC/rainstorm signal icons, pulse animation.
   - `src/components/WeatherBanners.test.tsx` (8), `src/components/SettingsMenu.test.tsx` (24).
-  - `src/components/CitySearch.test.tsx` (7), `src/components/FeedbackDialog.test.tsx` (10), `src/components/HolidayBadge.test.tsx` (6), `src/components/MobileSwiperDeck.test.tsx` (2).
+  - `src/components/CitySearch.test.tsx` (7), `src/components/FeedbackDialog.test.tsx` (10), `src/components/HolidayBadge.test.tsx` (6), `src/components/MobileSwiperDeck.test.tsx` (3).
+  - `src/components/HolidayConfetti.test.tsx` (7): hidden at playKey 0, burst + auto-hide after the 6s window, replay on increment (including mid-burst remount), reduced-motion users get nothing mounted.
   - `src/pages/NotFound.test.tsx` (6): 404 page rendering, programmatic focus on h1.
 - **Integration test**:
   - `src/test/Integration.test.tsx` (1): composes `CurrentWeather` + `HourlyForecast` with providers and fake timers; validates locale-agnostic time formatting (bounded `/09:00:00\s*PM/` pattern).
