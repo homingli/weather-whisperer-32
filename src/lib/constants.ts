@@ -63,6 +63,10 @@ export const STORAGE_KEYS = {
    *  to skip the "Load Map" prompt when fresh (≤ NOWCAST_CACHE_TTL_MS).
    *  Schema-versioned. */
   NOWCAST_CACHE: 'weather-nowcast-cache-v2',
+  /** Easter egg: `yyyy-MM-dd` of the last HK holiday the confetti toast fired
+   *  for (see Index's holiday effect). Keeps the celebration a once-per-day
+   *  surprise rather than a once-per-reload nag. */
+  EGG_HOLIDAY_TOAST: 'weather-egg-holiday-toast',
 } as const;
 
 /** Bump when the LastKnownEnvelope shape changes; readers drop on mismatch.

@@ -364,6 +364,8 @@ export const translations: Record<Language, Record<string, string>> = {
     // Full badge label: the localized countdown sentence + the affordance.
     'glance.holidayBadgeAria': '{0}. View holiday details.',
     'glance.holidayRegion': 'Hong Kong public holiday',
+    // Easter egg toast fired once on the holiday itself (see Index).
+    'glance.holidayEggToast': '{0} — enjoy the day off!',
   },
   tc: {
     // Header
@@ -711,5 +713,7 @@ export const translations: Record<Language, Record<string, string>> = {
     // 徽章完整標籤：倒數句子 + 互動說明。
     'glance.holidayBadgeAria': '{0}，查看假期詳情。',
     'glance.holidayRegion': '香港公眾假期',
+    // 假日彩蛋提示：當日只會彈一次（見 Index）。
+    'glance.holidayEggToast': '{0}快樂！好好享受假期。',
   },
 };
