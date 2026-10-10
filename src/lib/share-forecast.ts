@@ -25,7 +25,7 @@
  *   https://<app-url>
  */
 
-import type { DailyForecast, HourlyForecast } from '@/lib/weather';
+import type { DailyForecast, GeoLocation, HourlyForecast } from '@/lib/weather';
 import { getWeatherIcon, weatherDescriptionKey } from '@/lib/weather';
 import { formatInTimezone, appLocale } from '@/lib/utils';
 import { toDisplayTemperature, temperatureUnitLabel, type Units } from '@/lib/units';
@@ -231,4 +231,42 @@ export function buildShareCityLabel({
     .map((part) => part?.trim() ?? '')
     .filter((part) => part !== '');
   return parts.length > 0 ? parts.join(', ') : name;
+}
+
+/** The location fields a deep link carries — a GeoLocation is accepted as-is. */
+export type DeepLinkCity = Pick<GeoLocation, 'name' | 'latitude' | 'longitude'>;
+
+/**
+ * The deep link a share message ends with: origin + the location as query
+ * params (`/?lat=&lon=&name=`), so whoever opens it lands on THIS city's
+ * weather without being asked for their own geolocation. Coordinates are
+ * rounded to 3 decimals (~110 m — weather-identical, deliberately fuzzy
+ * for privacy) and the name rides along so the receiver can label the place
+ * without a reverse-geocode call; the reverse-geocode placeholder is dropped
+ * like in `buildShareCityLabel`. Returns undefined when the city is missing
+ * or its coords are unusable — the caller falls back to the bare origin,
+ * which shares a link that opens the friend's own location flow.
+ */
+export function buildDeepLinkUrl(
+  origin: string,
+  city: DeepLinkCity | null | undefined,
+): string | undefined {
+  if (!city) return undefined;
+  const { latitude, longitude } = city;
+  if (
+    !Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+    Math.abs(latitude) > 90 || Math.abs(longitude) > 180
+  ) {
+    return undefined;
+  }
+  const params = new URLSearchParams({
+    lat: latitude.toFixed(3),
+    lon: longitude.toFixed(3),
+  });
+  const name = city.name?.trim();
+  if (name && name !== CURRENT_LOCATION_PLACEHOLDER) {
+    params.set('name', name);
+  }
+  const base = origin.replace(/\/+$/, '');
+  return `${base}/?${params.toString()}`;
 }
