@@ -10,13 +10,14 @@ import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
 import { useWarningChangeDetector } from '@/hooks/useWarningChangeDetector';
 import { useNextHoliday } from '@/hooks/useNextHoliday';
+import { useKeySequence } from '@/hooks/useKeySequence';
 import {
   useDevSimulatedWarnings,
   useDevBaselineNonce,
 } from '@/lib/devWarningSimulator';
 import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName, getWarningIcon } from '@/lib/hko-weather';
-import { buildShareCityLabel } from '@/lib/share-forecast';
-import { PLACEHOLDER_SENTINEL, isInVancouverBox } from '@/lib/constants';
+import { buildShareCityLabel, buildDeepLinkUrl } from '@/lib/share-forecast';
+import { PLACEHOLDER_SENTINEL, isInVancouverBox, STORAGE_KEYS } from '@/lib/constants';
 import { prefetchMscNowcast } from '@/lib/msc-prefetch';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -46,6 +47,9 @@ const WeatherAlerts = lazy(() => import('@/components/WeatherAlerts').then(modul
 // The badge appears once the holiday query resolves anyway, so the lazy
 // hop costs nothing visible.
 const HolidayBadge = lazy(() => import('@/components/HolidayBadge').then(module => ({ default: module.HolidayBadge })));
+// HolidayConfetti (easter egg burst) stays lazy for the same reason — its
+// Dialog-free chunk is tiny, but there is no reason to pay for it upfront.
+const HolidayConfetti = lazy(() => import('@/components/HolidayConfetti').then(module => ({ default: module.HolidayConfetti })));
 // CitySearch backs the landing empty state (HML-58): when the geolocation
 // prompt is denied the page must offer an inline search, not a dead welcome
 // card. Lazy like SettingsMenu so the Input primitive and the CitySearch
@@ -78,6 +82,11 @@ const PLACEHOLDER_CURRENT = {
 // 3 = rainfall map when the city is inside nowcast coverage).
 const DECK_DAILY_SLIDE = 2;
 const DECK_NOWCAST_SLIDE = 3;
+
+// Konami for the confetti egg: c-c-f-f, each press within 1.5s of the
+// previous. Module-level so useKeySequence's effect deps stay stable.
+const EGG_SEQUENCE = ['c', 'c', 'f', 'f'] as const;
+const EGG_SEQUENCE_GAP_MS = 1500;
 
 const Index = () => {
   const { language, t } = useLanguage();
@@ -145,6 +154,15 @@ const Index = () => {
       })
     : '';
 
+  // Deep-link URL for the share buttons: origin + this location's coords, so
+  // whoever opens the shared message lands on THIS city's weather without
+  // being asked for their own geolocation. Undefined when there's no city
+  // yet — the share button then falls back to the bare origin.
+  const shareUrl = useMemo(
+    () => buildDeepLinkUrl(window.location.origin, selectedCity),
+    [selectedCity],
+  );
+
   // MSC prefetch: once the selected city is in the Vancouver box, warm the
   // nowcast map's lazy chunk + probe tiles at idle so the map's first render
   // doesn't stall on a ~150 kB chunk fetch. Network-gated inside the helper
@@ -203,6 +221,37 @@ const Index = () => {
   // matchMedia listener (useIsMobile).
   const isMobile = useIsMobile();
 
+  // ── Easter egg: confetti ──
+  // Plays once per app open when the shown day IS a HK public holiday, and
+  // replays on EVERY c-c-f-f konami: the play key is a sum, so a manual
+  // burst after the auto one is never swallowed by Math.max. The keyboard
+  // listener runs at every viewport width — touch-only devices simply never
+  // see keydowns, so the egg stays desktop/hybrid-keyboard territory. The
+  // toast fires at most once per holiday date across reloads (localStorage
+  // guard); storage failures only cost the toast, never the confetti.
+  const [manualBursts, setManualBursts] = useState(0);
+  const confettiPlayKey = manualBursts + (holidayCountdown?.isToday ? 1 : 0);
+  useEffect(() => {
+    if (!holidayCountdown?.isToday) return;
+    const holidayDate = holidayCountdown.holiday.date;
+    try {
+      if (localStorage.getItem(STORAGE_KEYS.EGG_HOLIDAY_TOAST) !== holidayDate) {
+        localStorage.setItem(STORAGE_KEYS.EGG_HOLIDAY_TOAST, holidayDate);
+        const name = lang === 'tc'
+          ? holidayCountdown.holiday.nameTc
+          : holidayCountdown.holiday.nameEn;
+        toast(formatString(t('glance.holidayEggToast'), name), { icon: '🎉' });
+      }
+    } catch {
+      // localStorage unavailable (private mode) — confetti still plays.
+    }
+  }, [holidayCountdown, lang, t]);
+
+  const triggerConfettiBurst = useCallback(() => {
+    setManualBursts(count => count + 1);
+  }, []);
+  useKeySequence(EGG_SEQUENCE, EGG_SEQUENCE_GAP_MS, triggerConfettiBurst);
+
   // Reveal target for the glance strip: desktop scrolls the secondary row
   // (hourly/daily) into view; mobile advances the swipe deck to the slide
   // that holds the DailyForecast.
@@ -258,10 +307,14 @@ const Index = () => {
               <LocalClock timezone={weather.timezone} />
             )}
             {/* Holiday countdown rides on the date line (calendar metadata);
-                details dialog on tap. Self-hides for non-HK cities. */}
-            <Suspense fallback={null}>
-              <HolidayBadge holiday={holidayCountdown} />
-            </Suspense>
+                details dialog on tap. Self-hides for non-HK cities. On mobile
+                it moves to the deck's pagination row instead (below) to keep
+                the slim date row uncluttered. */}
+            {!isMobile && (
+              <Suspense fallback={null}>
+                <HolidayBadge holiday={holidayCountdown} />
+              </Suspense>
+            )}
             {/* Direct import (not lazy): must be visible on the first paint
                 of a cold start that begins offline. */}
             <OfflineIndicator />
@@ -305,7 +358,10 @@ const Index = () => {
                   )
                 ) : (
                   <span className="text-sm font-medium text-foreground">
-                    {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
+                    {/* filter-join so a deep link without a name param (or
+                        with one still resolving) never renders as "Kowloon, "
+                        with a dangling separator. */}
+                    {[selectedCity.name, selectedCity.admin1, selectedCity.country].filter(Boolean).join(', ')}
                   </span>
                 )}
                 {weather?.nearestDistrict && (
@@ -402,7 +458,12 @@ const Index = () => {
                       swiper/react, keeping the ~27 kB gzip deck out of the
                       initial bundle for desktop users. */}
                   <Suspense fallback={<Skeleton className="swiper-mobile-deck rounded-xl bg-muted/20" />}>
-                    <MobileSwiperDeck ref={mobileSwiperRef}>
+                    <MobileSwiperDeck
+                      ref={mobileSwiperRef}
+                      // Carve a hole between bullets 2 and 3 for the holiday
+                      // chip below; only while the badge has something to show.
+                      bulletGapAfterIndex={holidayCountdown ? 1 : undefined}
+                    >
                       {/* Slide 1: Current weather */}
                       <CurrentWeather
                         compact
@@ -417,14 +478,14 @@ const Index = () => {
 
                       {/* Slide 2: Hourly forecast, full height */}
                       <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 editorial-card" />}>
-                        <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} />
+                        <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
                       </Suspense>
 
                       {/* Slide 3: 7-day forecast, full height (own slide so the
                           7-column strip keeps enough width at 320–390 px
                           instead of squeezing beside/above hourly) */}
                       <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20" />}>
-                        <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={shareCityLabel} />
+                        <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
                       </Suspense>
 
                       {/* Slide 4: Rainfall map (PRD or Vancouver) */}
@@ -443,10 +504,28 @@ const Index = () => {
                   {/* Swipe hint + pagination — bullets render here (outside the swiper
                       so they don't overlap the rainfall band's legend). CSS overrides
                       in src/index.css neutralize swiper's default absolute positioning
-                      so the dots flow inline with the chevrons. */}
-                  <div id="swiper-mobile-deck-pagination" className="flex items-center justify-center gap-3 py-2 text-muted-foreground/50 shrink-0">
-                    <ChevronLeft className="h-3 w-3" />
-                    <ChevronRight className="h-3 w-3" />
+                      so the dots flow inline with the chevrons.
+
+                      The holiday badge floats centered in a hole the deck carves
+                      between bullets 2 and 3 (bulletGapAfterIndex above) — a real
+                      gap in the bullet row, so no clickable dot sits under the
+                      chip. It MUST stay a sibling of the pagination div, never a
+                      child: Swiper's pagination render() wipes the container's
+                      children (setInnerHTML), so anything mounted inside gets
+                      deleted. Gated on holidayCountdown — the badge self-hides
+                      for non-HK cities and the chip must not leave an empty box. */}
+                  <div className="relative shrink-0">
+                    <div id="swiper-mobile-deck-pagination" className="flex items-center justify-center gap-3 py-2 text-muted-foreground/50">
+                      <ChevronLeft className="h-3 w-3" />
+                      <ChevronRight className="h-3 w-3" />
+                    </div>
+                    {holidayCountdown && (
+                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-1">
+                        <Suspense fallback={null}>
+                          <HolidayBadge holiday={holidayCountdown} />
+                        </Suspense>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -485,11 +564,11 @@ const Index = () => {
                   {/* Secondary Row: Split Forecasts */}
                   <div ref={dailySectionRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
                     <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
-                      <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} />
+                      <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
                     </Suspense>
 
                     <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
-                      <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={shareCityLabel} />
+                      <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
                     </Suspense>
                   </div>
 
@@ -517,6 +596,11 @@ const Index = () => {
         {/* No page footer — the forecast cards use the full viewport height.
             The data-source credit moved into the bottom of the settings
             (hamburger) menu; see SettingsMenu. */}
+        {/* Easter egg confetti layer — fixed-position and pointer-events-none,
+            so tree placement is irrelevant; lives here to cover both layouts. */}
+        <Suspense fallback={null}>
+          <HolidayConfetti playKey={confettiPlayKey} />
+        </Suspense>
       </div>
     </div>
   );

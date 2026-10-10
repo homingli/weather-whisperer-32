@@ -17,13 +17,15 @@ import type { MobileSwiperDeckHandle } from './MobileSwiperDeck';
 function DeckHarness({
   deckRef,
   withMap,
+  bulletGapAfterIndex,
 }: {
   deckRef: RefObject<MobileSwiperDeckHandle | null>;
   withMap: boolean;
+  bulletGapAfterIndex?: number;
 }) {
   return (
     <div>
-      <MobileSwiperDeck ref={deckRef}>
+      <MobileSwiperDeck ref={deckRef} bulletGapAfterIndex={bulletGapAfterIndex}>
         <div>hero</div>
         <div>hourly</div>
         <div>daily</div>
@@ -89,5 +91,29 @@ describe('MobileSwiperDeck', () => {
       expect(slides(container)[2]).toHaveClass('swiper-slide-active');
       expect(slides(container)[2].textContent).toBe('daily');
     });
+  });
+
+  it('bullet gap marks the bullet after the gap and adds no extra container child', async () => {
+    // Swiper resolves clicked bullets by CHILD INDEX (elementIndex over
+    // parentNode.children), so the hole must be a margin on a bullet, never
+    // a spacer element that would shift dot→slide mapping.
+    const deckRef = createRef<MobileSwiperDeckHandle>();
+    const { container } = render(
+      <DeckHarness deckRef={deckRef} withMap={true} bulletGapAfterIndex={1} />,
+    );
+
+    await waitFor(() => {
+      expect(
+        container.querySelectorAll('#swiper-mobile-deck-pagination .swiper-pagination-bullet'),
+      ).toHaveLength(4);
+    });
+
+    const row = container.querySelector('#swiper-mobile-deck-pagination')!;
+    const bullets = [...row.querySelectorAll('.swiper-pagination-bullet')];
+    // Gap after index 1 ⇒ bullet 2 carries the margin class…
+    expect(bullets[2]).toHaveClass('swiper-bullet-after-gap');
+    expect(bullets[0]).not.toHaveClass('swiper-bullet-after-gap');
+    // …and the container holds bullets ONLY (children count === bullet count).
+    expect(row.children).toHaveLength(bullets.length);
   });
 });

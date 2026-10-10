@@ -11,6 +11,12 @@ type ShareForecastButtonProps = {
   cityName: string;
   /** IANA timezone of the forecast location. */
   timezone?: string;
+  /**
+   * Link appended after the forecast — the deep-link URL carrying this
+   * location's coords when the caller has them (so the recipient lands on
+   * this city, not their own). Defaults to the bare app origin.
+   */
+  url?: string;
 } & (
   | { mode?: 'daily'; days: DailyForecast[] }
   | { mode: 'hourly'; hours: HourlyForecast[] }
@@ -26,12 +32,13 @@ type ShareForecastButtonProps = {
 export function ShareForecastButton(props: ShareForecastButtonProps) {
   const { language, t } = useLanguage();
   const { units } = useUnits();
-  const { cityName, timezone } = props;
+  const { cityName, timezone, url } = props;
   const isHourly = props.mode === 'hourly';
   const hours = isHourly ? props.hours : undefined;
   const days = isHourly ? undefined : props.days;
 
   const handleShare = useCallback(async () => {
+    const shareUrl = url ?? window.location.origin;
     const text = isHourly
       ? buildHourlyForecastShareText({
           cityName,
@@ -40,7 +47,7 @@ export function ShareForecastButton(props: ShareForecastButtonProps) {
           language,
           timezone,
           translate: (key) => t(key),
-          url: window.location.origin,
+          url: shareUrl,
         })
       : buildForecastShareText({
           cityName,
@@ -49,7 +56,7 @@ export function ShareForecastButton(props: ShareForecastButtonProps) {
           language,
           timezone,
           translate: (key) => t(key),
-          url: window.location.origin,
+          url: shareUrl,
         });
 
     if (typeof navigator.share === 'function') {
@@ -70,7 +77,7 @@ export function ShareForecastButton(props: ShareForecastButtonProps) {
     } catch {
       toast.error(t('share.copyFailed'));
     }
-  }, [isHourly, cityName, days, hours, timezone, units, language, t]);
+  }, [isHourly, cityName, days, hours, timezone, units, language, t, url]);
 
   const count = isHourly ? (hours?.length ?? 0) : (days?.length ?? 0);
 

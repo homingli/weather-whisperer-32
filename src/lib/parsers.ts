@@ -287,6 +287,7 @@ export function parseOpenMeteoForecast(input: unknown): ParseResult<WeatherData>
   const hourlyPrecip = readArrayNumber(hourly, 'precipitation', warnings);
   const hourlyWind = readArrayNumber(hourly, 'wind_speed_10m', warnings);
   const hourlyWindDir = readArrayNumber(hourly, 'wind_direction_10m', warnings);
+  const hourlyGust = readArrayNumber(hourly, 'wind_gusts_10m', warnings);
   const hourlyIsDay = readArrayNumber(hourly, 'is_day', warnings);
 
   // minutely_15 (optional): 15-minute precipitation. Missing or degraded →
@@ -305,6 +306,8 @@ export function parseOpenMeteoForecast(input: unknown): ParseResult<WeatherData>
   const dailyPop = readArrayNumber(daily, 'precipitation_probability_max', warnings);
   const dailyWindMax = readArrayNumber(daily, 'wind_speed_10m_max', warnings);
   const dailyWindDir = readArrayNumber(daily, 'wind_direction_10m_dominant', warnings);
+  const dailyGustMax = readArrayNumber(daily, 'wind_gusts_10m_max', warnings);
+  const dailyUvMax = readArrayNumber(daily, 'uv_index_max', warnings);
   const dailySunrise = readArrayNumber(daily, 'sunrise', warnings);
   const dailySunset = readArrayNumber(daily, 'sunset', warnings);
 
@@ -336,6 +339,9 @@ export function parseOpenMeteoForecast(input: unknown): ParseResult<WeatherData>
         weatherCode: hourlyCode[startIndex + i] ?? 0,
         windSpeed: hourlyWind[startIndex + i] ?? 0,
         windDirection: hourlyWindDir[startIndex + i] ?? 0,
+        // Optional field: a missing/degraded gust array leaves it undefined
+        // rather than a misleading 0 km/h.
+        windGust: hourlyGust[startIndex + i],
         precipitationProbability: hourlyPop[startIndex + i] ?? 0,
         precipitation: hourlyPrecip[startIndex + i] ?? 0,
         isDay: (hourlyIsDay[startIndex + i] ?? 1) === 1,
@@ -348,6 +354,8 @@ export function parseOpenMeteoForecast(input: unknown): ParseResult<WeatherData>
         weatherCode: dailyCode[i] ?? 0,
         windSpeedMax: dailyWindMax[i] ?? 0,
         windDirectionDominant: dailyWindDir[i] ?? 0,
+        windGustMax: dailyGustMax[i],
+        uvIndexMax: dailyUvMax[i],
         precipitationProbabilityMax: dailyPop[i] ?? 0,
         sunrise: new Date((dailySunrise[i] ?? time) * 1000),
         sunset: new Date((dailySunset[i] ?? time) * 1000),

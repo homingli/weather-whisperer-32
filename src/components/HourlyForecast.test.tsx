@@ -48,7 +48,7 @@ vi.mock('recharts', async () => {
       // shape so the component's Number() coercion stays pinned.
       const label = 1704715200000;
       const body = content
-        ? content({ active: true, payload: [{ payload: { temperature: 20, rainChance: 10, windSpeed: 10, windDirection: 180 } }], label })
+        ? content({ active: true, payload: [{ payload: { temperature: 20, rainChance: 10, windSpeed: 10, windDirection: 180, windGust: 55 } }], label })
         : null;
       return (
         <div data-testid="tooltip">
@@ -57,7 +57,15 @@ vi.mock('recharts', async () => {
         </div>
       );
     },
-    ReferenceArea: () => <div data-testid="ref-area" />,
+    ReferenceArea: ({ x1, x2, fill, yAxisId }: MockChartProps & { x1?: number | string; x2?: number | string; fill?: string; yAxisId?: string }) => (
+      <div
+        data-testid="ref-area"
+        data-x1={x1 != null ? String(x1) : undefined}
+        data-x2={x2 != null ? String(x2) : undefined}
+        data-fill={fill}
+        data-y-axis-id={yAxisId}
+      />
+    ),
     ReferenceLine: ({ label }: { label?: { value: unknown } }) => {
       if (label) renderedChartData.push({ refLineLabel: label.value });
       return <svg data-testid="ref-line" />;
@@ -86,6 +94,21 @@ const mockHourlyData: HourlyForecastType[] = [
     precipitation: 0,
     isDay: true,
   },
+];
+
+const mockGustyHourlyData: HourlyForecastType[] = [
+  { ...mockHourlyData[0], windGust: 55 }, // ≥ STRONG_WIND_GUST_KMH — strong-wind hour
+  mockHourlyData[1], // no gust field — annotation and value stay hidden
+];
+
+const mockModerateGustHourlyData: HourlyForecastType[] = [
+  { ...mockHourlyData[0], windGust: 30 }, // gust data, but below the threshold
+  mockHourlyData[1],
+];
+
+const mockFinalStrongHourlyData: HourlyForecastType[] = [
+  mockHourlyData[0], // not strong — the run opens at the window's last hour
+  { ...mockHourlyData[1], windGust: 65 },
 ];
 
 describe('HourlyForecast Component', () => {
@@ -168,8 +191,10 @@ describe('HourlyForecast Component', () => {
     expect(typeof firstEntry.temperature).toBe('number');
   });
 
-  it('renders day/night ReferenceArea bands when daily prop is provided', () => {
-    // daily with sunrise before noon and sunset after noon for the forecast window.
+  it('shades night from the real sun times — the band starts at the sunset line, not the next hour stamp', () => {
+    // Window 12:00–13:00 UTC; sunset falls mid-window at 12:30. The night
+    // band must start exactly at the sunset stamp (what the marker line
+    // draws), not at the next whole-hour is_day flip.
     const mockDaily: DailyForecastType[] = [
       {
         date: new Date('2024-01-08'),
@@ -180,16 +205,38 @@ describe('HourlyForecast Component', () => {
         windDirectionDominant: 180,
         precipitationProbabilityMax: 20,
         sunrise: new Date('2024-01-08T06:00:00Z'),
-        sunset: new Date('2024-01-08T18:00:00Z'),
+        sunset: new Date('2024-01-08T12:30:00Z'),
+      },
+      {
+        date: new Date('2024-01-09'),
+        temperatureMax: 28,
+        temperatureMin: 22,
+        weatherCode: 0,
+        windSpeedMax: 10,
+        windDirectionDominant: 180,
+        precipitationProbabilityMax: 20,
+        sunrise: new Date('2024-01-09T06:00:00Z'),
+        sunset: new Date('2024-01-09T12:30:00Z'),
       },
     ];
 
     renderWithLanguage(<HourlyForecast forecast={mockHourlyData} daily={mockDaily} />);
 
-    // With hourly isDay data spanning 12–13 UTC and sunrise at 06:00 UTC,
-    // dayNightAreas produces at least one ReferenceArea.
     const refAreas = screen.getAllByTestId('ref-area');
-    expect(refAreas.length).toBeGreaterThan(0);
+    expect(refAreas).toHaveLength(1);
+    const sunsetMs = new Date('2024-01-08T12:30:00Z').getTime();
+    expect(refAreas[0].getAttribute('data-x1')).toBe(String(sunsetMs));
+    // Clipped to the window's last stamp — tomorrow's 06:00 sunrise is
+    // outside it.
+    expect(refAreas[0].getAttribute('data-x2')).toBe(String(mockHourlyData[1].time.getTime()));
+    expect(refAreas[0].getAttribute('data-fill')).toContain('222 47% 30%');
+    // Every ReferenceArea must bind to the chart's actual Y axis
+    // ('left'). recharts binds Reference* to axis id 0 by default and
+    // silently drops a mismatched one — the exact regression 2bf05aa
+    // fixed (night bands invisible in production).
+    for (const area of refAreas) {
+      expect(area.getAttribute('data-y-axis-id')).toBe('left');
+    }
   });
 
   it('renders sunrise/sunset ReferenceLine markers when daily covers the forecast window', () => {
@@ -203,7 +250,8 @@ describe('HourlyForecast Component', () => {
       windDirection: 180,
       precipitationProbability: 10,
       precipitation: 0,
-      isDay: true,
+      // Sunset (18:00 UTC) falls between hours 6 and 7 — night after it.
+      isDay: i < 6,
     }));
     // sunrise at 06:00 UTC (before the 12:00 window start) and sunset at 18:00 UTC (inside).
     const mockDaily: DailyForecastType[] = [
@@ -251,6 +299,9 @@ describe('HourlyForecast Component', () => {
     // Custom body: metric row values for the active datum.
     expect(screen.getByTestId('tooltip').textContent).toContain('20.0°C');
     expect(screen.getByTestId('tooltip').textContent).toContain('10 km/h');
+    // Gust row renders when the active hour carries gust data.
+    expect(screen.getByTestId('tooltip').textContent).toContain('Gusts');
+    expect(screen.getByTestId('tooltip').textContent).toContain('55 km/h');
   });
 
   it('accepts and propagates timezone prop without crashing', () => {
@@ -294,5 +345,66 @@ describe('HourlyForecast Component', () => {
     });
     expect(srTable!.textContent).toContain('68°F');
     expect(srTable!.textContent).toContain('mph');
+  });
+
+  it('carries gust data into chart rows in both scales (display unit + km/h threshold)', () => {
+    renderWithLanguage(<HourlyForecast forecast={mockGustyHourlyData} />);
+    expect(renderedChartData).toEqual(
+      expect.arrayContaining([
+        // windGust: display value (metric here); windGustKmh: transport unit
+        // the STRONG_WIND_GUST_KMH annotation threshold compares against.
+        expect.objectContaining({ windGustKmh: 55, windGust: 55 }),
+        expect.objectContaining({ windGustKmh: undefined, windGust: undefined }),
+      ]),
+    );
+  });
+
+  it('adds the sr-only gust column only when the window carries gust data', () => {
+    const { container } = renderWithLanguage(<HourlyForecast forecast={mockGustyHourlyData} />);
+    const srTable = container.querySelector('div.sr-only table');
+    expect(srTable).toBeTruthy();
+    expect(srTable!.textContent).toContain('Gusts');
+    expect(srTable!.textContent).toContain('55 km/h');
+
+    // Pre-gust data keeps the original four-column table.
+    const { container: plain } = renderWithLanguage(<HourlyForecast forecast={mockHourlyData} />);
+    expect(plain.querySelector('div.sr-only table')!.textContent).not.toContain('Gusts');
+  });
+
+  it('shades strong-gust hours with a band and names the range in the chart label', () => {
+    const { container } = renderWithLanguage(<HourlyForecast forecast={mockGustyHourlyData} />);
+
+    // The strong hour shades as a blue-gray band; pin it by fill and span.
+    const bands = Array.from(container.querySelectorAll('[data-testid="ref-area"]'));
+    const gustBand = bands.find((el) => el.getAttribute('data-fill')?.includes('208 24% 42%'));
+    expect(gustBand).toBeTruthy();
+    expect(gustBand!.getAttribute('data-x1')).toBe(String(mockGustyHourlyData[0].time.getTime()));
+    // The band reaches the next hour's stamp (the fixture's last).
+    expect(gustBand!.getAttribute('data-x2')).toBe(String(mockGustyHourlyData[1].time.getTime()));
+    // Reference* binds to axis id 0 by default; this chart's axes are
+    // 'left'/'right', so a missing yAxisId silently drops the area in real
+    // recharts (this regressed the day/night bands once).
+    expect(gustBand!.getAttribute('data-y-axis-id')).toBe('left');
+
+    // The band is a color-only cue — the chart's aria-label carries the
+    // range in words.
+    expect(container.querySelector('[role="img"]')!.getAttribute('aria-label')).toContain('Strong gusts');
+
+    // Gust data below the threshold: no band, and the label stays base.
+    const { container: moderate } = renderWithLanguage(<HourlyForecast forecast={mockModerateGustHourlyData} />);
+    const moderateBands = Array.from(moderate.querySelectorAll('[data-testid="ref-area"]'));
+    expect(moderateBands.some((el) => el.getAttribute('data-fill')?.includes('208 24% 42%'))).toBe(false);
+    expect(moderate.querySelector('[role="img"]')!.getAttribute('aria-label')).not.toContain('Strong gusts');
+  });
+
+  it('extends a strong-gust run that reaches the window’s final hour past the last stamp', () => {
+    // A run still open at the last hour shades to nextHour-stamp+1h —
+    // ifOverflow=extendDomain widens the domain instead of clipping it.
+    const { container } = renderWithLanguage(<HourlyForecast forecast={mockFinalStrongHourlyData} />);
+    const bands = Array.from(container.querySelectorAll('[data-testid="ref-area"]'));
+    const gustBand = bands.find((el) => el.getAttribute('data-fill')?.includes('208 24% 42%'));
+    expect(gustBand).toBeTruthy();
+    expect(gustBand!.getAttribute('data-x1')).toBe(String(mockFinalStrongHourlyData[1].time.getTime()));
+    expect(gustBand!.getAttribute('data-x2')).toBe(String(mockFinalStrongHourlyData[1].time.getTime() + 3_600_000));
   });
 });

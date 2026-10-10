@@ -42,6 +42,9 @@ scripts/audit/shots/
 # Local agent workspace state (not source)
 .zcode/
 
+# Agent memory (local only, not source)
+AGENTS.md
+
 # android/ is tracked source on this branch; machine-local files inside it
 # (keystore.properties, local.properties, build output) are ignored by android/.gitignore.
 scripts/audit/shots-baseline/

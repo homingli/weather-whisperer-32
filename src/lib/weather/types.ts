@@ -62,6 +62,12 @@ export interface HourlyForecast {
   windSpeed: number;
   /** Wind direction in degrees (0-360) */
   windDirection: number;
+  /**
+   * Peak wind gust in km/h over the hour (Open-Meteo `wind_gusts_10m`).
+   * Optional: absent from cached snapshots written before this field existed
+   * and on paths with no Open-Meteo hourly data; the UI renders nothing.
+   */
+  windGust?: number;
   /** Precipitation probability percentage (0-100) */
   precipitationProbability: number;
   /** Expected precipitation in mm */
@@ -100,8 +106,20 @@ export interface DailyForecast {
   weatherCode: number;
   /** Maximum wind speed in km/h */
   windSpeedMax: number;
+  /**
+   * Maximum wind gust in km/h for the day (Open-Meteo
+   * `wind_gusts_10m_max`). Optional — same degradation rules as
+   * `HourlyForecast.windGust`.
+   */
+  windGustMax?: number;
   /** Dominant wind direction in degrees (0-360) */
   windDirectionDominant: number;
+  /**
+   * Maximum UV index for the day (0+, Open-Meteo `uv_index_max`).
+   * Optional — cached snapshots and the HKO fallback path leave it
+   * undefined; the UI renders nothing.
+   */
+  uvIndexMax?: number;
   /** Maximum precipitation probability (0-100) */
   precipitationProbabilityMax: number;
   /** Raw PSR value for HKO */

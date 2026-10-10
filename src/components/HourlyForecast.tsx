@@ -11,6 +11,7 @@ import {
   precipitationUnitLabel,
 } from "@/lib/units";
 import { formatInTimezone, appLocale } from "@/lib/utils";
+import { STRONG_WIND_GUST_KMH } from "@/lib/constants";
 import { useMemo, useCallback, memo, useRef } from "react";
 import { ShareForecastButton } from "@/components/ShareForecastButton";
 
@@ -20,9 +21,11 @@ interface HourlyForecastProps {
   timezone?: string;
   /** Display name of the selected city — used by the share button. */
   cityName?: string;
+  /** Deep-link URL (origin + this location's coords) for the share button. */
+  shareUrl?: string;
 }
 
-export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: HourlyForecastProps) => {
+export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, shareUrl }: HourlyForecastProps) => {
   const { language, t } = useLanguage();
   const { units } = useUnits();
   const root = useRef<HTMLDivElement>(null);
@@ -57,9 +60,59 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
     rainChance: hour.precipitationProbability,
     rainIntensity: units === 'us' ? mmToInches(hour.precipitation) : hour.precipitation,
     windSpeed: units === 'us' ? kmhToMph(hour.windSpeed) : hour.windSpeed,
+    // Gust kept in both scales: `windGustKmh` is the transport unit the
+    // strong-wind threshold compares against, `windGust` is display-converted.
+    windGustKmh: hour.windGust,
+    windGust: hour.windGust != null ? (units === 'us' ? kmhToMph(hour.windGust) : hour.windGust) : undefined,
     windDirection: hour.windDirection,
     isDay: hour.isDay,
   }));
+
+  // An hour whose forecast gust reaches Beaufort 7 territory shades the
+  // chart for that span (see strongGustAreas below); the exact values live
+  // in the tooltip and the sr-only table.
+  const hasGustData = chartData.some((d) => d.windGust != null);
+
+  // Contiguous strong-gust spans, as [startMs, endMs) chart coordinates.
+  // A run of strong hours shades stamp-to-stamp like the day/night bands,
+  // so adjacent hours merge into one region; the final hour's run extends
+  // one hour past the last stamp (ifOverflow=extendDomain widens the domain
+  // rather than clipping it).
+  const strongGustAreas = useMemo(() => {
+    const areas: { x1: number; x2: number }[] = [];
+    let runStart: number | null = null;
+    for (let i = 0; i < chartData.length; i++) {
+      const d = chartData[i];
+      const strong = (d.windGustKmh ?? 0) >= STRONG_WIND_GUST_KMH;
+      if (strong && runStart == null) runStart = d.time;
+      const isLast = i === chartData.length - 1;
+      if (runStart != null && (!strong || isLast)) {
+        // Only a run that still includes the final hour extends past the
+        // last stamp; a run closed by a non-strong final hour ends there.
+        areas.push({ x1: runStart, x2: isLast && strong ? d.time + 3_600_000 : d.time });
+        runStart = null;
+      }
+    }
+    return areas;
+  }, [chartData]);
+
+  // The band is a color-only cue — the chart's aria-label names the ranges
+  // ("Strong gusts 2 PM–4 PM, 7 PM–8 PM") so the information doesn't ride
+  // on hue alone. (SR users also get the gust column in the sr-only table.)
+  const chartAriaLabel = useMemo(() => {
+    if (strongGustAreas.length === 0) return t('hourly.chartLabel');
+    const ranges = strongGustAreas
+      .map((a) => {
+        const from = formatTimeInTimezone(new Date(a.x1));
+        // A band only exists because a chart point is in [x1, x2), so the
+        // lookup always lands.
+        const lastInRun = [...chartData].reverse().find((d) => d.time >= a.x1 && d.time < a.x2)!;
+        const to = formatTimeInTimezone(new Date(lastInRun.time));
+        return from === to ? from : `${from}–${to}`;
+      })
+      .join(language === 'tc' ? '，' : ', ');
+    return `${t('hourly.chartLabel')}. ${formatString(t('hourly.strongGusts'), ranges)}`;
+  }, [t, language, strongGustAreas, chartData, formatTimeInTimezone]);
 
   // Format sunrise/sunset time in the city's timezone
   const formatSunTime = useCallback((date: Date) => {
@@ -110,36 +163,42 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
     return events;
   }, [daily, hoursData, formatSunTime]);
 
-  // Calculate day/night periods for reference areas based on isDay from hourly data
-  const dayNightAreas = useMemo(() => {
-    const areas: { x1: number; x2: number; isDay: boolean }[] = [];
-    const dataPoints = chartData;
-
-    if (dataPoints.length < 2) return [];
-
-    let currentPeriodStart = 0;
-    let currentIsDay = dataPoints[0].isDay;
-
-    for (let i = 1; i < dataPoints.length; i++) {
-      if (dataPoints[i].isDay !== currentIsDay) {
-        areas.push({
-          x1: dataPoints[currentPeriodStart].time,
-          x2: dataPoints[i - 1].time,
-          isDay: currentIsDay,
-        });
-        currentPeriodStart = i;
-        currentIsDay = dataPoints[i].isDay;
-      }
+  // Night spans from the actual sun times (daily sunrise/sunset) rather
+  // than the hourly is_day flags: is_day can only flip on whole-hour
+  // stamps, so a flag-driven band starts at e.g. 7 PM while the drawn
+  // sunset marker says 6:04 PM. Anchoring to the sun times makes the
+  // shading begin exactly at that marker line. Intervals are clipped to
+  // the chart window, so no domain extension is needed.
+  const nightAreas = useMemo(() => {
+    if (!daily || daily.length === 0 || chartData.length === 0) return [];
+    const winStart = chartData[0].time;
+    const winEnd = chartData[chartData.length - 1].time;
+    // HKO fallback seeds sunrise/sunset with epoch-0 sentinels; treat
+    // non-finite and pre-1971 stamps alike as "no data".
+    const toMs = (d: Date | string): number | null => {
+      const t = (d instanceof Date) ? d.getTime() : new Date(d).getTime();
+      return Number.isNaN(t) || t <= 0 ? null : t;
+    };
+    const areas: { x1: number; x2: number }[] = [];
+    // Pre-dawn window: last night's sunset isn't in `daily` (it starts
+    // today), so shade from the window start until today's sunrise.
+    const sunrise0 = toMs(daily[0].sunrise);
+    if (sunrise0 != null && sunrise0 > winStart) {
+      areas.push({ x1: winStart, x2: Math.min(sunrise0, winEnd) });
     }
-
-    areas.push({
-      x1: dataPoints[currentPeriodStart].time,
-      x2: dataPoints[dataPoints.length - 1].time,
-      isDay: currentIsDay,
-    });
-
+    // Each evening: sunset_i → sunrise_{i+1}. The next-day sunrise is
+    // optional (daily carries 7 days in practice, but the last evening has
+    // no follower) — it clips to the window end instead.
+    for (let i = 0; i < daily.length; i++) {
+      const set = toMs(daily[i].sunset);
+      if (set == null) continue;
+      const rise = toMs(daily[i + 1]?.sunrise);
+      const x1 = Math.max(set, winStart);
+      const x2 = Math.min(rise ?? winEnd, winEnd);
+      if (x2 > x1) areas.push({ x1, x2 });
+    }
     return areas;
-  }, [chartData]);
+  }, [daily, chartData]);
 
   // Custom tick formatter for x-axis
   const formatXAxisTick = useCallback((timestamp: number, index: number) => {
@@ -170,13 +229,13 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
           <span className="kicker text-muted-foreground/60">
             {formatString(t('hourly.nextNHours'), hoursData.length)}
           </span>
-          <ShareForecastButton cityName={cityName ?? ''} mode="hourly" hours={hoursData} timezone={timezone} />
+          <ShareForecastButton cityName={cityName ?? ''} mode="hourly" hours={hoursData} timezone={timezone} url={shareUrl} />
         </div>
       </div>
 
       <div className="hf-rule h-px editorial-rule mt-3 mb-4" />
 
-      <div className="hf-chart flex-1 w-full min-h-0 touch-pan-y" aria-label={t('hourly.chartLabel')} role="img">
+      <div className="hf-chart flex-1 w-full min-h-0 touch-pan-y" aria-label={chartAriaLabel} role="img">
         <ResponsiveContainer width="100%" height="100%">
           {/* Rain chance is a per-hour probability, not a continuous series —
               encoding it as a second line on its own axis invites false
@@ -186,14 +245,36 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
               translucent so a hot + stormy hour (80% bar running up behind a
               temp peak) never hides the trace. */}
           <ComposedChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 10 }}>
-            {/* Day/night background areas */}
-            {dayNightAreas.map((area, index) => (
+            {/* Night shading, anchored to the real sunset/sunrise times so
+                the band starts at the drawn marker line instead of the next
+                full-hour stamp. yAxisId is required: recharts binds every
+                Reference* to axis id 0 by default, and this chart's axes
+                are 'left'/'right' — without it the areas are silently
+                dropped (this regressed the night bands once). */}
+            {nightAreas.map((area, index) => (
               <ReferenceArea
                 key={index}
                 x1={area.x1}
                 x2={area.x2}
-                fill={area.isDay ? "hsl(48 96% 53% / 0.55)" : "hsl(222 47% 30% / 0.55)"}
+                yAxisId="left"
+                fill="hsl(222 47% 30% / 0.12)"
                 fillOpacity={1}
+              />
+            ))}
+            {/* Strong-gust bands — rendered after the night areas so the
+                tint stacks on top. 15% blue-gray slate (user-tuned): quiet
+                enough to sit under the rain bars, which recharts z-orders
+                above reference areas. Gated at STRONG_WIND_GUST_KMH;
+                exact values in tooltip + sr table. */}
+            {strongGustAreas.map((area, index) => (
+              <ReferenceArea
+                key={`gust-${index}`}
+                x1={area.x1}
+                x2={area.x2}
+                yAxisId="left"
+                fill="hsl(208 24% 42% / 0.15)"
+                fillOpacity={1}
+                ifOverflow="extendDomain"
               />
             ))}
             {/* Sunrise/sunset markers */}
@@ -302,6 +383,12 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
                             </div>
                           </div>
                         </div>
+                        {data.windGust != null && (
+                          <div className="text-foreground flex justify-between gap-4">
+                            <span>{t('weather.windGust')}:</span>
+                            <span className="font-semibold">{`${Math.round(data.windGust)} ${windLabel}`}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -309,12 +396,17 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
                 return null;
               }}
             />
+            {/* isAnimationActive={false} — Recharts animates on mount with
+                JS, outside the CSS prefers-reduced-motion guard in index.css
+                (the .hf-chart entrance IS guarded; this internal one wasn't).
+                DailyForecast already disabled its bar animation. */}
             <Bar
               yAxisId="right"
               dataKey="rainChance"
               fill="hsl(var(--weather-rain))"
               fillOpacity={0.22}
               maxBarSize={24}
+              isAnimationActive={false}
             />
             <Line
               yAxisId="left"
@@ -324,6 +416,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
               strokeWidth={2}
               dot={{ fill: 'hsl(var(--weather-sunny))', strokeWidth: 0, r: 4 }}
               activeDot={{ r: 6, fill: 'hsl(var(--weather-sunny))' }}
+              isAnimationActive={false}
             />
           </ComposedChart>
         </ResponsiveContainer>
@@ -345,6 +438,9 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
               <th scope="col">{t('hourly.temperature')}</th>
               <th scope="col">{t('hourly.rainChance')}</th>
               <th scope="col">{t('weather.wind')}</th>
+              {/* Column only when any row carries gust data — pre-gust cached
+                  snapshots render the exact table that shipped before. */}
+              {hasGustData && <th scope="col">{t('weather.windGust')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -359,6 +455,11 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
                 <td>
                   {Math.round(row.windSpeed)} {windSpeedUnitLabel(units)}
                 </td>
+                {hasGustData && (
+                  <td>
+                    {row.windGust != null ? `${Math.round(row.windGust)} ${windSpeedUnitLabel(units)}` : '—'}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

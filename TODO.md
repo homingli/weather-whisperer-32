@@ -36,3 +36,7 @@ geolocation-only), the wet-window threshold is a fixed 0.1 mm per step
   only if drizzle-grade windows prove too chatty in practice.
 - Toast when rain newly crosses the threshold while the app is open,
   mirroring the warning-change toasts in `Index.tsx`.
+
+## Parked elsewhere
+
+- Saved cities (pinned list, at-a-glance conditions): HML-65.
