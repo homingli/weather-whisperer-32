@@ -122,7 +122,7 @@ export const WeatherAlerts = memo(function WeatherAlerts({
               <img
                 src={getWarningIcon(warning.code)}
                 alt={warning.name}
-                className="object-contain w-7 h-7 sm:w-8 sm:h-8 rounded-xs border border-black/10 bg-white drop-shadow-xs"
+                className="object-contain w-7 h-7 sm:w-8 sm:h-8 rounded-xs border border-gray-400 bg-white drop-shadow-xs"
               />
             </button>
           );
@@ -138,7 +138,7 @@ export const WeatherAlerts = memo(function WeatherAlerts({
                 <img
                   src={getWarningIcon(selectedWarning.code)}
                   alt={t(`warnings.${selectedWarning.code}`, selectedWarning.name)}
-                  className="object-contain w-8 h-8 shrink-0 mt-0.5 rounded-xs border border-black/10 bg-white"
+                  className="object-contain w-8 h-8 shrink-0 mt-0.5 rounded-xs border border-gray-400 bg-white"
                 />
                 <div className="min-w-0">
                   <div className="font-semibold text-foreground">
