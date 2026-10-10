@@ -5,6 +5,7 @@ import { SourceState, SourceId } from './weather/types';
 import { logWarn, logError } from './log';
 import { TIMING } from './constants';
 import { makeCityId, writeLastKnownWeather } from './weather/storage';
+import { isDeepLinkSession } from './weather/deep-link';
 
 /**
  * Unified weather gateway. Parallel fetches, fallback chain, per-source
@@ -119,9 +120,14 @@ export async function fetchWeather(
     return { source: 'om' };
   }
 
-  /** Persist the snapshot and return the data unchanged. */
+  /** Persist the snapshot and return the data unchanged. Skipped during a
+   *  shared-link visit: the slot is single, and a spectator view must not
+   *  clobber the visitor's own cold-start seed (the read side already
+   *  guards by cityId, but the write would still destroy their entry). */
   function persist(data: WeatherData): WeatherData {
-    writeLastKnownWeather(cityId, lang, data);
+    if (!isDeepLinkSession()) {
+      writeLastKnownWeather(cityId, lang, data);
+    }
     return data;
   }
 

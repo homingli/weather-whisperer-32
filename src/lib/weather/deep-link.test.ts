@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { parseDeepLinkLocation } from './deep-link';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { parseDeepLinkLocation, clearDeepLinkParams, isDeepLinkSession, setDeepLinkSession } from './deep-link';
 
 describe('parseDeepLinkLocation', () => {
   it('parses lat, lon, and name from a shared link', () => {
@@ -47,5 +47,49 @@ describe('parseDeepLinkLocation', () => {
 
   it('ignores unrelated query params', () => {
     expect(parseDeepLinkLocation('?utm_source=chat&lat=22.32&lon=114.17&name=Kowloon&foo=bar')?.latitude).toBe(22.32);
+  });
+});
+
+describe('clearDeepLinkParams', () => {
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('removes only the deep-link params and keeps unrelated ones', () => {
+    window.history.replaceState(null, '', '/?utm_source=chat&lat=22.32&lon=114.17&name=Kowloon');
+    clearDeepLinkParams();
+    expect(window.location.search).toBe('?utm_source=chat');
+  });
+
+  it('drops the query string entirely when only deep-link params remain', () => {
+    window.history.replaceState(null, '', '/?lat=22.32&lon=114.17');
+    clearDeepLinkParams();
+    expect(window.location.search).toBe('');
+    expect(window.location.pathname).toBe('/');
+  });
+
+  it('is a no-op on a param-free URL', () => {
+    const replaceSpy = vi.spyOn(window.history, 'replaceState');
+    clearDeepLinkParams();
+    expect(replaceSpy).not.toHaveBeenCalled();
+    replaceSpy.mockRestore();
+  });
+
+  it('is a no-op when unrelated params exist but no deep-link ones', () => {
+    window.history.replaceState(null, '', '/?utm_source=chat');
+    const replaceSpy = vi.spyOn(window.history, 'replaceState');
+    clearDeepLinkParams();
+    expect(replaceSpy).not.toHaveBeenCalled();
+    replaceSpy.mockRestore();
+  });
+});
+
+describe('deep-link session flag', () => {
+  it('defaults to false and round-trips through the setter', () => {
+    expect(isDeepLinkSession()).toBe(false);
+    setDeepLinkSession(true);
+    expect(isDeepLinkSession()).toBe(true);
+    setDeepLinkSession(false);
+    expect(isDeepLinkSession()).toBe(false);
   });
 });

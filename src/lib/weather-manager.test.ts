@@ -3,6 +3,9 @@ import { fetchWeather } from './weather-manager';
 import { getWeather as getOpenMeteoWeather } from './weather';
 import { isInHongKong, getHKODailyAndWarnings, getHKOCurrentWeather, buildHKOWeatherData, fetchHKOWeatherData } from './hko-weather';
 import type { WeatherData, DailyForecast, CurrentWeather, HourlyForecast } from './weather';
+import { STORAGE_KEYS } from './constants';
+import { makeCityId, writeLastKnownWeather } from './weather/storage';
+import { setDeepLinkSession } from './weather/deep-link';
 
 vi.mock('./weather', () => ({
   getWeather: vi.fn(),
@@ -532,5 +535,38 @@ describe('fetchWeather orchestration', () => {
       const result = await fetchWeather(HK_LAT, HK_LON);
       expect(result.headline).toEqual({ source: 'om' });
     });
+  });
+});
+
+describe('last-known snapshot persistence', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    localStorage.clear();
+    setDeepLinkSession(false);
+  });
+
+  it('persists successful fetches in a normal session', async () => {
+    mockIsInHK.mockReturnValue(false);
+    mockGetOpenMeteo.mockResolvedValue(makeOpenMeteoData());
+
+    await fetchWeather(NON_HK_LAT, NON_HK_LON);
+
+    const raw = localStorage.getItem(STORAGE_KEYS.LAST_KNOWN);
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw!).cityId).toBe(makeCityId(NON_HK_LAT, NON_HK_LON));
+  });
+
+  it('suppresses the write during a deep-link visit so the visitor\'s snapshot survives', async () => {
+    // Seed the visitor's own city's snapshot, then fetch the shared city's
+    // weather while the deep-link session flag is up.
+    writeLastKnownWeather(makeCityId(1.23, 4.56), 'en', makeOpenMeteoData());
+    mockIsInHK.mockReturnValue(false);
+    mockGetOpenMeteo.mockResolvedValue(makeOpenMeteoData());
+    setDeepLinkSession(true);
+
+    await fetchWeather(NON_HK_LAT, NON_HK_LON);
+
+    const envelope = JSON.parse(localStorage.getItem(STORAGE_KEYS.LAST_KNOWN)!);
+    expect(envelope.cityId).toBe(makeCityId(1.23, 4.56));
   });
 });

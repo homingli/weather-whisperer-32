@@ -7,6 +7,7 @@ import {
   getUserLocation,
   parseDeepLinkLocation,
   reverseGeocode,
+  setDeepLinkSession,
   setDefaultCity,
 } from '@/lib/weather';
 import { CURRENT_LOCATION_PLACEHOLDER } from '@/lib/parsers';
@@ -36,10 +37,12 @@ export function useSelectedCity() {
 
   // Wrapped setter — any caller path (internal init or external) persists.
   // Clears the cold-start weather snapshot so the new city never briefly
-  // paints stale data from the previous one. Also strips deep-link params:
-  // an explicit city choice must survive a refresh instead of bouncing back
-  // to the shared view (no-op on a param-free URL).
+  // paints stale data from the previous one. Also ends the deep-link
+  // session and strips its params: an explicit city choice must survive a
+  // refresh instead of bouncing back to the shared view (and normal
+  // snapshot writes resume).
   const persistAndSetCity = useCallback((city: GeoLocation) => {
+    setDeepLinkSession(false);
     clearLastKnownWeather();
     setSelectedCity(city);
     setDefaultCity(city);
@@ -73,6 +76,10 @@ export function useSelectedCity() {
     const initializeLocation = async () => {
       const linked = parseDeepLinkLocation(window.location.search);
       if (linked) {
+        // Spectator view: snapshot writes are suppressed while this flag is
+        // set (see weather-manager's persist) so the shared city's data
+        // never clobbers the visitor's own cold-start seed.
+        setDeepLinkSession(true);
         setSelectedCity(linked);
         if (!linked.name) {
           enrichDeepLinkName(linked);

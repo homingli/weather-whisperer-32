@@ -323,13 +323,13 @@ describe('buildShareCityLabel', () => {
 });
 
 describe('buildDeepLinkUrl', () => {
-  it('builds origin + lat/lon/name params, coords rounded to 3 decimals', () => {
+  it('builds origin + lat/lon/name params, coords rounded to 2 decimals', () => {
     const url = buildDeepLinkUrl('https://weather.example', {
       name: 'Kowloon',
       latitude: 22.31875,
       longitude: 114.16942,
     });
-    expect(url).toBe('https://weather.example/?lat=22.319&lon=114.169&name=Kowloon');
+    expect(url).toBe('https://weather.example/?lat=22.32&lon=114.17&name=Kowloon');
   });
 
   it('encodes multi-word names and round-trips through URLSearchParams', () => {
@@ -341,7 +341,7 @@ describe('buildDeepLinkUrl', () => {
     expect(url).toBeDefined();
     const received = new URL(url!);
     expect(received.searchParams.get('name')).toBe('Kowloon Tong');
-    expect(received.searchParams.get('lat')).toBe('22.330');
+    expect(received.searchParams.get('lat')).toBe('22.33');
   });
 
   it('drops the reverse-geocode placeholder instead of sharing "Current Location"', () => {
@@ -350,7 +350,7 @@ describe('buildDeepLinkUrl', () => {
       latitude: 22.32,
       longitude: 114.17,
     });
-    expect(url).toBe('https://weather.example/?lat=22.320&lon=114.170');
+    expect(url).toBe('https://weather.example/?lat=22.32&lon=114.17');
   });
 
   it('omits the name param entirely when the city has no usable name', () => {
@@ -359,7 +359,7 @@ describe('buildDeepLinkUrl', () => {
       latitude: 49.28,
       longitude: -123.12,
     });
-    expect(url).toBe('https://weather.example/?lat=49.280&lon=-123.120');
+    expect(url).toBe('https://weather.example/?lat=49.28&lon=-123.12');
   });
 
   it('tolerates a trailing slash on the origin', () => {
@@ -368,7 +368,18 @@ describe('buildDeepLinkUrl', () => {
       latitude: 22.32,
       longitude: 114.17,
     });
-    expect(url).toBe('https://weather.example/?lat=22.320&lon=114.170&name=Kowloon');
+    expect(url).toBe('https://weather.example/?lat=22.32&lon=114.17&name=Kowloon');
+  });
+
+  it('swaps a native (capacitor://) origin for the deployed app URL', () => {
+    const url = buildDeepLinkUrl('capacitor://localhost', {
+      name: 'Kowloon',
+      latitude: 22.32,
+      longitude: 114.17,
+    });
+    expect(url).toMatch(/^https:\/\//);
+    expect(url).not.toContain('capacitor://');
+    expect(url).toBe('https://weather-whisperer.vercel.app/?lat=22.32&lon=114.17&name=Kowloon');
   });
 
   it('returns undefined without a city', () => {

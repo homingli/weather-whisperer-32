@@ -6,8 +6,10 @@ import {
   getDefaultCity,
   getRecentCities,
   getUserLocation,
+  isDeepLinkSession,
   reverseGeocode,
   setDefaultCity,
+  setDeepLinkSession,
 } from '@/lib/weather';
 import { clearLastKnownWeather } from '@/lib/weather/storage';
 
@@ -40,6 +42,7 @@ function setUrl(search: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  setDeepLinkSession(false);
   setUrl('');
 });
 
@@ -64,6 +67,9 @@ describe('useSelectedCity — deep link', () => {
     expect(setDefaultCity).not.toHaveBeenCalled();
     expect(clearLastKnownWeather).not.toHaveBeenCalled();
     expect(result.current.isLocating).toBe(false);
+    // Spectator session — snapshot writes are suppressed until the visitor
+    // picks a city of their own.
+    expect(isDeepLinkSession()).toBe(true);
   });
 
   it('enriches a nameless link with a reverse geocode, coords untouched', async () => {
@@ -126,6 +132,8 @@ describe('useSelectedCity — deep link', () => {
       expect.objectContaining({ name: 'Vancouver' })
     );
     expect(window.location.search).toBe('');
+    // Explicit pick ends the spectator session — snapshot writes resume.
+    expect(isDeepLinkSession()).toBe(false);
   });
 
   it('falls through to the normal flow for malformed link params', async () => {

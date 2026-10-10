@@ -237,15 +237,35 @@ export function buildShareCityLabel({
 export type DeepLinkCity = Pick<GeoLocation, 'name' | 'latitude' | 'longitude'>;
 
 /**
+ * Native Capacitor builds run from `capacitor://localhost`, so an origin
+ * taken from `window.location` produces an unopenable share URL. Native
+ * prod builds carry the deployed origin in VITE_API_BASE (see .env.production);
+ * the constant is the last-resort fallback for native dev builds without it.
+ */
+const NATIVE_APP_ORIGIN_FALLBACK = 'https://weather-whisperer.vercel.app';
+
+function shareableOrigin(origin: string): string {
+  if (origin.startsWith('http://') || origin.startsWith('https://')) {
+    return origin.replace(/\/+$/, '');
+  }
+  const envBase = import.meta.env.VITE_API_BASE;
+  if (typeof envBase === 'string' && envBase.startsWith('http')) {
+    return envBase.replace(/\/+$/, '');
+  }
+  return NATIVE_APP_ORIGIN_FALLBACK;
+}
+
+/**
  * The deep link a share message ends with: origin + the location as query
  * params (`/?lat=&lon=&name=`), so whoever opens it lands on THIS city's
  * weather without being asked for their own geolocation. Coordinates are
- * rounded to 3 decimals (~110 m — weather-identical, deliberately fuzzy
- * for privacy) and the name rides along so the receiver can label the place
- * without a reverse-geocode call; the reverse-geocode placeholder is dropped
- * like in `buildShareCityLabel`. Returns undefined when the city is missing
- * or its coords are unusable — the caller falls back to the bare origin,
- * which shares a link that opens the friend's own location flow.
+ * rounded to 2 decimals (~1 km — the same precision the app's own cityId
+ * keying uses; weather-identical at any forecast grid size, and deliberately
+ * fuzzy for privacy). The name rides along so the receiver can label the
+ * place without a reverse-geocode call; the reverse-geocode placeholder is
+ * dropped like in `buildShareCityLabel`. Returns undefined when the city is
+ * missing or its coords are unusable — the caller falls back to the app
+ * origin, which shares a link that opens the friend's own location flow.
  */
 export function buildDeepLinkUrl(
   origin: string,
@@ -260,13 +280,12 @@ export function buildDeepLinkUrl(
     return undefined;
   }
   const params = new URLSearchParams({
-    lat: latitude.toFixed(3),
-    lon: longitude.toFixed(3),
+    lat: latitude.toFixed(2),
+    lon: longitude.toFixed(2),
   });
   const name = city.name?.trim();
   if (name && name !== CURRENT_LOCATION_PLACEHOLDER) {
     params.set('name', name);
   }
-  const base = origin.replace(/\/+$/, '');
-  return `${base}/?${params.toString()}`;
+  return `${shareableOrigin(origin)}/?${params.toString()}`;
 }
