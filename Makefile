@@ -2,7 +2,8 @@
 #
 #   make help         list targets (this is also the default)
 #   make all          bump + release — full flow; patch default; MINOR=1, MAJOR=1, VERSION=x.y[.z]
-#   make bump         bump version + commit & push — patch default; MINOR=1, MAJOR=1, VERSION=x.y[.z]
+#   make bump         bump version + seed changelog draft from commits, commit & push;
+#                     patch default; MINOR=1, MAJOR=1, VERSION=x.y[.z]
 #   make apk          debug APK (fast, debug-signed)
 #   make apk-release  release APK, signed via android/keystore.properties
 #   make upload       upload the release APK to a GitHub prerelease (apk-v<VERSION>),
@@ -55,7 +56,7 @@ all: ## bump (patch default; MINOR=1, MAJOR=1, VERSION=x.y[.z]) then release
 	$(MAKE) bump
 	$(MAKE) release
 
-bump: ## bump version, commit & push (patch default; MINOR=1, MAJOR=1, VERSION=x.y[.z])
+bump: ## bump version + seed changelog draft from commits, commit & push (patch default; MINOR=1, MAJOR=1, VERSION=x.y[.z])
 	@node scripts/bump-version.mjs $(BUMP_FLAGS)
 	@git add android/app/build.gradle package.json
 	@git commit -m "chore(release): v$$(sed -n 's/.*versionName \"\([^\"]*\)\".*/\1/p' android/app/build.gradle | head -1)"

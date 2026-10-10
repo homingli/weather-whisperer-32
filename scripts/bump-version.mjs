@@ -2,7 +2,10 @@
 // Bump the app version: versionName + versionCode in android/app/build.gradle,
 // mirrored into package.json. Run via `make bump` (see Makefile).
 
+import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
+
+import { draftFromSubjects } from "./commit-notes.mjs";
 
 const GRADLE = "android/app/build.gradle";
 const PKG = "package.json";
@@ -71,15 +74,47 @@ try {
   console.warn(`warn: could not sync version into ${PKG}`);
 }
 
+function gitOut(args) {
+  try {
+    return execFileSync("git", args, { encoding: "utf8" }).trim();
+  } catch {
+    return null;
+  }
+}
+
+// Draft the new section from commits since the previous release. The release
+// commit of the newest existing changelog section anchors the range; if it
+// can't be located, fall back to an empty section (upload still blocks on it).
+// BRE note: parens must stay unescaped, only dots are escaped.
+function draftNotes(changelog) {
+  const prev = changelog.match(/^## v(\S+)/m)?.[1];
+  if (!prev) return "";
+  const esc = prev.replace(/[.\\^$*+?()[\]{}|]/g, "\\$&");
+  const base = gitOut([
+    "rev-list",
+    "-n",
+    "1",
+    `--grep=chore(release): v${esc}$`,
+    "HEAD",
+  ]);
+  if (!base) return "";
+  const subjects = gitOut(["log", "--format=%s", `${base}..HEAD`]);
+  if (!subjects) return "";
+  console.log(`notes draft: commits ${base.slice(0, 7)}..HEAD`);
+  return draftFromSubjects(subjects.split("\n"));
+}
+
 // Scaffold the release's notes section so `make upload` has something to
-// publish; an empty section makes release-notes.mjs fail until it's filled in.
+// publish — seeded from commits since the previous release. An empty section
+// (draft generation found nothing) still blocks upload until notes are written.
 const MOBILE_CHANGELOG = "CHANGELOG.mobile.md";
 try {
   const changelog = readFileSync(MOBILE_CHANGELOG, "utf8");
   if (changelog.includes(`## v${next}`)) {
     console.warn(`warn: ${MOBILE_CHANGELOG} already has a v${next} section`);
   } else {
-    const section = `## v${next}\n\n`;
+    const draft = draftNotes(changelog);
+    const section = draft ? `## v${next}\n\n${draft}\n\n` : `## v${next}\n\n`;
     const first = changelog.indexOf("\n## ");
     writeFileSync(
       MOBILE_CHANGELOG,
@@ -87,10 +122,13 @@ try {
         ? `${changelog.trimEnd()}\n\n${section}`
         : `${changelog.slice(0, first + 1)}${section}${changelog.slice(first + 1)}`,
     );
+    if (!draft) console.warn(`warn: no commit draft — fill in v${next} by hand`);
   }
 } catch {
   console.warn(`warn: could not scaffold ${MOBILE_CHANGELOG}`);
 }
 
 console.log(`${name} → ${next} (versionCode ${code} → ${versionCode})`);
-console.log(`next: add notes under "## v${next}" in ${MOBILE_CHANGELOG}, then make release`);
+console.log(
+  `next: prune/polish the draft under "## v${next}" in ${MOBILE_CHANGELOG}, then make release`,
+);
