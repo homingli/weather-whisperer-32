@@ -16,7 +16,7 @@ import {
   useDevBaselineNonce,
 } from '@/lib/devWarningSimulator';
 import { isInHongKong, isInRainfallRegion, translateStationName, translateDistrictName, getWarningIcon } from '@/lib/hko-weather';
-import { buildShareCityLabel } from '@/lib/share-forecast';
+import { buildShareCityLabel, buildDeepLinkUrl } from '@/lib/share-forecast';
 import { PLACEHOLDER_SENTINEL, isInVancouverBox, STORAGE_KEYS } from '@/lib/constants';
 import { prefetchMscNowcast } from '@/lib/msc-prefetch';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
@@ -83,8 +83,8 @@ const PLACEHOLDER_CURRENT = {
 const DECK_DAILY_SLIDE = 2;
 const DECK_NOWCAST_SLIDE = 3;
 
-// Desktop konami for the confetti egg: c-c-f-f, each press within 1.5s of
-// the previous. Module-level so useKeySequence's effect deps stay stable.
+// Konami for the confetti egg: c-c-f-f, each press within 1.5s of the
+// previous. Module-level so useKeySequence's effect deps stay stable.
 const EGG_SEQUENCE = ['c', 'c', 'f', 'f'] as const;
 const EGG_SEQUENCE_GAP_MS = 1500;
 
@@ -154,6 +154,15 @@ const Index = () => {
       })
     : '';
 
+  // Deep-link URL for the share buttons: origin + this location's coords, so
+  // whoever opens the shared message lands on THIS city's weather without
+  // being asked for their own geolocation. Undefined when there's no city
+  // yet — the share button then falls back to the bare origin.
+  const shareUrl = useMemo(
+    () => buildDeepLinkUrl(window.location.origin, selectedCity),
+    [selectedCity],
+  );
+
   // MSC prefetch: once the selected city is in the Vancouver box, warm the
   // nowcast map's lazy chunk + probe tiles at idle so the map's first render
   // doesn't stall on a ~150 kB chunk fetch. Network-gated inside the helper
@@ -214,8 +223,10 @@ const Index = () => {
 
   // ── Easter egg: confetti ──
   // Plays once per app open when the shown day IS a HK public holiday, and
-  // replays on EVERY desktop c-c-f-f konami: the play key is a sum, so a
-  // manual burst after the auto one is never swallowed by Math.max. The
+  // replays on EVERY c-c-f-f konami: the play key is a sum, so a manual
+  // burst after the auto one is never swallowed by Math.max. The keyboard
+  // listener runs at every viewport width — touch-only devices simply never
+  // see keydowns, so the egg stays desktop/hybrid-keyboard territory. The
   // toast fires at most once per holiday date across reloads (localStorage
   // guard); storage failures only cost the toast, never the confetti.
   const [manualBursts, setManualBursts] = useState(0);
@@ -239,7 +250,7 @@ const Index = () => {
   const triggerConfettiBurst = useCallback(() => {
     setManualBursts(count => count + 1);
   }, []);
-  useKeySequence(EGG_SEQUENCE, EGG_SEQUENCE_GAP_MS, triggerConfettiBurst, !isMobile);
+  useKeySequence(EGG_SEQUENCE, EGG_SEQUENCE_GAP_MS, triggerConfettiBurst);
 
   // Reveal target for the glance strip: desktop scrolls the secondary row
   // (hourly/daily) into view; mobile advances the swipe deck to the slide
@@ -347,7 +358,10 @@ const Index = () => {
                   )
                 ) : (
                   <span className="text-sm font-medium text-foreground">
-                    {selectedCity.name}{selectedCity.admin1 ? `, ${selectedCity.admin1}` : ''}, {selectedCity.country}
+                    {/* filter-join so a deep link without a name param (or
+                        with one still resolving) never renders as "Kowloon, "
+                        with a dangling separator. */}
+                    {[selectedCity.name, selectedCity.admin1, selectedCity.country].filter(Boolean).join(', ')}
                   </span>
                 )}
                 {weather?.nearestDistrict && (
@@ -464,14 +478,14 @@ const Index = () => {
 
                       {/* Slide 2: Hourly forecast, full height */}
                       <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 editorial-card" />}>
-                        <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} />
+                        <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
                       </Suspense>
 
                       {/* Slide 3: 7-day forecast, full height (own slide so the
                           7-column strip keeps enough width at 320–390 px
                           instead of squeezing beside/above hourly) */}
                       <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20" />}>
-                        <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={shareCityLabel} />
+                        <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
                       </Suspense>
 
                       {/* Slide 4: Rainfall map (PRD or Vancouver) */}
@@ -506,7 +520,7 @@ const Index = () => {
                       <ChevronRight className="h-3 w-3" />
                     </div>
                     {holidayCountdown && (
-                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-background/95 shadow-sm px-1">
+                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-1">
                         <Suspense fallback={null}>
                           <HolidayBadge holiday={holidayCountdown} />
                         </Suspense>
@@ -550,11 +564,11 @@ const Index = () => {
                   {/* Secondary Row: Split Forecasts */}
                   <div ref={dailySectionRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
                     <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
-                      <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} />
+                      <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
                     </Suspense>
 
                     <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
-                      <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={shareCityLabel} />
+                      <DailyForecast forecast={weather.daily || []} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
                     </Suspense>
                   </div>
 

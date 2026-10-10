@@ -25,6 +25,8 @@ interface DailyForecastProps {
   timezone?: string;
   /** Display name of the selected city — used by the share button. */
   cityName?: string;
+  /** Deep-link URL (origin + this location's coords) for the share button. */
+  shareUrl?: string;
 }
 
 function ymdInTimezone(date: Date, timeZone: string): string {
@@ -51,7 +53,7 @@ function tomorrowYmdInTimezone(timeZone: string): string {
   }).format(next);
 }
 
-export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForecastProps) => {
+export const DailyForecast = memo(({ forecast, timezone, cityName, shareUrl }: DailyForecastProps) => {
   const { language, t } = useLanguage();
   const { units } = useUnits();
   const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -156,7 +158,7 @@ export const DailyForecast = memo(({ forecast, timezone, cityName }: DailyForeca
           <span className="kicker text-muted-foreground/60 leading-5">
             {t('daily.lookAhead')}
           </span>
-          <ShareForecastButton cityName={cityName ?? ''} days={forecast} timezone={timezone} />
+          <ShareForecastButton cityName={cityName ?? ''} days={forecast} timezone={timezone} url={shareUrl} />
         </div>
       </div>
 

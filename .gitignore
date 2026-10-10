@@ -42,6 +42,9 @@ scripts/audit/shots/
 # Local agent workspace state (not source)
 .zcode/
 
+# Agent memory (local only, not source)
+AGENTS.md
+
 # Capacitor Android build (generated; contains keystore + machine-local paths)
 android/
 scripts/audit/shots-baseline/

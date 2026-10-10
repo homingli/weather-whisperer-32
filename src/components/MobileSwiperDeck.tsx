@@ -1,6 +1,7 @@
 import { Children, forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
+import type { Swiper as SwiperClass } from 'swiper';
 import { Pagination } from 'swiper/modules';
 
 export interface MobileSwiperDeckHandle {
@@ -38,7 +39,7 @@ interface MobileSwiperDeckProps {
  */
 export const MobileSwiperDeck = forwardRef<MobileSwiperDeckHandle, MobileSwiperDeckProps>(
   function MobileSwiperDeck({ children, bulletGapAfterIndex }, ref) {
-    const instanceRef = useRef<{ slideTo(index: number, speed?: number): void } | null>(null);
+    const instanceRef = useRef<SwiperClass | null>(null);
 
     useImperativeHandle(
       ref,

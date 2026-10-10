@@ -21,9 +21,11 @@ interface HourlyForecastProps {
   timezone?: string;
   /** Display name of the selected city — used by the share button. */
   cityName?: string;
+  /** Deep-link URL (origin + this location's coords) for the share button. */
+  shareUrl?: string;
 }
 
-export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: HourlyForecastProps) => {
+export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, shareUrl }: HourlyForecastProps) => {
   const { language, t } = useLanguage();
   const { units } = useUnits();
   const root = useRef<HTMLDivElement>(null);
@@ -227,7 +229,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName }: Hou
           <span className="kicker text-muted-foreground/60">
             {formatString(t('hourly.nextNHours'), hoursData.length)}
           </span>
-          <ShareForecastButton cityName={cityName ?? ''} mode="hourly" hours={hoursData} timezone={timezone} />
+          <ShareForecastButton cityName={cityName ?? ''} mode="hourly" hours={hoursData} timezone={timezone} url={shareUrl} />
         </div>
       </div>
 

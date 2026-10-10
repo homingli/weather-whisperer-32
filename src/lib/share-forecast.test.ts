@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildForecastShareText, buildHourlyForecastShareText, buildShareCityLabel } from './share-forecast';
+import { buildForecastShareText, buildHourlyForecastShareText, buildShareCityLabel, buildDeepLinkUrl } from './share-forecast';
 import type { DailyForecast, HourlyForecast } from '@/lib/weather';
 
 function day(overrides: Partial<DailyForecast> = {}): DailyForecast {
@@ -319,5 +319,83 @@ describe('buildShareCityLabel', () => {
       isHKCovered: false,
     });
     expect(label).toBe('Current Location');
+  });
+});
+
+describe('buildDeepLinkUrl', () => {
+  it('builds origin + lat/lon/name params, coords rounded to 2 decimals', () => {
+    const url = buildDeepLinkUrl('https://weather.example', {
+      name: 'Kowloon',
+      latitude: 22.31875,
+      longitude: 114.16942,
+    });
+    expect(url).toBe('https://weather.example/?lat=22.32&lon=114.17&name=Kowloon');
+  });
+
+  it('encodes multi-word names and round-trips through URLSearchParams', () => {
+    const url = buildDeepLinkUrl('https://weather.example', {
+      name: 'Kowloon Tong',
+      latitude: 22.33,
+      longitude: 114.18,
+    });
+    expect(url).toBeDefined();
+    const received = new URL(url!);
+    expect(received.searchParams.get('name')).toBe('Kowloon Tong');
+    expect(received.searchParams.get('lat')).toBe('22.33');
+  });
+
+  it('drops the reverse-geocode placeholder instead of sharing "Current Location"', () => {
+    const url = buildDeepLinkUrl('https://weather.example', {
+      name: 'Current Location',
+      latitude: 22.32,
+      longitude: 114.17,
+    });
+    expect(url).toBe('https://weather.example/?lat=22.32&lon=114.17');
+  });
+
+  it('omits the name param entirely when the city has no usable name', () => {
+    const url = buildDeepLinkUrl('https://weather.example', {
+      name: '  ',
+      latitude: 49.28,
+      longitude: -123.12,
+    });
+    expect(url).toBe('https://weather.example/?lat=49.28&lon=-123.12');
+  });
+
+  it('tolerates a trailing slash on the origin', () => {
+    const url = buildDeepLinkUrl('https://weather.example/', {
+      name: 'Kowloon',
+      latitude: 22.32,
+      longitude: 114.17,
+    });
+    expect(url).toBe('https://weather.example/?lat=22.32&lon=114.17&name=Kowloon');
+  });
+
+  it('swaps a native (capacitor://) origin for the deployed app URL', () => {
+    const url = buildDeepLinkUrl('capacitor://localhost', {
+      name: 'Kowloon',
+      latitude: 22.32,
+      longitude: 114.17,
+    });
+    expect(url).toMatch(/^https:\/\//);
+    expect(url).not.toContain('capacitor://');
+    expect(url).toBe('https://weather-whisperer.vercel.app/?lat=22.32&lon=114.17&name=Kowloon');
+  });
+
+  it('returns undefined without a city', () => {
+    expect(buildDeepLinkUrl('https://weather.example', null)).toBeUndefined();
+    expect(buildDeepLinkUrl('https://weather.example', undefined)).toBeUndefined();
+  });
+
+  it('returns undefined for unusable or out-of-range coords', () => {
+    expect(
+      buildDeepLinkUrl('https://weather.example', { name: 'X', latitude: NaN, longitude: 0 })
+    ).toBeUndefined();
+    expect(
+      buildDeepLinkUrl('https://weather.example', { name: 'X', latitude: 91, longitude: 0 })
+    ).toBeUndefined();
+    expect(
+      buildDeepLinkUrl('https://weather.example', { name: 'X', latitude: 0, longitude: -181 })
+    ).toBeUndefined();
   });
 });

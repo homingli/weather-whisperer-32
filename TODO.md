@@ -4,12 +4,10 @@ Ideas parked for future sessions. Not scheduled; grab an item when starting
 the matching iteration. Keep entries terse but decision-complete — record the
 "why", not just the "what".
 
-## Share the forecast (event planning)
+## Share the forecast — v2 (image card)
 
-- Share affordance on the DailyForecast card: 7-day summary via
-  `navigator.share` (mobile) with clipboard fallback (desktop).
-- Build the summary string as a pure function of `weather.daily` + units +
-  language — trivially testable, i18n on both EN/TC.
+- v1 shipped: text summary via `navigator.share` + clipboard fallback
+  (`ShareForecastButton` + `src/lib/share-forecast.ts`).
 - v2 (only if text share proves useful): render the same summary into a
   branded canvas card and share as an image (`navigator.share({ files })`).
 - Deliberately rejected: sharing the nowcast map as an image. MapLibre WebGL
