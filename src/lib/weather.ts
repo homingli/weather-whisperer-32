@@ -11,6 +11,9 @@ export { getWeather } from './weather/open-meteo';
 // Geocoding & browser geolocation
 export { searchCities, reverseGeocode, getUserLocation } from './weather/geocoding';
 
+// Shared-location deep links (/?lat=&lon=&name=)
+export { parseDeepLinkLocation, clearDeepLinkParams, isDeepLinkSession, setDeepLinkSession } from './weather/deep-link';
+
 // localStorage helpers
 export { getDefaultCity, setDefaultCity, getRecentCities } from './weather/storage';
 
