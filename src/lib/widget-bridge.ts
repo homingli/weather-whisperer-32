@@ -88,9 +88,21 @@ function formatClock(date: Date, timeZone?: string): string {
 /**
  * Short badge for the warning pill. Tropical-cyclone signal numbers
  * ("T8" etc.) are the shared EN/TC shorthand in HK, so they bypass i18n;
- * rain colours get a translated shorthand; anything else falls back to
- * the warning name's first word.
+ * the other common warnings get translated shorthands; anything unmapped
+ * falls back to the warning name's first word (capped).
  */
+const NAMED_BADGES: Record<string, { key: string; urgent: boolean }> = {
+  WTS: { key: 'widget.badge.WTS', urgent: false },
+  HKA: { key: 'widget.badge.HKA', urgent: false },
+  COLD: { key: 'widget.badge.COLD', urgent: false },
+  FOG: { key: 'widget.badge.FOG', urgent: false },
+  LM: { key: 'widget.badge.LM', urgent: false },
+  MW: { key: 'widget.badge.MW', urgent: false },
+  FL: { key: 'widget.badge.FL', urgent: false },
+  WFIRE: { key: 'widget.badge.WFIRE', urgent: false },
+  WFNTSA: { key: 'widget.badge.WFNTSA', urgent: false },
+};
+
 function warningBadge(warning: HKOWarning, t: Translate): { text: string; urgent: boolean } {
   const code = warning.code.toUpperCase();
   if (code.startsWith('TC8')) return { text: 'T8', urgent: true };
@@ -101,7 +113,9 @@ function warningBadge(warning: HKOWarning, t: Translate): { text: string; urgent
   if (code === 'WRAINA') return { text: t('widget.badge.WRAINA', 'Amber'), urgent: false };
   if (code === 'WRAINR') return { text: t('widget.badge.WRAINR', 'Red'), urgent: true };
   if (code === 'WRAINB') return { text: t('widget.badge.WRAINB', 'Black'), urgent: true };
-  return { text: warning.name.split(/\s+/)[0].slice(0, 10), urgent: false };
+  const named = NAMED_BADGES[code];
+  if (named) return { text: t(named.key), urgent: named.urgent };
+  return { text: warning.name.split(/\s+/)[0].slice(0, 12), urgent: false };
 }
 
 /** Build the display-string payload the native widget renders. */

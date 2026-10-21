@@ -39,6 +39,7 @@
                     android:id="@+id/widget_temp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:text="—"
                     android:textSize="26sp"
                     android:textStyle="bold"
                     android:textColor="#FFFFFF" />
@@ -47,6 +48,7 @@
                     android:id="@+id/widget_condition"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:text="@string/widget_empty_hint"
                     android:textSize="11sp"
                     android:textColor="#CCFFFFFF"
                     android:maxLines="1"

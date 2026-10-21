@@ -128,10 +128,16 @@ describe('buildWidgetPayload', () => {
     expect(p.warningUrgent).toBe(true);
   });
 
+  it('uses translated shorthands for common non-TC warnings', () => {
+    const data = makeData();
+    data.warnings = [warning('WTS', 'Thunderstorm Warning')];
+    expect(buildWidgetPayload(data, t, now).warning).toBe('widget.badge.WTS');
+  });
+
   it('falls back to the warning name for unmapped codes', () => {
     const data = makeData();
-    data.warnings = [warning('WFIRE', 'Fire Danger Warning')];
-    expect(buildWidgetPayload(data, t, now).warning).toBe('Fire');
+    data.warnings = [warning('XYZZY', 'Mystery Warning')];
+    expect(buildWidgetPayload(data, t, now).warning).toBe('Mystery');
   });
 
   it('leaves the warning empty when none are active', () => {
