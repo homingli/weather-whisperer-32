@@ -151,7 +151,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'sun.inMinutes': 'in {0}m',
     // Home-screen widget
     'widget.updated': 'Updated {0}',
-    'widget.badge.WRAIN': 'Amber',
+    'widget.badge.WRAINA': 'Amber',
     'widget.badge.WRAINR': 'Red',
     'widget.badge.WRAINB': 'Black',
     // Sun-cycle progress strip (CurrentWeather)
@@ -513,7 +513,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'sun.inMinutes': '{0}分後',
     // Home-screen widget
     'widget.updated': '更新於 {0}',
-    'widget.badge.WRAIN': '黃雨',
+    'widget.badge.WRAINA': '黃雨',
     'widget.badge.WRAINR': '紅雨',
     'widget.badge.WRAINB': '黑雨',
     // Sun-cycle progress strip (CurrentWeather)

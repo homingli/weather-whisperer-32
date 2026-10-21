@@ -78,6 +78,7 @@ public class WeatherWidgetProvider extends AppWidgetProvider {
             // garbled text. Next app data refresh rewrites the store.
             views.setTextViewText(R.id.widget_temp, "—");
             views.setViewVisibility(R.id.widget_row_details, View.GONE);
+            views.setViewVisibility(R.id.widget_updated, View.GONE);
         }
         applyLaunchIntent(context, views);
         return views;

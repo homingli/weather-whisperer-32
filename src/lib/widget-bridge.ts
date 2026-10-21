@@ -72,16 +72,17 @@ function sunCountdown(target: Date, nowMs: number, t: Translate): string {
 }
 
 function formatClock(date: Date, timeZone?: string): string {
-  const h = Number(
-    new Intl.DateTimeFormat('en-GB', {
-      hour: '2-digit',
-      hour12: false,
-      ...(timeZone ? { timeZone } : {}),
-    }).format(date)
-  );
-  const m = date.getMinutes();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(h)}:${pad(m)}`;
+  // Hour and minute must come from ONE Intl call so both land in the
+  // location's timezone — mixing them with device-local accessors would
+  // render a wrong clock whenever the device travels zones.
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    ...(timeZone ? { timeZone } : {}),
+  }).formatToParts(date);
+  const get = (type: string) => parts.find(p => p.type === type)?.value ?? '00';
+  return `${get('hour').padStart(2, '0')}:${get('minute')}`;
 }
 
 /**
@@ -97,7 +98,7 @@ function warningBadge(warning: HKOWarning, t: Translate): { text: string; urgent
   if (code === 'TC10') return { text: 'T10', urgent: true };
   if (code === 'TC1') return { text: 'T1', urgent: false };
   if (code === 'TC3') return { text: 'T3', urgent: false };
-  if (code === 'WRAIN') return { text: t('widget.badge.WRAIN', 'Amber'), urgent: false };
+  if (code === 'WRAINA') return { text: t('widget.badge.WRAINA', 'Amber'), urgent: false };
   if (code === 'WRAINR') return { text: t('widget.badge.WRAINR', 'Red'), urgent: true };
   if (code === 'WRAINB') return { text: t('widget.badge.WRAINB', 'Black'), urgent: true };
   return { text: warning.name.split(/\s+/)[0].slice(0, 10), urgent: false };

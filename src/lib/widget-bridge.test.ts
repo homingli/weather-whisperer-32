@@ -114,9 +114,9 @@ describe('buildWidgetPayload', () => {
 
   it('drops cancelled warnings and badges the first active one', () => {
     const data = makeData();
-    data.warnings = [warning('WRAIN'), { ...warning('TC8'), actionCode: 'CANCEL' }];
+    data.warnings = [warning('WRAINA'), { ...warning('TC8'), actionCode: 'CANCEL' }];
     const p = buildWidgetPayload(data, t, now);
-    expect(p.warning).toBe('widget.badge.WRAIN');
+    expect(p.warning).toBe('widget.badge.WRAINA');
     expect(p.warningUrgent).toBe(false);
   });
 
