@@ -79,7 +79,8 @@ describe('buildWidgetPayload', () => {
 
   it('maps WMO code and isDay to an icon', () => {
     const p = buildWidgetPayload(makeData(), t, now);
-    expect(p.icon).not.toBe('');
+    // WMO 61 (rain), daytime → the rain emoji from getWeatherIcon
+    expect(p.icon).toBe('🌧️');
   });
 
   it('resolves condition through the HKO headline path when active', () => {
@@ -132,6 +133,23 @@ describe('buildWidgetPayload', () => {
     const data = makeData();
     data.warnings = [warning('WTS', 'Thunderstorm Warning')];
     expect(buildWidgetPayload(data, t, now).warning).toBe('widget.badge.WTS');
+  });
+
+  it('marks red fire danger urgent via its real warnsum code', () => {
+    const data = makeData();
+    data.warnings = [warning('WFIRER', 'Fire Danger Warning (Red)')];
+    const p = buildWidgetPayload(data, t, now);
+    expect(p.warning).toBe('widget.badge.WFIRER');
+    expect(p.warningUrgent).toBe(true);
+  });
+
+  it('defaults sun clocks to Hong Kong time on the HKO fallback path', () => {
+    // HKO path carries no WeatherData.timezone; sunrise given in UTC must
+    // render in Asia/Hong_Kong (+8), independent of the runner's zone.
+    const data = makeData({ headline: { source: 'hko', hkoIconCode: 60 } });
+    data.daily[0].sunrise = new Date('2026-10-21T22:33:00Z'); // 06:33 HKT Oct 22
+    const p = buildWidgetPayload(data, t, now);
+    expect(p.sunrise).toBe('06:33');
   });
 
   it('falls back to the warning name for unmapped codes', () => {

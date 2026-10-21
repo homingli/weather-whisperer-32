@@ -86,21 +86,24 @@ function formatClock(date: Date, timeZone?: string): string {
 }
 
 /**
- * Short badge for the warning pill. Tropical-cyclone signal numbers
- * ("T8" etc.) are the shared EN/TC shorthand in HK, so they bypass i18n;
- * the other common warnings get translated shorthands; anything unmapped
- * falls back to the warning name's first word (capped).
+ * Short badge for the warning pill. Keys are real HKO warnsum codes
+ * (mirror of getWarningIcon's map in hko-icons.ts — the translations
+ * file's warning keys are display names, NOT API codes). TC signal
+ * numbers ("T8" etc.) are shared EN/TC shorthand in HK; the rest get
+ * translated shorthands; unmapped codes fall back to the name's first
+ * word (capped).
  */
-const NAMED_BADGES: Record<string, { key: string; urgent: boolean }> = {
-  WTS: { key: 'widget.badge.WTS', urgent: false },
-  HKA: { key: 'widget.badge.HKA', urgent: false },
-  COLD: { key: 'widget.badge.COLD', urgent: false },
-  FOG: { key: 'widget.badge.FOG', urgent: false },
-  LM: { key: 'widget.badge.LM', urgent: false },
-  MW: { key: 'widget.badge.MW', urgent: false },
-  FL: { key: 'widget.badge.FL', urgent: false },
-  WFIRE: { key: 'widget.badge.WFIRE', urgent: false },
-  WFNTSA: { key: 'widget.badge.WFNTSA', urgent: false },
+const NAMED_BADGES: Record<string, { key: string; fallback: string; urgent: boolean }> = {
+  WTS: { key: 'widget.badge.WTS', fallback: 'Storm', urgent: false },
+  WHOT: { key: 'widget.badge.WHOT', fallback: 'Hot', urgent: false },
+  WCOLD: { key: 'widget.badge.WCOLD', fallback: 'Cold', urgent: false },
+  WFROST: { key: 'widget.badge.WFROST', fallback: 'Frost', urgent: false },
+  WMSGNL: { key: 'widget.badge.WMSGNL', fallback: 'Monsoon', urgent: false },
+  WL: { key: 'widget.badge.WL', fallback: 'Landslip', urgent: false },
+  WFIREY: { key: 'widget.badge.WFIREY', fallback: 'Fire', urgent: false },
+  WFIRER: { key: 'widget.badge.WFIRER', fallback: 'Fire', urgent: true },
+  WFNTSA: { key: 'widget.badge.WFNTSA', fallback: 'Flooding', urgent: false },
+  WTMW: { key: 'widget.badge.WTMW', fallback: 'Tsunami', urgent: true },
 };
 
 function warningBadge(warning: HKOWarning, t: Translate): { text: string; urgent: boolean } {
@@ -114,7 +117,7 @@ function warningBadge(warning: HKOWarning, t: Translate): { text: string; urgent
   if (code === 'WRAINR') return { text: t('widget.badge.WRAINR', 'Red'), urgent: true };
   if (code === 'WRAINB') return { text: t('widget.badge.WRAINB', 'Black'), urgent: true };
   const named = NAMED_BADGES[code];
-  if (named) return { text: t(named.key), urgent: named.urgent };
+  if (named) return { text: t(named.key, named.fallback), urgent: named.urgent };
   return { text: warning.name.split(/\s+/)[0].slice(0, 12), urgent: false };
 }
 
@@ -139,7 +142,10 @@ export function buildWidgetPayload(
 
   const sunrise = nextSunEvent(data.daily.map(d => d.sunrise), nowMs);
   const sunset = nextSunEvent(data.daily.map(d => d.sunset), nowMs);
-  const timeZone = data.timezone;
+  // Only the OM parser stamps WeatherData.timezone; the HKO path is
+  // HK-only, so default rather than silently using the device zone.
+  const timeZone =
+    data.timezone ?? (data.headline.source === 'hko' ? 'Asia/Hong_Kong' : undefined);
 
   const firstWarning = data.warnings?.find(
     w => w.actionCode?.toUpperCase() !== 'CANCEL'
