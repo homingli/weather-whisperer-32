@@ -19,6 +19,7 @@ import { isInHongKong, isInRainfallRegion, translateStationName, translateDistri
 import { buildShareCityLabel, buildDeepLinkUrl } from '@/lib/share-forecast';
 import { PLACEHOLDER_SENTINEL, isInVancouverBox, STORAGE_KEYS } from '@/lib/constants';
 import { prefetchMscNowcast } from '@/lib/msc-prefetch';
+import { syncWeatherWidget } from '@/lib/widget-bridge';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
@@ -123,6 +124,12 @@ const Index = () => {
       }
     }
   }, [sunTimes, setSunTimes]);
+
+  // Mirror the latest weather into the Android home-screen widget
+  // (no-op on web). Rides the same data object the UI renders.
+  useEffect(() => {
+    if (weather) syncWeatherWidget(weather, t);
+  }, [weather, t]);
 
   // PWA install
   const { deferredPrompt, isInstalled, install } = usePwaInstall();

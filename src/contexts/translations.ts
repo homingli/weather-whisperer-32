@@ -149,6 +149,11 @@ export const translations: Record<Language, Record<string, string>> = {
     'sun.inHoursMinutes': 'in {0}h {1}m',
     'sun.inHours': 'in {0}h',
     'sun.inMinutes': 'in {0}m',
+    // Home-screen widget
+    'widget.updated': 'Updated {0}',
+    'widget.badge.WRAIN': 'Amber',
+    'widget.badge.WRAINR': 'Red',
+    'widget.badge.WRAINB': 'Black',
     // Sun-cycle progress strip (CurrentWeather)
     'sun.daylight': 'Daylight',
     'sun.night': 'Night',
@@ -506,6 +511,11 @@ export const translations: Record<Language, Record<string, string>> = {
     'sun.inHoursMinutes': '{0}小時{1}分後',
     'sun.inHours': '{0}小時後',
     'sun.inMinutes': '{0}分後',
+    // Home-screen widget
+    'widget.updated': '更新於 {0}',
+    'widget.badge.WRAIN': '黃雨',
+    'widget.badge.WRAINR': '紅雨',
+    'widget.badge.WRAINB': '黑雨',
     // Sun-cycle progress strip (CurrentWeather)
     'sun.daylight': '白天',
     'sun.night': '夜晚',
