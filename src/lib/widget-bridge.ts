@@ -187,8 +187,9 @@ export function buildWidgetPayload(
   };
 }
 
-/** Rendered edge length of the warning icon bitmap, in px. */
-const WARNING_ICON_PX = 48;
+/** Rendered edge length of the warning icon bitmap, in px. The ImageView
+ *  is 30dp, so 96px stays crisp up to 3x density. */
+const WARNING_ICON_PX = 96;
 /** Cap on the icon render; a hung Image must never block the widget save. */
 const WARNING_ICON_TIMEOUT_MS = 3000;
 
