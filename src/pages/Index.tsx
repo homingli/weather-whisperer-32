@@ -19,7 +19,9 @@ import { isInHongKong, isInRainfallRegion, translateStationName, translateDistri
 import { buildShareCityLabel, buildDeepLinkUrl } from '@/lib/share-forecast';
 import { PLACEHOLDER_SENTINEL, isInVancouverBox, STORAGE_KEYS } from '@/lib/constants';
 import { prefetchMscNowcast } from '@/lib/msc-prefetch';
+import { syncWeatherWidget } from '@/lib/widget-bridge';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
+import { useUnits } from '@/contexts/UnitsContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
 import { toast } from 'sonner';
@@ -90,6 +92,7 @@ const EGG_SEQUENCE_GAP_MS = 1500;
 
 const Index = () => {
   const { language, t } = useLanguage();
+  const { units } = useUnits();
   // API/content lang is 'tc' for Traditional Chinese, 'en' for everything else.
   const lang = language === 'tc' ? 'tc' : 'en';
   const { setSunTimes } = useTheme();
@@ -183,6 +186,14 @@ const Index = () => {
     if (simulatedWarnings.length === 0) return real;
     return [...real, ...simulatedWarnings];
   }, [weather?.warnings, simulatedWarnings]);
+
+  // Mirror the latest weather into the Android home-screen widget (no-op
+  // on web). Uses effectiveWarnings, not weather.warnings, so the widget
+  // shows exactly the alert list the UI shows — dev-simulated ones included.
+  useEffect(() => {
+    if (!weather) return;
+    syncWeatherWidget({ ...weather, warnings: effectiveWarnings }, t, units);
+  }, [weather, effectiveWarnings, t, units]);
 
   const cityKey = selectedCity ? `${selectedCity.latitude},${selectedCity.longitude}` : null;
   const warningDiff = useWarningChangeDetector(effectiveWarnings, `${cityKey}:${baselineNonce}`);

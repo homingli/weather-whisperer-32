@@ -48,35 +48,44 @@ export function getWarningColor(code: string): string {
   return 'secondary';
 }
 
+/** Warnsum code → asset filename. Module-level so callers can ask whether
+ *  a code has a REAL icon (getWarningIcon also has guess-by-prefix
+ *  fallbacks that would show a misleading generic asset). */
+const WARNING_ICON_FILES: Record<string, string> = {
+  'WFIREY': 'firey.gif',
+  'WFIRER': 'firer.gif',
+  'WFROST': 'frost.gif',
+  'WHOT': 'vhot.gif',
+  'WCOLD': 'cold.gif',
+  'WMSGNL': 'sms.gif',
+  'WRAINA': 'raina.gif',
+  'WRAINR': 'rainr.gif',
+  'WRAINB': 'rainb.gif',
+  'WFNTSA': 'ntfl.gif',
+  'WL': 'landslip.gif',
+  'TC1': 'tc1.gif',
+  'TC3': 'tc3.gif',
+  'TC8NE': 'tc8ne.gif',
+  'TC8SE': 'tc8b.gif',
+  'TC8NW': 'tc8d.gif',
+  'TC8SW': 'tc8c.gif',
+  'TC9': 'tc9.gif',
+  'TC10': 'tc10.gif',
+  'WTMW': 'tsunami-warn.gif',
+  'WTS': 'ts.gif',
+};
+
+/** True iff the code has an exact, real warning icon (no prefix guessing). */
+export function hasWarningIcon(warningCode: string): boolean {
+  return WARNING_ICON_FILES[warningCode.toUpperCase()] != null;
+}
+
 /** Get warning icon asset path for a warning code */
 export function getWarningIcon(warningCode: string): string {
   const baseUrl = '/icons/hko-warnings';
-  const iconMap: Record<string, string> = {
-    'WFIREY': 'firey.gif',
-    'WFIRER': 'firer.gif',
-    'WFROST': 'frost.gif',
-    'WHOT': 'vhot.gif',
-    'WCOLD': 'cold.gif',
-    'WMSGNL': 'sms.gif',
-    'WRAINA': 'raina.gif',
-    'WRAINR': 'rainr.gif',
-    'WRAINB': 'rainb.gif',
-    'WFNTSA': 'ntfl.gif',
-    'WL': 'landslip.gif',
-    'TC1': 'tc1.gif',
-    'TC3': 'tc3.gif',
-    'TC8NE': 'tc8ne.gif',
-    'TC8SE': 'tc8b.gif',
-    'TC8NW': 'tc8d.gif',
-    'TC8SW': 'tc8c.gif',
-    'TC9': 'tc9.gif',
-    'TC10': 'tc10.gif',
-    'WTMW': 'tsunami-warn.gif',
-    'WTS': 'ts.gif',
-  };
 
-  if (iconMap[warningCode]) {
-    return `${baseUrl}/${iconMap[warningCode]}`;
+  if (WARNING_ICON_FILES[warningCode]) {
+    return `${baseUrl}/${WARNING_ICON_FILES[warningCode]}`;
   }
 
   // Fallbacks for base codes
