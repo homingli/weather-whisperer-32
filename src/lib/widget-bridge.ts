@@ -56,13 +56,16 @@ export interface WidgetPayload {
 /**
  * "Time til" target: the next occurrence strictly in the future, or the
  * last valid one when today's has already passed (clock time still
- * renders; the lead time does not).
+ * renders; the lead time does not). Values are coerced, not instanceof-
+ * checked: the cold-start localStorage seed carries sun times as ISO
+ * strings (bare JSON.parse), the same shape share-forecast defends at.
  */
-function nextSunEvent(dates: (Date | undefined)[], nowMs: number): Date | undefined {
-  const valid = dates.filter(
-    (d): d is Date =>
-      d instanceof Date && Number.isFinite(d.getTime()) && d.getTime() > 0
-  );
+function nextSunEvent(dates: unknown[], nowMs: number): Date | undefined {
+  const valid = dates
+    .map(d => (d instanceof Date ? d : d == null ? undefined : new Date(d as string | number)))
+    .filter(
+      (d): d is Date => d !== undefined && Number.isFinite(d.getTime()) && d.getTime() > 0
+    );
   if (valid.length === 0) return undefined;
   return valid.find(d => d.getTime() > nowMs) ?? valid[valid.length - 1];
 }
@@ -191,9 +194,13 @@ export async function loadWarningIconImage(
   warningCode: string,
   size: number = WARNING_ICON_PX
 ): Promise<string | undefined> {
+  // Normalize once: the mapping check is case-insensitive but the asset
+  // lookup is exact, so a lowercase code would pass the guard and still
+  // fall through to the misleading generic ts.gif.
+  const code = warningCode.toUpperCase();
   // Codes without a real icon mapping would fall through to getWarningIcon's
   // generic ts.gif — the text badge is more informative for those.
-  if (!hasWarningIcon(warningCode)) return undefined;
+  if (!hasWarningIcon(code)) return undefined;
   if (typeof document === 'undefined') return undefined;
   try {
     return await new Promise<string>((resolve, reject) => {
@@ -211,7 +218,7 @@ export async function loadWarningIconImage(
         resolve(canvas.toDataURL('image/png'));
       };
       img.onerror = () => reject(new Error('icon load failed'));
-      img.src = getWarningIcon(warningCode);
+      img.src = getWarningIcon(code);
     });
   } catch {
     return undefined;

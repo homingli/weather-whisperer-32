@@ -126,6 +126,16 @@ describe('buildWidgetPayload', () => {
     expect(p.sunriseIn).toBe('');
   });
 
+  it('renders sun times when the cold-start seed carries ISO strings', () => {
+    // readLastKnownWeather hands back bare JSON.parse output — sun times
+    // arrive as ISO strings, not Dates (runtime shape; cast to simulate).
+    const data = makeData();
+    data.daily[0].sunrise = '2026-10-22T06:33:00' as unknown as Date;
+    const p = buildWidgetPayload(data, t, 'metric', now);
+    expect(p.sunrise).toBe('06:33');
+    expect(p.sunriseIn).toBe('sun.inHoursMinutes');
+  });
+
   it('drops cancelled warnings and badges the first active one', () => {
     const data = makeData();
     data.warnings = [warning('WRAINA'), { ...warning('TC8'), actionCode: 'CANCEL' }];
