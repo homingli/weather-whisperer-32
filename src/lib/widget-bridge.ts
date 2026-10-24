@@ -18,6 +18,7 @@ import {
 } from '@/lib/weather';
 import { getWarningIcon, hasWarningIcon } from '@/lib/hko-weather';
 import { toDisplayTemperature } from '@/lib/units';
+import { logEvent, logWarn } from '@/lib/log';
 import type { Units } from '@/lib/units';
 import type { WeatherData } from '@/lib/weather';
 import type { HKOWarning } from '@/lib/hko-types';
@@ -183,16 +184,29 @@ export function buildWidgetPayload(
 
 /** Rendered edge length of the warning icon bitmap, in px. */
 const WARNING_ICON_PX = 48;
+/** Cap on the icon render; a hung Image must never block the widget save. */
+const WARNING_ICON_TIMEOUT_MS = 3000;
+
+/** True iff any pixel in the drawn canvas has non-zero alpha. */
+function hasVisiblePixels(ctx: CanvasRenderingContext2D, size: number): boolean {
+  const { data } = ctx.getImageData(0, 0, size, size);
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] !== 0) return true;
+  }
+  return false;
+}
 
 /**
  * Render the official HKO warning icon (public/icons/hko-warnings, mapped
  * by getWarningIcon) to a base64 PNG via canvas — the GIF's first frame.
- * Resolves undefined on any failure so the native side can fall back to
- * the text badge.
+ * Resolves undefined on any failure (load error, timeout, zero-size or
+ * fully transparent render) so the native side falls back to the text
+ * badge rather than showing an invisible image in its place.
  */
 export async function loadWarningIconImage(
   warningCode: string,
-  size: number = WARNING_ICON_PX
+  size: number = WARNING_ICON_PX,
+  timeoutMs: number = WARNING_ICON_TIMEOUT_MS
 ): Promise<string | undefined> {
   // Normalize once: the mapping check is case-insensitive but the asset
   // lookup is exact, so a lowercase code would pass the guard and still
@@ -205,22 +219,37 @@ export async function loadWarningIconImage(
   try {
     return await new Promise<string>((resolve, reject) => {
       const img = new Image();
+      const timer = setTimeout(() => reject(new Error('timeout')), timeoutMs);
+      const fail = (why: string) => {
+        clearTimeout(timer);
+        reject(new Error(why));
+      };
       img.onload = () => {
+        clearTimeout(timer);
+        if (img.naturalWidth === 0) {
+          fail('zero-size image');
+          return;
+        }
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-          reject(new Error('no 2d context'));
+          fail('no 2d context');
           return;
         }
         ctx.drawImage(img, 0, 0, size, size);
+        if (!hasVisiblePixels(ctx, size)) {
+          fail('blank render');
+          return;
+        }
         resolve(canvas.toDataURL('image/png'));
       };
-      img.onerror = () => reject(new Error('icon load failed'));
+      img.onerror = () => fail('load error');
       img.src = getWarningIcon(code);
     });
-  } catch {
+  } catch (err) {
+    logWarn(`widget: warning icon ${code} unavailable, using text badge`, err);
     return undefined;
   }
 }
@@ -252,7 +281,11 @@ export function syncWeatherWidget(
     }
     if (token !== latestSyncToken) return;
     await WeatherWidget.save({ payload: JSON.stringify(payload) });
-  })().catch(() => {
-    // Nothing to surface — the next data refresh retries.
+    logEvent('widget.sync', {
+      warning: payload.warningCode ?? null,
+      icon: Boolean(payload.warningIcon),
+    });
+  })().catch(err => {
+    logWarn('widget: sync failed', err);
   });
 }

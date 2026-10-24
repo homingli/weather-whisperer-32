@@ -127,12 +127,6 @@ const Index = () => {
     }
   }, [sunTimes, setSunTimes]);
 
-  // Mirror the latest weather into the Android home-screen widget
-  // (no-op on web). Rides the same data object the UI renders.
-  useEffect(() => {
-    if (weather) syncWeatherWidget(weather, t, units);
-  }, [weather, t, units]);
-
   // PWA install
   const { deferredPrompt, isInstalled, install } = usePwaInstall();
 
@@ -192,6 +186,14 @@ const Index = () => {
     if (simulatedWarnings.length === 0) return real;
     return [...real, ...simulatedWarnings];
   }, [weather?.warnings, simulatedWarnings]);
+
+  // Mirror the latest weather into the Android home-screen widget (no-op
+  // on web). Uses effectiveWarnings, not weather.warnings, so the widget
+  // shows exactly the alert list the UI shows — dev-simulated ones included.
+  useEffect(() => {
+    if (!weather) return;
+    syncWeatherWidget({ ...weather, warnings: effectiveWarnings }, t, units);
+  }, [weather, effectiveWarnings, t, units]);
 
   const cityKey = selectedCity ? `${selectedCity.latitude},${selectedCity.longitude}` : null;
   const warningDiff = useWarningChangeDetector(effectiveWarnings, `${cityKey}:${baselineNonce}`);

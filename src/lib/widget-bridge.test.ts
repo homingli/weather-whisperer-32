@@ -213,6 +213,12 @@ describe('syncWeatherWidget', () => {
     await expect(loadWarningIconImage('XYZZY')).resolves.toBeUndefined();
   });
 
+  it('gives up on an icon that never settles instead of blocking the save', async () => {
+    // jsdom never fires Image load events — exactly the hang the timeout
+    // guards against; without it the whole widget save would be skipped.
+    await expect(loadWarningIconImage('WRAINA', 48, 20)).resolves.toBeUndefined();
+  });
+
   it('drops an older sync whose icon render finishes after a newer one', async () => {
     let releaseSlow!: (value: string | undefined) => void;
     const slowGate = new Promise<string | undefined>(resolve => {
