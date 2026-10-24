@@ -161,10 +161,15 @@ export function buildWidgetPayload(
   const timeZone =
     data.timezone ?? (data.headline.source === 'hko' ? 'Asia/Hong_Kong' : undefined);
 
-  const firstWarning = data.warnings?.find(
+  const activeWarnings = (data.warnings ?? []).filter(
     w => w.actionCode?.toUpperCase() !== 'CANCEL'
   );
-  const badge = firstWarning ? warningBadge(firstWarning, t) : undefined;
+  // Surface the most severe active warning, not merely the first in feed
+  // order — a T8 must not hide behind an earlier amber rain entry.
+  const ranked = activeWarnings.map(w => ({ warning: w, badge: warningBadge(w, t) }));
+  const pick = ranked.find(r => r.badge.urgent) ?? ranked[0];
+  const firstWarning = pick?.warning;
+  const badge = pick?.badge;
 
   return {
     icon: getWeatherIcon(current.weatherCode, current.isDay),
@@ -272,7 +277,10 @@ export function syncWeatherWidget(
   now: Date = new Date(),
   loadIcon: typeof loadWarningIconImage = loadWarningIconImage
 ): void {
-  if (!Capacitor.isNativePlatform()) return;
+  // Android-only: the WeatherWidget plugin is registered in MainActivity
+  // alone, so an iOS build would otherwise fire a rejected bridge call on
+  // every refresh. isNativePlatform() is true on iOS too.
+  if (Capacitor.getPlatform() !== 'android') return;
   const token = ++latestSyncToken;
   void (async () => {
     const payload = buildWidgetPayload(data, t, units, now);

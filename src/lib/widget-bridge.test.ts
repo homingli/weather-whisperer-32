@@ -12,7 +12,7 @@ const { saveMock } = vi.hoisted(() => ({ saveMock: vi.fn() }));
 // syncWeatherWidget no-ops off-native; force the native path so the
 // bridge orchestration (icon render → save) is testable in jsdom.
 vi.mock('@capacitor/core', () => ({
-  Capacitor: { isNativePlatform: () => true },
+  Capacitor: { isNativePlatform: () => true, getPlatform: () => 'android' },
   registerPlugin: () => ({ save: saveMock }),
 }));
 
@@ -150,6 +150,14 @@ describe('buildWidgetPayload', () => {
     const p = buildWidgetPayload(data, t, 'metric', now);
     expect(p.warning).toBe('T8');
     expect(p.warningUrgent).toBe(true);
+  });
+
+  it('prefers the most severe active warning over feed order', () => {
+    const data = makeData();
+    data.warnings = [warning('WRAINA'), warning('TC8NE')];
+    const p = buildWidgetPayload(data, t, 'metric', now);
+    expect(p.warning).toBe('T8');
+    expect(p.warningCode).toBe('TC8NE');
   });
 
   it('uses translated shorthands for common non-TC warnings', () => {
