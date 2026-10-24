@@ -21,6 +21,7 @@ import { PLACEHOLDER_SENTINEL, isInVancouverBox, STORAGE_KEYS } from '@/lib/cons
 import { prefetchMscNowcast } from '@/lib/msc-prefetch';
 import { syncWeatherWidget } from '@/lib/widget-bridge';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
+import { useUnits } from '@/contexts/UnitsContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
 import { toast } from 'sonner';
@@ -91,6 +92,7 @@ const EGG_SEQUENCE_GAP_MS = 1500;
 
 const Index = () => {
   const { language, t } = useLanguage();
+  const { units } = useUnits();
   // API/content lang is 'tc' for Traditional Chinese, 'en' for everything else.
   const lang = language === 'tc' ? 'tc' : 'en';
   const { setSunTimes } = useTheme();
@@ -128,8 +130,8 @@ const Index = () => {
   // Mirror the latest weather into the Android home-screen widget
   // (no-op on web). Rides the same data object the UI renders.
   useEffect(() => {
-    if (weather) syncWeatherWidget(weather, t);
-  }, [weather, t]);
+    if (weather) syncWeatherWidget(weather, t, units);
+  }, [weather, t, units]);
 
   // PWA install
   const { deferredPrompt, isInstalled, install } = usePwaInstall();

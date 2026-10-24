@@ -36,7 +36,7 @@ export {
 } from './hko-fetch';
 
 // Icons & warnings
-export { hkoIconToWeatherCode, getWarningColor, getWarningIcon } from './hko-icons';
+export { hkoIconToWeatherCode, getWarningColor, getWarningIcon, hasWarningIcon } from './hko-icons';
 
 // EPD AQHI (issue #99 spike)
 export { getHKOAQHI, aqhiLevelFor, findNearestAqhiStation, parseAqhiRss } from './hko-aqhi';

@@ -16,7 +16,9 @@ import {
   weatherDescriptionKey,
   hkoDescriptionKey,
 } from '@/lib/weather';
-import { getWarningIcon } from '@/lib/hko-weather';
+import { getWarningIcon, hasWarningIcon } from '@/lib/hko-weather';
+import { toDisplayTemperature } from '@/lib/units';
+import type { Units } from '@/lib/units';
 import type { WeatherData } from '@/lib/weather';
 import type { HKOWarning } from '@/lib/hko-types';
 
@@ -132,6 +134,7 @@ function warningBadge(warning: HKOWarning, t: Translate): { text: string; urgent
 export function buildWidgetPayload(
   data: WeatherData,
   t: Translate,
+  units: Units,
   now: Date = new Date()
 ): WidgetPayload {
   const nowMs = now.getTime();
@@ -161,7 +164,7 @@ export function buildWidgetPayload(
 
   return {
     icon: getWeatherIcon(current.weatherCode, current.isDay),
-    temperature: `${Math.round(current.temperature)}°`,
+    temperature: `${toDisplayTemperature(current.temperature, units)}°`,
     condition,
     rain,
     warning: badge?.text ?? '',
@@ -188,6 +191,9 @@ export async function loadWarningIconImage(
   warningCode: string,
   size: number = WARNING_ICON_PX
 ): Promise<string | undefined> {
+  // Codes without a real icon mapping would fall through to getWarningIcon's
+  // generic ts.gif — the text badge is more informative for those.
+  if (!hasWarningIcon(warningCode)) return undefined;
   if (typeof document === 'undefined') return undefined;
   try {
     return await new Promise<string>((resolve, reject) => {
@@ -212,24 +218,32 @@ export async function loadWarningIconImage(
   }
 }
 
+/** Token of the most recent sync; older async syncs must not save. */
+let latestSyncToken = 0;
+
 /**
  * Push the latest weather into the widget. Fire-and-forget: a widget
  * failure must never break the app's own rendering. No-op on web.
  * The warning icon renders async; its failure degrades to the text badge
- * inside an otherwise-complete payload.
+ * inside an otherwise-complete payload. A sync whose icon render finishes
+ * after a newer sync started is dropped, so last-write-wins is always
+ * the most recent data.
  */
 export function syncWeatherWidget(
   data: WeatherData,
   t: Translate,
+  units: Units,
   now: Date = new Date(),
   loadIcon: typeof loadWarningIconImage = loadWarningIconImage
 ): void {
   if (!Capacitor.isNativePlatform()) return;
+  const token = ++latestSyncToken;
   void (async () => {
-    const payload = buildWidgetPayload(data, t, now);
+    const payload = buildWidgetPayload(data, t, units, now);
     if (payload.warningCode) {
       payload.warningIcon = await loadIcon(payload.warningCode);
     }
+    if (token !== latestSyncToken) return;
     await WeatherWidget.save({ payload: JSON.stringify(payload) });
   })().catch(() => {
     // Nothing to surface — the next data refresh retries.
