@@ -16,6 +16,7 @@ import {
   weatherDescriptionKey,
   hkoDescriptionKey,
 } from '@/lib/weather';
+import { getWarningIcon } from '@/lib/hko-weather';
 import type { WeatherData } from '@/lib/weather';
 import type { HKOWarning } from '@/lib/hko-types';
 
@@ -35,8 +36,14 @@ export interface WidgetPayload {
   temperature: string;
   condition: string;
   rain: string;
+  /** Short badge text; native shows the icon instead when available. */
   warning: string;
   warningUrgent: boolean;
+  /** HKO warnsum code of the first active warning (drives icon loading). */
+  warningCode?: string;
+  /** Base64 PNG of the official warning icon; absent when rendering failed
+   *  or no warning is active — native falls back to the text badge. */
+  warningIcon?: string;
   sunrise: string;
   sunriseIn: string;
   sunset: string;
@@ -159,6 +166,7 @@ export function buildWidgetPayload(
     rain,
     warning: badge?.text ?? '',
     warningUrgent: badge?.urgent ?? false,
+    warningCode: firstWarning?.code,
     sunrise: sunrise ? formatClock(sunrise, timeZone) : '',
     sunriseIn: sunrise ? sunCountdown(sunrise, nowMs, t) : '',
     sunset: sunset ? formatClock(sunset, timeZone) : '',
@@ -167,18 +175,63 @@ export function buildWidgetPayload(
   };
 }
 
+/** Rendered edge length of the warning icon bitmap, in px. */
+const WARNING_ICON_PX = 48;
+
+/**
+ * Render the official HKO warning icon (public/icons/hko-warnings, mapped
+ * by getWarningIcon) to a base64 PNG via canvas — the GIF's first frame.
+ * Resolves undefined on any failure so the native side can fall back to
+ * the text badge.
+ */
+export async function loadWarningIconImage(
+  warningCode: string,
+  size: number = WARNING_ICON_PX
+): Promise<string | undefined> {
+  if (typeof document === 'undefined') return undefined;
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('no 2d context'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, size, size);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => reject(new Error('icon load failed'));
+      img.src = getWarningIcon(warningCode);
+    });
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Push the latest weather into the widget. Fire-and-forget: a widget
  * failure must never break the app's own rendering. No-op on web.
+ * The warning icon renders async; its failure degrades to the text badge
+ * inside an otherwise-complete payload.
  */
 export function syncWeatherWidget(
   data: WeatherData,
   t: Translate,
-  now: Date = new Date()
+  now: Date = new Date(),
+  loadIcon: typeof loadWarningIconImage = loadWarningIconImage
 ): void {
   if (!Capacitor.isNativePlatform()) return;
-  const payload = JSON.stringify(buildWidgetPayload(data, t, now));
-  WeatherWidget.save({ payload }).catch(() => {
+  void (async () => {
+    const payload = buildWidgetPayload(data, t, now);
+    if (payload.warningCode) {
+      payload.warningIcon = await loadIcon(payload.warningCode);
+    }
+    await WeatherWidget.save({ payload: JSON.stringify(payload) });
+  })().catch(() => {
     // Nothing to surface — the next data refresh retries.
   });
 }

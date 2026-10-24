@@ -55,6 +55,15 @@
                     android:ellipsize="end" />
             </LinearLayout>
 
+            <ImageView
+                android:id="@+id/widget_warning_icon"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="8dp"
+                android:scaleType="fitCenter"
+                android:contentDescription="@string/widget_warning_desc"
+                android:visibility="gone" />
+
             <TextView
                 android:id="@+id/widget_warning"
                 android:layout_width="wrap_content"

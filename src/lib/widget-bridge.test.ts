@@ -1,7 +1,16 @@
-import { describe, expect, it } from 'vitest';
-import { buildWidgetPayload } from './widget-bridge';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildWidgetPayload, syncWeatherWidget } from './widget-bridge';
 import type { WeatherData } from '@/lib/weather';
 import type { HKOWarning } from '@/lib/hko-types';
+
+const { saveMock } = vi.hoisted(() => ({ saveMock: vi.fn() }));
+
+// syncWeatherWidget no-ops off-native; force the native path so the
+// bridge orchestration (icon render → save) is testable in jsdom.
+vi.mock('@capacitor/core', () => ({
+  Capacitor: { isNativePlatform: () => true },
+  registerPlugin: () => ({ save: saveMock }),
+}));
 
 /** Identity-style translator: always passes the key through, so tests can
  *  assert on the exact translation keys the payload builder resolves. */
@@ -167,5 +176,40 @@ describe('buildWidgetPayload', () => {
   it('stamps the update time under the widget.updated key', () => {
     const p = buildWidgetPayload(makeData(), t, now);
     expect(p.updatedAt).toBe('widget.updated');
+  });
+});
+
+describe('syncWeatherWidget', () => {
+  beforeEach(() => {
+    saveMock.mockReset();
+    saveMock.mockResolvedValue(undefined);
+  });
+
+  const now = new Date('2026-10-21T09:00:00');
+  const savedPayload = () => JSON.parse(saveMock.mock.calls[0][0].payload);
+
+  it('hands the rendered warning icon to the bridge when a warning is active', async () => {
+    const data = makeData();
+    data.warnings = [warning('WRAINA')];
+    syncWeatherWidget(data, t, now, async () => 'data:image/png;base64,AAA');
+    await vi.waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
+    expect(savedPayload().warningIcon).toBe('data:image/png;base64,AAA');
+  });
+
+  it('falls back to the text badge when icon rendering fails', async () => {
+    const data = makeData();
+    data.warnings = [warning('WRAINA')];
+    syncWeatherWidget(data, t, now, async () => undefined);
+    await vi.waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
+    const payload = savedPayload();
+    expect(payload.warningIcon).toBeUndefined();
+    expect(payload.warning).toBe('widget.badge.WRAINA');
+  });
+
+  it('does not attempt icon rendering without an active warning', async () => {
+    const loader = vi.fn(async () => 'data:image/png;base64,AAA');
+    syncWeatherWidget(makeData(), t, now, loader);
+    await vi.waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
+    expect(loader).not.toHaveBeenCalled();
   });
 });

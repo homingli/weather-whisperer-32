@@ -7,6 +7,9 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.util.Base64;
 import android.view.View;
 import android.widget.RemoteViews;
 
@@ -63,15 +66,25 @@ public class WeatherWidgetProvider extends AppWidgetProvider {
             views.setTextViewText(R.id.widget_updated, p.optString("updatedAt"));
 
             String warning = p.optString("warning", "");
-            if (warning.isEmpty()) {
+            Bitmap warningIcon = decodeBase64Bitmap(p.optString("warningIcon", ""));
+            if (warningIcon != null) {
+                // Official HKO alert icon takes precedence over the text badge.
+                views.setViewVisibility(R.id.widget_warning_icon, View.VISIBLE);
+                views.setImageViewBitmap(R.id.widget_warning_icon, warningIcon);
                 views.setViewVisibility(R.id.widget_warning, View.GONE);
-            } else {
+                views.setContentDescription(R.id.widget_warning_icon,
+                        context.getString(R.string.widget_warning_desc));
+            } else if (!warning.isEmpty()) {
+                views.setViewVisibility(R.id.widget_warning_icon, View.GONE);
                 views.setViewVisibility(R.id.widget_warning, View.VISIBLE);
                 views.setTextViewText(R.id.widget_warning, warning);
                 int badge = p.optBoolean("warningUrgent")
                         ? R.drawable.widget_badge_urgent
                         : R.drawable.widget_badge_warn;
                 views.setInt(R.id.widget_warning, "setBackgroundResource", badge);
+            } else {
+                views.setViewVisibility(R.id.widget_warning_icon, View.GONE);
+                views.setViewVisibility(R.id.widget_warning, View.GONE);
             }
         } catch (Exception e) {
             // Malformed payload — show a neutral state rather than stale or
@@ -79,9 +92,23 @@ public class WeatherWidgetProvider extends AppWidgetProvider {
             views.setTextViewText(R.id.widget_temp, "—");
             views.setViewVisibility(R.id.widget_row_details, View.GONE);
             views.setViewVisibility(R.id.widget_updated, View.GONE);
+            views.setViewVisibility(R.id.widget_warning_icon, View.GONE);
         }
         applyLaunchIntent(context, views);
         return views;
+    }
+
+    /** Decode a base64 (or data-URL) payload image; null on any failure. */
+    private static Bitmap decodeBase64Bitmap(String dataUrl) {
+        if (dataUrl == null || dataUrl.isEmpty()) return null;
+        int comma = dataUrl.indexOf(',');
+        String b64 = comma >= 0 ? dataUrl.substring(comma + 1) : dataUrl;
+        try {
+            byte[] bytes = Base64.decode(b64, Base64.DEFAULT);
+            return BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     private static void applyLaunchIntent(Context context, RemoteViews views) {

@@ -2,4 +2,5 @@
 <resources>
     <string name="widget_description">目前溫度、降雨機率、天文台警告及日出日落時間</string>
     <string name="widget_empty_hint">開啟 App 載入天氣</string>
+    <string name="widget_warning_desc">現正生效的天氣警告</string>
 </resources>

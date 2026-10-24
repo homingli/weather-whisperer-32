@@ -6,4 +6,5 @@
     <string name="custom_url_scheme">com.weatherwhisperer.app</string>
     <string name="widget_description">Current temperature, rain chance, HKO warnings and sun times</string>
     <string name="widget_empty_hint">Open the app to load weather</string>
+    <string name="widget_warning_desc">Active weather warning</string>
 </resources>
