@@ -109,10 +109,14 @@ cmd_payload() {
   # ever renders as the empty hint, the arg was truncated by adb.
   adb shell am broadcast -a $PKG.DEBUG_WIDGET -n $PKG/.WidgetDebugReceiver \
     --es payloadB64 "$b64" >/dev/null
-  # Close the loop: a truncated/mangled arg would show the empty hint
-  # with no error anywhere else.
+  # Close the loop on THIS fixture: a dropped broadcast would leave the
+  # previous payload in place, so "any payload present" is not enough.
+  # updatedAt is the one field every fixture has that is unique per file.
+  local marker
+  marker=$(sed -n 's/.*"updatedAt": *"\([^"]*\)".*/\1/p' "$f" | head -1)
+  [ -n "$marker" ] || marker='"payload"'
   adb shell run-as $PKG cat shared_prefs/widget_weather.xml 2>/dev/null \
-    | grep -q '"payload"' || die "payload did not land in SharedPreferences"
+    | grep -qF -- "$marker" || die "fixture did not land in SharedPreferences (looked for: $marker)"
   echo "rendered $(basename "$f")"
 }
 
