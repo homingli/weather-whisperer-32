@@ -11,10 +11,17 @@ if (keystorePropertiesFile.exists()) {
 
 // Debug builds between releases would otherwise reuse the released
 // versionName; a git SHA suffix keeps them distinguishable from the
-// shipped APK in bug reports and on disk.
-def gitSha = providers.exec {
-    commandLine 'git', 'rev-parse', '--short', 'HEAD'
-}.standardOutput.asText.get().trim()
+// shipped APK in bug reports and on disk. Falls back to a placeholder
+// for checkouts without git (source archives) — configuration-time git
+// must never fail the release build.
+def gitSha = 'unknown'
+try {
+    gitSha = providers.exec {
+        commandLine 'git', 'rev-parse', '--short', 'HEAD'
+    }.standardOutput.asText.get().trim()
+} catch (Exception ignored) {
+    // keep 'unknown'
+}
 
 android {
     namespace = "com.weatherwhisperer.app"
