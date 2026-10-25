@@ -105,6 +105,10 @@ cmd_payload() {
   # ever renders as the empty hint, the arg was truncated by adb.
   adb shell am broadcast -a $PKG.DEBUG_WIDGET -n $PKG/.WidgetDebugReceiver \
     --es payloadB64 "$b64" >/dev/null
+  # Close the loop: a truncated/mangled arg would show the empty hint
+  # with no error anywhere else.
+  adb shell run-as $PKG cat shared_prefs/widget_weather.xml 2>/dev/null \
+    | grep -q '"payload"' || die "payload did not land in SharedPreferences"
   echo "rendered $(basename "$f")"
 }
 
