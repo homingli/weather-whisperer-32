@@ -40,9 +40,12 @@ make emu-shot                           # PNG → scripts/emu/shots/<time>.png
 
 Fixtures live in `scripts/emu/fixtures/*.json` and are plain widget payloads
 (the same JSON `buildWidgetPayload` produces), so a new visual state is a
-new JSON file. `old-schema-v1.json` is the deliberate odd one out — it must
-render as the empty hint, see below. `widget-bridge.test.ts` checks that
-every other fixture carries the current schema and only known keys.
+new JSON file. `emu-widget` force-stops the app first — a running app
+re-syncs real weather on its own cadence and would overwrite the fixture
+within seconds; `emu-install` (or tapping the widget) brings it back.
+`old-schema-v1.json` is the deliberate odd one out — it must render as the
+empty hint, see below. `widget-bridge.test.ts` checks that every other
+fixture carries the current schema and only known keys.
 
 Injecting goes through `WidgetDebugReceiver`, which exists only in debug
 builds (`android/app/src/debug/`). It writes the fixture to the same

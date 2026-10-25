@@ -100,6 +100,10 @@ cmd_payload() {
   [ -f "$f" ] || die "fixture not found: $1 (have: $(ls "$ROOT/scripts/emu/fixtures" | sed 's/\.json$//' | tr '\n' ' '))"
   local b64
   b64=$(base64 < "$f" | tr -d '\n')
+  # Stop the app first: a running app re-syncs real weather on its own
+  # cadence and would overwrite the fixture seconds later. The explicit
+  # broadcast still reaches the receiver — Android starts the process for it.
+  adb shell am force-stop $PKG
   # One --es arg; the largest fixture (T8 with a 96px icon) is ~12 KB of
   # base64 and verified end-to-end on platform-tools 36 — if a bigger one
   # ever renders as the empty hint, the arg was truncated by adb.
