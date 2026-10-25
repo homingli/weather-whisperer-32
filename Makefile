@@ -24,7 +24,8 @@ export JAVA_HOME
 
 VERSION     ?= $(shell sed -n 's/.*versionName "\([^"]*\)".*/\1/p' android/app/build.gradle | head -1)
 TAG         := apk-v$(VERSION)
-APK_DEBUG   := android/app/build/outputs/apk/debug/weather-whisperer-v$(VERSION).apk
+# Debug APKs append -dev.<sha> (see android/app/build.gradle), so their
+# name isn't statically knowable here.
 APK_RELEASE := android/app/build/outputs/apk/release/weather-whisperer-v$(VERSION).apk
 NOTES_FILE  := .release-notes.md
 
