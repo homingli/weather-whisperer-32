@@ -91,11 +91,12 @@ describe('buildWidgetPayload', () => {
     expect(buildWidgetPayload(data, t, 'metric', now).rain).toBe('💧 Medium Low');
   });
 
-  it('raises the umbrella with time-to-rain when rain is expected', () => {
+  it('raises the umbrella with the absolute start time when rain is expected', () => {
     const data = makeData();
-    // minutely windows end at `time`: 0.5 mm in (09:15, 09:30] → rain in 15m
+    // minutely windows end at `time`: 0.5 mm in (09:15, 09:30] → rain from 09:15.
+    // Absolute clock, not "in 15m" — the widget cannot tick between syncs.
     data.minutely = [{ time: new Date('2026-10-21T09:30:00'), precipitation: 0.5 }];
-    expect(buildWidgetPayload(data, t, 'metric', now).rain).toBe('☂️ sun.inMinutes');
+    expect(buildWidgetPayload(data, t, 'metric', now).rain).toBe('☂️ 09:15');
   });
 
   it('raises the umbrella when the current window is already wet', () => {

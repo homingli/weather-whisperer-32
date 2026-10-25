@@ -156,9 +156,16 @@ export function buildWidgetPayload(
 
   const psr = current.precipitationProbabilityRaw?.trim();
 
+  // Only the OM parser stamps WeatherData.timezone; the HKO path is
+  // HK-only, so default rather than silently using the device zone.
+  const timeZone =
+    data.timezone ?? (data.headline.source === 'hko' ? 'Asia/Hong_Kong' : undefined);
+
   // Umbrella verdict: the same rain-start engine as the in-app banner, over
   // the series already on the payload (no HKO nowcast — the widget carries
-  // the city-scale verdict).
+  // the city-scale verdict). The start renders as an absolute clock time:
+  // the widget cannot tick, so a relative "in 15m" would read as live for
+  // hours between syncs.
   const forecast = computeRainStart({
     now: nowMs,
     minutely: seriesFromMinutely(data.minutely),
@@ -168,7 +175,7 @@ export function buildWidgetPayload(
   if (forecast?.status === 'raining-now') {
     rain = `☂️ ${t('sun.now', 'now')}`;
   } else if (forecast?.status === 'rain-expected' && forecast.startsAt) {
-    rain = `☂️ ${countdown(forecast.startsAt, nowMs, t)}`;
+    rain = `☂️ ${formatClock(new Date(forecast.startsAt), timeZone)}`;
   } else {
     rain = psr ? `💧 ${psr}` : `💧 ${Math.round(current.precipitationProbability)}%`;
   }
@@ -177,10 +184,6 @@ export function buildWidgetPayload(
   const sunDates = data.daily.map(d => (current.isDay ? d.sunset : d.sunrise));
   const sunEvent = nextSunEvent(sunDates, nowMs);
   const sunGlyph = current.isDay ? '🌇' : '🌅';
-  // Only the OM parser stamps WeatherData.timezone; the HKO path is
-  // HK-only, so default rather than silently using the device zone.
-  const timeZone =
-    data.timezone ?? (data.headline.source === 'hko' ? 'Asia/Hong_Kong' : undefined);
 
   const activeWarnings = (data.warnings ?? []).filter(
     w => w.actionCode?.toUpperCase() !== 'CANCEL'
