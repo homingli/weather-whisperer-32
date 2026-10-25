@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.util.Base64;
+import android.util.Log;
 
 import java.nio.charset.StandardCharsets;
 
@@ -25,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 public class WidgetDebugReceiver extends BroadcastReceiver {
 
     static final String ACTION = "com.weatherwhisperer.app.DEBUG_WIDGET";
+    private static final String TAG = "WidgetDebug";
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -36,7 +38,14 @@ public class WidgetDebugReceiver extends BroadcastReceiver {
         } else {
             String b64 = intent.getStringExtra("payloadB64");
             if (b64 == null || b64.isEmpty()) return;
-            String json = new String(Base64.decode(b64, Base64.DEFAULT), StandardCharsets.UTF_8);
+            String json;
+            try {
+                json = new String(Base64.decode(b64, Base64.DEFAULT), StandardCharsets.UTF_8);
+            } catch (IllegalArgumentException e) {
+                // Malformed base64 from the shell must not crash the app.
+                Log.w(TAG, "ignoring malformed payloadB64", e);
+                return;
+            }
             prefs.edit().putString(WeatherWidgetPlugin.KEY_PAYLOAD, json).apply();
         }
         WeatherWidgetProvider.updateAll(context);
