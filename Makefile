@@ -13,6 +13,13 @@
 #   make icons        regenerate launcher icons from assets/
 #   make clean        clean gradle build outputs
 #
+# Emulator loop for the home-screen widget (docs/android-widget-testing.md):
+#   make emu          boot the ww-pixel8 AVD (created on first run)
+#   make emu-install  install newest debug APK, grant location, pin GPS to HK, launch
+#   make emu-widget FIXTURE=night-clear   render a fixture payload in the placed widget
+#   make emu-clear    wipe the payload → empty "open the app" state
+#   make emu-shot     screenshot → scripts/emu/shots/<time>.png
+#
 # VERSION comes from versionName in android/app/build.gradle; override inline:
 #   make upload VERSION=1.1
 # Gradle names the artifact weather-whisperer-v<VERSION>.apk (see the
@@ -42,7 +49,8 @@ ifneq ($(filter 1,$(MAJOR)),)
 BUMP_FLAGS += --major
 endif
 
-.PHONY: help all bump apk apk-release upload release icons clean
+.PHONY: help all bump apk apk-release upload release icons clean \
+	emu emu-install emu-widget emu-clear emu-shot
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) \
@@ -97,3 +105,20 @@ icons: ## regenerate launcher icons from assets/
 
 clean: ## remove gradle build outputs
 	cd android && ./gradlew --no-daemon clean
+
+# Widget emulator loop — thin wrappers over scripts/emu/widget.sh.
+emu: ## boot the Android emulator (AVD ww-pixel8, created on first run)
+	@scripts/emu/widget.sh boot
+
+emu-install: ## install newest debug APK on the emulator, grant location, pin GPS to HK, launch
+	@scripts/emu/widget.sh install
+
+emu-widget: ## render a fixture in the placed widget: make emu-widget FIXTURE=night-clear
+	@test -n "$(FIXTURE)" || { echo "usage: make emu-widget FIXTURE=<name>  (see scripts/emu/fixtures/)"; exit 1; }
+	@scripts/emu/widget.sh payload "$(FIXTURE)"
+
+emu-clear: ## wipe the widget payload → empty "open the app" state
+	@scripts/emu/widget.sh clear
+
+emu-shot: ## screenshot the emulator → scripts/emu/shots/<time>.png
+	@scripts/emu/widget.sh shot
