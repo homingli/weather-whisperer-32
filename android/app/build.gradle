@@ -9,6 +9,13 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+// Debug builds between releases would otherwise reuse the released
+// versionName; a git SHA suffix keeps them distinguishable from the
+// shipped APK in bug reports and on disk.
+def gitSha = providers.exec {
+    commandLine 'git', 'rev-parse', '--short', 'HEAD'
+}.standardOutput.asText.get().trim()
+
 android {
     namespace = "com.weatherwhisperer.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -36,6 +43,9 @@ android {
         }
     }
     buildTypes {
+        debug {
+            versionNameSuffix "-dev." + gitSha
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -48,11 +58,13 @@ android {
     // APK artifact name: weather-whisperer-v<versionName>.apk. Debug and
     // release both get the name, but land in separate apk/<variant>/ dirs.
     // versionName is captured from defaultConfig because the old variant
-    // API in AGP 9 no longer exposes it on the variant object.
+    // API in AGP 9 no longer exposes it on the variant object. Debug
+    // builds append the same -dev.<sha> suffix as their versionName.
     def vName = defaultConfig.versionName
     applicationVariants.all { variant ->
         variant.outputs.all {
-            outputFileName = "weather-whisperer-v${vName}.apk"
+            def suffix = variant.buildType.name == 'debug' ? "-dev.${gitSha}" : ''
+            outputFileName = "weather-whisperer-v${vName}${suffix}.apk"
         }
     }
 }
