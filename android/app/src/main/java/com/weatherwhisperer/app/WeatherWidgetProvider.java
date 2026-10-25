@@ -95,8 +95,12 @@ public class WeatherWidgetProvider extends AppWidgetProvider {
         return views;
     }
 
-    /** No usable payload: dash + "open the app" hint, every data row hidden. */
+    /** No usable payload: dash + "open the app" hint, every data row hidden.
+     *  Sets every view the data path sets — launchers reapply RemoteViews onto
+     *  the existing tree when the layout is unchanged, so an untouched view
+     *  keeps the previous render's content. */
     private static void renderEmpty(Context context, RemoteViews views) {
+        views.setTextViewText(R.id.widget_icon, "");
         views.setTextViewText(R.id.widget_temp, "—");
         views.setTextViewText(R.id.widget_condition, context.getString(R.string.widget_empty_hint));
         views.setViewVisibility(R.id.widget_warning, View.GONE);
