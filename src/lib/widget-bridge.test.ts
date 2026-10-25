@@ -78,9 +78,10 @@ function warning(code: string, name = 'Frost Warning'): HKOWarning {
 describe('buildWidgetPayload', () => {
   const now = new Date('2026-10-21T09:00:00');
 
-  it('rounds temperature and formats rain probability', () => {
+  it('leads with the feels-like temperature and formats rain probability', () => {
     const p = buildWidgetPayload(makeData(), t, 'metric', now);
-    expect(p.temperature).toBe('26°');
+    // apparentTemperature 30, not the 26.4 measured value
+    expect(p.temperature).toBe('30°');
     expect(p.rain).toBe('💧 45%');
   });
 
@@ -88,6 +89,25 @@ describe('buildWidgetPayload', () => {
     const data = makeData();
     data.current.precipitationProbabilityRaw = 'Medium Low';
     expect(buildWidgetPayload(data, t, 'metric', now).rain).toBe('💧 Medium Low');
+  });
+
+  it('raises the umbrella with time-to-rain when rain is expected', () => {
+    const data = makeData();
+    // minutely windows end at `time`: 0.5 mm in (09:15, 09:30] → rain in 15m
+    data.minutely = [{ time: new Date('2026-10-21T09:30:00'), precipitation: 0.5 }];
+    expect(buildWidgetPayload(data, t, 'metric', now).rain).toBe('☂️ sun.inMinutes');
+  });
+
+  it('raises the umbrella when the current window is already wet', () => {
+    const data = makeData();
+    data.minutely = [{ time: new Date('2026-10-21T09:10:00'), precipitation: 0.5 }];
+    expect(buildWidgetPayload(data, t, 'metric', now).rain).toBe('☂️ sun.now');
+  });
+
+  it('keeps the probability cell when the series is dry', () => {
+    const data = makeData();
+    data.minutely = [{ time: new Date('2026-10-21T09:30:00'), precipitation: 0 }];
+    expect(buildWidgetPayload(data, t, 'metric', now).rain).toBe('💧 45%');
   });
 
   it('maps WMO code and isDay to an icon', () => {
@@ -107,33 +127,39 @@ describe('buildWidgetPayload', () => {
     expect(p.condition).toContain('weather.');
   });
 
-  it('shows today-in-the-past sunrise as tomorrow, with lead time', () => {
+  it('shows the coming sunset during the day', () => {
     const p = buildWidgetPayload(makeData(), t, 'metric', now);
-    // now is 09:00 — today's sunrise passed, next is tomorrow 06:33
-    expect(p.sunrise).toBe('06:33');
-    expect(p.sunriseIn).toBe('sun.inHoursMinutes');
-    // sunset is still ahead today
-    expect(p.sunset).toBe('18:04');
-    expect(p.sunsetIn).toBe('sun.inHoursMinutes');
+    // 09:00 and isDay — today's 18:04 sunset is still ahead
+    expect(p.sunTime).toBe('🌇 18:04');
+    expect(p.sunIn).toBe('sun.inHoursMinutes');
+  });
+
+  it("shows the next sunrise at night, rolling to tomorrow once today's passed", () => {
+    const data = makeData();
+    data.current.isDay = false;
+    const p = buildWidgetPayload(data, t, 'metric', now);
+    // today's 06:32 already passed at 09:00 → tomorrow 06:33
+    expect(p.sunTime).toBe('🌅 06:33');
+    expect(p.sunIn).toBe('sun.inHoursMinutes');
   });
 
   it('skips epoch-0 sentinel sun times from the HKO fallback', () => {
     const data = makeData();
-    data.daily[0].sunrise = new Date(0);
-    data.daily[1].sunrise = new Date(0);
+    data.daily[0].sunset = new Date(0);
+    data.daily[1].sunset = new Date(0);
     const p = buildWidgetPayload(data, t, 'metric', now);
-    expect(p.sunrise).toBe('');
-    expect(p.sunriseIn).toBe('');
+    expect(p.sunTime).toBe('');
+    expect(p.sunIn).toBe('');
   });
 
   it('renders sun times when the cold-start seed carries ISO strings', () => {
     // readLastKnownWeather hands back bare JSON.parse output — sun times
     // arrive as ISO strings, not Dates (runtime shape; cast to simulate).
     const data = makeData();
-    data.daily[0].sunrise = '2026-10-22T06:33:00' as unknown as Date;
+    data.daily[0].sunset = '2026-10-21T18:04:00' as unknown as Date;
     const p = buildWidgetPayload(data, t, 'metric', now);
-    expect(p.sunrise).toBe('06:33');
-    expect(p.sunriseIn).toBe('sun.inHoursMinutes');
+    expect(p.sunTime).toBe('🌇 18:04');
+    expect(p.sunIn).toBe('sun.inHoursMinutes');
   });
 
   it('drops cancelled warnings and badges the first active one', () => {
@@ -175,12 +201,12 @@ describe('buildWidgetPayload', () => {
   });
 
   it('defaults sun clocks to Hong Kong time on the HKO fallback path', () => {
-    // HKO path carries no WeatherData.timezone; sunrise given in UTC must
+    // HKO path carries no WeatherData.timezone; a sunset given in UTC must
     // render in Asia/Hong_Kong (+8), independent of the runner's zone.
     const data = makeData({ headline: { source: 'hko', hkoIconCode: 60 } });
-    data.daily[0].sunrise = new Date('2026-10-21T22:33:00Z'); // 06:33 HKT Oct 22
+    data.daily[0].sunset = new Date('2026-10-22T10:04:00Z'); // 18:04 HKT Oct 22
     const p = buildWidgetPayload(data, t, 'metric', now);
-    expect(p.sunrise).toBe('06:33');
+    expect(p.sunTime).toBe('🌇 18:04');
   });
 
   it('falls back to the warning name for unmapped codes', () => {
@@ -201,8 +227,8 @@ describe('buildWidgetPayload', () => {
   });
 
   it("converts temperature to the user's unit system", () => {
-    // 26.4 °C → 80 °F
-    expect(buildWidgetPayload(makeData(), t, 'us', now).temperature).toBe('80°');
+    // 30 °C feels-like → 86 °F
+    expect(buildWidgetPayload(makeData(), t, 'us', now).temperature).toBe('86°');
   });
 });
 
@@ -237,14 +263,14 @@ describe('syncWeatherWidget', () => {
     syncWeatherWidget(staleData, t, 'metric', now, () => slowGate);
 
     const newerData = makeData();
-    newerData.current.temperature = 30;
+    newerData.current.apparentTemperature = 35;
     syncWeatherWidget(newerData, t, 'metric', now, async () => undefined);
 
     await vi.waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
     releaseSlow(undefined);
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(saveMock).toHaveBeenCalledTimes(1);
-    expect(savedPayload().temperature).toBe('30°');
+    expect(savedPayload().temperature).toBe('35°');
   });
 
   it('hands the rendered warning icon to the bridge when a warning is active', async () => {

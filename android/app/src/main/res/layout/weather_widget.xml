@@ -109,35 +109,14 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/widget_sunrise"
+                    android:id="@+id/widget_sun"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="12sp"
                     android:textColor="#FFFFFF" />
 
                 <TextView
-                    android:id="@+id/widget_sunrise_in"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="9sp"
-                    android:textColor="#99FFFFFF" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/widget_sunset"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="12sp"
-                    android:textColor="#FFFFFF" />
-
-                <TextView
-                    android:id="@+id/widget_sunset_in"
+                    android:id="@+id/widget_sun_in"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="9sp"

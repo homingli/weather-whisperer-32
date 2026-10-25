@@ -59,10 +59,8 @@ public class WeatherWidgetProvider extends AppWidgetProvider {
             views.setTextViewText(R.id.widget_temp, p.optString("temperature"));
             views.setTextViewText(R.id.widget_condition, p.optString("condition"));
             views.setTextViewText(R.id.widget_rain, p.optString("rain"));
-            views.setTextViewText(R.id.widget_sunrise, p.optString("sunrise"));
-            views.setTextViewText(R.id.widget_sunrise_in, p.optString("sunriseIn"));
-            views.setTextViewText(R.id.widget_sunset, p.optString("sunset"));
-            views.setTextViewText(R.id.widget_sunset_in, p.optString("sunsetIn"));
+            views.setTextViewText(R.id.widget_sun, p.optString("sunTime"));
+            views.setTextViewText(R.id.widget_sun_in, p.optString("sunIn"));
             views.setTextViewText(R.id.widget_updated, p.optString("updatedAt"));
 
             String warning = p.optString("warning", "");

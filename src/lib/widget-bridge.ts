@@ -18,6 +18,7 @@ import {
 } from '@/lib/weather';
 import { getWarningIcon, hasWarningIcon } from '@/lib/hko-weather';
 import { toDisplayTemperature } from '@/lib/units';
+import { computeRainStart, seriesFromHourly, seriesFromMinutely } from '@/lib/rain-start';
 import { logEvent, logWarn } from '@/lib/log';
 import type { Units } from '@/lib/units';
 import type { WeatherData } from '@/lib/weather';
@@ -36,8 +37,12 @@ const WeatherWidget = registerPlugin<WeatherWidgetPlugin>('WeatherWidget', {
 /** Flat payload of display strings; keys match the Android layout ids. */
 export interface WidgetPayload {
   icon: string;
+  /** Feels-like temperature with unit suffix (product decision: the widget
+   *  leads with what it feels like, not the measured value). */
   temperature: string;
   condition: string;
+  /** Umbrella verdict cell: ☂️ + time-to-rain when rain is coming, else
+   *  💧 + rain probability. */
   rain: string;
   /** Short badge text; native shows the icon instead when available. */
   warning: string;
@@ -47,10 +52,9 @@ export interface WidgetPayload {
   /** Base64 PNG of the official warning icon; absent when rendering failed
    *  or no warning is active — native falls back to the text badge. */
   warningIcon?: string;
-  sunrise: string;
-  sunriseIn: string;
-  sunset: string;
-  sunsetIn: string;
+  /** Single sun cell — next sunset while day, next sunrise at night. */
+  sunTime: string;
+  sunIn: string;
   updatedAt: string;
 }
 
@@ -72,8 +76,9 @@ function nextSunEvent(dates: unknown[], nowMs: number): Date | undefined {
 }
 
 /** Whole-minute lead time, same shape as the in-app sun strip countdown. */
-function sunCountdown(target: Date, nowMs: number, t: Translate): string {
-  const diffMin = Math.round((target.getTime() - nowMs) / 60000);
+function countdown(target: Date | number, nowMs: number, t: Translate): string {
+  const targetMs = typeof target === 'number' ? target : target.getTime();
+  const diffMin = Math.round((targetMs - nowMs) / 60000);
   if (diffMin < 1) return '';
   const hrs = Math.floor(diffMin / 60);
   const mins = diffMin % 60;
@@ -150,12 +155,28 @@ export function buildWidgetPayload(
       : t(weatherDescriptionKey(current.weatherCode));
 
   const psr = current.precipitationProbabilityRaw?.trim();
-  const rain = psr
-    ? `💧 ${psr}`
-    : `💧 ${Math.round(current.precipitationProbability)}%`;
 
-  const sunrise = nextSunEvent(data.daily.map(d => d.sunrise), nowMs);
-  const sunset = nextSunEvent(data.daily.map(d => d.sunset), nowMs);
+  // Umbrella verdict: the same rain-start engine as the in-app banner, over
+  // the series already on the payload (no HKO nowcast — the widget carries
+  // the city-scale verdict).
+  const forecast = computeRainStart({
+    now: nowMs,
+    minutely: seriesFromMinutely(data.minutely),
+    hourly: seriesFromHourly(data.hourly),
+  });
+  let rain: string;
+  if (forecast?.status === 'raining-now') {
+    rain = `☂️ ${t('sun.now', 'now')}`;
+  } else if (forecast?.status === 'rain-expected' && forecast.startsAt) {
+    rain = `☂️ ${countdown(forecast.startsAt, nowMs, t)}`;
+  } else {
+    rain = psr ? `💧 ${psr}` : `💧 ${Math.round(current.precipitationProbability)}%`;
+  }
+
+  // One sun cell: next sunset while day, next sunrise at night.
+  const sunDates = data.daily.map(d => (current.isDay ? d.sunset : d.sunrise));
+  const sunEvent = nextSunEvent(sunDates, nowMs);
+  const sunGlyph = current.isDay ? '🌇' : '🌅';
   // Only the OM parser stamps WeatherData.timezone; the HKO path is
   // HK-only, so default rather than silently using the device zone.
   const timeZone =
@@ -173,16 +194,14 @@ export function buildWidgetPayload(
 
   return {
     icon: getWeatherIcon(current.weatherCode, current.isDay),
-    temperature: `${toDisplayTemperature(current.temperature, units)}°`,
+    temperature: `${toDisplayTemperature(current.apparentTemperature, units)}°`,
     condition,
     rain,
     warning: badge?.text ?? '',
     warningUrgent: badge?.urgent ?? false,
     warningCode: firstWarning?.code,
-    sunrise: sunrise ? formatClock(sunrise, timeZone) : '',
-    sunriseIn: sunrise ? sunCountdown(sunrise, nowMs, t) : '',
-    sunset: sunset ? formatClock(sunset, timeZone) : '',
-    sunsetIn: sunset ? sunCountdown(sunset, nowMs, t) : '',
+    sunTime: sunEvent ? `${sunGlyph} ${formatClock(sunEvent, timeZone)}` : '',
+    sunIn: sunEvent ? countdown(sunEvent, nowMs, t) : '',
     updatedAt: formatString(t('widget.updated', 'Updated {0}'), formatClock(now)),
   };
 }
