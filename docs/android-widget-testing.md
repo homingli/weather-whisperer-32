@@ -79,3 +79,23 @@ app has not completed a sync since — open the app and let it load once;
 the widget redraws on every successful fetch. A stamp that does not move
 after opening the app means the save path failed; `adb logcat | grep
 WeatherWidget` on a debug build shows the `save` call and its payload.
+
+## No service worker in native builds
+
+`cap:sync` builds the web bundle with `CAPACITOR_BUILD=1`, which switches
+`vite-plugin-pwa` to `selfDestroying` mode: the shipped `sw.js` unregisters
+itself and clears its caches. Measured on the emulator before this: after
+an APK upgrade, the WebView kept running the *previous* build's bundle out
+of the old worker's precache for at least two cold launches — the new
+worker only precached the new files in the background. So a freshly
+sideloaded APK behaved like the one before it (and wrote the old widget
+payload). Assets are local in the APK; the worker added nothing but that.
+
+To confirm which bundle the WebView is really running:
+
+```sh
+adb logcat -v brief | grep -o 'https://localhost/assets/index-[^ ]*\.js'
+ls android/app/src/main/assets/public/assets/index-*.js   # what the APK ships
+```
+
+Web deploys never set `CAPACITOR_BUILD`, so the PWA keeps its worker.
