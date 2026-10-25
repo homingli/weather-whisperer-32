@@ -34,8 +34,20 @@ const WeatherWidget = registerPlugin<WeatherWidgetPlugin>('WeatherWidget', {
   web: { save: async () => {} },
 });
 
+/**
+ * Payload schema version. The native renderer refuses a payload whose
+ * schema differs and shows the "open the app" hint instead. Without this,
+ * an APK upgrade renders the PREVIOUS build's saved payload with the new
+ * layout — any renamed key reads as an empty cell until the app's next
+ * sync (seen live: v1→v2 renamed the sun keys, so upgraded widgets showed
+ * a blank sun cell). Bump whenever a key is renamed, removed or changes
+ * meaning; keep WeatherWidgetPlugin.SCHEMA in lockstep.
+ */
+export const WIDGET_SCHEMA = 2;
+
 /** Flat payload of display strings; keys match the Android layout ids. */
 export interface WidgetPayload {
+  schema: typeof WIDGET_SCHEMA;
   icon: string;
   /** Feels-like temperature with unit suffix (product decision: the widget
    *  leads with what it feels like, not the measured value). */
@@ -196,6 +208,7 @@ export function buildWidgetPayload(
   const badge = pick?.badge;
 
   return {
+    schema: WIDGET_SCHEMA,
     icon: getWeatherIcon(current.weatherCode, current.isDay),
     temperature: `${toDisplayTemperature(current.apparentTemperature, units)}°`,
     condition,

@@ -19,6 +19,9 @@ public class WeatherWidgetPlugin extends Plugin {
 
     static final String PREFS = "widget_weather";
     static final String KEY_PAYLOAD = "payload";
+    /** Must match WIDGET_SCHEMA in src/lib/widget-bridge.ts. A payload with
+     *  any other value was written by a different build and is not rendered. */
+    static final int SCHEMA = 2;
 
     @PluginMethod
     public void save(PluginCall call) {

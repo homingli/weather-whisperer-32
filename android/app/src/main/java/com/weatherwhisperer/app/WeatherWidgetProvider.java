@@ -13,6 +13,7 @@ import android.util.Base64;
 import android.view.View;
 import android.widget.RemoteViews;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
@@ -37,63 +38,71 @@ public class WeatherWidgetProvider extends AppWidgetProvider {
 
     private static RemoteViews buildViews(Context context) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.weather_widget);
+        applyLaunchIntent(context, views);
         SharedPreferences prefs = context.getSharedPreferences(
                 WeatherWidgetPlugin.PREFS, Context.MODE_PRIVATE);
         String raw = prefs.getString(WeatherWidgetPlugin.KEY_PAYLOAD, null);
 
-        if (raw == null) {
-            views.setTextViewText(R.id.widget_temp, "—");
-            views.setTextViewText(R.id.widget_condition, context.getString(R.string.widget_empty_hint));
-            views.setViewVisibility(R.id.widget_warning, View.GONE);
-            views.setViewVisibility(R.id.widget_row_details, View.GONE);
-            views.setViewVisibility(R.id.widget_updated, View.GONE);
-            applyLaunchIntent(context, views);
+        JSONObject p = null;
+        if (raw != null) {
+            try {
+                JSONObject parsed = new JSONObject(raw);
+                // A payload another build wrote (schema mismatch) must not be
+                // drawn with this layout: renamed keys read as blank cells next
+                // to a plausible-looking "Updated" stamp. Show the hint instead
+                // so the user opens the app, which rewrites the store.
+                if (parsed.optInt("schema", 0) == WeatherWidgetPlugin.SCHEMA) p = parsed;
+            } catch (JSONException e) {
+                // Malformed — fall through to the neutral state.
+            }
+        }
+        if (p == null) {
+            renderEmpty(context, views);
             return views;
         }
 
         views.setViewVisibility(R.id.widget_row_details, View.VISIBLE);
         views.setViewVisibility(R.id.widget_updated, View.VISIBLE);
-        try {
-            JSONObject p = new JSONObject(raw);
-            views.setTextViewText(R.id.widget_icon, p.optString("icon"));
-            views.setTextViewText(R.id.widget_temp, p.optString("temperature"));
-            views.setTextViewText(R.id.widget_condition, p.optString("condition"));
-            views.setTextViewText(R.id.widget_rain, p.optString("rain"));
-            views.setTextViewText(R.id.widget_sun, p.optString("sunTime"));
-            views.setTextViewText(R.id.widget_sun_in, p.optString("sunIn"));
-            views.setTextViewText(R.id.widget_updated, p.optString("updatedAt"));
+        views.setTextViewText(R.id.widget_icon, p.optString("icon"));
+        views.setTextViewText(R.id.widget_temp, p.optString("temperature"));
+        views.setTextViewText(R.id.widget_condition, p.optString("condition"));
+        views.setTextViewText(R.id.widget_rain, p.optString("rain"));
+        views.setTextViewText(R.id.widget_sun, p.optString("sunTime"));
+        views.setTextViewText(R.id.widget_sun_in, p.optString("sunIn"));
+        views.setTextViewText(R.id.widget_updated, p.optString("updatedAt"));
 
-            String warning = p.optString("warning", "");
-            Bitmap warningIcon = decodeBase64Bitmap(p.optString("warningIcon", ""));
-            if (warningIcon != null) {
-                // Official HKO alert icon takes precedence over the text badge.
-                views.setViewVisibility(R.id.widget_warning_icon, View.VISIBLE);
-                views.setImageViewBitmap(R.id.widget_warning_icon, warningIcon);
-                views.setViewVisibility(R.id.widget_warning, View.GONE);
-                views.setContentDescription(R.id.widget_warning_icon,
-                        context.getString(R.string.widget_warning_desc));
-            } else if (!warning.isEmpty()) {
-                views.setViewVisibility(R.id.widget_warning_icon, View.GONE);
-                views.setViewVisibility(R.id.widget_warning, View.VISIBLE);
-                views.setTextViewText(R.id.widget_warning, warning);
-                int badge = p.optBoolean("warningUrgent")
-                        ? R.drawable.widget_badge_urgent
-                        : R.drawable.widget_badge_warn;
-                views.setInt(R.id.widget_warning, "setBackgroundResource", badge);
-            } else {
-                views.setViewVisibility(R.id.widget_warning_icon, View.GONE);
-                views.setViewVisibility(R.id.widget_warning, View.GONE);
-            }
-        } catch (Exception e) {
-            // Malformed payload — show a neutral state rather than stale or
-            // garbled text. Next app data refresh rewrites the store.
-            views.setTextViewText(R.id.widget_temp, "—");
-            views.setViewVisibility(R.id.widget_row_details, View.GONE);
-            views.setViewVisibility(R.id.widget_updated, View.GONE);
+        String warning = p.optString("warning", "");
+        Bitmap warningIcon = decodeBase64Bitmap(p.optString("warningIcon", ""));
+        if (warningIcon != null) {
+            // Official HKO alert icon takes precedence over the text badge.
+            views.setViewVisibility(R.id.widget_warning_icon, View.VISIBLE);
+            views.setImageViewBitmap(R.id.widget_warning_icon, warningIcon);
+            views.setViewVisibility(R.id.widget_warning, View.GONE);
+            views.setContentDescription(R.id.widget_warning_icon,
+                    context.getString(R.string.widget_warning_desc));
+        } else if (!warning.isEmpty()) {
             views.setViewVisibility(R.id.widget_warning_icon, View.GONE);
+            views.setViewVisibility(R.id.widget_warning, View.VISIBLE);
+            views.setTextViewText(R.id.widget_warning, warning);
+            int badge = p.optBoolean("warningUrgent")
+                    ? R.drawable.widget_badge_urgent
+                    : R.drawable.widget_badge_warn;
+            views.setInt(R.id.widget_warning, "setBackgroundResource", badge);
+        } else {
+            views.setViewVisibility(R.id.widget_warning_icon, View.GONE);
+            views.setViewVisibility(R.id.widget_warning, View.GONE);
         }
-        applyLaunchIntent(context, views);
         return views;
+    }
+
+    /** No usable payload: dash + "open the app" hint, every data row hidden. */
+    private static void renderEmpty(Context context, RemoteViews views) {
+        views.setTextViewText(R.id.widget_temp, "—");
+        views.setTextViewText(R.id.widget_condition, context.getString(R.string.widget_empty_hint));
+        views.setViewVisibility(R.id.widget_warning, View.GONE);
+        views.setViewVisibility(R.id.widget_warning_icon, View.GONE);
+        views.setViewVisibility(R.id.widget_row_details, View.GONE);
+        views.setViewVisibility(R.id.widget_updated, View.GONE);
     }
 
     /** Decode a base64 (or data-URL) payload image; null on any failure. */

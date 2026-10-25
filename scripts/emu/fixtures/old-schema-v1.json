@@ -1,0 +1,13 @@
+{
+  "icon": "☀️",
+  "temperature": "29°",
+  "condition": "Sunny",
+  "rain": "💧 10%",
+  "warning": "Fire",
+  "warningUrgent": false,
+  "sunrise": "🌅 06:23",
+  "sunriseIn": "",
+  "sunset": "🌇 17:50",
+  "sunsetIn": "in 3h 2m",
+  "updatedAt": "Updated 14:48"
+}

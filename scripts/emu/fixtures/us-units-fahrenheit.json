@@ -1,0 +1,13 @@
+{
+  "schema": 2,
+  "icon": "☀️",
+  "temperature": "88°",
+  "condition": "Sunny",
+  "rain": "💧 10%",
+  "warning": "Hot",
+  "warningUrgent": false,
+  "warningCode": "WHOT",
+  "sunTime": "🌇 18:52",
+  "sunIn": "in 5h 30m",
+  "updatedAt": "Updated 13:22"
+}
