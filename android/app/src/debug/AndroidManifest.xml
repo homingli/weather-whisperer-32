@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Debug-only manifest overlay: merged into debug builds, absent from release.
+     Exported on purpose — adb's `am broadcast` is the only caller, and the
+     receiver can only overwrite the widget's own display payload. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver
+            android:name=".WidgetDebugReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.weatherwhisperer.app.DEBUG_WIDGET" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -1,0 +1,13 @@
+{
+  "schema": 3,
+  "icon": "🌙",
+  "temperature": "27°",
+  "condition": "Clear",
+  "rain": "💧 5%",
+  "rainIcon": "💧",
+  "warning": "",
+  "warningUrgent": false,
+  "sunTime": "🌅 06:24",
+  "sunIn": "in 8h 7m",
+  "updatedAt": "Updated 22:17"
+}

@@ -39,6 +39,9 @@ data.csv
 # Viewport audit output (screenshots + results)
 scripts/audit/shots/
 
+# Emulator widget loop output (screenshots + emulator log)
+scripts/emu/shots/
+
 # Local agent workspace state (not source)
 .zcode/
 

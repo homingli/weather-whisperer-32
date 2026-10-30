@@ -1,0 +1,13 @@
+{
+  "schema": 3,
+  "icon": "🌙",
+  "temperature": "27°",
+  "condition": "天晴",
+  "rain": "💧 5%",
+  "rainIcon": "💧",
+  "warning": "",
+  "warningUrgent": false,
+  "sunTime": "🌅 06:24",
+  "sunIn": "8小時7分後",
+  "updatedAt": "更新於 22:17"
+}

@@ -12,7 +12,7 @@
     "test": "vitest",
     "preview": "vite preview",
     "audit:viewports": "node scripts/audit/audit-viewports.mjs",
-    "cap:sync": "pnpm build && cap sync android",
+    "cap:sync": "CAPACITOR_BUILD=1 pnpm build && cap sync android",
     "apk": "pnpm run cap:sync && cd android && ./gradlew assembleDebug",
     "apk:release": "pnpm run cap:sync && cd android && ./gradlew assembleRelease",
     "icons": "capacitor-assets generate --android"

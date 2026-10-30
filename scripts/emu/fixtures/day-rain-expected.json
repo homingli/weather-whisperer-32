@@ -1,0 +1,14 @@
+{
+  "schema": 3,
+  "icon": "🌦️",
+  "temperature": "31°",
+  "condition": "Light showers",
+  "rain": "☂️ 14:30",
+  "rainIcon": "☂️",
+  "warning": "Amber",
+  "warningUrgent": false,
+  "warningCode": "WRAINA",
+  "sunTime": "🌇 17:50",
+  "sunIn": "in 3h 2m",
+  "updatedAt": "Updated 14:48"
+}

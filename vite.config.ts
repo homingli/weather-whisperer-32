@@ -45,6 +45,14 @@ export default defineConfig(({ mode }) => {
     // Progressive Web App support
     VitePWA({
       registerType: 'autoUpdate',
+      // Native (Capacitor) builds ship the web assets inside the APK, so a
+      // service worker buys no offline capability there — it only lets the
+      // previous build's precache keep serving the OLD bundle after an APK
+      // upgrade (measured on the API 36 emulator: still two launches behind).
+      // selfDestroying emits a sw.js that unregisters itself and clears its
+      // caches, which also repairs installs already carrying the old worker.
+      // CAPACITOR_BUILD is set by the cap:sync script only.
+      selfDestroying: !!process.env.CAPACITOR_BUILD,
       manifest: {
         name: 'Weather Whisperer',
         short_name: 'Weather',

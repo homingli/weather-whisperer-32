@@ -34,8 +34,22 @@ const WeatherWidget = registerPlugin<WeatherWidgetPlugin>('WeatherWidget', {
   web: { save: async () => {} },
 });
 
+/**
+ * Payload schema version. The native renderer refuses a payload whose
+ * schema differs and shows the "open the app" hint instead. Without this,
+ * an APK upgrade renders the PREVIOUS build's saved payload with the new
+ * layout — any renamed key reads as an empty cell until the app's next
+ * sync (seen live: v1→v2 renamed the sun keys, so upgraded widgets showed
+ * a blank sun cell). Bump whenever a key is renamed, removed, changes
+ * meaning, or is newly consumed by a renderer that older payloads predate
+ * (v3: rainIcon — an old payload missing it would leave the alerts widget
+ * silently umbrella-less); keep WeatherWidgetPlugin.SCHEMA in lockstep.
+ */
+export const WIDGET_SCHEMA = 3;
+
 /** Flat payload of display strings; keys match the Android layout ids. */
 export interface WidgetPayload {
+  schema: typeof WIDGET_SCHEMA;
   icon: string;
   /** Feels-like temperature with unit suffix (product decision: the widget
    *  leads with what it feels like, not the measured value). */
@@ -44,6 +58,9 @@ export interface WidgetPayload {
   /** Umbrella verdict cell: ☂️ + time-to-rain when rain is coming, else
    *  💧 + rain probability. */
   rain: string;
+  /** Bare verdict glyph (☂️/💧) for the alerts-only widget; `rain` keeps
+   *  its prefix so the 4x2 renderer is untouched by this key. */
+  rainIcon: string;
   /** Short badge text; native shows the icon instead when available. */
   warning: string;
   warningUrgent: boolean;
@@ -171,14 +188,21 @@ export function buildWidgetPayload(
     minutely: seriesFromMinutely(data.minutely),
     hourly: seriesFromHourly(data.hourly),
   });
-  let rain: string;
+  // The verdict glyph doubles as the alerts widget's icon: ☂️ when rain is
+  // coming, 💧 when it is not. `rain` keeps the prefix for the 4x2.
+  let rainIcon: string;
+  let rainText: string;
   if (forecast?.status === 'raining-now') {
-    rain = `☂️ ${t('sun.now', 'now')}`;
+    rainIcon = '☂️';
+    rainText = t('sun.now', 'now');
   } else if (forecast?.status === 'rain-expected' && forecast.startsAt) {
-    rain = `☂️ ${formatClock(new Date(forecast.startsAt), timeZone)}`;
+    rainIcon = '☂️';
+    rainText = formatClock(new Date(forecast.startsAt), timeZone);
   } else {
-    rain = psr ? `💧 ${psr}` : `💧 ${Math.round(current.precipitationProbability)}%`;
+    rainIcon = '💧';
+    rainText = psr || `${Math.round(current.precipitationProbability)}%`;
   }
+  const rain = `${rainIcon} ${rainText}`;
 
   // One sun cell: next sunset while day, next sunrise at night.
   const sunDates = data.daily.map(d => (current.isDay ? d.sunset : d.sunrise));
@@ -196,10 +220,12 @@ export function buildWidgetPayload(
   const badge = pick?.badge;
 
   return {
+    schema: WIDGET_SCHEMA,
     icon: getWeatherIcon(current.weatherCode, current.isDay),
     temperature: `${toDisplayTemperature(current.apparentTemperature, units)}°`,
     condition,
     rain,
+    rainIcon,
     warning: badge?.text ?? '',
     warningUrgent: badge?.urgent ?? false,
     warningCode: firstWarning?.code,
