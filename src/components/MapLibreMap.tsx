@@ -79,15 +79,23 @@ export function MapLibreMap({ center, zoom, minZoom, maxZoom, dark, ariaLabel, i
   const markerRef = useRef<maplibregl.Marker | null>(null);
   const fallbackRef = useRef(false);
   const wmsErrorHandlerRef = useRef<((event: MapLibreErrorEvent) => void) | null>(null);
+  // Viewport of the outgoing map, captured in the cleanup below and consumed
+  // by the next construction. Theme changes rebuild the map here, and the
+  // parents' one-shot viewport init (GPS centering) has already run on the
+  // outgoing instance — without this carry-over the rebuilt map snaps back to
+  // the constructor default, silently discarding the GPS center.
+  const lastViewRef = useRef<{ center: [number, number]; zoom: number } | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
     fallbackRef.current = false;
+    const startView = lastViewRef.current ?? { center, zoom };
+    lastViewRef.current = null;
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: cartoStyleUrl(dark ? 'dark-matter' : 'positron'),
-      center,
-      zoom,
+      center: startView.center,
+      zoom: startView.zoom,
       minZoom,
       maxZoom,
       attributionControl: { compact: true },
@@ -117,6 +125,9 @@ export function MapLibreMap({ center, zoom, minZoom, maxZoom, dark, ariaLabel, i
       markerRef.current?.remove();
       markerRef.current = null;
       canvas.removeEventListener('webglcontextlost', handleContextLost);
+      // Capture before remove() tears the transform down; getCenter().toArray()
+      // is [lng, lat], matching the center prop's order.
+      lastViewRef.current = { center: map.getCenter().toArray() as [number, number], zoom: map.getZoom() };
       map.remove();
       mapRef.current = null;
       onMap?.(null);
