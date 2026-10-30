@@ -1,9 +1,10 @@
 {
-  "schema": 2,
+  "schema": 3,
   "icon": "🌙",
   "temperature": "27°",
   "condition": "天晴",
   "rain": "💧 5%",
+  "rainIcon": "💧",
   "warning": "",
   "warningUrgent": false,
   "sunTime": "🌅 06:24",

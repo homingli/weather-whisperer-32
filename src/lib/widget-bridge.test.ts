@@ -99,7 +99,9 @@ describe('buildWidgetPayload', () => {
     // minutely windows end at `time`: 0.5 mm in (09:15, 09:30] → rain from 09:15.
     // Absolute clock, not "in 15m" — the widget cannot tick between syncs.
     data.minutely = [{ time: new Date('2026-10-21T09:30:00'), precipitation: 0.5 }];
-    expect(buildWidgetPayload(data, t, 'metric', now).rain).toBe('☂️ 09:15');
+    const p = buildWidgetPayload(data, t, 'metric', now);
+    expect(p.rain).toBe('☂️ 09:15');
+    expect(p.rainIcon).toBe('☂️');
   });
 
   it('raises the umbrella when the current window is already wet', () => {
@@ -112,6 +114,17 @@ describe('buildWidgetPayload', () => {
     const data = makeData();
     data.minutely = [{ time: new Date('2026-10-21T09:30:00'), precipitation: 0 }];
     expect(buildWidgetPayload(data, t, 'metric', now).rain).toBe('💧 45%');
+  });
+
+  it('carries the bare verdict glyph for the alerts-only widget', () => {
+    // Dry: droplet, not umbrella. The glyph must exist even when `rain`'s
+    // text half is empty-capable (empty PSR), so the alerts widget never
+    // renders a blank cell.
+    const dry = buildWidgetPayload(makeData(), t, 'metric', now);
+    expect(dry.rainIcon).toBe('💧');
+    const wet = makeData();
+    wet.minutely = [{ time: new Date('2026-10-21T09:10:00'), precipitation: 0.5 }];
+    expect(buildWidgetPayload(wet, t, 'metric', now).rainIcon).toBe('☂️');
   });
 
   it('maps WMO code and isDay to an icon', () => {

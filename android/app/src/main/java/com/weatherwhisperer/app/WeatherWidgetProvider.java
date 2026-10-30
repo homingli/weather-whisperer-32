@@ -1,26 +1,22 @@
 package com.weatherwhisperer.app;
 
-import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.util.Base64;
 import android.view.View;
 import android.widget.RemoteViews;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
  * 4x2 home-screen widget: current temp + condition, rain chance, active
  * HKO warning badge, and sunrise/sunset with lead time. Reads the payload
  * the web layer last wrote via WeatherWidgetPlugin — no native fetching,
- * so the widget is exactly as fresh as the app's own data.
+ * so the widget is exactly as fresh as the app's own data. The alerts-only
+ * 2x1 renderer lives in WeatherAlertWidgetProvider; shared plumbing
+ * (payload guard, redraw fan-out, launch tap) in WidgetStore.
  */
 public class WeatherWidgetProvider extends AppWidgetProvider {
 
@@ -38,24 +34,8 @@ public class WeatherWidgetProvider extends AppWidgetProvider {
 
     private static RemoteViews buildViews(Context context) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.weather_widget);
-        applyLaunchIntent(context, views);
-        SharedPreferences prefs = context.getSharedPreferences(
-                WeatherWidgetPlugin.PREFS, Context.MODE_PRIVATE);
-        String raw = prefs.getString(WeatherWidgetPlugin.KEY_PAYLOAD, null);
-
-        JSONObject p = null;
-        if (raw != null) {
-            try {
-                JSONObject parsed = new JSONObject(raw);
-                // A payload another build wrote (schema mismatch) must not be
-                // drawn with this layout: renamed keys read as blank cells next
-                // to a plausible-looking "Updated" stamp. Show the hint instead
-                // so the user opens the app, which rewrites the store.
-                if (parsed.optInt("schema", 0) == WeatherWidgetPlugin.SCHEMA) p = parsed;
-            } catch (JSONException e) {
-                // Malformed — fall through to the neutral state.
-            }
-        }
+        WidgetStore.applyLaunchIntent(context, views);
+        JSONObject p = WidgetStore.readValidPayload(context);
         if (p == null) {
             renderEmpty(context, views);
             return views;
@@ -72,7 +52,7 @@ public class WeatherWidgetProvider extends AppWidgetProvider {
         views.setTextViewText(R.id.widget_updated, p.optString("updatedAt"));
 
         String warning = p.optString("warning", "");
-        Bitmap warningIcon = decodeBase64Bitmap(p.optString("warningIcon", ""));
+        Bitmap warningIcon = WidgetStore.decodeBase64Bitmap(p.optString("warningIcon", ""));
         if (warningIcon != null) {
             // Official HKO alert icon takes precedence over the text badge.
             views.setViewVisibility(R.id.widget_warning_icon, View.VISIBLE);
@@ -107,28 +87,5 @@ public class WeatherWidgetProvider extends AppWidgetProvider {
         views.setViewVisibility(R.id.widget_warning_icon, View.GONE);
         views.setViewVisibility(R.id.widget_row_details, View.GONE);
         views.setViewVisibility(R.id.widget_updated, View.GONE);
-    }
-
-    /** Decode a base64 (or data-URL) payload image; null on any failure. */
-    private static Bitmap decodeBase64Bitmap(String dataUrl) {
-        if (dataUrl == null || dataUrl.isEmpty()) return null;
-        int comma = dataUrl.indexOf(',');
-        String b64 = comma >= 0 ? dataUrl.substring(comma + 1) : dataUrl;
-        try {
-            byte[] bytes = Base64.decode(b64, Base64.DEFAULT);
-            return BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    private static void applyLaunchIntent(Context context, RemoteViews views) {
-        Intent intent = context.getPackageManager()
-                .getLaunchIntentForPackage(context.getPackageName());
-        if (intent == null) return;
-        PendingIntent pending = PendingIntent.getActivity(
-                context, 0, intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        views.setOnClickPendingIntent(R.id.widget_root, pending);
     }
 }

@@ -48,6 +48,6 @@ public class WidgetDebugReceiver extends BroadcastReceiver {
             }
             prefs.edit().putString(WeatherWidgetPlugin.KEY_PAYLOAD, json).apply();
         }
-        WeatherWidgetProvider.updateAll(context);
+        WidgetStore.updateAllWidgets(context);
     }
 }

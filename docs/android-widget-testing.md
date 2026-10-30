@@ -26,10 +26,11 @@ make emu                  # boot the AVD (first boot ~90 s, later ~10 s)
 make emu-install          # install, grant location, pin GPS to HK, launch the app
 ```
 
-Place the widget once per AVD: long-press the home screen → **Widgets** →
-search "Weather" → long-press the preview and drop it. After that the
-widget updates whenever the app syncs or a fixture is injected; `make
-emu-install` after a rebuild keeps the placed widget.
+Place each widget once per AVD: long-press the home screen → **Widgets** →
+search "Weather" → long-press a preview and drop it. There are two: the 4x2
+full widget and the 2x1 alerts-only one (umbrella verdict + HKO warning).
+After that the widgets update whenever the app syncs or a fixture is
+injected; `make emu-install` after a rebuild keeps the placed widgets.
 
 ```sh
 make emu-widget FIXTURE=night-clear     # render a fixture payload
@@ -73,7 +74,12 @@ plausible "Updated HH:MM" stamp (this is how v1's `sunrise`/`sunset` keys
 produced an empty sun cell after the v2 upgrade).
 
 Bump `WIDGET_SCHEMA` (both sides) whenever a key is renamed, removed or
-changes meaning. Adding an optional key does not need a bump.
+changes meaning — or when a new renderer starts consuming a key that older
+payloads predate. Adding an otherwise-unread optional key does not need a
+bump. The v3 bump is the second case: `rainIcon` is drawn only by the 2x1
+alerts widget, so a v2 payload (no `rainIcon`) would have rendered that
+widget silently umbrella-less; the mismatch now falls back to the neutral
+state instead.
 
 ## Reading a widget on a real phone
 

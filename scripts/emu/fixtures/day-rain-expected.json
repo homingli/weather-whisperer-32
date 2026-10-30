@@ -1,9 +1,10 @@
 {
-  "schema": 2,
+  "schema": 3,
   "icon": "🌦️",
   "temperature": "31°",
   "condition": "Light showers",
   "rain": "☂️ 14:30",
+  "rainIcon": "☂️",
   "warning": "Amber",
   "warningUrgent": false,
   "warningCode": "WRAINA",

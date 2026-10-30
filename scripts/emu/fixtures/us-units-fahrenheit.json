@@ -1,9 +1,10 @@
 {
-  "schema": 2,
+  "schema": 3,
   "icon": "☀️",
   "temperature": "88°",
   "condition": "Sunny",
   "rain": "💧 10%",
+  "rainIcon": "💧",
   "warning": "Hot",
   "warningUrgent": false,
   "warningCode": "WHOT",

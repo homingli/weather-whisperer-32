@@ -1,9 +1,10 @@
 {
-  "schema": 2,
+  "schema": 3,
   "icon": "⛈️",
   "temperature": "26°",
   "condition": "Thunderstorms",
   "rain": "☂️ now",
+  "rainIcon": "☂️",
   "warning": "T8",
   "warningUrgent": true,
   "warningCode": "TC8NE",

@@ -20,8 +20,10 @@ public class WeatherWidgetPlugin extends Plugin {
     static final String PREFS = "widget_weather";
     static final String KEY_PAYLOAD = "payload";
     /** Must match WIDGET_SCHEMA in src/lib/widget-bridge.ts. A payload with
-     *  any other value was written by a different build and is not rendered. */
-    static final int SCHEMA = 2;
+     *  any other value was written by a different build and is not rendered.
+     *  v3 added rainIcon, which WeatherAlertWidgetProvider draws — an older
+     *  payload would leave that widget silently umbrella-less. */
+    static final int SCHEMA = 3;
 
     @PluginMethod
     public void save(PluginCall call) {
@@ -33,7 +35,7 @@ public class WeatherWidgetPlugin extends Plugin {
         Context context = getContext();
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         prefs.edit().putString(KEY_PAYLOAD, payload).apply();
-        WeatherWidgetProvider.updateAll(context);
+        WidgetStore.updateAllWidgets(context);
         call.resolve();
     }
 }
