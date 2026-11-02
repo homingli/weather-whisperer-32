@@ -74,7 +74,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, share
   const hasGustData = chartData.some((d) => d.windGust != null);
 
   // Contiguous strong-gust spans, as [startMs, endMs) chart coordinates.
-  // A run of strong hours shades stamp-to-stamp like the day/night bands,
+  // A run of strong hours shades stamp-to-stamp,
   // so adjacent hours merge into one region; the final hour's run extends
   // one hour past the last stamp (ifOverflow=extendDomain widens the domain
   // rather than clipping it).
@@ -163,43 +163,6 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, share
     return events;
   }, [daily, hoursData, formatSunTime]);
 
-  // Night spans from the actual sun times (daily sunrise/sunset) rather
-  // than the hourly is_day flags: is_day can only flip on whole-hour
-  // stamps, so a flag-driven band starts at e.g. 7 PM while the drawn
-  // sunset marker says 6:04 PM. Anchoring to the sun times makes the
-  // shading begin exactly at that marker line. Intervals are clipped to
-  // the chart window, so no domain extension is needed.
-  const nightAreas = useMemo(() => {
-    if (!daily || daily.length === 0 || chartData.length === 0) return [];
-    const winStart = chartData[0].time;
-    const winEnd = chartData[chartData.length - 1].time;
-    // HKO fallback seeds sunrise/sunset with epoch-0 sentinels; treat
-    // non-finite and pre-1971 stamps alike as "no data".
-    const toMs = (d: Date | string): number | null => {
-      const t = (d instanceof Date) ? d.getTime() : new Date(d).getTime();
-      return Number.isNaN(t) || t <= 0 ? null : t;
-    };
-    const areas: { x1: number; x2: number }[] = [];
-    // Pre-dawn window: last night's sunset isn't in `daily` (it starts
-    // today), so shade from the window start until today's sunrise.
-    const sunrise0 = toMs(daily[0].sunrise);
-    if (sunrise0 != null && sunrise0 > winStart) {
-      areas.push({ x1: winStart, x2: Math.min(sunrise0, winEnd) });
-    }
-    // Each evening: sunset_i → sunrise_{i+1}. The next-day sunrise is
-    // optional (daily carries 7 days in practice, but the last evening has
-    // no follower) — it clips to the window end instead.
-    for (let i = 0; i < daily.length; i++) {
-      const set = toMs(daily[i].sunset);
-      if (set == null) continue;
-      const rise = toMs(daily[i + 1]?.sunrise);
-      const x1 = Math.max(set, winStart);
-      const x2 = Math.min(rise ?? winEnd, winEnd);
-      if (x2 > x1) areas.push({ x1, x2 });
-    }
-    return areas;
-  }, [daily, chartData]);
-
   // Custom tick formatter for x-axis
   const formatXAxisTick = useCallback((timestamp: number, index: number) => {
     if (index === 0) return t('hourly.now');
@@ -245,27 +208,13 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, share
               translucent so a hot + stormy hour (80% bar running up behind a
               temp peak) never hides the trace. */}
           <ComposedChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 10 }}>
-            {/* Night shading, anchored to the real sunset/sunrise times so
-                the band starts at the drawn marker line instead of the next
-                full-hour stamp. yAxisId is required: recharts binds every
+            {/* Strong-gust bands. yAxisId is required: recharts binds every
                 Reference* to axis id 0 by default, and this chart's axes
                 are 'left'/'right' — without it the areas are silently
-                dropped (this regressed the night bands once). */}
-            {nightAreas.map((area, index) => (
-              <ReferenceArea
-                key={index}
-                x1={area.x1}
-                x2={area.x2}
-                yAxisId="left"
-                fill="hsl(222 47% 30% / 0.12)"
-                fillOpacity={1}
-              />
-            ))}
-            {/* Strong-gust bands — rendered after the night areas so the
-                tint stacks on top. 15% blue-gray slate (user-tuned): quiet
-                enough to sit under the rain bars, which recharts z-orders
-                above reference areas. Gated at STRONG_WIND_GUST_KMH;
-                exact values in tooltip + sr table. */}
+                dropped. 15% blue-gray slate (user-tuned): quiet enough to
+                sit under the rain bars, which recharts z-orders above
+                reference areas. Gated at STRONG_WIND_GUST_KMH; exact values
+                in tooltip + sr table. */}
             {strongGustAreas.map((area, index) => (
               <ReferenceArea
                 key={`gust-${index}`}
