@@ -159,7 +159,7 @@ describe('HourlyForecast Component', () => {
     expect(screen.getByText(/HOURLY FORECAST/i)).toBeInTheDocument();
     // Chart container still renders (ResponsiveContainer mock always returns a div).
     expect(screen.getByTestId('chart-container')).toBeInTheDocument();
-    // No ReferenceArea for day/night when there's no data.
+    // No ReferenceArea when there's no data.
     expect(screen.queryByTestId('ref-area')).not.toBeInTheDocument();
   });
 
@@ -189,54 +189,6 @@ describe('HourlyForecast Component', () => {
     expect(firstEntry).toHaveProperty('displayTime');
     // temperature should be a number (component rounds it).
     expect(typeof firstEntry.temperature).toBe('number');
-  });
-
-  it('shades night from the real sun times — the band starts at the sunset line, not the next hour stamp', () => {
-    // Window 12:00–13:00 UTC; sunset falls mid-window at 12:30. The night
-    // band must start exactly at the sunset stamp (what the marker line
-    // draws), not at the next whole-hour is_day flip.
-    const mockDaily: DailyForecastType[] = [
-      {
-        date: new Date('2024-01-08'),
-        temperatureMax: 28,
-        temperatureMin: 22,
-        weatherCode: 0,
-        windSpeedMax: 10,
-        windDirectionDominant: 180,
-        precipitationProbabilityMax: 20,
-        sunrise: new Date('2024-01-08T06:00:00Z'),
-        sunset: new Date('2024-01-08T12:30:00Z'),
-      },
-      {
-        date: new Date('2024-01-09'),
-        temperatureMax: 28,
-        temperatureMin: 22,
-        weatherCode: 0,
-        windSpeedMax: 10,
-        windDirectionDominant: 180,
-        precipitationProbabilityMax: 20,
-        sunrise: new Date('2024-01-09T06:00:00Z'),
-        sunset: new Date('2024-01-09T12:30:00Z'),
-      },
-    ];
-
-    renderWithLanguage(<HourlyForecast forecast={mockHourlyData} daily={mockDaily} />);
-
-    const refAreas = screen.getAllByTestId('ref-area');
-    expect(refAreas).toHaveLength(1);
-    const sunsetMs = new Date('2024-01-08T12:30:00Z').getTime();
-    expect(refAreas[0].getAttribute('data-x1')).toBe(String(sunsetMs));
-    // Clipped to the window's last stamp — tomorrow's 06:00 sunrise is
-    // outside it.
-    expect(refAreas[0].getAttribute('data-x2')).toBe(String(mockHourlyData[1].time.getTime()));
-    expect(refAreas[0].getAttribute('data-fill')).toContain('222 47% 30%');
-    // Every ReferenceArea must bind to the chart's actual Y axis
-    // ('left'). recharts binds Reference* to axis id 0 by default and
-    // silently drops a mismatched one — the exact regression 2bf05aa
-    // fixed (night bands invisible in production).
-    for (const area of refAreas) {
-      expect(area.getAttribute('data-y-axis-id')).toBe('left');
-    }
   });
 
   it('renders sunrise/sunset ReferenceLine markers when daily covers the forecast window', () => {
@@ -270,9 +222,10 @@ describe('HourlyForecast Component', () => {
 
     renderWithLanguage(<HourlyForecast forecast={extendedHourly} daily={mockDaily} />);
 
-    // The chart renders, and ReferenceArea bands appear for day/night.
+    // The chart renders. No shading without gust data — daily data only
+    // drives the sun markers now, not bands.
     expect(screen.getByTestId('composed-chart')).toBeInTheDocument();
-    expect(screen.getAllByTestId('ref-area').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByTestId('ref-area')).not.toBeInTheDocument();
 
     // Verify that ReferenceLine was called with label props for the sun events.
     // The mock captures label values in renderedChartData so we can assert
@@ -383,7 +336,7 @@ describe('HourlyForecast Component', () => {
     expect(gustBand!.getAttribute('data-x2')).toBe(String(mockGustyHourlyData[1].time.getTime()));
     // Reference* binds to axis id 0 by default; this chart's axes are
     // 'left'/'right', so a missing yAxisId silently drops the area in real
-    // recharts (this regressed the day/night bands once).
+    // recharts (this regressed the chart's reference areas once).
     expect(gustBand!.getAttribute('data-y-axis-id')).toBe('left');
 
     // The band is a color-only cue — the chart's aria-label carries the
