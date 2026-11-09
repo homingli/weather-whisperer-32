@@ -1,7 +1,7 @@
 import { assert, describe, it, expect, vi, beforeEach } from 'vitest';
 import { fetchWeather } from './weather-manager';
 import { getWeather as getOpenMeteoWeather } from './weather';
-import { isInHongKong, getHKODailyAndWarnings, getHKOCurrentWeather, buildHKOWeatherData, fetchHKOWeatherData } from './hko-weather';
+import { isInHongKong, getHKODailyAndWarnings, getHKOCurrentWeather, buildHKOWeatherData, fetchHKOWeatherData, pickStationReading } from './hko-weather';
 import type { WeatherData, DailyForecast, CurrentWeather, HourlyForecast } from './weather';
 import { STORAGE_KEYS } from './constants';
 import { makeCityId, writeLastKnownWeather } from './weather/storage';
@@ -17,6 +17,7 @@ vi.mock('./hko-weather', () => ({
   getHKOCurrentWeather: vi.fn(),
   buildHKOWeatherData: vi.fn(),
   fetchHKOWeatherData: vi.fn(),
+  pickStationReading: vi.fn(),
 }));
 
 const mockGetOpenMeteo = vi.mocked(getOpenMeteoWeather);
@@ -25,6 +26,7 @@ const mockGetHKOCurrent = vi.mocked(getHKOCurrentWeather);
 const mockBuildHKO = vi.mocked(buildHKOWeatherData);
 const mockFetchHKO = vi.mocked(fetchHKOWeatherData);
 const mockIsInHK = vi.mocked(isInHongKong);
+const mockPickReading = vi.mocked(pickStationReading);
 
 // King's Park approx
 const HK_LAT = 22.3119;
@@ -104,7 +106,7 @@ function makeHkoCurrent(): Awaited<ReturnType<typeof getHKOCurrentWeather>> {
   return {
     temperature: { data: [{ place: "King's Park", value: 25, unit: 'C' }], recordTime: 't' },
     humidity: { data: [{ place: "King's Park", value: 70, unit: '%' }], recordTime: 't' },
-    rainfall: { data: [], startTime: 't', endTime: 't' },
+    rainfall: { data: [{ unit: 'mm', place: 'Yau Tsim Mong', max: 2.5, main: 'FALSE' }], startTime: 't', endTime: 't' },
     icon: [50],
     iconUpdateTime: 't',
     updateTime: 't',
@@ -255,6 +257,44 @@ describe('fetchWeather orchestration', () => {
       expect(result.daily[0].windSpeedMax).toBe(omData.daily[0].windSpeedMax);
       expect(result.daily[0].windDirectionDominant).toBe(omData.daily[0].windDirectionDominant);
       expect(result.daily[0].windSpeedMax).toBeGreaterThan(0);
+    });
+
+    it('prefers the HKO district rainfall observation for current precipitation', async () => {
+      mockIsInHK.mockReturnValue(true);
+      const omData = makeOpenMeteoData({
+        // City-scale model value — the ~8 km OM cell that can disagree with
+        // the user's street.
+        current: { ...makeOpenMeteoData().current, precipitation: 3.1 },
+      });
+      mockGetOpenMeteo.mockResolvedValue(omData);
+      mockGetHKODaily.mockResolvedValue(makeHkoDaily()); // nearestDistrict: 'Yau Tsim Mong'
+      mockGetHKOCurrent.mockResolvedValue(makeHkoCurrent()); // rainfall max 2.5 for that district
+      // Real matcher semantics: exact district-name lookup on the feed list.
+      mockPickReading.mockImplementation((list, name) => list?.data.find((r) => r.place === name));
+
+      const result = await fetchWeather(HK_LAT, HK_LON);
+
+      // The past-hour district OBSERVATION (2.5) outranks the model cell (3.1).
+      expect(result.current.precipitation).toBe(2.5);
+      expect(mockPickReading).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.any(Array) }),
+        'Yau Tsim Mong',
+      );
+    });
+
+    it('keeps OM precipitation when the district rainfall lookup misses', async () => {
+      mockIsInHK.mockReturnValue(true);
+      const omData = makeOpenMeteoData({
+        current: { ...makeOpenMeteoData().current, precipitation: 3.1 },
+      });
+      mockGetOpenMeteo.mockResolvedValue(omData);
+      mockGetHKODaily.mockResolvedValue(makeHkoDaily());
+      mockGetHKOCurrent.mockResolvedValue(makeHkoCurrent());
+      mockPickReading.mockReturnValue(undefined); // district not in the feed
+
+      const result = await fetchWeather(HK_LAT, HK_LON);
+
+      expect(result.current.precipitation).toBe(3.1);
     });
 
     it('falls back to OM current temperature when HKO current fetch fails in the merged path', async () => {
