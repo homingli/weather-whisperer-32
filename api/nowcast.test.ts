@@ -47,6 +47,18 @@ describe('api/nowcast', () => {
     expect((await get('22.3', '114.2')).status).toBe(502);
   });
 
+  it('surfaces a mid-body stream failure as 502, not an unhandled 500', async () => {
+    // Headers arrived, body died (timeout firing mid-download, connection
+    // reset): the body read must stay inside the 502 contract.
+    const dying = new ReadableStream({
+      start(controller) {
+        controller.error(new Error('mid-body reset'));
+      },
+    });
+    fetchMock.mockResolvedValueOnce(new Response(dying, { status: 200 }));
+    expect((await get('22.3', '114.2')).status).toBe(502);
+  });
+
   it('keeps only rain cells inside the crop box and drops zeros', async () => {
     // Grid spacing ~0.018°/0.0195°. Center on (22.30, 114.20); ±0.1° box.
     fetchMock.mockResolvedValueOnce(new Response(csv([

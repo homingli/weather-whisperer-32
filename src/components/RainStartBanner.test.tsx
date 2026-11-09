@@ -218,6 +218,29 @@ describe('RainStartBanner district authority (auto-loaded crop)', () => {
     expect(screen.getByRole('status').textContent).toMatch(/city-scale/);
   });
 
+  it('derives the authority span from a wet crop grid when the header is missing', () => {
+    // Degenerate server response: wet crop, no coverage header. The grid's
+    // own steps are evidence — its horizon bounds OM suppression.
+    const grid = makeGrid([[22.3, 114.2, STEP_1630, 1.0]])!;
+    renderBanner({ ...baseWeather, minutely: minutely([0.5, 0, 0]) }, { local: {
+      grid, updateTime: '', coverageEndRaw: '', coverageEndMs: null,
+    } });
+    expect(screen.getByRole('status').textContent).toMatch(/Raining now/);
+    expect(screen.getByRole('status').textContent).not.toMatch(/city-scale/);
+  });
+
+  it('lets the full map grid serve when the crop entry is evidence-free', () => {
+    // Dev/garbage crop entry + a real map-opened grid: treated as absent,
+    // the map grid supplies district windows (its horizon bounds OM).
+    const fullGrid = makeGrid([[22.3, 114.2, STEP_1630, 1.0]])!;
+    renderBanner(
+      { ...baseWeather, minutely: minutely([0.5, 0, 0]) },
+      { local: evidenceFree, full: { grid: fullGrid } },
+    );
+    expect(screen.getByRole('status').textContent).toMatch(/Raining now/);
+    expect(screen.getByRole('status').textContent).not.toMatch(/city-scale/);
+  });
+
   it('prefers a dry crop over an older-vintage wet map grid', () => {
     // Crop entry present + grid null (all-dry now) vs a wet FULL map grid
     // from an earlier vintage: the fresher district observation wins — the

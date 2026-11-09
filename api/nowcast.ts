@@ -68,21 +68,23 @@ export async function GET(req: Request): Promise<Response> {
   const lon = Math.round(lonRaw * 1000) / 1000;
 
   let upstream: Response;
+  let source: string;
   try {
     upstream = await fetch(HKO_NOWCAST_CSV_URL, {
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
+    if (!upstream.ok) {
+      return jsonResponse(502, { error: 'upstream_error' });
+    }
+    // Inside the try: a timeout firing mid-body or a mid-stream reset must
+    // surface as the file's 502 contract, not an unhandled platform 500.
+    source = await upstream.text();
   } catch {
     return jsonResponse(502, { error: 'upstream_unreachable' });
   }
-  if (!upstream.ok) {
-    return jsonResponse(502, { error: 'upstream_error' });
-  }
-
   // Fixed-schema CSV (5 columns, no quoting — same guarantee the client-side
   // parser in rainfallGrid.ts relies on): UpdateTime, EndTime, Lat, Lon, Value.
   // Line 0 is a header, skipped like the client parser does.
-  const source = await upstream.text();
   const lines = source.split('\n');
   const kept: string[] = [];
   // Domain-wide last step end. HKO stamps are fixed-width zero-padded

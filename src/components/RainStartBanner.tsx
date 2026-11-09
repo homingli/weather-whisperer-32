@@ -30,34 +30,38 @@ interface NowcastCacheEntry {
 const SPARKLINE_STEPS = 24;
 
 /**
+ * Horizon of a parsed grid: the lexicographic max of its step stamps
+ * (fixed-width ⇒ lexicographic = chronological). buildRainGrid records
+ * steps in first-seen file order, not sorted — the max, not the last
+ * element, is the file horizon.
+ */
+function gridHorizonMs(grid: RainGrid | null | undefined): number | null {
+  if (!grid || grid.stepEndTimesRaw.length === 0) return null;
+  const max = grid.stepEndTimesRaw.reduce((a, b) => (b > a ? b : a));
+  return hkoStepEndToEpoch(max);
+}
+
+/**
  * District authority span for the merge: the grid outranks Open-Meteo from
  * now until the source file's coverage ends — authority requires evidence.
- * The crop response carries the domain-wide coverage header
- * (nowcastLocal.ts), which applies even when the crop itself is all-dry
- * ("no rain near this point" is a district observation, not a data gap, and
- * is exactly the "OM says rain, my district is dry" case the auto-load
- * exists for). A header-less response parsed to zero rows — dev serves the
- * TS module for /api/nowcast, and a garbage-200 from upstream yields the
- * same — carries NO evidence, so it grants no authority and OM passes
- * unfiltered. With no crop entry, the full map grid is authoritative
- * through the lexicographic max of its own domain-level steps. Nothing →
- * null.
+ * A crop entry with a coverage header is authoritative through that stamp
+ * even when the crop itself is all-dry ("no rain near this point" is a
+ * district observation, not a data gap, and is exactly the "OM says rain,
+ * my district is dry" case the auto-load exists for). A crop entry without
+ * the header but with a parsed grid falls back to its own steps' horizon.
+ * A header-less response that parsed to zero rows (dev serves the TS
+ * module for /api/nowcast; a garbage-200 upstream yields the same) carries
+ * NO evidence: it grants no authority and blocks nothing — the full map
+ * grid serves instead. Nothing at all → null: OM passes unfiltered.
  */
 function authoritySpanEndMs(
   fullGrid: RainGrid | undefined,
   local: LocalRainNowcast | undefined,
 ): number | null {
   if (local) {
-    return local.coverageEndMs;
+    return local.coverageEndMs ?? gridHorizonMs(local.grid);
   }
-  if (fullGrid && fullGrid.stepEndTimesRaw.length > 0) {
-    // buildRainGrid records steps in first-seen file order, not sorted —
-    // the horizon is the max stamp (fixed-width ⇒ lexicographic works),
-    // not the last element.
-    const max = fullGrid.stepEndTimesRaw.reduce((a, b) => (b > a ? b : a));
-    return hkoStepEndToEpoch(max);
-  }
-  return null;
+  return gridHorizonMs(fullGrid);
 }
 
 /**
@@ -118,12 +122,15 @@ export const RainStartBanner = memo(
     }, []);
 
     const forecast = useMemo(() => {
-      // Crop entry present means the crop wins — INCLUDING when its grid is
-      // null (all-dry): falling back to a possibly older-vintage wet map
-      // grid would let stale city data contradict the fresher district
-      // observation. The map grid only serves when no crop entry exists yet.
-      const grid = localNowcast ? localNowcast.grid : nowcast?.grid ?? null;
-      const spanEnd = authoritySpanEndMs(nowcast?.grid, localNowcast);
+      // A crop entry with evidence (coverage stamp or parsed grid) wins
+      // outright — INCLUDING when its grid is null (all-dry): falling back
+      // to a possibly older-vintage wet map grid would let stale city data
+      // contradict the fresher district observation. An evidence-free entry
+      // is treated as absent so the map grid can still serve.
+      const localHasEvidence =
+        !!localNowcast && (localNowcast.coverageEndMs !== null || localNowcast.grid !== null);
+      const grid = localHasEvidence ? localNowcast!.grid : nowcast?.grid ?? null;
+      const spanEnd = authoritySpanEndMs(nowcast?.grid, localHasEvidence ? localNowcast : undefined);
       const minutely = seriesFromMinutely(weather.minutely);
       const hourly = seriesFromHourly(weather.hourly);
       return computeRainStart({
