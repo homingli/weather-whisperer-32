@@ -1,8 +1,8 @@
 // @vitest-environment node
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-// Named HTTP-method export — the Web fetch-style contract the Vercel Node
-// runtime honours (same as api/feedback.ts). Aliased to `handler` for brevity.
-import { GET as handler } from './nowcast';
+// Named HTTP-method exports — the Web fetch-style contract the Vercel Node
+// runtime honours (same as api/feedback.ts). Aliased for brevity.
+import { GET as handler, HEAD as headHandler } from './nowcast';
 
 /** One synthetic HKO nowcast row: UpdateTime, EndTime, Lat, Lon, Value. */
 function row(lat: number, lon: number, value: number, endTime = '202609171630'): string {
@@ -145,5 +145,166 @@ describe('api/nowcast', () => {
     // A stray \r must not crash response construction; digits survive.
     expect(res.status).toBe(200);
     expect(res.headers.get('x-nowcast-coverage-until')).toBe('202609171630');
+  });
+
+  describe('mode=full (rain map stream)', () => {
+    function runFull(extraQuery = ''): Promise<Response> {
+      return handler(new Request(`https://app.test/api/nowcast?mode=full${extraQuery}`));
+    }
+
+    /** Upstream body as real byte chunks, split at awkward line boundaries. */
+    function streamOf(chunks: string[]): ReadableStream<Uint8Array> {
+      const encoder = new TextEncoder();
+      return new ReadableStream({
+        start(controller) {
+          for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+          controller.close();
+        },
+      });
+    }
+
+    it('forwards rain rows domain-wide with no crop box', async () => {
+      fetchMock.mockResolvedValueOnce(new Response(streamOf([
+        HEADER + '\n',
+        row(22.30, 114.20, 1.5) + '\n',
+        row(49.28, -123.12, 9.0) + '\n', // Vancouver — far outside the PRD, still kept
+        row(22.3, 114.2, 0.0) + '\n',    // zero — dropped
+        row(22.3, 114.2, -1) + '\n',     // negative — dropped
+        'garbage\n',                     // malformed — dropped
+      ]), { status: 200 }));
+
+      const res = await runFull();
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toContain('text/csv');
+      expect(res.headers.get('cache-control')).toContain('s-maxage=300');
+      expect(res.headers.get('access-control-allow-origin')).toBe('*');
+      const body = await res.text();
+      const lines = body.split('\n');
+      expect(lines[0]).toBe(HEADER);
+      // header + 2 rows, then '' from the trailing newline each streamed row carries
+      expect(lines).toHaveLength(4);
+      expect(lines[3]).toBe('');
+      expect(body).toContain('9.00'); // no crop box: the far row survives
+    });
+
+    it('needs no coords and ignores stray ones so the CDN key stays global', async () => {
+      const upstream = new Response(streamOf([
+        HEADER + '\n' + row(49.28, -123.12, 9.0) + '\n',
+      ]), { status: 200 });
+      fetchMock.mockResolvedValueOnce(upstream.clone()).mockResolvedValueOnce(upstream.clone());
+
+      const bare = await runFull();
+      const withCoords = await runFull('&lat=22.3&lon=114.2');
+      expect(bare.status).toBe(200);
+      expect(withCoords.status).toBe(200);
+      // Identical bodies: coords must not fork the cache entry, and the
+      // far-away row proves no crop was applied to the coord-ful variant.
+      const bareBody = await bare.text();
+      expect(await withCoords.text()).toBe(bareBody);
+      expect(bareBody).toContain('9.00');
+    });
+
+    it('forwards HKO Last-Modified and exposes it to cross-origin reads', async () => {
+      const lm = 'Mon, 09 Nov 2026 17:45:57 GMT';
+      fetchMock.mockResolvedValueOnce(new Response(streamOf([HEADER + '\n']), {
+        status: 200,
+        headers: { 'Last-Modified': lm },
+      }));
+      const res = await runFull();
+      // Not CORS-safelisted: without Access-Control-Expose-Headers the native
+      // build could never read it and the freshness probe would always miss.
+      expect(res.headers.get('last-modified')).toBe(lm);
+      expect(res.headers.get('access-control-expose-headers')).toContain('Last-Modified');
+    });
+
+    it('surfaces upstream failure as 502 before the response commits', async () => {
+      fetchMock.mockRejectedValueOnce(new Error('HKO down'));
+      expect((await runFull()).status).toBe(502);
+      fetchMock.mockResolvedValueOnce(new Response(streamOf([HEADER + '\n']), { status: 503 }));
+      expect((await runFull()).status).toBe(502);
+    });
+
+    it('truncates instead of 502ing when the body dies after commit', async () => {
+      // Streaming contract: status 200 goes out with upstream headers; a
+      // mid-body reset truncates the CSV. The client parser tolerates
+      // partial rows and falls to the map's stale-data path — this is the
+      // documented asymmetry vs the crop mode's buffered 502 contract.
+      const encoder = new TextEncoder();
+      const dying = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode(HEADER + '\n' + row(22.3, 114.2, 1.0) + '\npartial'));
+          controller.error(new Error('mid-body reset'));
+        },
+      });
+      fetchMock.mockResolvedValueOnce(new Response(dying, { status: 200 }));
+      const res = await runFull();
+      expect(res.status).toBe(200);
+      await expect(res.text()).rejects.toThrow();
+    });
+
+    it('reassembles lines split across chunks and strips CRLF', async () => {
+      // Chunks split mid-header-token, mid-field, and between \r and \n.
+      const chunks = [
+        'UpdateTime,EndTime,Latitude,Longitude,Val',
+        'ue_mm\r\n202609171600,202609171630,22.3',
+        '00,114.200,1.50\r\n202609171600,202609171630,22.310,114.210,2.00\r',
+        '\n',
+      ];
+      fetchMock.mockResolvedValueOnce(new Response(streamOf(chunks), { status: 200 }));
+      const res = await runFull();
+      expect(await res.text()).toBe(
+        [HEADER, row(22.30, 114.20, 1.5), row(22.31, 114.21, 2.0)].join('\n') + '\n',
+      );
+    });
+
+    it('forwards a final row that lacks a trailing newline', async () => {
+      fetchMock.mockResolvedValueOnce(new Response(streamOf([
+        HEADER + '\n' + row(22.3, 114.2, 1.0),
+      ]), { status: 200 }));
+      const res = await runFull();
+      expect(await res.text()).toBe(HEADER + '\n' + row(22.3, 114.2, 1.0) + '\n');
+    });
+
+    it('falls back to buffered filtering when upstream has no stream', async () => {
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
+      const res = await runFull();
+      expect(res.status).toBe(200);
+      expect(await res.text()).toBe(HEADER);
+    });
+  });
+
+  describe('HEAD freshness probe (mode=full)', () => {
+    function runHead(url = 'https://app.test/api/nowcast?mode=full'): Promise<Response> {
+      return headHandler(new Request(url, { method: 'HEAD' }));
+    }
+
+    it('answers from a headers-only upstream HEAD and forwards Last-Modified', async () => {
+      const lm = 'Mon, 09 Nov 2026 17:45:57 GMT';
+      fetchMock.mockResolvedValueOnce(new Response(null, {
+        status: 200,
+        headers: { 'Last-Modified': lm },
+      }));
+      const res = await runHead();
+      expect(res.status).toBe(200);
+      expect(res.headers.get('last-modified')).toBe(lm);
+      expect(res.headers.get('access-control-expose-headers')).toContain('Last-Modified');
+      expect(res.headers.get('cache-control')).toContain('s-maxage=300');
+      expect(await res.text()).toBe('');
+      // The upstream probe must be a headers-only HEAD, never a download.
+      expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('HEAD');
+    });
+
+    it('rejects non-full modes without touching HKO', async () => {
+      const res = await runHead('https://app.test/api/nowcast?lat=22.3&lon=114.2');
+      expect(res.status).toBe(400);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('surfaces upstream failure as 502', async () => {
+      fetchMock.mockRejectedValueOnce(new Error('HKO down'));
+      expect((await runHead()).status).toBe(502);
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
+      expect((await runHead()).status).toBe(502);
+    });
   });
 });
