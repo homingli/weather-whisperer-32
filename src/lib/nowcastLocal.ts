@@ -30,12 +30,9 @@ export interface LocalRainNowcast {
   /** Raw "YYYYMMDDHHmm" domain-wide last step end from the response header. */
   coverageEndRaw: string;
   /** Epoch ms of `coverageEndRaw`, null when the header was missing or
-   *  unparseable (callers fall back to a conservative fixed span). */
+   *  unparseable. Null = no evidence = no district authority (the banner's
+   *  merge passes Open-Meteo through unfiltered). */
   coverageEndMs: number | null;
-  /** Epoch ms when this entry was fetched. Anchors the no-header authority
-   *  fallback so a moving clock can't slide the suppression window forward
-   *  forever (see RainStartBanner.authoritySpanEndMs). */
-  fetchedAt: number;
 }
 
 /**
@@ -103,7 +100,6 @@ export async function fetchLocalRainNowcast(
       updateTime: parsed.updateTime,
       coverageEndRaw,
       coverageEndMs: hkoStepEndToEpoch(coverageEndRaw),
-      fetchedAt: Date.now(),
     };
   } finally {
     clearTimeout(timer);

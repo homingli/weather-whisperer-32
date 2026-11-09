@@ -30,34 +30,32 @@ interface NowcastCacheEntry {
 const SPARKLINE_STEPS = 24;
 
 /**
- * Fallback authority span when a crop response lacks a usable coverage
- * header: HKO's nowcast file covers ~2 h, so a successful crop may be
- * trusted at most that far — never beyond. Anchored on the entry's fetch
- * epoch (not the minute tick), so the window can't slide forward forever.
- */
-const LOCAL_AUTHORITY_FALLBACK_MIN = 120;
-
-/**
  * District authority span for the merge: the grid outranks Open-Meteo from
- * now until the source file's coverage ends. The crop response carries the
- * domain-wide coverage header (nowcastLocal.ts), which applies even when the
- * crop itself is all-dry — "no rain near this point" is a district
- * observation, not a data gap, and is exactly the "OM says rain, my district
- * is dry" case the auto-load exists for. With no crop entry, the full map
- * grid is authoritative through its own last step (the grid records
- * domain-level steps, so the last entry is the file horizon). No grid at
- * all → null: OM windows pass unfiltered.
+ * now until the source file's coverage ends — authority requires evidence.
+ * The crop response carries the domain-wide coverage header
+ * (nowcastLocal.ts), which applies even when the crop itself is all-dry
+ * ("no rain near this point" is a district observation, not a data gap, and
+ * is exactly the "OM says rain, my district is dry" case the auto-load
+ * exists for). A header-less response parsed to zero rows — dev serves the
+ * TS module for /api/nowcast, and a garbage-200 from upstream yields the
+ * same — carries NO evidence, so it grants no authority and OM passes
+ * unfiltered. With no crop entry, the full map grid is authoritative
+ * through the lexicographic max of its own domain-level steps. Nothing →
+ * null.
  */
 function authoritySpanEndMs(
   fullGrid: RainGrid | undefined,
   local: LocalRainNowcast | undefined,
 ): number | null {
   if (local) {
-    return local.coverageEndMs ?? local.fetchedAt + LOCAL_AUTHORITY_FALLBACK_MIN * 60_000;
+    return local.coverageEndMs;
   }
   if (fullGrid && fullGrid.stepEndTimesRaw.length > 0) {
-    const last = fullGrid.stepEndTimesRaw[fullGrid.stepEndTimesRaw.length - 1];
-    return hkoStepEndToEpoch(last);
+    // buildRainGrid records steps in first-seen file order, not sorted —
+    // the horizon is the max stamp (fixed-width ⇒ lexicographic works),
+    // not the last element.
+    const max = fullGrid.stepEndTimesRaw.reduce((a, b) => (b > a ? b : a));
+    return hkoStepEndToEpoch(max);
   }
   return null;
 }

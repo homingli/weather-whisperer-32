@@ -88,7 +88,16 @@ const dryCrop: LocalRainNowcast = {
   updateTime: '',
   coverageEndRaw: STEP_1730,
   coverageEndMs: Date.UTC(2026, 8, 17, 9, 30),
-  fetchedAt: NOW,
+};
+
+/** A header-less 200 (dev serves the TS module for /api/nowcast; a garbage
+ *  upstream body hits the same path in prod): zero rows parsed, no coverage
+ *  evidence — must grant the crop NO district authority. */
+const evidenceFree: LocalRainNowcast = {
+  grid: null,
+  updateTime: '',
+  coverageEndRaw: '',
+  coverageEndMs: null,
 };
 
 describe('RainStartBanner', () => {
@@ -182,7 +191,7 @@ describe('RainStartBanner district authority (auto-loaded crop)', () => {
       [22.35, 114.25, STEP_1700, 2.0],
     ])!;
     renderBanner({ ...baseWeather, minutely: minutely([0.5, 0, 0]) }, { local: {
-      grid, updateTime: '', coverageEndRaw: STEP_1730, coverageEndMs: Date.UTC(2026, 8, 17, 9, 30), fetchedAt: NOW,
+      grid, updateTime: '', coverageEndRaw: STEP_1730, coverageEndMs: Date.UTC(2026, 8, 17, 9, 30),
     } });
     expect(screen.getByRole('status').textContent).toMatch(/Raining now/);
     expect(screen.getByRole('status').textContent).not.toMatch(/city-scale/);
@@ -198,6 +207,15 @@ describe('RainStartBanner district authority (auto-loaded crop)', () => {
       { local: dryCrop },
     );
     expect(container.textContent).toBe('');
+  });
+
+  it('grants no authority to an evidence-free crop response', () => {
+    // Header-less 200 (dev /api/nowcast serves the TS module; garbage
+    // upstream body in prod): zero rows, no coverage — Open-Meteo must stay
+    // unfiltered instead of being suppressed on no data.
+    renderBanner({ ...baseWeather, minutely: minutely([0.5, 0, 0]) }, { local: evidenceFree });
+    expect(screen.getByRole('status').textContent).toMatch(/Raining now/);
+    expect(screen.getByRole('status').textContent).toMatch(/city-scale/);
   });
 
   it('prefers a dry crop over an older-vintage wet map grid', () => {
@@ -218,7 +236,7 @@ describe('RainStartBanner district authority (auto-loaded crop)', () => {
     // district timing wins, verdict is grid-backed (no city-scale kicker).
     const grid = makeGrid([[22.3, 114.2, STEP_1730, 1.0]])!;
     renderBanner({ ...baseWeather, minutely: minutely([0.5, 0, 0, 0, 0, 0]) }, { local: {
-      grid, updateTime: '', coverageEndRaw: STEP_1730, coverageEndMs: Date.UTC(2026, 8, 17, 9, 30), fetchedAt: NOW,
+      grid, updateTime: '', coverageEndRaw: STEP_1730, coverageEndMs: Date.UTC(2026, 8, 17, 9, 30),
     } });
     const live = screen.getByRole('status');
     expect(live.textContent).toMatch(/Rain expected around 09:00/);
