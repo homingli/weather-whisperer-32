@@ -268,7 +268,11 @@ export default function RainfallMapInner({
   // Same 1080px breakpoint as the rest of the app (shared refcounted
   // matchMedia listener in useIsMobile).
   const isMobile = useIsMobile();
-  const minZoom = isMobile ? 6 : 7;
+  // Two levels above the old 6/7 floor: the widest allowed view stops at
+  // district scale — zoomed further out the cells smear into a region-wide
+  // blob that reads as "raining over everything", the exact misread this
+  // map exists to fix.
+  const minZoom = isMobile ? 8 : 9;
 
   const queryClient = useQueryClient();
   const { data, error, isLoading, isFetching, refetch } = useQuery({
