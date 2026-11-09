@@ -34,8 +34,10 @@ if (typeof window !== 'undefined') {
   // (vi.stubGlobal / Object.defineProperty) if a test needs different matches.
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
-    // configurable so per-test re-stubs (vi.stubGlobal / defineProperty) work
-    // under the vmThreads pool, where this setup runs once per worker.
+    // configurable: under the vmThreads pool the jsdom window persists per
+    // worker, so this setup re-runs per test file on the same window — each
+    // re-define (and per-test re-stubs via vi.stubGlobal / defineProperty)
+    // must be able to replace the previous definition.
     configurable: true,
     value: vi.fn().mockImplementation(query => ({
       matches: false,
