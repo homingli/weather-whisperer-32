@@ -21,9 +21,9 @@ public class WeatherWidgetPlugin extends Plugin {
     static final String KEY_PAYLOAD = "payload";
     /** Must match WIDGET_SCHEMA in src/lib/widget-bridge.ts. A payload with
      *  any other value was written by a different build and is not rendered.
-     *  v3 added rainIcon, which WeatherAlertWidgetProvider draws — an older
-     *  payload would leave that widget silently umbrella-less. */
-    static final int SCHEMA = 3;
+     *  v4 replaced the single warning keys with a warnings array — an older
+     *  payload would render one alert where several are active. */
+    static final int SCHEMA = 4;
 
     @PluginMethod
     public void save(PluginCall call) {

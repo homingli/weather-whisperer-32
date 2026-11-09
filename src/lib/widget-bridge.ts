@@ -44,8 +44,25 @@ const WeatherWidget = registerPlugin<WeatherWidgetPlugin>('WeatherWidget', {
  * meaning, or is newly consumed by a renderer that older payloads predate
  * (v3: rainIcon — an old payload missing it would leave the alerts widget
  * silently umbrella-less); keep WeatherWidgetPlugin.SCHEMA in lockstep.
+ * (v4: the single warning/warningUrgent/warningCode/warningIcon keys became
+ * the warnings array — an old payload would render exactly one of several
+ * active alerts.)
  */
-export const WIDGET_SCHEMA = 3;
+export const WIDGET_SCHEMA = 4;
+
+/** One active warning, fully resolved for display. Native draws the icon
+ *  when present, else the text badge — mirroring the old single-warning
+ *  precedence per alert. */
+export interface WidgetWarningCell {
+  /** HKO warnsum code of the warning (drives icon loading). */
+  code: string;
+  /** Short badge text; native shows the icon instead when available. */
+  badge: string;
+  urgent: boolean;
+  /** Base64 PNG of the official warning icon; absent when rendering failed
+   *  — native falls back to the text badge. */
+  icon?: string;
+}
 
 /** Flat payload of display strings; keys match the Android layout ids. */
 export interface WidgetPayload {
@@ -61,14 +78,8 @@ export interface WidgetPayload {
   /** Bare verdict glyph (☂️/💧) for the alerts-only widget; `rain` keeps
    *  its prefix so the 4x2 renderer is untouched by this key. */
   rainIcon: string;
-  /** Short badge text; native shows the icon instead when available. */
-  warning: string;
-  warningUrgent: boolean;
-  /** HKO warnsum code of the first active warning (drives icon loading). */
-  warningCode?: string;
-  /** Base64 PNG of the official warning icon; absent when rendering failed
-   *  or no warning is active — native falls back to the text badge. */
-  warningIcon?: string;
+  /** Every active warning, most severe first. */
+  warnings: WidgetWarningCell[];
   /** Single sun cell — next sunset while day, next sunrise at night. */
   sunTime: string;
   sunIn: string;
@@ -212,12 +223,15 @@ export function buildWidgetPayload(
   const activeWarnings = (data.warnings ?? []).filter(
     w => w.actionCode?.toUpperCase() !== 'CANCEL'
   );
-  // Surface the most severe active warning, not merely the first in feed
-  // order — a T8 must not hide behind an earlier amber rain entry.
-  const ranked = activeWarnings.map(w => ({ warning: w, badge: warningBadge(w, t) }));
-  const pick = ranked.find(r => r.badge.urgent) ?? ranked[0];
-  const firstWarning = pick?.warning;
-  const badge = pick?.badge;
+  // Ship EVERY active warning — the widget row renders them all — but lead
+  // with the urgent ones: a T8 must not trail an earlier amber rain entry.
+  // Stable sort keeps feed order inside each group.
+  const warnings: WidgetWarningCell[] = activeWarnings
+    .map(w => {
+      const badge = warningBadge(w, t);
+      return { code: w.code, badge: badge.text, urgent: badge.urgent };
+    })
+    .sort((a, b) => Number(b.urgent) - Number(a.urgent));
 
   return {
     schema: WIDGET_SCHEMA,
@@ -226,9 +240,7 @@ export function buildWidgetPayload(
     condition,
     rain,
     rainIcon,
-    warning: badge?.text ?? '',
-    warningUrgent: badge?.urgent ?? false,
-    warningCode: firstWarning?.code,
+    warnings,
     sunTime: sunEvent ? `${sunGlyph} ${formatClock(sunEvent, timeZone)}` : '',
     sunIn: sunEvent ? countdown(sunEvent, nowMs, t) : '',
     updatedAt: formatString(t('widget.updated', 'Updated {0}'), formatClock(now)),
@@ -333,14 +345,19 @@ export function syncWeatherWidget(
   const token = ++latestSyncToken;
   void (async () => {
     const payload = buildWidgetPayload(data, t, units, now);
-    if (payload.warningCode) {
-      payload.warningIcon = await loadIcon(payload.warningCode);
+    if (payload.warnings.length > 0) {
+      // Each warning renders its own official icon; a failure degrades that
+      // one alert to the text badge inside an otherwise-complete payload.
+      const icons = await Promise.all(payload.warnings.map(w => loadIcon(w.code)));
+      payload.warnings.forEach((w, i) => {
+        if (icons[i]) w.icon = icons[i];
+      });
     }
     if (token !== latestSyncToken) return;
     await WeatherWidget.save({ payload: JSON.stringify(payload) });
     logEvent('widget.sync', {
-      warning: payload.warningCode ?? null,
-      icon: Boolean(payload.warningIcon),
+      warnings: payload.warnings.map(w => w.code),
+      icons: payload.warnings.filter(w => w.icon).length,
     });
   })().catch(err => {
     logWarn('widget: sync failed', err);

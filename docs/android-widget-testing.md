@@ -35,6 +35,7 @@ injected; `make emu-install` after a rebuild keeps the placed widgets.
 ```sh
 make emu-widget FIXTURE=night-clear     # render a fixture payload
 make emu-widget FIXTURE=raining-now-t8  # umbrella "now" + T8 icon, urgent
+make emu-widget FIXTURE=multi-alert     # three active alerts at once, both widgets
 make emu-clear                          # empty "open the app" state
 make emu-shot                           # PNG → scripts/emu/shots/<time>.png
 ```

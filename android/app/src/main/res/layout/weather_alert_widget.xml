@@ -14,29 +14,14 @@
         android:paddingStart="10dp"
         android:paddingEnd="10dp">
 
-        <ImageView
-            android:id="@+id/alert_widget_warning_icon"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:scaleType="fitCenter"
-            android:contentDescription="@string/widget_warning_desc"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/alert_widget_warning"
+        <!-- One widget_warning_item per active warning, added by
+             WidgetStore.applyWarnings — never hardcode children here. -->
+        <LinearLayout
+            android:id="@+id/alert_widget_warnings"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp"
-            android:background="@drawable/widget_badge_warn"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:visibility="gone" />
 
         <TextView

@@ -179,42 +179,51 @@ describe('buildWidgetPayload', () => {
     expect(p.sunIn).toBe('sun.inHoursMinutes');
   });
 
-  it('drops cancelled warnings and badges the first active one', () => {
+  it('drops cancelled warnings and carries every active one', () => {
     const data = makeData();
-    data.warnings = [warning('WRAINA'), { ...warning('TC8'), actionCode: 'CANCEL' }];
+    data.warnings = [
+      warning('WRAINA'),
+      { ...warning('TC8'), actionCode: 'CANCEL' },
+      warning('WTS', 'Thunderstorm Warning'),
+    ];
     const p = buildWidgetPayload(data, t, 'metric', now);
-    expect(p.warning).toBe('widget.badge.WRAINA');
-    expect(p.warningUrgent).toBe(false);
+    expect(p.warnings.map(w => w.badge)).toEqual(['widget.badge.WRAINA', 'widget.badge.WTS']);
+    expect(p.warnings[0].urgent).toBe(false);
   });
 
   it('uses the TC shorthand and urgent tone for signal no. 8', () => {
     const data = makeData();
     data.warnings = [warning('TC8NE', 'No. 8 Northeast Gale or Storm Signal')];
     const p = buildWidgetPayload(data, t, 'metric', now);
-    expect(p.warning).toBe('T8');
-    expect(p.warningUrgent).toBe(true);
+    expect(p.warnings[0].badge).toBe('T8');
+    expect(p.warnings[0].urgent).toBe(true);
   });
 
-  it('prefers the most severe active warning over feed order', () => {
+  it('carries all active warnings, urgent ones first with feed order kept', () => {
     const data = makeData();
-    data.warnings = [warning('WRAINA'), warning('TC8NE')];
+    data.warnings = [
+      warning('WRAINA'),
+      warning('TC8NE', 'No. 8 Northeast Gale or Storm Signal'),
+      warning('WTS', 'Thunderstorm Warning'),
+      warning('WFIRER', 'Fire Danger Warning (Red)'),
+    ];
     const p = buildWidgetPayload(data, t, 'metric', now);
-    expect(p.warning).toBe('T8');
-    expect(p.warningCode).toBe('TC8NE');
+    expect(p.warnings.map(w => w.code)).toEqual(['TC8NE', 'WFIRER', 'WRAINA', 'WTS']);
+    expect(p.warnings.every(w => w.urgent === ['TC8NE', 'WFIRER'].includes(w.code))).toBe(true);
   });
 
   it('uses translated shorthands for common non-TC warnings', () => {
     const data = makeData();
     data.warnings = [warning('WTS', 'Thunderstorm Warning')];
-    expect(buildWidgetPayload(data, t, 'metric', now).warning).toBe('widget.badge.WTS');
+    expect(buildWidgetPayload(data, t, 'metric', now).warnings[0].badge).toBe('widget.badge.WTS');
   });
 
   it('marks red fire danger urgent via its real warnsum code', () => {
     const data = makeData();
     data.warnings = [warning('WFIRER', 'Fire Danger Warning (Red)')];
     const p = buildWidgetPayload(data, t, 'metric', now);
-    expect(p.warning).toBe('widget.badge.WFIRER');
-    expect(p.warningUrgent).toBe(true);
+    expect(p.warnings[0].badge).toBe('widget.badge.WFIRER');
+    expect(p.warnings[0].urgent).toBe(true);
   });
 
   it('defaults sun clocks to Hong Kong time on the HKO fallback path', () => {
@@ -229,13 +238,12 @@ describe('buildWidgetPayload', () => {
   it('falls back to the warning name for unmapped codes', () => {
     const data = makeData();
     data.warnings = [warning('XYZZY', 'Mystery Warning')];
-    expect(buildWidgetPayload(data, t, 'metric', now).warning).toBe('Mystery');
+    expect(buildWidgetPayload(data, t, 'metric', now).warnings[0].badge).toBe('Mystery');
   });
 
-  it('leaves the warning empty when none are active', () => {
+  it('carries no warnings when none are active', () => {
     const p = buildWidgetPayload(makeData(), t, 'metric', now);
-    expect(p.warning).toBe('');
-    expect(p.warningUrgent).toBe(false);
+    expect(p.warnings).toEqual([]);
   });
 
   it('stamps the update time under the widget.updated key', () => {
@@ -273,7 +281,6 @@ describe('widget schema lockstep', () => {
   it('keeps the emulator fixtures on the current schema with known keys only', () => {
     const dir = join(root, 'scripts/emu/fixtures');
     const knownKeys = new Set(Object.keys(buildWidgetPayload(makeData(), t, 'metric', new Date())));
-    knownKeys.add('warningIcon');
     const fixtures = readdirSync(dir).filter(f => f.endsWith('.json'));
     expect(fixtures.length).toBeGreaterThan(0);
     for (const file of fixtures) {
@@ -338,7 +345,21 @@ describe('syncWeatherWidget', () => {
     data.warnings = [warning('WRAINA')];
     syncWeatherWidget(data, t, 'metric', now, async () => 'data:image/png;base64,AAA');
     await vi.waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
-    expect(savedPayload().warningIcon).toBe('data:image/png;base64,AAA');
+    expect(savedPayload().warnings[0].icon).toBe('data:image/png;base64,AAA');
+  });
+
+  it('renders an icon for each active warning onto its own cell', async () => {
+    const data = makeData();
+    data.warnings = [warning('WRAINA'), warning('TC8NE', 'No. 8 Northeast Gale or Storm Signal')];
+    syncWeatherWidget(data, t, 'metric', now, async code => `data:image/png;base64,${code}`);
+    await vi.waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
+    const warnings = savedPayload().warnings as Array<{ code: string; icon?: string }>;
+    // Urgent first: TC8NE leads, WRAINA trails — icons land on their own cell.
+    expect(warnings.map(w => w.code)).toEqual(['TC8NE', 'WRAINA']);
+    expect(warnings.map(w => w.icon)).toEqual([
+      'data:image/png;base64,TC8NE',
+      'data:image/png;base64,WRAINA',
+    ]);
   });
 
   it('falls back to the text badge when icon rendering fails', async () => {
@@ -347,8 +368,8 @@ describe('syncWeatherWidget', () => {
     syncWeatherWidget(data, t, 'metric', now, async () => undefined);
     await vi.waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
     const payload = savedPayload();
-    expect(payload.warningIcon).toBeUndefined();
-    expect(payload.warning).toBe('widget.badge.WRAINA');
+    expect(payload.warnings[0].icon).toBeUndefined();
+    expect(payload.warnings[0].badge).toBe('widget.badge.WRAINA');
   });
 
   it('does not attempt icon rendering without an active warning', async () => {

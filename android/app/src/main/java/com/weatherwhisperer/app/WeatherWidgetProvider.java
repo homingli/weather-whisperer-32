@@ -4,19 +4,19 @@ import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.ComponentName;
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.view.View;
 import android.widget.RemoteViews;
 
 import org.json.JSONObject;
 
 /**
- * 4x2 home-screen widget: current temp + condition, rain chance, active
- * HKO warning badge, and sunrise/sunset with lead time. Reads the payload
- * the web layer last wrote via WeatherWidgetPlugin — no native fetching,
- * so the widget is exactly as fresh as the app's own data. The alerts-only
- * 2x1 renderer lives in WeatherAlertWidgetProvider; shared plumbing
- * (payload guard, redraw fan-out, launch tap) in WidgetStore.
+ * 4x2 home-screen widget: current temp + condition, rain chance, one badge
+ * per active HKO warning, and sunrise/sunset with lead time. Reads the
+ * payload the web layer last wrote via WeatherWidgetPlugin — no native
+ * fetching, so the widget is exactly as fresh as the app's own data. The
+ * alerts-only 2x1 renderer lives in WeatherAlertWidgetProvider; shared
+ * plumbing (payload guard, redraw fan-out, launch tap, warnings row) in
+ * WidgetStore.
  */
 public class WeatherWidgetProvider extends AppWidgetProvider {
 
@@ -51,27 +51,7 @@ public class WeatherWidgetProvider extends AppWidgetProvider {
         views.setTextViewText(R.id.widget_sun_in, p.optString("sunIn"));
         views.setTextViewText(R.id.widget_updated, p.optString("updatedAt"));
 
-        String warning = p.optString("warning", "");
-        Bitmap warningIcon = WidgetStore.decodeBase64Bitmap(p.optString("warningIcon", ""));
-        if (warningIcon != null) {
-            // Official HKO alert icon takes precedence over the text badge.
-            views.setViewVisibility(R.id.widget_warning_icon, View.VISIBLE);
-            views.setImageViewBitmap(R.id.widget_warning_icon, warningIcon);
-            views.setViewVisibility(R.id.widget_warning, View.GONE);
-            views.setContentDescription(R.id.widget_warning_icon,
-                    context.getString(R.string.widget_warning_desc));
-        } else if (!warning.isEmpty()) {
-            views.setViewVisibility(R.id.widget_warning_icon, View.GONE);
-            views.setViewVisibility(R.id.widget_warning, View.VISIBLE);
-            views.setTextViewText(R.id.widget_warning, warning);
-            int badge = p.optBoolean("warningUrgent")
-                    ? R.drawable.widget_badge_urgent
-                    : R.drawable.widget_badge_warn;
-            views.setInt(R.id.widget_warning, "setBackgroundResource", badge);
-        } else {
-            views.setViewVisibility(R.id.widget_warning_icon, View.GONE);
-            views.setViewVisibility(R.id.widget_warning, View.GONE);
-        }
+        WidgetStore.applyWarnings(context, views, p, R.id.widget_warnings);
         return views;
     }
 
@@ -83,8 +63,7 @@ public class WeatherWidgetProvider extends AppWidgetProvider {
         views.setTextViewText(R.id.widget_icon, "");
         views.setTextViewText(R.id.widget_temp, "—");
         views.setTextViewText(R.id.widget_condition, context.getString(R.string.widget_empty_hint));
-        views.setViewVisibility(R.id.widget_warning, View.GONE);
-        views.setViewVisibility(R.id.widget_warning_icon, View.GONE);
+        WidgetStore.applyWarnings(context, views, new JSONObject(), R.id.widget_warnings);
         views.setViewVisibility(R.id.widget_row_details, View.GONE);
         views.setViewVisibility(R.id.widget_updated, View.GONE);
     }

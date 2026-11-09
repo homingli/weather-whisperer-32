@@ -9,17 +9,19 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Base64;
+import android.view.View;
 import android.widget.RemoteViews;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
  * State and helpers shared by every widget renderer. One payload slot
  * (SharedPreferences) feeds all widget types; each provider picks the
- * fields its layout draws. Keeping the parse guard, the redraw fan-out
- * and the payload-image decode here means a new widget type cannot
- * forget them.
+ * fields its layout draws. Keeping the parse guard, the redraw fan-out,
+ * the payload-image decode and the warnings-row rendering here means a
+ * new widget type cannot forget them.
  */
 final class WidgetStore {
 
@@ -65,6 +67,48 @@ final class WidgetStore {
         } catch (IllegalArgumentException e) {
             return null;
         }
+    }
+
+    /**
+     * Draw every active warning into a widget's warnings row (one inflated
+     * widget_warning_item per alert — official icon when the payload shipped
+     * a bitmap, else the text badge pill). Callers pass their own row id, so
+     * both widget types share this path; the empty/no-warning state must also
+     * call it, because launchers reapply RemoteViews onto the existing tree
+     * and stale children would otherwise linger.
+     */
+    static void applyWarnings(Context context, RemoteViews views, JSONObject payload, int rowId) {
+        views.removeAllViews(rowId);
+        JSONArray items = payload.optJSONArray("warnings");
+        int drawn = 0;
+        if (items != null) {
+            for (int i = 0; i < items.length(); i++) {
+                JSONObject w = items.optJSONObject(i);
+                if (w == null) continue;
+                RemoteViews item = new RemoteViews(
+                        context.getPackageName(), R.layout.widget_warning_item);
+                Bitmap icon = decodeBase64Bitmap(w.optString("icon", ""));
+                if (icon != null) {
+                    // Official HKO alert icon takes precedence over the text badge.
+                    item.setViewVisibility(R.id.warning_item_icon, View.VISIBLE);
+                    item.setImageViewBitmap(R.id.warning_item_icon, icon);
+                    item.setContentDescription(R.id.warning_item_icon,
+                            context.getString(R.string.widget_warning_desc));
+                } else {
+                    String badge = w.optString("badge", "");
+                    if (badge.isEmpty()) continue;
+                    item.setViewVisibility(R.id.warning_item_badge, View.VISIBLE);
+                    item.setTextViewText(R.id.warning_item_badge, badge);
+                    item.setInt(R.id.warning_item_badge, "setBackgroundResource",
+                            w.optBoolean("urgent")
+                                    ? R.drawable.widget_badge_urgent
+                                    : R.drawable.widget_badge_warn);
+                }
+                views.addView(rowId, item);
+                drawn++;
+            }
+        }
+        views.setViewVisibility(rowId, drawn > 0 ? View.VISIBLE : View.GONE);
     }
 
     /** Open the app when the widget is tapped. Every widget layout must put
