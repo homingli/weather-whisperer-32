@@ -249,6 +249,13 @@ export default defineConfig(({ mode }) => {
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
+    // One jsdom per worker instead of per test file — jsdom setup was 50% of
+    // tracked suite time (51 environments created per run).
+    pool: 'vmThreads',
+    // Safety net for the shared-per-worker globals: auto-restore vi.stubGlobal
+    // stubs after each test so a missed manual unstub cannot leak into sibling
+    // files.
+    unstubGlobals: true,
   },
   });
 });
