@@ -8,6 +8,29 @@ the section into the GitHub release description. This file is separate from the
 web app's `CHANGELOG.md`, which lives on `main`; releases before v0.8.4 predate
 this file.
 
+## v0.8.6
+
+### New
+
+- Show every active HKO warning in both widgets — payload v4 warnings array
+- 2x1 alerts-only widget — umbrella verdict + HKO warning
+- Feels-like temp, single day/night sun cell, umbrella verdict
+- Official HKO alert icon instead of colored text label
+- 4x2 home-screen widget — temp, rain, HKO badge, sun times
+
+### Fixed
+
+- Preserve viewport when theme change rebuilds the map
+- Stop the service worker from serving the previous bundle after an APK upgrade
+- Clear the glyph in the empty state — launchers reapply RemoteViews in place
+- Version the payload schema so an upgraded APK never renders the previous build's payload
+- Umbrella verdict shows the absolute rain-start clock, not a frozen countdown
+
+### Polish
+
+- Remove night shading from chart
+- Render warning icon at 96px so the 30dp view is crisp on 3x screens
+
 ## v0.8.5
 
 ### New
