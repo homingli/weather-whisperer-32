@@ -49,10 +49,17 @@ describe('fetchLocalRainNowcast', () => {
 
     const result = await fetchLocalRainNowcast(22.3, 114.2);
 
+    // GPS-grade coords must be sent quantized to 3 decimals so every fix
+    // near a point shares one CDN cache key.
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/nowcast?lat=22.300&lon=114.200'),
+      expect.anything(),
+    );
     expect(result.updateTime).toBe('2026-09-17 16:00');
     expect(result.coverageEndRaw).toBe('202609171700');
     // 17:00 HKT = 09:00 UTC (fixed UTC+8, no DST).
     expect(result.coverageEndMs).toBe(Date.UTC(2026, 8, 17, 9, 0));
+    expect(result.fetchedAt).toBeGreaterThan(0);
     expect(result.grid).not.toBeNull();
     const sampled = sampleRainGridAt(result.grid!, 22.3, 114.2)!;
     expect(sampled).toHaveLength(1); // one step in the crop

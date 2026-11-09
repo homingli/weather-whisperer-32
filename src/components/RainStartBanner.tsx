@@ -32,7 +32,8 @@ const SPARKLINE_STEPS = 24;
 /**
  * Fallback authority span when a crop response lacks a usable coverage
  * header: HKO's nowcast file covers ~2 h, so a successful crop may be
- * trusted at most that far — never beyond.
+ * trusted at most that far — never beyond. Anchored on the entry's fetch
+ * epoch (not the minute tick), so the window can't slide forward forever.
  */
 const LOCAL_AUTHORITY_FALLBACK_MIN = 120;
 
@@ -50,10 +51,9 @@ const LOCAL_AUTHORITY_FALLBACK_MIN = 120;
 function authoritySpanEndMs(
   fullGrid: RainGrid | undefined,
   local: LocalRainNowcast | undefined,
-  now: number,
 ): number | null {
   if (local) {
-    return local.coverageEndMs ?? now + LOCAL_AUTHORITY_FALLBACK_MIN * 60_000;
+    return local.coverageEndMs ?? local.fetchedAt + LOCAL_AUTHORITY_FALLBACK_MIN * 60_000;
   }
   if (fullGrid && fullGrid.stepEndTimesRaw.length > 0) {
     const last = fullGrid.stepEndTimesRaw[fullGrid.stepEndTimesRaw.length - 1];
@@ -120,8 +120,12 @@ export const RainStartBanner = memo(
     }, []);
 
     const forecast = useMemo(() => {
-      const grid = localNowcast?.grid ?? nowcast?.grid ?? null;
-      const spanEnd = authoritySpanEndMs(nowcast?.grid, localNowcast, now);
+      // Crop entry present means the crop wins — INCLUDING when its grid is
+      // null (all-dry): falling back to a possibly older-vintage wet map
+      // grid would let stale city data contradict the fresher district
+      // observation. The map grid only serves when no crop entry exists yet.
+      const grid = localNowcast ? localNowcast.grid : nowcast?.grid ?? null;
+      const spanEnd = authoritySpanEndMs(nowcast?.grid, localNowcast);
       const minutely = seriesFromMinutely(weather.minutely);
       const hourly = seriesFromHourly(weather.hourly);
       return computeRainStart({

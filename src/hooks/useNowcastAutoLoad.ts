@@ -49,7 +49,14 @@ export function useNowcastAutoLoad(latitude?: number, longitude?: number) {
     refetchInterval: (query) => {
       const cachedAt = query.state.dataUpdatedAt;
       if (!cachedAt) return TIMING.NOWCAST_CACHE_TTL_MS;
-      return cachedAt + TIMING.NOWCAST_CACHE_TTL_MS - Date.now();
+      // Floor at the failure-retry cadence: after a failed refresh with
+      // existing data the raw delta goes negative, and React Query would
+      // refetch immediately — an always-on hot loop against a failing
+      // endpoint for every in-region tab during an outage.
+      return Math.max(
+        cachedAt + TIMING.NOWCAST_CACHE_TTL_MS - Date.now(),
+        TIMING.REFETCH_ON_FAILURE_MS,
+      );
     },
     retry: 1,
     retryDelay: 1000,

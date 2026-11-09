@@ -32,6 +32,10 @@ export interface LocalRainNowcast {
   /** Epoch ms of `coverageEndRaw`, null when the header was missing or
    *  unparseable (callers fall back to a conservative fixed span). */
   coverageEndMs: number | null;
+  /** Epoch ms when this entry was fetched. Anchors the no-header authority
+   *  fallback so a moving clock can't slide the suppression window forward
+   *  forever (see RainStartBanner.authoritySpanEndMs). */
+  fetchedAt: number;
 }
 
 /**
@@ -41,6 +45,16 @@ export interface LocalRainNowcast {
  */
 export function localNowcastQueryKey(lat: number, lon: number): readonly [string, number, number] {
   return ['hkoLocalRainNowcast', Math.round(lat * 1000), Math.round(lon * 1000)];
+}
+
+/**
+ * Canonical request coordinates: 3 decimals, same quantization the server
+ * applies. GPS "Current Location" coords carry 6+ decimals — sending them
+ * raw would give every GPS fix its own CDN cache key and defeat the
+ * function's s-maxage entirely.
+ */
+function quantize(v: number): string {
+  return (Math.round(v * 1000) / 1000).toFixed(3);
 }
 
 /**
@@ -61,7 +75,7 @@ export async function fetchLocalRainNowcast(
   const controller = new AbortController();
   const timer = setTimeout(() => {
     controller.abort(new DOMException('Local nowcast fetch timed out', 'TimeoutError'));
-  }, TIMING.OPEN_METEO_TIMEOUT_MS);
+  }, TIMING.LOCAL_NOWCAST_TIMEOUT_MS);
 
   const detachExternal = (() => {
     if (!externalSignal) return null;
@@ -76,7 +90,7 @@ export async function fetchLocalRainNowcast(
 
   try {
     const response = await fetch(
-      `${API_BASE}/api/nowcast?lat=${lat}&lon=${lon}`,
+      `${API_BASE}/api/nowcast?lat=${quantize(lat)}&lon=${quantize(lon)}`,
       { signal: controller.signal },
     );
     if (!response.ok) throw new Error(`Local nowcast fetch failed: ${response.status}`);
@@ -89,6 +103,7 @@ export async function fetchLocalRainNowcast(
       updateTime: parsed.updateTime,
       coverageEndRaw,
       coverageEndMs: hkoStepEndToEpoch(coverageEndRaw),
+      fetchedAt: Date.now(),
     };
   } finally {
     clearTimeout(timer);

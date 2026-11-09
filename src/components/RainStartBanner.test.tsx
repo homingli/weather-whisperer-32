@@ -88,6 +88,7 @@ const dryCrop: LocalRainNowcast = {
   updateTime: '',
   coverageEndRaw: STEP_1730,
   coverageEndMs: Date.UTC(2026, 8, 17, 9, 30),
+  fetchedAt: NOW,
 };
 
 describe('RainStartBanner', () => {
@@ -181,7 +182,7 @@ describe('RainStartBanner district authority (auto-loaded crop)', () => {
       [22.35, 114.25, STEP_1700, 2.0],
     ])!;
     renderBanner({ ...baseWeather, minutely: minutely([0.5, 0, 0]) }, { local: {
-      grid, updateTime: '', coverageEndRaw: STEP_1730, coverageEndMs: Date.UTC(2026, 8, 17, 9, 30),
+      grid, updateTime: '', coverageEndRaw: STEP_1730, coverageEndMs: Date.UTC(2026, 8, 17, 9, 30), fetchedAt: NOW,
     } });
     expect(screen.getByRole('status').textContent).toMatch(/Raining now/);
     expect(screen.getByRole('status').textContent).not.toMatch(/city-scale/);
@@ -199,12 +200,25 @@ describe('RainStartBanner district authority (auto-loaded crop)', () => {
     expect(container.textContent).toBe('');
   });
 
+  it('prefers a dry crop over an older-vintage wet map grid', () => {
+    // Crop entry present + grid null (all-dry now) vs a wet FULL map grid
+    // from an earlier vintage: the fresher district observation wins — the
+    // stale grid must not resurrect "raining now", and OM stays suppressed
+    // inside the crop's span.
+    const staleWetGrid = makeGrid([[22.3, 114.2, STEP_1630, 1.0]])!;
+    const { container } = renderBanner(
+      { ...baseWeather, minutely: minutely([0.5, 0, 0]) },
+      { local: dryCrop, full: { grid: staleWetGrid } },
+    );
+    expect(container.textContent).toBe('');
+  });
+
   it('lets a wet grid window override earlier city-scale rain inside the span', () => {
     // OM says rain in 15 min; the grid says rain starts (09:00, 09:30] —
     // district timing wins, verdict is grid-backed (no city-scale kicker).
     const grid = makeGrid([[22.3, 114.2, STEP_1730, 1.0]])!;
     renderBanner({ ...baseWeather, minutely: minutely([0.5, 0, 0, 0, 0, 0]) }, { local: {
-      grid, updateTime: '', coverageEndRaw: STEP_1730, coverageEndMs: Date.UTC(2026, 8, 17, 9, 30),
+      grid, updateTime: '', coverageEndRaw: STEP_1730, coverageEndMs: Date.UTC(2026, 8, 17, 9, 30), fetchedAt: NOW,
     } });
     const live = screen.getByRole('status');
     expect(live.textContent).toMatch(/Rain expected around 09:00/);

@@ -40,7 +40,9 @@ const HKO_NOWCAST_CSV_URL =
  */
 const CROP_SPAN_DEG = 0.1;
 
-/** Upstream budget. Matches the client's HKO_TIMEOUT_MS. */
+/** Upstream budget for the HKO fetch. The client's own budget is 10 s
+ *  (LOCAL_NOWCAST_TIMEOUT_MS) — deliberately larger, so a cold fetch where
+ *  the function spends its full budget on HKO still completes client-side. */
 const UPSTREAM_TIMEOUT_MS = 8000;
 
 /** Generous domain check (the grid spans roughly the Pearl River Delta);
@@ -54,11 +56,16 @@ function isValidCoords(lat: number, lon: number): boolean {
 
 export async function GET(req: Request): Promise<Response> {
   const url = new URL(req.url);
-  const lat = Number(url.searchParams.get('lat'));
-  const lon = Number(url.searchParams.get('lon'));
-  if (!isValidCoords(lat, lon)) {
+  const latRaw = Number(url.searchParams.get('lat'));
+  const lonRaw = Number(url.searchParams.get('lon'));
+  if (!isValidCoords(latRaw, lonRaw)) {
     return jsonResponse(400, { error: 'invalid_coords' });
   }
+  // Quantize to the 3-decimal cell-center space the client sends (both sides
+  // do it: the client so one CDN key serves all GPS fixes near a point, the
+  // server so crop content is deterministic regardless of extra decimals).
+  const lat = Math.round(latRaw * 1000) / 1000;
+  const lon = Math.round(lonRaw * 1000) / 1000;
 
   let upstream: Response;
   try {
@@ -105,6 +112,9 @@ export async function GET(req: Request): Promise<Response> {
   // Header text is arbitrary (the client parser skips line 0); the column
   // order below mirrors the source file.
   const body = ['UpdateTime,EndTime,Latitude,Longitude,Value_mm', ...kept].join('\n');
+  // Strip to digits before header injection: a stray \r in a malformed HKO
+  // field would make `new Response` throw (500).
+  coverageEnd = coverageEnd.replace(/\D/g, '');
   return new Response(body, {
     status: 200,
     headers: {

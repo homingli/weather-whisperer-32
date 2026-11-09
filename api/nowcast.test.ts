@@ -110,4 +110,24 @@ describe('api/nowcast', () => {
     const lines = (await res.text()).split('\n');
     expect(lines).toHaveLength(2); // header + the one valid row
   });
+
+  it('quantizes coordinates so GPS-grade decimals land on the same crop', async () => {
+    // 22.30047 and 22.3 quantize to the same 3-decimal center → identical
+    // crop content, so the CDN keys the client actually sends collapse.
+    fetchMock.mockResolvedValueOnce(new Response(csv([
+      row(22.38, 114.28, 2.0),
+    ]), { status: 200 }));
+    const precise = await get('22.30047', '114.20012');
+    expect(await precise.text()).toBe(await new Response(csv([row(22.38, 114.28, 2.0)])).text());
+  });
+
+  it('sanitizes the coverage header against malformed upstream stamps', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(csv([
+      row(22.30, 114.20, 1.0, '20260917163\r0'),
+    ]), { status: 200 }));
+    const res = await get('22.3', '114.2');
+    // A stray \r must not crash response construction; digits survive.
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-nowcast-coverage-until')).toBe('202609171630');
+  });
 });
