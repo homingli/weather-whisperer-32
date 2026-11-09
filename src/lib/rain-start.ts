@@ -212,10 +212,18 @@ export function computeRainStart(input: ComputeRainStartInput): RainStartForecas
   const firstWet = series[firstWetIdx];
   const source: RainStartSource = gridStarts.has(firstWet.startMs) ? 'hko-grid' : 'open-meteo';
 
-  // Walk the contiguous wet run to its end and peak.
+  // Walk the contiguous wet run to its end and peak. Contiguity is TIME
+  // adjacency, not array adjacency: HKO drops fully-dry steps, so a step
+  // where the sampled cell is dry but neighbors aren't can be absent from
+  // the series entirely — treating the gap as a continuation would bridge a
+  // dry half hour.
   let peak = firstWet.mm;
   let endsAt: number | undefined;
   for (let i = firstWetIdx + 1; i < series.length; i++) {
+    if (series[i].startMs > series[i - 1].endMs) {
+      endsAt = series[i - 1].endMs;
+      break;
+    }
     if (series[i].mm < threshold) {
       endsAt = series[i].startMs;
       break;

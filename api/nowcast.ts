@@ -121,6 +121,11 @@ export async function GET(req: Request): Promise<Response> {
       'Content-Type': 'text/csv; charset=utf-8',
       'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
       'Access-Control-Allow-Origin': '*',
+      // The fetch spec hides non-safelisted response headers from
+      // cross-origin reads — the native Capacitor build (VITE_API_BASE =
+      // vercel.app) would never see the coverage stamp without this, and
+      // the district-authority merge would silently never engage there.
+      'Access-Control-Expose-Headers': 'X-Nowcast-Coverage-Until',
       ...(coverageEnd ? { 'X-Nowcast-Coverage-Until': coverageEnd } : {}),
     },
   });

@@ -243,3 +243,31 @@ describe('dropOmInsideGridSpan', () => {
     expect(dropOmInsideGridSpan(om, Infinity)).toBe(om);
   });
 });
+
+describe('wet-run time adjacency (HKO drops fully-dry steps)', () => {
+  it('ends the run at the time gap instead of bridging a dry half hour', () => {
+    // Steps 16:30 and 17:30 wet, 17:00 dry-and-dropped: array-adjacent wet
+    // windows with a 30-min hole. "Raining now" must ease at 08:30, not
+    // bridge the hole and claim rain until 09:30.
+    const gapped: RainStep[] = [
+      { startMs: NOW, endMs: NOW + 30 * MIN, mm: 1 },
+      { startMs: NOW + 60 * MIN, endMs: NOW + 90 * MIN, mm: 1 },
+    ];
+    const forecast = computeRainStart({ now: NOW, nowcast: gapped });
+    expect(forecast!.status).toBe('raining-now');
+    expect(forecast!.endsAt).toBe(NOW + 30 * MIN);
+    expect(forecast!.endsInMinutes).toBe(30);
+  });
+
+  it('ends an expected run at the gap rather than merging two wet steps', () => {
+    // Same hole ahead of "now": rain expected 08:30–09:00, not 08:30–10:00.
+    const gapped: RainStep[] = [
+      { startMs: NOW + 30 * MIN, endMs: NOW + 60 * MIN, mm: 1 },
+      { startMs: NOW + 90 * MIN, endMs: NOW + 120 * MIN, mm: 1 },
+    ];
+    const forecast = computeRainStart({ now: NOW, nowcast: gapped });
+    expect(forecast!.status).toBe('rain-expected');
+    expect(forecast!.startsAt).toBe(NOW + 30 * MIN);
+    expect(forecast!.endsAt).toBe(NOW + 60 * MIN);
+  });
+});

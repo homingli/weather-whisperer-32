@@ -63,6 +63,10 @@ describe('api/nowcast', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('text/csv');
     expect(res.headers.get('access-control-allow-origin')).toBe('*');
+    // The coverage stamp must be readable cross-origin: the native build
+    // fetches from another origin, and the fetch spec hides non-safelisted
+    // headers unless they are explicitly exposed.
+    expect(res.headers.get('access-control-expose-headers')).toContain('X-Nowcast-Coverage-Until');
     expect(res.headers.get('cache-control')).toContain('s-maxage=300');
 
     const body = await res.text();

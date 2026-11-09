@@ -89,6 +89,16 @@ describe('fetchLocalRainNowcast', () => {
     await expect(fetchLocalRainNowcast(22.3, 114.2)).rejects.toThrow('404');
   });
 
+  it('throws on a non-CSV 200 so garbage responses grant nothing', async () => {
+    // Dev SPA fallback / captive portals serve 200 HTML; the parser must
+    // never see it (the resulting error state has no district authority).
+    fetchMock.mockResolvedValueOnce(new Response('<html>portal</html>', {
+      status: 200,
+      headers: { 'Content-Type': 'text/html' },
+    }));
+    await expect(fetchLocalRainNowcast(22.3, 114.2)).rejects.toThrow('non-CSV');
+  });
+
   it('rejects when the external signal is already aborted', async () => {
     const controller = new AbortController();
     controller.abort();

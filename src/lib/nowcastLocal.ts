@@ -91,6 +91,13 @@ export async function fetchLocalRainNowcast(
       { signal: controller.signal },
     );
     if (!response.ok) throw new Error(`Local nowcast fetch failed: ${response.status}`);
+    // Content-Type is CORS-safelisted (readable cross-origin for the native
+    // build). Guarding keeps a non-CSV 200 — dev's SPA fallback, a captive
+    // portal — out of the parser; the resulting error state grants no
+    // district authority, which is the correct degradation.
+    if (!(response.headers.get('content-type') ?? '').includes('text/csv')) {
+      throw new Error('Local nowcast: non-CSV response');
+    }
 
     const csvText = await response.text();
     const parsed = parseRainfallCSVText(csvText);
