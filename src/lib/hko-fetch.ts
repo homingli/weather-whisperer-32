@@ -40,7 +40,7 @@ async function hkoFetchRaw(dataType: string, lang: 'en' | 'tc'): Promise<unknown
  *  Returns undefined if either the list or the name is missing, so callers
  *  can fall back without a try/catch. Tolerant of HKO partial-feed outages
  *  where `data` may be undefined. */
-function pickStationReading<T extends { place: string }>(
+export function pickStationReading<T extends { place: string }>(
   list: { data: T[] } | undefined,
   name: string | undefined,
 ): T | undefined {

@@ -33,6 +33,7 @@ export {
   getHKOForecast, getHKOWarningSummary, getHKOWarningInfo,
   getHKOCurrentWeather, getHKODailyAndWarnings,
   buildHKOWeatherData, fetchHKOWeatherData,
+  pickStationReading,
 } from './hko-fetch';
 
 // Icons & warnings

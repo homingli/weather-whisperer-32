@@ -2,7 +2,10 @@
 // qualifier (which leads the strip), the sparkline span label, the
 // screen-reader live region (which must NOT carry the per-minute
 // countdown), the 6-hour verdict horizon, and the hide-strip paths
-// (no-rain verdict, no usable series).
+// (no-rain verdict, no usable series). A second block seeds the query
+// cache with the auto-loaded district crop (nowcastLocal) to cover the
+// district-authority merge: the grid outranks Open-Meteo inside its
+// covered span, including the all-dry crop case.
 //
 // Fake timers pin `now` so the fixtures' relative offsets stay exact.
 
@@ -11,10 +14,12 @@ import { LanguageProvider } from '@/contexts/LanguageProvider';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RainStartBanner } from './RainStartBanner';
+import { localNowcastQueryKey, type LocalRainNowcast } from '@/lib/nowcastLocal';
+import { buildRainGrid, type CellRow, type RainGrid } from '@/lib/rainfallGrid';
 
 import type { WeatherData, MinutelyPrecipitation } from '@/lib/weather';
 
-const NOW = Date.UTC(2026, 8, 17, 8, 0); // 2026-09-17 08:00 UTC
+const NOW = Date.UTC(2026, 8, 17, 8, 0); // 2026-09-17 08:00 UTC (16:00 HKT)
 const MIN = 60_000;
 
 function minutely(values: number[]): MinutelyPrecipitation[] {
@@ -45,10 +50,12 @@ const baseWeather: WeatherData = {
   timezone: 'UTC',
 };
 
-function renderBanner(weather: WeatherData) {
+function renderBanner(weather: WeatherData, seeds: { local?: LocalRainNowcast; full?: { grid: RainGrid } } = {}) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  if (seeds.local) client.setQueryData(localNowcastQueryKey(22.3, 114.2), seeds.local);
+  if (seeds.full) client.setQueryData(['hkoGriddedRainfallNowcast'], seeds.full);
   return render(
     <QueryClientProvider client={client}>
       <LanguageProvider>
@@ -61,6 +68,27 @@ function renderBanner(weather: WeatherData) {
     </QueryClientProvider>,
   );
 }
+
+/** HK-local raw step stamps: 16:30 HKT = 08:30 UTC, etc. */
+const STEP_1630 = '202609171630'; // covers (08:00, 08:30] UTC
+const STEP_1700 = '202609171700'; // covers (08:30, 09:00] UTC
+const STEP_1730 = '202609171730'; // covers (09:00, 09:30] UTC
+
+/** Build a crop grid from [lat, lon, stepStamp, value] rows. Steps exist only
+ *  where some cell is wet — same as the real cropped CSV. */
+function makeGrid(rows: Array<[number, number, string, number]>): RainGrid | null {
+  const cellRows: CellRow[] = rows.map(([lat, lon, endTime, value]) => ({
+    lat, lon, endTime, value,
+  }));
+  return buildRainGrid(cellRows);
+}
+
+const dryCrop: LocalRainNowcast = {
+  grid: null,
+  updateTime: '',
+  coverageEndRaw: STEP_1730,
+  coverageEndMs: Date.UTC(2026, 8, 17, 9, 30),
+};
 
 describe('RainStartBanner', () => {
   beforeEach(() => {
@@ -131,5 +159,75 @@ describe('RainStartBanner', () => {
     const { container } = renderBanner({ ...baseWeather, minutely: undefined });
     expect(container.querySelector('[role="status"]')).toBeNull();
     expect(container.textContent).toBe('');
+  });
+});
+
+describe('RainStartBanner district authority (auto-loaded crop)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(NOW));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('attributes a grid-backed verdict to the district, not city-scale', () => {
+    // Grid: user's cell wet over (08:00, 08:30]; a neighbor cell wet over
+    // (08:30, 09:00] so the sampled series is [1.0, 0] → raining now,
+    // easing 08:30. OM also claims a wet :15 bucket — the grid wins the
+    // leading window, so no city-scale qualifier may appear.
+    const grid = makeGrid([
+      [22.3, 114.2, STEP_1630, 1.0],
+      [22.35, 114.25, STEP_1700, 2.0],
+    ])!;
+    renderBanner({ ...baseWeather, minutely: minutely([0.5, 0, 0]) }, { local: {
+      grid, updateTime: '', coverageEndRaw: STEP_1730, coverageEndMs: Date.UTC(2026, 8, 17, 9, 30),
+    } });
+    expect(screen.getByRole('status').textContent).toMatch(/Raining now/);
+    expect(screen.getByRole('status').textContent).not.toMatch(/city-scale/);
+    expect(document.body.textContent).not.toMatch(/city-scale forecast/);
+  });
+
+  it('suppresses Open-Meteo rain inside an all-dry crop\u2019s coverage span', () => {
+    // The complaint case: OM's ~8 km cell says raining now, the district
+    // observation says dry. A valid all-dry crop is authority until 09:30,
+    // so the wet (08:00, 08:15] OM window drops and the strip hides.
+    const { container } = renderBanner(
+      { ...baseWeather, minutely: minutely([0.5, 0, 0]) },
+      { local: dryCrop },
+    );
+    expect(container.textContent).toBe('');
+  });
+
+  it('lets a wet grid window override earlier city-scale rain inside the span', () => {
+    // OM says rain in 15 min; the grid says rain starts (09:00, 09:30] —
+    // district timing wins, verdict is grid-backed (no city-scale kicker).
+    const grid = makeGrid([[22.3, 114.2, STEP_1730, 1.0]])!;
+    renderBanner({ ...baseWeather, minutely: minutely([0.5, 0, 0, 0, 0, 0]) }, { local: {
+      grid, updateTime: '', coverageEndRaw: STEP_1730, coverageEndMs: Date.UTC(2026, 8, 17, 9, 30),
+    } });
+    const live = screen.getByRole('status');
+    expect(live.textContent).toMatch(/Rain expected around 09:00/);
+    expect(live.textContent).not.toMatch(/city-scale/);
+  });
+
+  it('falls back to the full map grid when no crop entry exists', () => {
+    // Map-opened user, no auto-load data yet: the full-domain grid supplies
+    // the district windows (last step = coverage end for the OM filter).
+    const grid = makeGrid([[22.3, 114.2, STEP_1630, 1.0]])!;
+    renderBanner({ ...baseWeather, minutely: minutely([0.5, 0, 0]) }, { full: { grid } });
+    expect(screen.getByRole('status').textContent).toMatch(/Raining now/);
+    expect(screen.getByRole('status').textContent).not.toMatch(/city-scale/);
+  });
+
+  it('keeps Open-Meteo rain beyond the coverage span as city-scale', () => {
+    // All-dry crop until 09:30, but OM has a wet window (09:45, 10:00] —
+    // outside the grid's horizon, so it survives with its qualifier.
+    const values = Array<number>(8).fill(0);
+    values[7] = 0.5; // end NOW + 120 min → (09:45, 10:00]
+    renderBanner({ ...baseWeather, minutely: minutely(values) }, { local: dryCrop });
+    const live = screen.getByRole('status');
+    expect(live.textContent).toMatch(/Rain expected around 09:45/);
+    expect(live.textContent).toMatch(/city-scale/);
   });
 });

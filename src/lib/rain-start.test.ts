@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeRainStart,
+  dropOmInsideGridSpan,
   seriesFromMinutely,
   seriesFromHourly,
   RAIN_THRESHOLD_MM,
@@ -220,5 +221,25 @@ describe('computeRainStart', () => {
     // empty tail.
     const later = nowcastSeries([0], NOW + 120 * MIN);
     expect(computeRainStart({ now: NOW, nowcast: later, horizonMinutes: 60 })).toBeNull();
+  });
+});
+
+describe('dropOmInsideGridSpan', () => {
+  const om = nowcastSeries([1, 0, 1, 0], NOW + 30 * MIN); // 30-min windows from (NOW, NOW+30]
+
+  it('drops windows that begin before the span closes and keeps the rest', () => {
+    const spanEnd = NOW + 90 * MIN; // three windows start inside; the one
+    // starting exactly AT the span end survives (the grid horizon closed).
+    const kept = dropOmInsideGridSpan(om, spanEnd);
+    expect(kept.map((s) => s.startMs)).toEqual([NOW + 90 * MIN]);
+  });
+
+  it('keeps every window when the span already ended', () => {
+    expect(dropOmInsideGridSpan(om, NOW - 1)).toHaveLength(om.length);
+  });
+
+  it('returns the input untouched for a non-finite span (missing header)', () => {
+    expect(dropOmInsideGridSpan(om, NaN)).toBe(om);
+    expect(dropOmInsideGridSpan(om, Infinity)).toBe(om);
   });
 });

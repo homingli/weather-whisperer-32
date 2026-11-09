@@ -1,5 +1,5 @@
 import { getWeather as getOpenMeteoWeather, WeatherData, DailyForecast, HeadlineInfo } from './weather';
-import { isInHongKong, getHKODailyAndWarnings, getHKOCurrentWeather, buildHKOWeatherData, fetchHKOWeatherData } from './hko-weather';
+import { isInHongKong, getHKODailyAndWarnings, getHKOCurrentWeather, buildHKOWeatherData, fetchHKOWeatherData, pickStationReading } from './hko-weather';
 import type { HKOCurrentWeatherResponse } from './hko-types';
 import { SourceState, SourceId } from './weather/types';
 import { logWarn, logError } from './log';
@@ -216,11 +216,12 @@ export async function fetchWeather(
 
   // Both succeeded — combine. HKO wins for daily (OM backfills its
   // sunrise/sunset and wind placeholders) and supplies warnings/station/
-  // district; HKO also wins for the current temperature and wind when its
-  // current-weather fetch succeeds (the station's 10-minute mean is the
-  // Observatory's own reading; the today temperature bar / marker and the
-  // wind compass use these values). OM keeps current/hourly for everything
-  // else.
+  // district; HKO also wins for the current temperature, wind and rain when
+  // its current-weather fetch succeeds (the station's 10-minute mean is the
+  // Observatory's own reading, and `rainfall` is the past-hour observed max
+  // for the nearest district; the today temperature bar / marker, the wind
+  // compass and the hero rain reading use these values). OM keeps
+  // current/hourly for everything else.
   const hkoData = hkoResult.data!;
   const hkoNow: SourceState = {
     ok: true,
@@ -241,6 +242,18 @@ export async function fetchWeather(
   // varies 2–3× across HK stations, so grafting an arbitrary station's
   // reading onto the user's compass misleads worse than the OM grid it would
   // replace. Temperature keeps its fallback — temperature is spatially flat.
+
+  // Rain gets exact-district matching too: `rainfall` on the rhrread feed is
+  // the past-hour OBSERVED max per district — a neighborhood measurement, not
+  // a ~8 km model cell. In a city this small the model cell can disagree with
+  // the user's street, which reads as "the app is broken"; the observation
+  // wins the same argument as temperature/wind above. District lookup miss →
+  // OM's model value stays.
+  const hkoRainReading = hkoCurrentData
+    ? pickStationReading(hkoCurrentData.rainfall, hkoData.nearestDistrict)
+    : undefined;
+  const hkoRainMm = hkoRainReading?.max;
+  const hasHkoRain = typeof hkoRainMm === 'number' && Number.isFinite(hkoRainMm);
   const hkoWindReading = hkoCurrentData?.wind?.data.find((w) => w.place === hkoData.nearestStation);
 
   // HKO seeds sunrise/sunset with epoch-0 sentinels and wind with 0
@@ -264,6 +277,7 @@ export async function fetchWeather(
         windSpeed: hkoWindReading.speed,
         windDirection: hkoWindReading.direction,
       } : {}),
+      ...(hasHkoRain ? { precipitation: hkoRainMm } : {}),
       ...(aqhi ? {
         aqhiIndex: aqhi.index,
         aqhiStation: aqhi.station,

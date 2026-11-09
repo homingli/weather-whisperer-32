@@ -10,6 +10,7 @@ import { useSelectedCity } from '@/hooks/useSelectedCity';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
 import { useWarningChangeDetector } from '@/hooks/useWarningChangeDetector';
 import { useNextHoliday } from '@/hooks/useNextHoliday';
+import { useNowcastAutoLoad } from '@/hooks/useNowcastAutoLoad';
 import { useKeySequence } from '@/hooks/useKeySequence';
 import {
   useDevSimulatedWarnings,
@@ -139,6 +140,10 @@ const Index = () => {
       isInVancouverBox(selectedCity.latitude, selectedCity.longitude));
   const useMSCNowcast = !!selectedCity &&
     isInVancouverBox(selectedCity.latitude, selectedCity.longitude);
+  // District-scale rain nowcast for the rain-start banner: KB-sized crop,
+  // auto-loaded after first paint for every in-region session (the 2.7 MB
+  // full-domain grid stays opt-in behind the rain map). Silent on failure.
+  useNowcastAutoLoad(selectedCity?.latitude, selectedCity?.longitude);
 
   // Share label — same location inputs as the header's label, minus the
   // reverse-geocode "Current Location" placeholder the raw name can carry.

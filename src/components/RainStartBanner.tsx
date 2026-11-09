@@ -5,6 +5,7 @@ import { useLanguage, formatString } from '@/contexts/LanguageContext';
 import type { WeatherData } from '@/lib/weather';
 import {
   computeRainStart,
+  dropOmInsideGridSpan,
   seriesFromMinutely,
   seriesFromHourly,
   seriesFromNowcastGrid,
@@ -12,7 +13,8 @@ import {
   RAIN_THRESHOLD_MM,
   type RainStartForecast,
 } from '@/lib/rain-start';
-import type { RainGrid } from '@/lib/rainfallGrid';
+import { hkoStepEndToEpoch, type RainGrid } from '@/lib/rainfallGrid';
+import { localNowcastQueryKey, type LocalRainNowcast } from '@/lib/nowcastLocal';
 import { getDateTimeFormatter } from '@/lib/utils';
 
 /**
@@ -28,6 +30,39 @@ interface NowcastCacheEntry {
 const SPARKLINE_STEPS = 24;
 
 /**
+ * Fallback authority span when a crop response lacks a usable coverage
+ * header: HKO's nowcast file covers ~2 h, so a successful crop may be
+ * trusted at most that far — never beyond.
+ */
+const LOCAL_AUTHORITY_FALLBACK_MIN = 120;
+
+/**
+ * District authority span for the merge: the grid outranks Open-Meteo from
+ * now until the source file's coverage ends. The crop response carries the
+ * domain-wide coverage header (nowcastLocal.ts), which applies even when the
+ * crop itself is all-dry — "no rain near this point" is a district
+ * observation, not a data gap, and is exactly the "OM says rain, my district
+ * is dry" case the auto-load exists for. With no crop entry, the full map
+ * grid is authoritative through its own last step (the grid records
+ * domain-level steps, so the last entry is the file horizon). No grid at
+ * all → null: OM windows pass unfiltered.
+ */
+function authoritySpanEndMs(
+  fullGrid: RainGrid | undefined,
+  local: LocalRainNowcast | undefined,
+  now: number,
+): number | null {
+  if (local) {
+    return local.coverageEndMs ?? now + LOCAL_AUTHORITY_FALLBACK_MIN * 60_000;
+  }
+  if (fullGrid && fullGrid.stepEndTimesRaw.length > 0) {
+    const last = fullGrid.stepEndTimesRaw[fullGrid.stepEndTimesRaw.length - 1];
+    return hkoStepEndToEpoch(last);
+  }
+  return null;
+}
+
+/**
  * The verdict scans exactly the span the sparkline can show. Text and strip
  * used to diverge (text scanned 24 h, bars showed 6 h), so a wet window 23 h
  * out would announce "rain expected" over an all-dry strip. The label passed
@@ -41,11 +76,17 @@ const VERDICT_HORIZON_MIN = SPARKLINE_STEPS * MINUTELY_STEP_MIN;
  *
  * Merges Open-Meteo's city-scale minutely/hourly precipitation (already in
  * the unified weather payload, no extra request) with the HKO gridded
- * nowcast whenever the rain map has populated the shared query cache — the
- * 0–2 h segment then upgrades to district accuracy. The verdict is capped to
- * the sparkline's 6-hour span (`VERDICT_HORIZON_MIN`) so the text and the
- * bars always describe the same window. Re-renders on a minute
- * tick so relative phrasing ("in ~45 min") stays current while mounted.
+ * nowcast at district accuracy. Two read-only cache feeds supply the grid:
+ * the KB-sized crop auto-loaded per in-region session (useNowcastAutoLoad →
+ * nowcastLocal.ts), and the full-domain grid the rain map opt-in loads.
+ * The crop wins when both exist. Inside the grid's covered span the grid is
+ * authoritative: Open-Meteo windows that begin there are dropped
+ * (dropOmInsideGridSpan) so a ~8 km model bucket can't contradict the
+ * radar-derived cells — including the all-dry case, "OM says rain, my
+ * district is dry". The verdict is capped to the sparkline's 6-hour span
+ * (`VERDICT_HORIZON_MIN`) so the text and the bars always describe the same
+ * window. Re-renders on a minute tick so relative phrasing ("in ~45 min")
+ * stays current while mounted.
  *
  * Renders only when rain is expected or already falling — a no-rain verdict
  * hides the strip (the at-a-glance row's rain chips carry the all-clear
@@ -56,11 +97,18 @@ export const RainStartBanner = memo(
   ({ weather, latitude, longitude, className }: RainStartBannerProps) => {
     const { t, language } = useLanguage();
 
-    // Read-only subscription to the rain map's query cache. `enabled: false`
-    // never fetches — if the map was never opened this stays undefined and
-    // the banner runs on Open-Meteo alone (the 2.7 MB CSV stays opt-in).
+    // Read-only subscriptions (`enabled: false` never fetches). The auto-load
+    // hook (useNowcastAutoLoad) populates the district crop for every
+    // in-region session; the full-domain grid stays opt-in via the rain map.
+    // The crop wins when both exist — it is sampled around THIS point, while
+    // the full grid is only a fallback (crop fetch failed / dev / no city).
     const { data: nowcast } = useQuery<NowcastCacheEntry>({
       queryKey: ['hkoGriddedRainfallNowcast'],
+      enabled: false,
+      staleTime: Infinity,
+    });
+    const { data: localNowcast } = useQuery<LocalRainNowcast>({
+      queryKey: localNowcastQueryKey(latitude, longitude),
       enabled: false,
       staleTime: Infinity,
     });
@@ -71,17 +119,19 @@ export const RainStartBanner = memo(
       return () => clearInterval(id);
     }, []);
 
-    const forecast = useMemo(
-      () =>
-        computeRainStart({
-          now,
-          horizonMinutes: VERDICT_HORIZON_MIN,
-          nowcast: nowcast ? seriesFromNowcastGrid(nowcast.grid, latitude, longitude) : null,
-          minutely: seriesFromMinutely(weather.minutely),
-          hourly: seriesFromHourly(weather.hourly),
-        }),
-      [now, nowcast, latitude, longitude, weather.minutely, weather.hourly],
-    );
+    const forecast = useMemo(() => {
+      const grid = localNowcast?.grid ?? nowcast?.grid ?? null;
+      const spanEnd = authoritySpanEndMs(nowcast?.grid, localNowcast, now);
+      const minutely = seriesFromMinutely(weather.minutely);
+      const hourly = seriesFromHourly(weather.hourly);
+      return computeRainStart({
+        now,
+        horizonMinutes: VERDICT_HORIZON_MIN,
+        nowcast: grid ? seriesFromNowcastGrid(grid, latitude, longitude) : null,
+        minutely: spanEnd !== null ? dropOmInsideGridSpan(minutely, spanEnd) : minutely,
+        hourly: spanEnd !== null ? dropOmInsideGridSpan(hourly, spanEnd) : hourly,
+      });
+    }, [now, nowcast, localNowcast, latitude, longitude, weather.minutely, weather.hourly]);
 
     if (!forecast || forecast.status === 'no-rain') return null;
 
