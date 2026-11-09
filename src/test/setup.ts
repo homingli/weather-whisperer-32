@@ -24,6 +24,7 @@ if (typeof window !== 'undefined') {
 
   Object.defineProperty(window, 'localStorage', {
     value: localStorageMock,
+    configurable: true,
   });
 
   // Mock matchMedia. Defaults to matches: false on every query, which silently
@@ -33,6 +34,9 @@ if (typeof window !== 'undefined') {
   // (vi.stubGlobal / Object.defineProperty) if a test needs different matches.
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
+    // configurable so per-test re-stubs (vi.stubGlobal / defineProperty) work
+    // under the vmThreads pool, where this setup runs once per worker.
+    configurable: true,
     value: vi.fn().mockImplementation(query => ({
       matches: false,
       media: query,
@@ -55,5 +59,6 @@ if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'ResizeObserver', {
     value: ResizeObserverMock,
     writable: true,
+    configurable: true,
   });
 }

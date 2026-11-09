@@ -249,6 +249,9 @@ export default defineConfig(({ mode }) => {
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
+    // One jsdom per worker instead of per test file — jsdom setup was 50% of
+    // tracked suite time (51 environments created per run).
+    pool: 'vmThreads',
   },
   });
 });
