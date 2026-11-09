@@ -90,9 +90,9 @@ const dryCrop: LocalRainNowcast = {
   coverageEndMs: Date.UTC(2026, 8, 17, 9, 30),
 };
 
-/** A header-less 200 (dev serves the TS module for /api/nowcast; a garbage
- *  upstream body hits the same path in prod): zero rows parsed, no coverage
- *  evidence — must grant the crop NO district authority. */
+/** A header-less 200 (a garbage upstream body hits this path in prod; dev
+ *  404s crop GETs outright): zero rows parsed, no coverage evidence — must
+ *  grant the crop NO district authority. */
 const evidenceFree: LocalRainNowcast = {
   grid: null,
   updateTime: '',
@@ -210,9 +210,9 @@ describe('RainStartBanner district authority (auto-loaded crop)', () => {
   });
 
   it('grants no authority to an evidence-free crop response', () => {
-    // Header-less 200 (dev /api/nowcast serves the TS module; garbage
-    // upstream body in prod): zero rows, no coverage — Open-Meteo must stay
-    // unfiltered instead of being suppressed on no data.
+    // Header-less 200 (garbage upstream body in prod; dev 404s crop GETs):
+    // zero rows, no coverage — Open-Meteo must stay unfiltered instead of
+    // being suppressed on no data.
     renderBanner({ ...baseWeather, minutely: minutely([0.5, 0, 0]) }, { local: evidenceFree });
     expect(screen.getByRole('status').textContent).toMatch(/Raining now/);
     expect(screen.getByRole('status').textContent).toMatch(/city-scale/);

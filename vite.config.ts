@@ -37,6 +37,26 @@ export default defineConfig(({ mode }) => {
         target: 'https://www.aqhi.gov.hk/epd/ddata/html/out',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/aqhi-rss/, '')
+      },
+      // Rain map nowcast. Prod serves this from the /api/nowcast Vercel
+      // function (mode=full: zero rows filtered out, Last-Modified
+      // forwarded), but dev has no functions. HKO serves the raw file here,
+      // tolerates the ?mode=full query the client appends, and honours HEAD
+      // (with Last-Modified, verified 2026-11-09), so the map's freshness
+      // probe behaves identically. Dev pays the full ~2.7 MB download; the
+      // client parser drops zeros either way.
+      '/api/nowcast': {
+        target: 'https://data.weather.gov.hk',
+        changeOrigin: true,
+        rewrite: () => '/weatherAPI/hko_data/F3/Gridded_rainfall_nowcast.csv',
+        // Only the rain map's mode=full streams here. The banner's crop
+        // GETs keep #158's dev contract — fail fast into the fallback
+        // chain — instead of silently downloading the full 2.7 MB file per
+        // location and misreading domain-wide rows as a "crop".
+        bypass: (req) => {
+          const url = new URL(req.url ?? '/', 'http://localhost');
+          return url.searchParams.get('mode') === 'full' ? undefined : false;
+        }
       }
     }
   },
@@ -157,6 +177,35 @@ export default defineConfig(({ mode }) => {
               cacheName: 'hko-proxy-cache',
               expiration: {
                 maxEntries: 50,
+                maxAgeSeconds: 30 * 60, // 30 min, matches NOWCAST_REFETCH_INTERVAL_MS
+                purgeOnQuotaError: true,
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            },
+          },
+          // Rain map nowcast via the /api/nowcast function (mode=full only —
+          // the banner's per-location crop GETs must stay network-fresh, so
+          // this matcher checks the query, not just the path; workbox tests
+          // same-origin patterns against the pathname, which drops the query
+          // string). StaleWhileRevalidate keeps the map's offline story: the
+          // cached grid paints instantly while a fresh copy revalidates.
+          // Sparse rows keep each entry small (the raw 2.7 MB file this
+          // replaces in prod is long gone from this rule's reach). The 30-min
+          // cap matches NOWCAST_REFETCH_INTERVAL_MS, mirroring
+          // hko-proxy-cache. HEAD freshness probes are not intercepted —
+          // workbox routes GET only — so probes always reach the network.
+          {
+            urlPattern: ({ url, request }: { url: URL; request: Request }) =>
+              request.method === 'GET' &&
+              url.pathname === '/api/nowcast' &&
+              url.searchParams.get('mode') === 'full',
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'nowcast-full-cache',
+              expiration: {
+                maxEntries: 20,
                 maxAgeSeconds: 30 * 60, // 30 min, matches NOWCAST_REFETCH_INTERVAL_MS
                 purgeOnQuotaError: true,
               },

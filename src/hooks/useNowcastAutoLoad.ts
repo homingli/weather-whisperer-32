@@ -14,8 +14,8 @@ import { fetchLocalRainNowcast, localNowcastQueryKey } from '@/lib/nowcastLocal'
  *
  * Failure is silent by design: no cache entry → the rain-start banner runs
  * on Open-Meteo / the full-domain grid exactly as before the auto-load
- * existed. Dev has no `/api` route (the Vite proxy covers /hko-data and
- * /aqhi-rss only), so local dev always takes the fallback path.
+ * existed. Dev has no serverless functions (the Vite proxy only serves the
+ * map's mode=full stream), so local dev always takes the fallback path.
  */
 export function useNowcastAutoLoad(latitude?: number, longitude?: number) {
   const [armed, setArmed] = useState(false);
