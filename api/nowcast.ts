@@ -303,7 +303,11 @@ async function fullModeNowcast(): Promise<Response> {
     // watchdog on this path.
     try {
       const text = await upstream.text();
-      const body = [OUTPUT_HEADER, ...text.split('\n').slice(1).filter(isRainRow)].join('\n');
+      // Same CR strip as the streaming filter so both paths emit identical bytes.
+      const body = [
+        OUTPUT_HEADER,
+        ...text.split('\n').slice(1).map(l => l.replace(/\r$/, '')).filter(isRainRow),
+      ].join('\n');
       return new Response(body, { status: 200, headers: fullModeHeaders(lastModified) });
     } catch {
       return jsonResponse(502, { error: 'upstream_error' });
