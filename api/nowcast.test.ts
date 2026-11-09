@@ -271,6 +271,46 @@ describe('api/nowcast', () => {
       expect(res.status).toBe(200);
       expect(await res.text()).toBe(HEADER);
     });
+
+    it('aborts a headers-stalled upstream at the budget as 502', async () => {
+      vi.useFakeTimers();
+      try {
+        // Fetch that honours the abort signal like undici does, then never
+        // resolves: the wall-clock cap must fire during the headers wait.
+        fetchMock.mockImplementationOnce(
+          (_url: unknown, init?: RequestInit) =>
+            new Promise<Response>((_resolve, reject) => {
+              init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+            }),
+        );
+        const pending = runFull();
+        await vi.runAllTimersAsync();
+        const res = await pending;
+        expect(res.status).toBe(502);
+        expect(vi.getTimerCount()).toBe(0); // abort path cleans up too
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('releases the upstream timeout once headers arrive', async () => {
+      vi.useFakeTimers();
+      try {
+        fetchMock.mockResolvedValueOnce(new Response(streamOf([
+          HEADER + '\n' + row(22.3, 114.2, 1.0) + '\n',
+        ]), { status: 200 }));
+        const before = vi.getTimerCount();
+        const res = await runFull();
+        expect(res.status).toBe(200);
+        expect(await res.text()).toContain('1.00');
+        // No pending upstream timer after commit: a healthy-but-slow body is
+        // bounded by the client's stall watchdog, not truncated at 8 s wall
+        // clock (the old AbortSignal.timeout would have done exactly that).
+        expect(vi.getTimerCount()).toBe(before);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe('HEAD freshness probe (mode=full)', () => {

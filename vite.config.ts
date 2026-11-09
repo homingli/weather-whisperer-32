@@ -48,7 +48,15 @@ export default defineConfig(({ mode }) => {
       '/api/nowcast': {
         target: 'https://data.weather.gov.hk',
         changeOrigin: true,
-        rewrite: () => '/weatherAPI/hko_data/F3/Gridded_rainfall_nowcast.csv'
+        rewrite: () => '/weatherAPI/hko_data/F3/Gridded_rainfall_nowcast.csv',
+        // Only the rain map's mode=full streams here. The banner's crop
+        // GETs keep #158's dev contract — fail fast into the fallback
+        // chain — instead of silently downloading the full 2.7 MB file per
+        // location and misreading domain-wide rows as a "crop".
+        bypass: (req) => {
+          const url = new URL(req.url ?? '/', 'http://localhost');
+          return url.searchParams.get('mode') === 'full' ? undefined : false;
+        }
       }
     }
   },

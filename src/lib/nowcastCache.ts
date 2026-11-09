@@ -44,7 +44,7 @@ export type NowcastCacheEnvelope = {
   updateTime: string;
   /** HTTP Last-Modified header epoch ms of the source CSV. Consumed by the
    *  HEAD freshness probe before background refetches (HML-43): when the
-   *  header matches, the scheduled refetch skips the ~380 KB download. */
+   *  header matches, the scheduled refetch skips the download entirely. */
   lastModified: number;
 };
 

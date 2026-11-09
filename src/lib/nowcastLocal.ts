@@ -7,8 +7,9 @@
  * Consumer contract:
  *  - HTTP/network failure THROWS → React Query error state → callers fall
  *    back to Open-Meteo or the full-domain grid. Silent by design: dev has
- *    no `/api` route (the Vite proxy only covers /hko-data and /aqhi-rss),
- *    and a degraded fetch must never surface as app breakage.
+ *    no serverless functions (the Vite proxy serves only the rain map's
+ *    mode=full stream), and a degraded fetch must never surface as app
+ *    breakage.
  *  - A 200 with zero rain rows is a VALID outcome: `grid` is null and means
  *    "HKO says no rain within the crop" (the crop drops zero cells). The
  *    `coverageEndMs` span still applies — see RainStartBanner.

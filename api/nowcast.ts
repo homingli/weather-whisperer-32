@@ -36,10 +36,12 @@
  * (upstream fetch throws, non-OK status, or — crop mode only — the buffered
  * body read fails) surfaces as the 502 JSON contract. The full mode commits
  * its response as soon as upstream headers arrive (streaming keeps TTFB low
- * and avoids buffering 2.7 MB per invocation), so a body that dies mid-stream
- * truncates the CSV instead: the client parser tolerates partial rows and the
- * map's stale-data path takes over. Crop mode stays fully-buffered — the
- * banner's 502 contract (review round 4) depends on it.
+ * and avoids buffering 2.7 MB per invocation), so a body that fails
+ * mid-stream truncates the CSV instead: an errored stream surfaces through
+ * the map's stale-data path, while a cleanly-closed early one renders
+ * whatever rows made it through as fresh data — the client parser tolerates
+ * both. Crop mode stays fully-buffered — the banner's 502 contract (review
+ * round 4) depends on it.
  *
  * Exported as named HTTP methods (`GET`/`HEAD`) — that is the Web fetch-style
  * contract this runtime supports (same as api/feedback.ts; a default export
@@ -266,15 +268,26 @@ export async function GET(req: Request): Promise<Response> {
  * file doc comment for why that asymmetry is intentional).
  */
 async function fullModeNowcast(): Promise<Response> {
+  // Cancellable timer (NOT AbortSignal.timeout like the crop path): the cap
+  // must only cover the headers wait. AbortSignal.timeout cannot be
+  // disarmed, so it would truncate a healthy-but-slow body at 8 s wall
+  // clock; once headers arrive the timer is released and the tail is
+  // governed by the client's own 10 s no-bytes stall watchdog (plus the
+  // platform's invocation cap), not by this fixed budget.
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(new DOMException('upstream timeout', 'TimeoutError')),
+    UPSTREAM_TIMEOUT_MS,
+  );
   let upstream: Response;
   try {
-    upstream = await fetch(HKO_NOWCAST_CSV_URL, {
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-    });
+    upstream = await fetch(HKO_NOWCAST_CSV_URL, { signal: controller.signal });
   } catch {
+    clearTimeout(timer);
     return jsonResponse(502, { error: 'upstream_unreachable' });
   }
   if (!upstream.ok) {
+    clearTimeout(timer);
     return jsonResponse(502, { error: 'upstream_error' });
   }
   const lastModified = sanitizedLastModified(upstream);
@@ -285,15 +298,21 @@ async function fullModeNowcast(): Promise<Response> {
   if (!upstream.body) {
     // No streamable body (exotic runtime / 204-style response): fall back to
     // the crop mode's fully-buffered contract, which also owns the 502
-    // mapping for a body read that dies here.
+    // mapping for a body read that dies here. Stays under the timer — an
+    // unbounded .text() read would hang past the budget with no client
+    // watchdog on this path.
     try {
       const text = await upstream.text();
       const body = [OUTPUT_HEADER, ...text.split('\n').slice(1).filter(isRainRow)].join('\n');
       return new Response(body, { status: 200, headers: fullModeHeaders(lastModified) });
     } catch {
       return jsonResponse(502, { error: 'upstream_error' });
+    } finally {
+      clearTimeout(timer);
     }
   }
+  // Headers are in: release the cap before committing the stream.
+  clearTimeout(timer);
   return new Response(upstream.body.pipeThrough(rainRowFilterStream()), {
     status: 200,
     headers: fullModeHeaders(lastModified),
