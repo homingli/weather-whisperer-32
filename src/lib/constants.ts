@@ -182,6 +182,11 @@ export const TIMING = {
    *  Aligned with HKO's 30-min generation cadence so the next refetch always
    *  sees a fresh file (worst case: cache expires 5 min before next file). */
   NOWCAST_CACHE_TTL_MS: 15 * 60 * 1000,
+  /** District-scale nowcast crop fetch timeout (api/nowcast). Must exceed
+   *  the function's own 8 s upstream budget — a cold fetch where the
+   *  function spends its full budget waiting on HKO must still complete
+   *  client-side, or the first (cache-warming) hit always fails. */
+  LOCAL_NOWCAST_TIMEOUT_MS: 10_000,
   /** MSC GeoMet tile fetch timeout (30s — matches the HKO nowcast fetch). */
   MSC_TIMEOUT_MS: 30000,
   /** HKO warnings / storm signal TTL — push-driven, sub-minute user expectation. Used as the SourceState.ttlMs for HKO since warnings are the most volatile HKO slice in a unified fetch. */
