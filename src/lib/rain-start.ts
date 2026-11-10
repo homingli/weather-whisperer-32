@@ -134,6 +134,21 @@ export function seriesFromNowcastGrid(
   return out.length > 0 ? out : null;
 }
 
+/**
+ * District-authority split: when an HKO grid covers through `spanEndMs`, the
+ * radar-derived cell series outranks Open-Meteo's ~8 km cells inside that
+ * span — drop OM windows that BEGIN before the span closes so a city-scale
+ * bucket can't contradict the district data (the grid's 30-min windows tile
+ * the same clock, so the merged timeline stays contiguous). Windows at or
+ * after the span survive: the grid's horizon has ended and OM takes over.
+ * The crop grid's authority holds even when the crop itself is all-dry —
+ * "no rain near this point" is a district observation, not a data gap.
+ */
+export function dropOmInsideGridSpan(steps: RainStep[], spanEndMs: number): RainStep[] {
+  if (!Number.isFinite(spanEndMs)) return steps;
+  return steps.filter((s) => s.startMs >= spanEndMs);
+}
+
 export interface ComputeRainStartInput {
   now?: number;
   thresholdMm?: number;
@@ -197,10 +212,18 @@ export function computeRainStart(input: ComputeRainStartInput): RainStartForecas
   const firstWet = series[firstWetIdx];
   const source: RainStartSource = gridStarts.has(firstWet.startMs) ? 'hko-grid' : 'open-meteo';
 
-  // Walk the contiguous wet run to its end and peak.
+  // Walk the contiguous wet run to its end and peak. Contiguity is TIME
+  // adjacency, not array adjacency: HKO drops fully-dry steps, so a step
+  // where the sampled cell is dry but neighbors aren't can be absent from
+  // the series entirely — treating the gap as a continuation would bridge a
+  // dry half hour.
   let peak = firstWet.mm;
   let endsAt: number | undefined;
   for (let i = firstWetIdx + 1; i < series.length; i++) {
+    if (series[i].startMs > series[i - 1].endMs) {
+      endsAt = series[i - 1].endMs;
+      break;
+    }
     if (series[i].mm < threshold) {
       endsAt = series[i].startMs;
       break;

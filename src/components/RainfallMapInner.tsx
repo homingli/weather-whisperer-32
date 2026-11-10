@@ -49,12 +49,21 @@ function gridBounds(grid: RainGrid): { minLat: number; maxLat: number; minLon: n
 }
 
 // total is null when Content-Length is missing (mobile carriers, HTTP/2/3,
-// or Vercel's edge sometimes strip the header). The UI then switches from a
-// determinate bar to an indeterminate animation so the user sees progress
-// instead of a stuck 0% bar for the entire 2.7 MB download.
+// or the streaming function response, whose length is unknown until the
+// filter has run). The UI then switches from a determinate bar to an
+// indeterminate animation so the user sees progress instead of a stuck 0%
+// bar for the whole download.
 type ProgressCallback = (received: number, total: number | null) => void;
 
-const NOWCAST_CSV_URL = '/hko-data/F3/Gridded_rainfall_nowcast.csv';
+// Same base-URL convention as src/lib/nowcastLocal.ts: web builds call the
+// same-origin endpoint (Vercel serves /api/nowcast in prod; the Vite dev
+// proxy routes it to HKO's raw file — dev has no functions — and the client
+// parser drops zeros either way); native builds point VITE_API_BASE at the
+// deployed site so the Capacitor webview reaches the same function. The
+// function's mode=full streams only value>0 rows (the raw file is ~2.7 MB,
+// 98.8% zeros) and forwards HKO's Last-Modified for the freshness probe.
+const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+const NOWCAST_CSV_URL = `${API_BASE}/api/nowcast?mode=full`;
 
 /** Query cache key, hoisted so queryFn's freshness probe can read the
  *  previous result through queryClient.getQueryData. */
@@ -171,16 +180,18 @@ const fetchRainfallNowcast = async (
 };
 
 /**
- * HEAD-probe the nowcast CSV's Last-Modified without downloading the body
- * (~380 KB gzipped). Used before scheduled background refetches: HKO ignores
+ * HEAD-probe the nowcast's Last-Modified without downloading the body.
+ * Used before scheduled background refetches: HKO ignores
  * If-Modified-Since/If-None-Match (verified 2026-09-28 — both return 200
  * with the full body), so the only cheap freshness check is a HEAD compare.
+ * The probe targets /api/nowcast?mode=full, whose HEAD handler answers from
+ * HKO's headers-only response — no body crosses the wire in either hop.
  * Returns null when the header is missing or the probe fails — the caller
  * then falls through to the full GET. A query-cancellation abort propagates
  * so React Query sees the cancellation instead of a pointless full GET.
  *
- * The workbox SW routes only GET requests, so the HEAD passes straight
- * through to the network on both the dev proxy and the Vercel rewrite.
+ * The workbox SW caches only the GET (mode=full entry below); HEAD requests
+ * pass straight through to the network. Native builds run no SW at all.
  */
 async function fetchNowcastLastModified(signal: AbortSignal): Promise<number | null> {
   // Bound the probe with the same stall budget as the GET: a HEAD that never
@@ -250,7 +261,7 @@ export default function RainfallMapInner({
       if (!grid) return null;
       // Carry the real Last-Modified through (unlike the old CSV cache,
       // which couldn't): the background refetch HEAD-probes against it to
-      // skip the ~380 KB download while the source file is unchanged.
+      // skip the download while the source file is unchanged.
       return {
         grid,
         updateTime: initialNowcast.updateTime,
@@ -268,7 +279,11 @@ export default function RainfallMapInner({
   // Same 1080px breakpoint as the rest of the app (shared refcounted
   // matchMedia listener in useIsMobile).
   const isMobile = useIsMobile();
-  const minZoom = isMobile ? 6 : 7;
+  // Two levels above the old 6/7 floor: the widest allowed view stops at
+  // district scale — zoomed further out the cells smear into a region-wide
+  // blob that reads as "raining over everything", the exact misread this
+  // map exists to fix.
+  const minZoom = isMobile ? 8 : 9;
 
   const queryClient = useQueryClient();
   const { data, error, isLoading, isFetching, refetch } = useQuery({
@@ -281,7 +296,7 @@ export default function RainfallMapInner({
       setDownloadProgress(null);
       setBytesReceived(null);
       // Freshness probe: when we already hold data and the server's file
-      // hasn't changed since, skip the ~380 KB download entirely (HML-43).
+      // hasn't changed since, skip the download entirely (HML-43).
       // Covers both the 15-min background refetch and a cache-hit mount
       // whose localStorage TTL has lapsed. touchNowcastCache restarts the
       // localStorage TTL so the next mount keeps hitting the cache too.
