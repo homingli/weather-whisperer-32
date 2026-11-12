@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, WifiOff, type LucideIcon } from 'lucide-react';
 import { WeatherData } from '@/lib/weather';
 import { formatString, useLanguage } from '@/contexts/LanguageContext';
+import { appLocale } from '@/lib/utils';
 
 interface WeatherBannersProps {
   weather: WeatherData;
@@ -138,7 +139,7 @@ export function WeatherBanners({ weather, onRefetch, isRefetching }: WeatherBann
 
   // Cache: both sources failed, payload came from localStorage snapshot.
   if (weather.fallbackSource === 'cache' && weather.isFallback) {
-    const ts = formatTimestamp(mostRecentCachedAt(weather), language === 'tc' ? 'zh-HK' : 'en-US');
+    const ts = formatTimestamp(mostRecentCachedAt(weather), appLocale(language));
     const refetchButton = onRefetch ? (
       <button
         type="button"

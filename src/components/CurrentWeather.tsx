@@ -899,14 +899,14 @@ function PrecipBar({
   // band's threshold). All segments render at the dim opacity in that case.
   const activeBand = bandIndex >= 0 ? bands[bandIndex] : undefined;
   const unitLabel = precipitationUnitLabel(units);
-  const belowLabel = units === 'us' ? 'below 0.02 in' : 'below 0.5 mm';
+  const belowLabel = formatString(t('precip.belowTrace'), units === 'us' ? '0.02 in' : '0.5 mm');
 
   return (
     <div
       className="flex flex-col gap-3"
       aria-label={
         empty
-          ? `${t('daily.precip')}: unavailable`
+          ? `${t('daily.precip')}: ${t('precip.unavailable')}`
           : `${t('daily.precip')}: ${formatPrecipitation(mm, units)} ${unitLabel}${activeBand ? `, ${activeBand.label}` : `, ${belowLabel}`}`
       }
     >
@@ -936,7 +936,10 @@ function PrecipBar({
         </span>
       </div>
       <div className="relative h-2 overflow-hidden border border-foreground/15" aria-hidden="true">
-        <div className="absolute inset-0 grid grid-cols-7">
+        <div
+          className="absolute inset-0 grid"
+          style={{ gridTemplateColumns: `repeat(${bands.length}, minmax(0, 1fr))` }}
+        >
           {bands.map((b, i) => (
             <div
               key={b.label}
@@ -959,7 +962,7 @@ function PrecipBar({
           <div
             className="absolute pointer-events-none"
             style={{
-              left: `${((bandIndex + 0.5) / 7) * 100}%`,
+              left: `${((bandIndex + 0.5) / bands.length) * 100}%`,
               top: '-14px',
               transform: 'translateX(-50%)',
               color: activeBand!.color,
