@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { CurrentWeather as CurrentWeatherType, HourlyForecast, DailyForecast, getWeatherIconNode, weatherDescriptionKey, getHKOIconNode, hkoDescriptionKey } from "@/lib/weather";
 import type { HeadlineInfo } from "@/lib/weather";
 import type { LucideIcon } from "lucide-react";
@@ -33,7 +33,6 @@ interface CurrentWeatherProps {
   weather: CurrentWeatherType;
   hourlyForecast: HourlyForecast[];
   dailyForecast?: DailyForecast;
-  locationName?: string;
   timezone?: string;
   /**
    * Headline source discriminator. The `weather-manager` decides whether
@@ -177,7 +176,6 @@ function rainfallBandIndexFor(mm: number, units: Units): number {
 export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone, compact = false, headline, tomorrowSunrise }: CurrentWeatherProps) => {
   const { t } = useLanguage();
   const { units } = useUnits();
-  const root = useRef<HTMLDivElement>(null);
 
   const isEmpty = weather.apparentTemperature < SENTINEL_THRESHOLD;
 
@@ -238,7 +236,6 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
 
   return (
     <div
-      ref={root}
       className={`editorial-card ${compact ? 'overflow-x-hidden overflow-y-auto p-6 overscroll-contain' : 'overflow-hidden p-6 md:p-8 lg:p-10'}`}
     >
       {/* Sun-cycle progress strip — the active phase bar with time left
@@ -805,7 +802,7 @@ function UvChip({
         </span>
       </div>
       <div className="relative flex h-2 overflow-hidden border border-foreground/15" aria-hidden="true">
-        {UV_BANDS.slice(0, 5).map((b, i) => {
+        {UV_BANDS.map((b, i) => {
           const priorMax = i > 0 ? UV_BANDS[i - 1].max : 0;
           const segActive = !empty && uv != null && uv > priorMax && uv <= b.max;
           return (

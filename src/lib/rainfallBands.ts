@@ -16,10 +16,3 @@ export const RAINFALL_BANDS = [
   { max: 30, color: '#ff0844', label: '20 - 30' },
   { max: Infinity, color: '#9d0b0b', label: '> 30' },
 ] as const;
-
-export function getRainfallColor(value: number): string {
-  for (const band of RAINFALL_BANDS) {
-    if (value <= band.max) return band.color;
-  }
-  return RAINFALL_BANDS[RAINFALL_BANDS.length - 1].color;
-}
