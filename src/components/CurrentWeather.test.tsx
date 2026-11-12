@@ -206,6 +206,26 @@ describe('CurrentWeather Component', () => {
     expect(container.querySelector('[aria-label*="0.2 – 0.4 in"]')).toBeNull();
   });
 
+  it('sizes the precipitation bar to its band count so the icon centers on the lit band', () => {
+    // Regression: the bar hardcoded 7 columns for 6 bands, leaving an empty
+    // seventh column and shifting the band icon left of its segment.
+    const wetWeather = { ...mockWeather, precipitation: 5 }; // band index 1
+    const { container } = renderWithLanguage(
+      <CurrentWeather
+        weather={wetWeather}
+        hourlyForecast={mockHourly}
+        timezone="UTC"
+        headline={{ source: 'om' }}
+      />
+    );
+    const bar = container.querySelector('[aria-label*="2 – 5 mm"]')!;
+    const segments = bar.querySelector('.grid') as HTMLElement;
+    expect(segments.children).toHaveLength(6);
+    expect(segments.style.gridTemplateColumns).toBe('repeat(6, minmax(0, 1fr))');
+    const icon = bar.querySelector('.pointer-events-none') as HTMLElement;
+    expect(icon.style.left).toBe('25%');
+  });
+
   it('uses exact sun timestamps in the sun strip after sunrise and when switching timezone/location', () => {
     vi.setSystemTime(new Date('2024-01-08T06:10:00Z'));
     const daily = (sunrise: Date | string, sunset: Date | string): DailyForecastType => ({
@@ -398,6 +418,32 @@ describe('CurrentWeather Component', () => {
       });
       expect(container.textContent).toContain('潮濕');
       expect(container.querySelector('[aria-label="潮濕"]')).toBeTruthy();
+    });
+
+    it('localizes the precipitation "unavailable" aria-label under tc', () => {
+      // Regression: the empty-state label hardcoded the English word.
+      function LangProbe() {
+        const { setLanguage } = useLanguage();
+        return <button data-testid="flip-tc-precip" onClick={() => setLanguage('tc')}>tc</button>;
+      }
+      const emptyWeather = { ...mockWeather, apparentTemperature: -999 };
+      const { container } = render(
+        <LanguageProvider>
+          <UnitsProvider>
+            <LangProbe />
+            <CurrentWeather
+              weather={emptyWeather}
+              hourlyForecast={mockHourly}
+              timezone="UTC"
+              headline={{ source: 'om' }}
+            />
+          </UnitsProvider>
+        </LanguageProvider>
+      );
+      act(() => {
+        screen.getByTestId('flip-tc-precip').click();
+      });
+      expect(container.querySelector('[aria-label="降雨量: 無法取得"]')).toBeTruthy();
     });
 
     it('renders the night clear (70) as "天晴" under tc, not the English "Fine" wording', () => {
