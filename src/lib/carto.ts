@@ -11,14 +11,6 @@ export function cartoStyleUrl(style: CartoStyle, apiKey = CARTO_API_KEY): string
   return `https://basemaps.cartocdn.com/gl/${name}-gl-style/style.json${key}`;
 }
 
-export function cartoRasterUrl(
-  style: 'light_all' | 'dark_all' | 'voyager',
-  apiKey = CARTO_API_KEY,
-): string {
-  const key = apiKey?.trim() ? `?key=${encodeURIComponent(apiKey.trim())}` : '';
-  return `https://{s}.basemaps.cartocdn.com/rastertiles/${style}/{z}/{x}/{y}{r}.png${key}`;
-}
-
 /** MapLibre raster template: explicit host, since `{s}` is not MapLibre syntax. */
 export function cartoMapLibreRasterUrl(
   style: 'light_all' | 'dark_all' | 'voyager',

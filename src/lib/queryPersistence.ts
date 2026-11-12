@@ -25,24 +25,8 @@ import {
 export const PERSIST_SCHEMA_VERSION = 'v1';
 const STORAGE_KEY = `weather-rq-cache-${PERSIST_SCHEMA_VERSION}`;
 const MAX_BYTES = 512 * 1024;
-
-// Append here when bumping PERSIST_SCHEMA_VERSION so the prior key gets
-// swept on next page load and doesn't orphan in localStorage forever.
-// Currently empty — PERSIST_SCHEMA_VERSION is v1, the first public
-// schema. On the next bump (e.g. v1 -> v2), prepend
-// `weather-rq-cache-v1` here.
-const LEGACY_STORAGE_KEYS: readonly string[] = [];
-
-// Sweep legacy STORAGE_KEY entries once on module load. Safe to call
-// repeatedly; removeItem is a no-op if the key is missing. Wrapped so a
-// localStorage-disabled environment (private mode, SSR) doesn't throw.
-try {
-  for (const key of LEGACY_STORAGE_KEYS) {
-    localStorage.removeItem(key);
-  }
-} catch {
-  // localStorage unavailable — ignore.
-}
+// v1 is the first schema, so no legacy-key sweep exists yet. When bumping
+// to v2, sweep the old STORAGE_KEY once on module load.
 
 export const persister: Persister = {
   persistClient: async (client: PersistedClient) => {

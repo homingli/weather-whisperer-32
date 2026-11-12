@@ -4,7 +4,6 @@ import {
   readNowcastCache,
   writeNowcastCache,
   touchNowcastCache,
-  clearNowcastCache,
 } from './nowcastCache';
 import { NOWCAST_CACHE_SCHEMA_VERSION, STORAGE_KEYS, TIMING } from './constants';
 import type { CellRow } from './rainfallGrid';
@@ -208,29 +207,6 @@ describe('nowcastCache', () => {
       // Must NOT refresh a version-mismatched entry into validity.
       touchNowcastCache();
       expect(readNowcastCache()).toBeNull();
-    });
-  });
-
-  describe('clearNowcastCache', () => {
-    it('removes the stored entry', () => {
-      writeNowcastCache(sampleRows, 't', 0);
-      expect(readNowcastCache()).not.toBeNull();
-      clearNowcastCache();
-      expect(readNowcastCache()).toBeNull();
-    });
-
-    it('is a no-op when nothing is stored', () => {
-      expect(() => clearNowcastCache()).not.toThrow();
-    });
-
-    it('does not throw when localStorage.removeItem fails', () => {
-      const removeItemSpy = vi
-        .spyOn(Storage.prototype, 'removeItem')
-        .mockImplementation(() => {
-          throw new Error('disabled');
-        });
-      expect(() => clearNowcastCache()).not.toThrow();
-      removeItemSpy.mockRestore();
     });
   });
 });
