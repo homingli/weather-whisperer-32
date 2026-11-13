@@ -12,9 +12,20 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 // which a verbatim `?url` copy would omit in production builds.
 maplibregl.setWorkerUrl(workerUrl);
 import type { RainfallFeatureCollection } from '@/lib/rainfallGeoJson';
+import { RAINFALL_BANDS } from '@/lib/rainfallBands';
 import { cartoApiKey, cartoMapLibreRasterUrl, cartoStyleUrl } from '@/lib/carto';
 
 const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+// Fill-color expression for the rainfall layer, built from RAINFALL_BANDS so
+// the canvas colors can't drift from the legend (both read the same table).
+// The last band's max is Infinity — no ['<='] case can express it, so it
+// becomes the expression's fallback color.
+const RAINFALL_FILL_COLOR = [
+  'case',
+  ...RAINFALL_BANDS.slice(0, -1).flatMap(({ max, color }) => [['<=', ['get', 'value'], max], color]),
+  RAINFALL_BANDS[RAINFALL_BANDS.length - 1].color,
+];
 
 /**
  * Run `install` once the map's style is safe to add sources/layers to.
@@ -162,7 +173,7 @@ export function MapLibreMap({ center, zoom, minZoom, maxZoom, dark, ariaLabel, i
         map.addSource('hko-rainfall', { type: 'geojson', data: rainfall as never });
         // RainfallMapInner's GeoJSON omits cells under MIN_OVERLAY_MM, so every
         // feature here is visible rain — constant opacity, no value case needed.
-        map.addLayer({ id: 'hko-rainfall', type: 'fill', source: 'hko-rainfall', paint: { 'fill-color': ['case', ['<=', ['get', 'value'], 0.5], '#a0c4ff', ['<=', ['get', 'value'], 2], '#4facfe', ['<=', ['get', 'value'], 5], '#00f2fe', ['<=', ['get', 'value'], 10], '#43e97b', ['<=', ['get', 'value'], 20], '#f6d365', ['<=', ['get', 'value'], 30], '#ff0844', '#9d0b0b'], 'fill-opacity': 0.5 } });
+        map.addLayer({ id: 'hko-rainfall', type: 'fill', source: 'hko-rainfall', paint: { 'fill-color': RAINFALL_FILL_COLOR as never, 'fill-opacity': 0.5 } });
       }
     };
     return installWhenStyleReady(map, install);
