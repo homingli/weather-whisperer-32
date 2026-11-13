@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
@@ -394,10 +394,10 @@ export default function RainfallMapInner({
 
   // Manual step selection (slider or label click) pauses autoplay, matching
   // the MSC map.
-  const selectStep = (index: number) => {
+  const selectStep = useCallback((index: number) => {
     setActiveStepIndex(index);
     setIsPlaying(false);
-  };
+  }, []);
 
   return (
     <div className="absolute inset-0 flex flex-col">

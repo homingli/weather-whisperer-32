@@ -15,8 +15,13 @@ import { TIMING } from '@/lib/constants';
  * doesn't restart the interval.
  */
 export function useAutoplayStep(isPlaying: boolean, stepCount: number, onTick: () => void) {
+  // Synced in an effect, not during render — a render-phase ref write is
+  // unsafe under concurrent rendering. The first tick is ≥1.5 s away, long
+  // after the effect has run.
   const onTickRef = useRef(onTick);
-  onTickRef.current = onTick;
+  useEffect(() => {
+    onTickRef.current = onTick;
+  }, [onTick]);
 
   useEffect(() => {
     if (!isPlaying || stepCount <= 0) return;
