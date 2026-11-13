@@ -231,12 +231,12 @@ describe('Station lookup', () => {
   });
 
   it('getStationCoordinates returns the registered coords for known names', () => {
-    const coords = getStationCoordinates("King's Park", 'en');
+    const coords = getStationCoordinates("King's Park");
     expect(coords).toEqual({ lat: 22.3119, lon: 114.1728 });
   });
 
   it('getStationCoordinates returns null for unknown names', () => {
-    expect(getStationCoordinates('Imaginary Station', 'en')).toBeNull();
+    expect(getStationCoordinates('Imaginary Station')).toBeNull();
   });
 });
 
@@ -254,12 +254,12 @@ describe('District lookup', () => {
   });
 
   it('getDistrictCoordinates returns the registered coords for known names', () => {
-    const coords = getDistrictCoordinates('Wan Chai', 'en');
+    const coords = getDistrictCoordinates('Wan Chai');
     expect(coords).toEqual({ lat: 22.2783, lon: 114.1747 });
   });
 
   it('getDistrictCoordinates returns null for unknown names', () => {
-    expect(getDistrictCoordinates('Imaginary District', 'en')).toBeNull();
+    expect(getDistrictCoordinates('Imaginary District')).toBeNull();
   });
 });
 

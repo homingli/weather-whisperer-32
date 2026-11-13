@@ -4,6 +4,7 @@ import type { HeadlineInfo } from "@/lib/weather";
 import type { LucideIcon } from "lucide-react";
 import { SENTINEL_THRESHOLD, QUIET } from "@/lib/constants";
 import { aqhiLevelFor, type AqhiLevel } from "@/lib/hko-aqhi";
+import { RAINFALL_COLORS } from "@/lib/rainfallBands";
 import { Umbrella, UmbrellaOff, Sunrise, Sunset, Droplets, Sun, Wind, Droplet, AlertTriangle, Moon, Activity } from "lucide-react";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
@@ -130,28 +131,31 @@ function aqhiBandFor(index: number | null | undefined): AqhiBand {
    Deliberately one bucket above the nowcast map legend: the map's first
    bucket is 0.2 – 0.5 mm, while this chart treats anything under 0.5 mm
    as "trace" (no band lit) — an hourly-chart distinction, not a nowcast
-   threshold. Keep the two in mind when touching either. */
+   threshold. Colors come from the shared RAINFALL_COLORS palette so the
+   same amount reads as the same hue on chart and map; the chart's six
+   bands map to palette indices 0-4 and 6, skipping the map-only 20-30
+   slot (#ff0844). */
 type RainBand = { max: number; color: string; label: string };
 
 const RAINFALL_BANDS: RainBand[] = [
-  { max: 2,         color: "#a0c4ff", label: "0.5 – 2 mm" },
-  { max: 5,         color: "#4facfe", label: "2 – 5 mm" },
-  { max: 10,        color: "#00f2fe", label: "5 – 10 mm" },
-  { max: 20,        color: "#43e97b", label: "10 – 20 mm" },
-  { max: 30,        color: "#f6d365", label: "20 – 30 mm" },
-  { max: Infinity,  color: "#9d0b0b", label: "> 30 mm" },
+  { max: 2,         color: RAINFALL_COLORS[0], label: "0.5 – 2 mm" },
+  { max: 5,         color: RAINFALL_COLORS[1], label: "2 – 5 mm" },
+  { max: 10,        color: RAINFALL_COLORS[2], label: "5 – 10 mm" },
+  { max: 20,        color: RAINFALL_COLORS[3], label: "10 – 20 mm" },
+  { max: 30,        color: RAINFALL_COLORS[4], label: "20 – 30 mm" },
+  { max: Infinity,  color: RAINFALL_COLORS[6], label: "> 30 mm" },
 ];
 
 // US-mode variant — same colors as the metric bands (HKO-defined) but labels
 // show inch thresholds so the band the marker lights up reads in the active
 // unit system. Thresholds are the inch-equivalent of the metric ones.
 const RAINFALL_BANDS_US: RainBand[] = [
-  { max: 0.08,      color: "#a0c4ff", label: "0.02 – 0.08 in" },
-  { max: 0.2,       color: "#4facfe", label: "0.08 – 0.2 in" },
-  { max: 0.4,       color: "#00f2fe", label: "0.2 – 0.4 in" },
-  { max: 0.8,       color: "#43e97b", label: "0.4 – 0.8 in" },
-  { max: 1.2,       color: "#f6d365", label: "0.8 – 1.2 in" },
-  { max: Infinity,  color: "#9d0b0b", label: "> 1.2 in" },
+  { max: 0.08,      color: RAINFALL_COLORS[0], label: "0.02 – 0.08 in" },
+  { max: 0.2,       color: RAINFALL_COLORS[1], label: "0.08 – 0.2 in" },
+  { max: 0.4,       color: RAINFALL_COLORS[2], label: "0.2 – 0.4 in" },
+  { max: 0.8,       color: RAINFALL_COLORS[3], label: "0.4 – 0.8 in" },
+  { max: 1.2,       color: RAINFALL_COLORS[4], label: "0.8 – 1.2 in" },
+  { max: Infinity,  color: RAINFALL_COLORS[6], label: "> 1.2 in" },
 ];
 
 function rainfallBandIndexFor(mm: number, units: Units): number {

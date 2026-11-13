@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, useCallback, useMemo, type ReactNode } from 'react';
 import { STORAGE_KEYS, TIMING } from '@/lib/constants';
+import { usePersistedEnum } from '@/hooks/usePersistedEnum';
 import { ThemeContext, type ThemeMode, type ResolvedTheme } from './ThemeContext';
 
+const VALID_MODES: ReadonlySet<ThemeMode> = new Set<ThemeMode>(['auto', 'light', 'dark']);
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.THEME_MODE);
-    return (saved as ThemeMode) || 'auto';
-  });
+  const [mode, setMode] = usePersistedEnum(STORAGE_KEYS.THEME_MODE, VALID_MODES, 'auto');
 
   const [sunTimes, setSunTimesState] = useState<{ sunrise: Date | null; sunset: Date | null }>({
     sunrise: null,
@@ -14,11 +14,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   });
 
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light');
-
-  const setMode = useCallback((newMode: ThemeMode) => {
-    setModeState(newMode);
-    localStorage.setItem(STORAGE_KEYS.THEME_MODE, newMode);
-  }, []);
 
   const setSunTimes = useCallback((sunrise: Date | null, sunset: Date | null) => {
     setSunTimesState(prev => {

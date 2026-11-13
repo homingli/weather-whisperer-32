@@ -64,7 +64,9 @@ export const translations: Record<Language, Record<string, string>> = {
     'hourly.rainChance': 'Rain Chance',
     'hourly.chartLabel': 'Hourly temperature and rain probability chart',
     'hourly.strongGusts': 'Strong gusts {0}',
-    
+    'hourly.joiner': ', ',
+    'hourly.time': 'Time',
+
     // Daily forecast
     'daily.title': '7-DAY FORECAST',
     'daily.today': 'Today',
@@ -72,6 +74,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'daily.low': 'Low',
     'daily.high': 'High',
     'daily.precip': 'Precip.',
+    'daily.date': 'Date',
     'precip.belowTrace': 'below {0}',
     'precip.unavailable': 'unavailable',
     'daily.chartLabel': '7-day temperature range and precipitation chart',
@@ -218,6 +221,16 @@ export const translations: Record<Language, Record<string, string>> = {
     'settings.fontSize.small': 'Small',
     'settings.fontSize.medium': 'Medium',
     'settings.fontSize.large': 'Large',
+
+    // Theme (light/dark/auto) + language menu labels
+    'settings.theme': 'Theme',
+    'settings.theme.light': 'Light',
+    'settings.theme.dark': 'Dark',
+    'settings.theme.auto': 'Auto',
+    'settings.language': 'Language',
+
+    // Skip link
+    'a11y.skipToMain': 'Skip to main content',
 
     // Current weather
     'weather.feelsLike': 'Feels like',
@@ -420,7 +433,9 @@ export const translations: Record<Language, Record<string, string>> = {
     'hourly.rainChance': '降雨機率',
     'hourly.chartLabel': '每小時溫度與降雨機率圖表',
     'hourly.strongGusts': '強陣風 {0}',
-    
+    'hourly.joiner': '，',
+    'hourly.time': '時間',
+
     // Daily forecast
     'daily.title': '7日天氣預報',
     'daily.today': '今日',
@@ -428,6 +443,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'daily.low': '最低',
     'daily.high': '最高',
     'daily.precip': '降雨量',
+    'daily.date': '日期',
     'precip.belowTrace': '低於 {0}',
     'precip.unavailable': '無法取得',
     'daily.sunrise': '日出',
@@ -577,6 +593,16 @@ export const translations: Record<Language, Record<string, string>> = {
     'settings.fontSize.small': '細',
     'settings.fontSize.medium': '標準',
     'settings.fontSize.large': '大',
+
+    // Theme (light/dark/auto) + language menu labels
+    'settings.theme': '主題',
+    'settings.theme.light': '淺色',
+    'settings.theme.dark': '深色',
+    'settings.theme.auto': '自動',
+    'settings.language': '語言',
+
+    // Skip link
+    'a11y.skipToMain': '跳到主要內容',
 
     // Current weather
     'weather.feelsLike': '體感溫度',

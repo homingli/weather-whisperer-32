@@ -110,9 +110,9 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, share
         const to = formatTimeInTimezone(new Date(lastInRun.time));
         return from === to ? from : `${from}–${to}`;
       })
-      .join(language === 'tc' ? '，' : ', ');
+      .join(t('hourly.joiner'));
     return `${t('hourly.chartLabel')}. ${formatString(t('hourly.strongGusts'), ranges)}`;
-  }, [t, language, strongGustAreas, chartData, formatTimeInTimezone]);
+  }, [t, strongGustAreas, chartData, formatTimeInTimezone]);
 
   // Format sunrise/sunset time in the city's timezone
   const formatSunTime = useCallback((date: Date) => {
@@ -383,7 +383,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, share
           <caption>{t('hourly.chartLabel')}</caption>
           <thead>
             <tr>
-              <th scope="col">{language === 'tc' ? '時間' : 'Time'}</th>
+              <th scope="col">{t('hourly.time')}</th>
               <th scope="col">{t('hourly.temperature')}</th>
               <th scope="col">{t('hourly.rainChance')}</th>
               <th scope="col">{t('weather.wind')}</th>
