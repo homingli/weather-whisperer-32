@@ -328,7 +328,7 @@ export const DailyForecast = memo(({ forecast, timezone, cityName, shareUrl }: D
           <caption>{t('daily.chartLabel')}</caption>
           <thead>
             <tr>
-              <th scope="col">{language === 'tc' ? '日期' : 'Date'}</th>
+              <th scope="col">{t('daily.date')}</th>
               <th scope="col">{t('daily.low')}</th>
               <th scope="col">{t('daily.high')}</th>
               <th scope="col">{t('daily.precip')}</th>
