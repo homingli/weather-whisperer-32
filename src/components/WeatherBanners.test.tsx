@@ -56,6 +56,19 @@ describe('WeatherBanners', () => {
       renderBanner(weather);
       expect(screen.getByTestId('banner-hko')).toBeInTheDocument();
     });
+
+    it('links the status page so users can check Open-Meteo themselves', () => {
+      const weather = makeWeather({
+        isFallback: true,
+        fallbackSource: 'HKO',
+        sources: { om: failedHko, hko: okHko },
+      });
+      renderBanner(weather);
+      const link = screen.getByRole('link');
+      expect(link).toHaveAttribute('href', 'https://status.open-meteo.com/');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+    });
   });
 
   describe('partial (one source unavailable)', () => {

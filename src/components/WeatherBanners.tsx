@@ -6,11 +6,13 @@ import { appLocale } from '@/lib/utils';
 
 interface WeatherBannersProps {
   weather: WeatherData;
-  /** Triggered by the red offline banner's "Refetch" button. */
+  /** Triggered by the red offline strip's "Refetch" button. */
   onRefetch?: () => void;
   /** True while a refetch is in flight (disables the button + shows spinner). */
   isRefetching?: boolean;
 }
+
+const STATUS_URL = 'https://status.open-meteo.com/';
 
 /** Most-recent non-zero cachedAt across the available sources, or 0 if none. */
 function mostRecentCachedAt(weather: WeatherData): number {
@@ -44,28 +46,43 @@ const SEVERITY_CLASSES: Record<Severity, { border: string; bg: string; text: str
   },
 };
 
+/** External link to the Open-Meteo status page, shared by the amber strips. */
+function StatusLink() {
+  const { t } = useLanguage();
+  return (
+    <a
+      href={STATUS_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="underline underline-offset-2 hover:opacity-80 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+    >
+      {t('data.checkStatus')}
+    </a>
+  );
+}
+
 /**
- * Shared amber/red banner shell. Used for legacy HKO, partial-source, and
- * offline-cache notifications — all three share the same outline, padding,
- * and icon-title-desc layout; only the severity tone, icon, copy, and
- * optional trailing action differ.
+ * Shared amber/red strip shell — same "thin-strip language" as
+ * RainStartBanner: a slim one-line row instead of the former tall
+ * icon-title-desc card, so a source failure informs without dominating
+ * the page. Trailing content (status link / refetch button) sits inline
+ * at the end of the row.
  *
  * WCAG 4.1.3 — informational amber uses role="status"; the offline (error)
- * banner uses role="alert" because it blocks the user from seeing live data.
+ * strip uses role="alert" because it blocks the user from seeing live data.
  */
-function SeverityBanner({
+function SeverityStrip({
   severity,
   icon: Icon,
-  title,
-  desc,
+  children,
   action,
   testId,
   role,
 }: {
   severity: Severity;
   icon: LucideIcon;
-  title: string;
-  desc: string;
+  children: ReactNode;
+  /** Trailing inline element (refetch button), sits at the end of the row. */
   action?: ReactNode;
   testId: string;
   role: 'alert' | 'status';
@@ -73,15 +90,12 @@ function SeverityBanner({
   const c = SEVERITY_CLASSES[severity];
   return (
     <div
-      className={`editorial-card ${c.border} ${c.bg} p-4 rounded-xl flex items-start gap-3 ${c.text} animate-fade-in`}
+      className={`editorial-card ${c.border} ${c.bg} px-4 py-2 rounded-xl flex flex-wrap items-center gap-x-2 gap-y-1 ${c.text} text-xs animate-fade-in`}
       data-testid={testId}
       role={role}
     >
-      <Icon className="h-5 w-5 shrink-0 mt-0.5" />
-      <div className={action ? 'flex-1 min-w-0' : undefined}>
-        <h4 className="font-semibold text-sm">{title}</h4>
-        <p className="text-xs opacity-90 mt-1">{desc}</p>
-      </div>
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="flex-1 min-w-0">{children}</span>
       {action}
     </div>
   );
@@ -101,14 +115,14 @@ export function WeatherBanners({ weather, onRefetch, isRefetching }: WeatherBann
   // HKO-only fallback: OM unavailable, HKO carries the show (HK path).
   if (weather.fallbackSource === 'HKO' && weather.isFallback) {
     return (
-      <SeverityBanner
+      <SeverityStrip
         severity="warning"
         icon={AlertTriangle}
-        title={t('fallback.hkoTitle')}
-        desc={t('fallback.hkoDesc')}
         testId="banner-hko"
         role="status"
-      />
+      >
+        {t('fallback.hkoShort')} <span aria-hidden="true">·</span> <StatusLink />
+      </SeverityStrip>
     );
   }
 
@@ -122,18 +136,17 @@ export function WeatherBanners({ weather, onRefetch, isRefetching }: WeatherBann
         ? t('source.hko')
         : '';
     return (
-      <SeverityBanner
+      <SeverityStrip
         severity="warning"
         icon={AlertTriangle}
-        title={
-          workingSource
-            ? formatString(t('data.partialData'), workingSource)
-            : t('data.partialDataNoSource')
-        }
-        desc={t('data.partialDataDesc')}
         testId="banner-partial"
         role="status"
-      />
+      >
+        {workingSource
+          ? formatString(t('data.partialShort'), workingSource)
+          : t('data.partialDataNoSource')}{' '}
+        <span aria-hidden="true">·</span> <StatusLink />
+      </SeverityStrip>
     );
   }
 
@@ -157,15 +170,15 @@ export function WeatherBanners({ weather, onRefetch, isRefetching }: WeatherBann
       </button>
     ) : undefined;
     return (
-      <SeverityBanner
+      <SeverityStrip
         severity="error"
         icon={WifiOff}
-        title={ts ? formatString(t('data.offlineWithTs'), ts) : t('data.offline')}
-        desc={t('data.offlineDesc')}
         action={refetchButton}
         testId="banner-cache"
         role="alert"
-      />
+      >
+        {ts ? formatString(t('data.offlineShort'), ts) : t('data.offline')}
+      </SeverityStrip>
     );
   }
 
