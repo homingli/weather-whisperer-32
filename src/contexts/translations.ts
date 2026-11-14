@@ -177,25 +177,23 @@ export const translations: Record<Language, Record<string, string>> = {
     'loading.failed': 'Failed to load weather data',
     'loading.tryAgain': 'Please try again later',
     
-    // Fallback banners
-    'fallback.hkoTitle': 'Open-Meteo API Offline',
-    'fallback.hkoDesc': 'Open-Meteo weather API is currently experiencing connection issues. Showing live weather data from the Hong Kong Observatory instead. Check latest status: https://status.open-meteo.com/',
-    'fallback.cacheTitle': 'Weather Service Offline',
-    'fallback.cacheDesc': 'All weather APIs are currently offline. Showing cached weather data from your last successful load.',
+    // Fallback banners (thin strips)
+    'fallback.hkoShort': 'Open-Meteo offline — showing Hong Kong Observatory data',
 
     // Data
     'data.refresh': 'Refresh Data',
     'data.refreshing': 'Refreshing weather data...',
     'data.refreshed': 'Weather data refreshed',
     'data.refreshFailed': 'Failed to refresh data',
-    'data.usingCached': 'Showing cached data',
-    'data.partialData': 'Showing partial data only with {0}',
+    'data.partialShort': 'Partial data: only {0} available',
     'data.partialDataNoSource': 'Showing partial data only',
-    'data.partialDataDesc': 'One or more data sources could not be reached. Forecasts and warnings may be incomplete.',
     'data.offline': 'Currently offline',
-    'data.offlineWithTs': 'Currently offline: showing cached data from {0}',
-    'data.offlineDesc': 'Weather services are unreachable. The display may not reflect current conditions.',
+    'data.offlineShort': 'Offline — cached data from {0}',
     'data.refetchLive': 'Refetch live data',
+    'data.checkStatus': 'check status',
+    // WCAG 2.5.3 Label in Name — the visible label must be a contiguous
+    // substring of the accessible name.
+    'data.checkStatusAria': 'Check status — Open-Meteo status page',
 
     // Weather source
     'source.openMeteo': 'Open-Meteo',
@@ -326,6 +324,10 @@ export const translations: Record<Language, Record<string, string>> = {
 
     // Hourly / daily chart kickers
     'hourly.nextNHours': 'The next {0} hours',
+    'hourly.unavailable': 'Hourly forecast unavailable',
+    // Source-neutral: the empty-forecast guard fires on any payload without
+    // hourly rows, not only on the OM-failure path.
+    'hourly.unavailableDesc': 'Hourly data is temporarily unavailable from your weather sources.',
     'daily.lookAhead': 'A look ahead',
 
     // 404 page
@@ -550,24 +552,20 @@ export const translations: Record<Language, Record<string, string>> = {
     'loading.tryAgain': '請稍後再試',
     
     // Fallback banners
-    'fallback.hkoTitle': 'Open-Meteo API 離線',
-    'fallback.hkoDesc': 'Open-Meteo 天氣 API 目前連線出現問題。已自動為您切換至香港天文台的即時天氣數據。最新狀態請查看：https://status.open-meteo.com/',
-    'fallback.cacheTitle': '天氣服務離線',
-    'fallback.cacheDesc': '所有天氣服務 API 目前皆處於離線狀態。正在顯示上次成功載入的快照資料。',
+    'fallback.hkoShort': 'Open-Meteo 離線中 — 已改為顯示香港天文台的數據',
 
     // Data
     'data.refresh': '刷新資料',
     'data.refreshing': '正在刷新天氣資料...',
     'data.refreshed': '天氣資料已刷新',
     'data.refreshFailed': '刷新資料失敗',
-    'data.usingCached': '正在顯示快取資料',
-    'data.partialData': '目前僅顯示 {0} 的部分資料',
+    'data.partialShort': '部分資料：目前僅有 {0}',
     'data.partialDataNoSource': '目前僅顯示部分資料',
-    'data.partialDataDesc': '部分資料來源未能連線，預報及天氣警告可能不完整。',
     'data.offline': '目前離線',
-    'data.offlineWithTs': '目前離線：正在顯示 {0} 的快取資料',
-    'data.offlineDesc': '無法連線至天氣服務，顯示的內容可能未能反映最新狀況。',
+    'data.offlineShort': '離線中 — 正在顯示 {0} 的快取資料',
     'data.refetchLive': '重新擷取即時資料',
+    'data.checkStatus': '查看狀態',
+    'data.checkStatusAria': '查看狀態 — Open-Meteo 狀態頁',
 
     // Weather source
     'source.openMeteo': 'Open-Meteo',
@@ -693,6 +691,8 @@ export const translations: Record<Language, Record<string, string>> = {
 
     // Hourly / daily chart kickers
     'hourly.nextNHours': '未來 {0} 小時',
+    'hourly.unavailable': '暫無每小時預報',
+    'hourly.unavailableDesc': '目前無法從天氣資料來源取得每小時預報資料。',
     'daily.lookAhead': '七日概覽',
 
     // 404 page

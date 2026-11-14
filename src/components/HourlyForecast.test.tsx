@@ -137,7 +137,7 @@ describe('HourlyForecast Component', () => {
     expect(screen.getByText(/the next \d+ hours/i)).toBeInTheDocument();
   });
 
-  it('renders the share button next to the kicker — enabled with data, disabled without', () => {
+  it('renders the share button next to the kicker — enabled with data, absent on the empty-forecast unavailable card', () => {
     const { rerender } = renderWithLanguage(<HourlyForecast forecast={mockHourlyData} />);
     // Distinct accessible name so the daily and hourly buttons don't blur
     // together in a screen reader's button rotor.
@@ -151,16 +151,23 @@ describe('HourlyForecast Component', () => {
         </UnitsProvider>
       </LanguageProvider>
     );
-    expect(screen.getByRole('button', { name: 'Share hourly forecast' })).toBeDisabled();
+    // Empty forecast short-circuits to the unavailable card — no share
+    // button at all (nothing to share).
+    expect(screen.queryByRole('button', { name: 'Share hourly forecast' })).not.toBeInTheDocument();
+    expect(screen.getByText(/hourly forecast unavailable/i)).toBeInTheDocument();
   });
 
-  it('handles empty forecast gracefully — renders title and chart container without crashing', () => {
+  it('handles empty forecast gracefully — compact unavailable card instead of a blank panel', () => {
     renderWithLanguage(<HourlyForecast forecast={[]} />);
-    expect(screen.getByText(/HOURLY FORECAST/i)).toBeInTheDocument();
-    // Chart container still renders (ResponsiveContainer mock always returns a div).
-    expect(screen.getByTestId('chart-container')).toBeInTheDocument();
-    // No ReferenceArea when there's no data.
-    expect(screen.queryByTestId('ref-area')).not.toBeInTheDocument();
+    expect(screen.getByText(/hourly forecast unavailable/i)).toBeInTheDocument();
+    expect(screen.getByText(/temporarily unavailable/i)).toBeInTheDocument();
+    // No chart and no share button — the 420px blank panel is gone.
+    expect(screen.queryByTestId('chart-container')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('composed-chart')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    // Exact-case: the panel kicker is uppercase 'HOURLY FORECAST' — a /i regex
+    // would collide with the unavailable copy itself.
+    expect(screen.queryByText('HOURLY FORECAST')).not.toBeInTheDocument();
   });
 
   it('renders the composed chart — temperature line + rain-chance bars — from hourly forecast', () => {
