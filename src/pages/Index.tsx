@@ -392,7 +392,7 @@ const Index = () => {
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          {language === 'tc' ? '跳到主要內容' : 'Skip to main content'}
+          {t('a11y.skipToMain')}
         </a>
 
         {/* Screen reader only header */}
@@ -476,7 +476,6 @@ const Index = () => {
                         hourlyForecast={weather.hourly || []}
                         dailyForecast={weather?.daily?.[0]}
                         tomorrowSunrise={weather?.daily?.[1]?.sunrise}
-                        locationName={selectedCity?.name}
                         timezone={weather.timezone}
                         headline={weather.headline}
                       />
@@ -545,7 +544,6 @@ const Index = () => {
                       hourlyForecast={weather.hourly || []}
                       dailyForecast={weather?.daily?.[0]}
                       tomorrowSunrise={weather?.daily?.[1]?.sunrise}
-                      locationName={selectedCity?.name}
                       timezone={weather.timezone}
                       headline={weather.headline}
                     />

@@ -151,9 +151,9 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
   // Short labels — full names (淺色模式 / 深色模式) overflow the pill cells,
   // and the leading icon makes each option scannable regardless.
   const themeLabels = {
-    light: language === 'tc' ? '淺色' : 'Light',
-    dark: language === 'tc' ? '深色' : 'Dark',
-    auto: language === 'tc' ? '自動' : 'Auto',
+    light: t('settings.theme.light'),
+    dark: t('settings.theme.dark'),
+    auto: t('settings.theme.auto'),
   };
 
   // onCitySelect (handleCitySelect) persists the default city, so no
@@ -252,7 +252,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
           {/* Theme — same segmented pill as Units/Language. Icons keep the
               3-way Auto/Light/Dark choice scannable with short labels. */}
           <PillToggle
-            label={language === 'tc' ? '主題' : 'Theme'}
+            label={t('settings.theme')}
             value={mode}
             options={[
               { value: 'auto', label: themeLabels.auto, icon: SunMoon },
@@ -266,7 +266,7 @@ export function SettingsMenu({ currentCity, recentCities, onCitySelect, onRefres
 
           {/* Language pill toggle */}
           <PillToggle
-            label={language === 'tc' ? '語言' : 'Language'}
+            label={t('settings.language')}
             value={language}
             options={languages}
             onChange={setLanguage}

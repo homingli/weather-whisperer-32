@@ -8,8 +8,7 @@ export { HK_BOUNDS, PRD_BOUNDS, isInHongKong, isInRainfallRegion } from './hko-b
 
 // Stations & districts
 export {
-  HKO_STATIONS_EN, HKO_STATIONS_TC,
-  HKO_DISTRICTS_EN, HKO_DISTRICTS_TC,
+  HKO_STATIONS, HKO_DISTRICTS,
   findNearestStation, findNearestDistrict,
   getStationCoordinates, getDistrictCoordinates,
 } from './hko-stations';

@@ -1,4 +1,5 @@
 import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from "@/lib/weather";
+import { CloudOff } from "lucide-react";
 import { ComposedChart, Bar, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from "recharts";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
 import { useUnits } from "@/contexts/UnitsContext";
@@ -110,9 +111,9 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, share
         const to = formatTimeInTimezone(new Date(lastInRun.time));
         return from === to ? from : `${from}–${to}`;
       })
-      .join(language === 'tc' ? '，' : ', ');
+      .join(t('hourly.joiner'));
     return `${t('hourly.chartLabel')}. ${formatString(t('hourly.strongGusts'), ranges)}`;
-  }, [t, language, strongGustAreas, chartData, formatTimeInTimezone]);
+  }, [t, strongGustAreas, chartData, formatTimeInTimezone]);
 
   // Format sunrise/sunset time in the city's timezone
   const formatSunTime = useCallback((date: Date) => {
@@ -181,6 +182,25 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, share
 
   // Entrance animation handled by @keyframes in src/index.css
   // (.hf-rule, .hf-chart) under @media (prefers-reduced-motion: no-preference).
+
+  // Empty-forecast guard (typical cause: OM failure — HKO publishes no
+  // hourly data, see hko-fetch.ts). Without this the 420px chart renders
+  // as a blank panel with "The next 0 hours"; short-circuit to a compact
+  // card that says why the data is missing. The .swiper-mobile-deck
+  // editorial-card rule stretches this to slide height on mobile, and the
+  // desktop grid's items-stretch keeps it level with the daily panel.
+  if (forecast.length === 0) {
+    return (
+      <div
+        className="editorial-card p-6 md:p-8 flex flex-col items-center justify-center text-center gap-2"
+        role="status"
+      >
+        <CloudOff className="h-8 w-8 text-muted-foreground/50" aria-hidden="true" />
+        <p className="text-sm text-muted-foreground">{t('hourly.unavailable')}</p>
+        <p className="text-xs text-muted-foreground/70">{t('hourly.unavailableDesc')}</p>
+      </div>
+    );
+  }
 
   return (
     <div ref={root} className="editorial-card p-6 md:p-8 flex flex-col h-[420px]">
@@ -383,7 +403,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, share
           <caption>{t('hourly.chartLabel')}</caption>
           <thead>
             <tr>
-              <th scope="col">{language === 'tc' ? '時間' : 'Time'}</th>
+              <th scope="col">{t('hourly.time')}</th>
               <th scope="col">{t('hourly.temperature')}</th>
               <th scope="col">{t('hourly.rainChance')}</th>
               <th scope="col">{t('weather.wind')}</th>

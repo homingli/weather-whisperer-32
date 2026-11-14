@@ -15,7 +15,7 @@ import {
 } from '@/lib/rain-start';
 import { hkoStepEndToEpoch, type RainGrid } from '@/lib/rainfallGrid';
 import { localNowcastQueryKey, type LocalRainNowcast } from '@/lib/nowcastLocal';
-import { getDateTimeFormatter } from '@/lib/utils';
+import { appLocale, getDateTimeFormatter } from '@/lib/utils';
 
 /**
  * Cached nowcast entry in the React Query cache, written by RainfallMapInner.
@@ -180,7 +180,7 @@ function RainStartStrip({
   timezone?: string;
   className?: string;
 }) {
-  const timeFmt = getDateTimeFormatter(language === 'tc' ? 'zh-HK' : 'en-GB', {
+  const timeFmt = getDateTimeFormatter(appLocale(language), {
     timeZone: timezone || undefined,
     hour: '2-digit',
     minute: '2-digit',
