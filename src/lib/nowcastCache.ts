@@ -220,13 +220,3 @@ function drainPendingWrite(): void {
   pendingWrite = null;
   if (item) writeNowcastCache(item.rows, item.updateTime, item.lastModified);
 }
-
-/** Remove the cached snapshot. No-op when nothing is stored. */
-export function clearNowcastCache(): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.removeItem(STORAGE_KEYS.NOWCAST_CACHE);
-  } catch {
-    // ignore
-  }
-}

@@ -1,20 +1,22 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import type { Map } from 'maplibre-gl';
-import { AlertCircle, RefreshCw, Play, Pause, Layers, CloudRain } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { RefreshCw, CloudRain } from 'lucide-react';
 import { useLanguage, formatString } from '@/contexts/LanguageContext';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
-import { MSC, TIMING, VANCOUVER_BBOX, VANCOUVER_CENTER } from '@/lib/constants';
+import { MSC, VANCOUVER_BBOX, VANCOUVER_CENTER } from '@/lib/constants';
 import { buildMscStepTimes, formatStepTime, formatObservationTime, vancouverTimeZoneAbbr, buildProbeUrl } from '@/lib/msc-wms';
 import { markMscMapMounted } from '@/lib/msc-prefetch';
 import { logWarn } from '@/lib/log';
 import { MapLibreMap } from './MapLibreMap';
-
-interface UserLocation {
-  latitude: number;
-  longitude: number;
-}
-
+import {
+  NowcastTimelineBar,
+  MapTopRightControls,
+  SlowChip,
+  MapErrorOverlay,
+  StaleErrorPill,
+  MapLegend,
+  type UserLocation,
+} from './NowcastMapShared';
+import { useAutoplayStep, useSlowFlag, useBasemapDark, useMapLockRef } from '@/hooks/useNowcastMap';
 
 // HRDPS run cycle length and the boundary offset for the run-refresh timer
 // (selection flips at cycle start + publish lag, every 6h).
@@ -73,12 +75,11 @@ export default function MSCRainfallMapInner({
 }: {
   userLocation?: UserLocation;
 }) {
-  const mapRef = useRef<Map | null>(null);
   const viewportInit = useRef(false);
   const prevUserLoc = useRef<string | null>(null);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [basemapIsDark, setBasemapIsDark] = useState(false);
+  const { basemapIsDark, toggleBasemap } = useBasemapDark();
   // Tile-layer state: first-load spinner, slow-network chip, first-load
   // failure (full error overlay), background step-switch failure (stale pill).
   const [tileLoading, setTileLoading] = useState(false);
@@ -156,11 +157,6 @@ export default function MSCRainfallMapInner({
     };
   }, [hasLoadedOnce, steps]);
 
-  const { resolvedTheme } = useTheme();
-  useEffect(() => {
-    setBasemapIsDark(resolvedTheme === 'dark');
-  }, [resolvedTheme]);
-
   // D-008: when the displayed analysis is older than 6h (possible in the
   // up-to-2h window before the next HRDPS run publishes), surface its age.
   const analysisAgeHours = useMemo(() => (Date.now() - runStart.getTime()) / 3600_000, [runStart]);
@@ -225,29 +221,12 @@ export default function MSCRainfallMapInner({
     [hasLoadedOnce],
   );
 
-  // Autoplay: advance the step index on RAINFALL_AUTOPLAY_MS while playing.
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined;
-    if (isPlaying && stepCount > 0) {
-      interval = setInterval(() => {
-        setActiveStepIndex((prevIndex) => (prevIndex + 1) % stepCount);
-      }, TIMING.RAINFALL_AUTOPLAY_MS);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isPlaying, stepCount]);
+  useAutoplayStep(isPlaying, stepCount, () => {
+    setActiveStepIndex((prevIndex) => (prevIndex + 1) % stepCount);
+  });
 
   // Slow-network chip: surface after 10s of continuous tile loading.
-  const [isSlow, setIsSlow] = useState(false);
-  useEffect(() => {
-    if (!tileLoading) {
-      setIsSlow(false);
-      return;
-    }
-    const id = setTimeout(() => setIsSlow(true), 10_000);
-    return () => clearTimeout(id);
-  }, [tileLoading]);
+  const isSlow = useSlowFlag(tileLoading);
 
   // First-load / background failure timeout: if a tile batch never completes
   // within 20s (dead network, GeoMet outage), surface the error overlay when
@@ -294,181 +273,62 @@ export default function MSCRainfallMapInner({
   // so locking on it would disable dragging/scroll-zoom the moment the user
   // starts interacting — the HKO map keys on its one-shot CSV fetch instead
   // (review finding: MSC map was not movable by mouse).
-  const applyMapLockState = useCallback(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    for (const fn of ['dragPan', 'scrollZoom', 'doubleClickZoom', 'boxZoom', 'keyboard'] as const) {
-      if (hasLoadedOnce) map[fn].enable();
-      else map[fn].disable();
-    }
-  }, [hasLoadedOnce]);
+  const { mapRef, handleMapRef } = useMapLockRef(hasLoadedOnce);
 
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
-
-  const handleMapRef = useCallback(
-    (map: Map | null) => {
-      mapRef.current = map;
-      if (map) {
-        applyMapLockState();
-        requestAnimationFrame(() => {
-        map.resize();
-        });
-        resizeObserverRef.current?.disconnect();
-        const observer = new ResizeObserver(() => map.resize());
-        observer.observe(map.getContainer());
-        resizeObserverRef.current = observer;
-      } else {
-        resizeObserverRef.current?.disconnect();
-        resizeObserverRef.current = null;
-      }
-    },
-    [applyMapLockState],
-  );
+  // Manual step selection (slider or label click) pauses autoplay.
+  const selectStep = useCallback((index: number) => {
+    setActiveStepIndex(index);
+    setIsPlaying(false);
+  }, []);
 
   const { t } = useLanguage();
 
   return (
     <div className="absolute inset-0 flex flex-col">
       {hasLoadedOnce && stepCount > 0 && (
-        <div className="px-6 py-5 bg-background/50 border-b border-border/50 flex flex-row items-center gap-4 sm:gap-6">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="p-2.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors shadow-xs"
-              title={isPlaying ? 'Pause' : 'Play timeline'}
-              aria-label={isPlaying ? t('nowcast.pause') : t('nowcast.play')}
-            >
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
-            </button>
-            <div className="flex flex-col min-w-[80px]">
-              <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">{t('nowcast.forecastStep')}</span>
-              <span className="text-lg font-bold text-foreground">
-                {stepTimes[activeStepIndex]}
-                <span className="ml-1.5 text-xs font-semibold text-muted-foreground" title="America/Vancouver">
-                  {tzAbbr}
-                </span>
-              </span>
-            </div>
-          </div>
-
-          <div className="flex-1 min-w-0 w-full flex flex-col gap-2">
-            <input
-              type="range"
-              min={0}
-              max={stepCount - 1}
-              value={activeStepIndex}
-              onChange={(e) => {
-                setActiveStepIndex(parseInt(e.target.value));
-                setIsPlaying(false);
-              }}
-              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              aria-label={t('nowcast.slider')}
-            />
-            {/* Step labels: many GeoMet steps overflow a 375-440 px card, so
-                the row scrolls horizontally (hidden scrollbar) instead of
-                clipping against the card's overflow-x:hidden. w-max keeps the
-                flex content sized to the buttons; min-w-full + justify-between
-                spread a small step count across the full width. */}
-            <div className="overflow-x-auto text-xs font-semibold text-muted-foreground -mx-1 px-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
-              <div className="flex w-max min-w-full items-center justify-between gap-x-1">
-              {stepTimes.map((time, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    setActiveStepIndex(index);
-                    setIsPlaying(false);
-                  }}
-                  aria-current={index === activeStepIndex ? 'true' : undefined}
-                  className={`px-2 py-1 whitespace-nowrap min-h-6 rounded hover:text-primary transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                    index === activeStepIndex ? 'text-primary font-bold' : ''
-                  }`}
-                >
-                  {time}
-                </button>
-              ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <NowcastTimelineBar
+          stepTimes={stepTimes}
+          activeStepIndex={activeStepIndex}
+          isPlaying={isPlaying}
+          onTogglePlay={() => setIsPlaying(!isPlaying)}
+          onSelectStep={selectStep}
+          trailing={
+            <span className="ml-1.5 text-xs font-semibold text-muted-foreground" title="America/Vancouver">
+              {tzAbbr}
+            </span>
+          }
+        />
       )}
 
       <div className="rainfall-map-area no-swipe relative flex-1 min-h-0 w-full bg-muted/20">
-        {/* Top-right control cluster: observation time + basemap + refresh. */}
-        <div className="absolute top-2 right-2 z-600 flex items-center gap-2 text-xs text-muted-foreground bg-background/90 backdrop-blur-xs p-1.5 rounded-md border border-border/50 shadow-xs">
-          {observationTime && (
-            <span className="px-1 tabular-nums">
+        <MapTopRightControls
+          time={observationTime ? (
+            <>
               {formatString(t('nowcast.updated'), observationTime)} {tzAbbr}
-            </span>
-          )}
-          <button
-            onClick={() => setBasemapIsDark(v => !v)}
-            className="inline-flex items-center justify-center min-h-11 min-w-11 p-1 hover:bg-muted/50 rounded transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            aria-label={formatString(t('nowcast.switchBasemap'), t(basemapIsDark ? 'nowcast.basemapDark' : 'nowcast.basemapLight'))}
-          >
-            <Layers className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleRefresh}
-            className="inline-flex items-center justify-center min-h-11 min-w-11 p-1 hover:bg-muted/50 rounded transition-colors disabled:opacity-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            aria-label={t('nowcast.refreshNowcast')}
-            title={t('nowcast.refreshNowcast')}
-          >
-            <RefreshCw className={`w-4 h-4 ${tileLoading ? 'animate-spin text-primary' : ''}`} />
-          </button>
-        </div>
+            </>
+          ) : undefined}
+          basemapIsDark={basemapIsDark}
+          onToggleBasemap={toggleBasemap}
+          onRefresh={handleRefresh}
+          refreshSpinning={tileLoading}
+        />
 
         {/* First load: spinner → slow-network chip */}
         {tileLoading && !hasLoadedOnce && (
           <div className="absolute inset-0 z-1001 flex items-center justify-center bg-background/50 backdrop-blur-xs">
-            {isSlow && (
-              <div
-                role="status"
-                aria-live="polite"
-                className="absolute top-3 left-1/2 -translate-x-1/2 z-1002 flex items-center gap-2 text-xs bg-background/95 border border-border/60 rounded-full px-3 py-1.5 shadow-xs backdrop-blur-xs"
-              >
-                <RefreshCw className="w-3 h-3 animate-spin text-primary" />
-                <span className="text-muted-foreground">{t('nowcast.loadingSlow')}</span>
-              </div>
-            )}
+            {isSlow && <SlowChip />}
             <RefreshCw className="w-8 h-8 animate-spin text-primary" />
           </div>
         )}
 
         {/* First-load failure: full error overlay (no data to show). */}
         {tileError && !hasLoadedOnce && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-xs p-6 text-center">
-            <AlertCircle className="w-10 h-10 text-destructive mb-2" />
-            <p className="text-lg font-medium text-foreground mb-1">{t('nowcast.loadFailed')}</p>
-            <p className="text-muted-foreground mb-4">{t('nowcast.error')}</p>
-            <button
-              onClick={handleRefresh}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-            >
-              {t('nowcast.tryAgain')}
-            </button>
-          </div>
+          <MapErrorOverlay onRetry={handleRefresh} />
         )}
 
         {/* Background failure: stale pill — previous tiles still on screen. */}
         {staleError && hasLoadedOnce && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="absolute top-12 left-2 z-600 flex items-center gap-2 max-w-[min(90%,360px)] text-xs bg-destructive/10 text-destructive border border-destructive/30 rounded-md px-2.5 py-1.5 backdrop-blur-xs shadow-xs"
-          >
-            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            <div className="flex flex-col leading-tight">
-              <span className="font-semibold">{t('nowcast.staleTitle')}</span>
-              <span className="text-destructive/80">{t('nowcast.staleDesc')}</span>
-            </div>
-            <button
-              onClick={handleRefresh}
-              className="ml-1 inline-flex items-center justify-center min-h-8 min-w-8 p-1 rounded hover:bg-destructive/20 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              aria-label={t('nowcast.tryAgain')}
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <StaleErrorPill onRetry={handleRefresh} />
         )}
 
         {/* D-008: analysis older than 6h — surface its age. */}
@@ -501,17 +361,10 @@ export default function MSCRainfallMapInner({
             Replaces the tall GetLegendGraphic image (217×482) — colors and
             labels verified from GeoMet's legend + live tiles 2026-08-07. */}
         {hasLoadedOnce && (
-          <div className="absolute bottom-4 right-4 z-400 bg-background/90 backdrop-blur-xs p-3 rounded-lg border border-border shadow-lg text-xs">
-            <div className="font-semibold mb-2">{t('msc.legendTitle')}</div>
-            <div className="flex flex-col gap-1.5">
-              {MSC_INTENSITY_BANDS.map(({ color, labelKey }) => (
-                <div key={color} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: color }} aria-hidden="true" />
-                  <span>{t(labelKey)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <MapLegend
+            title={t('msc.legendTitle')}
+            bands={MSC_INTENSITY_BANDS.map(({ color, labelKey }) => ({ color, label: t(labelKey) }))}
+          />
         )}
 
         {/* No-precipitation chip (non-blocking). Shown only when every

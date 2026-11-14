@@ -168,6 +168,9 @@ export const TIMING = {
   THEME_AUTO_TICK_MS: 5 * 60 * 1000,
   /** Rainfall timeline autoplay step interval */
   RAINFALL_AUTOPLAY_MS: 1500,
+  /** How long a load must hold before the nowcast map surfaces the
+   *  slow-connection chip (so the spinner doesn't read as stuck). */
+  NOWCAST_SLOW_CHIP_MS: 10_000,
   /** Gridded rainfall nowcast stall timeout: abort when no bytes arrive for
    *  this long. The timer resets on every chunk, so a healthy-but-slow
    *  download runs to completion; only a genuinely dead connection trips it.

@@ -1,62 +1,25 @@
-/** HKO station and district name translations (English ↔ Traditional Chinese) */
+/** HKO station and district name translations (English ↔ Traditional Chinese)
+ *
+ *  The name pairs live once in hko-stations.ts (HKO_STATIONS /
+ *  HKO_DISTRICTS, keyed by English name with a `tc` field); the maps below
+ *  are derived from them so a rename can never drift between the two files. */
 
-export const STATION_TC_TO_EN: Record<string, string> = {
-  "京士柏": "King's Park",
-  "香港天文台": "Hong Kong Observatory",
-  "黃竹坑": "Wong Chuk Hang",
-  "打鼓嶺": "Ta Kwu Ling",
-  "流浮山": "Lau Fau Shan",
-  "大埔": "Tai Po",
-  "沙田": "Sha Tin",
-  "屯門": "Tuen Mun",
-  "將軍澳": "Tseung Kwan O",
-  "西貢": "Sai Kung",
-  "長洲": "Cheung Chau",
-  "赤鱲角": "Chek Lap Kok",
-  "青衣": "Tsing Yi",
-  "石崗": "Shek Kong",
-  "荃灣可觀": "Tsuen Wan Ho Koon",
-  "荃灣城門谷": "Tsuen Wan Shing Mun Valley",
-  "香港公園": "Hong Kong Park",
-  "筲箕灣": "Shau Kei Wan",
-  "九龍城": "Kowloon City",
-  "跑馬地": "Happy Valley",
-  "黃大仙": "Wong Tai Sin",
-  "赤柱": "Stanley",
-  "觀塘": "Kwun Tong",
-  "深水埗": "Sham Shui Po",
-  "啟德跑道公園": "Kai Tak Runway Park",
-  "元朗公園": "Yuen Long Park",
-  "大美督": "Tai Mei Tuk",
-};
+import { HKO_STATIONS, HKO_DISTRICTS } from './hko-stations';
 
-export const STATION_EN_TO_TC: Record<string, string> = Object.fromEntries(
-  Object.entries(STATION_TC_TO_EN).map(([tc, en]) => [en, tc])
+export const STATION_TC_TO_EN: Record<string, string> = Object.fromEntries(
+  Object.entries(HKO_STATIONS).map(([en, place]) => [place.tc, en])
 );
 
-export const DISTRICT_TC_TO_EN: Record<string, string> = {
-  "中西區": "Central & Western District",
-  "東區": "Eastern District",
-  "葵青": "Kwai Tsing",
-  "離島區": "Islands District",
-  "北區": "North District",
-  "西貢": "Sai Kung",
-  "沙田": "Sha Tin",
-  "南區": "Southern District",
-  "大埔": "Tai Po",
-  "荃灣": "Tsuen Wan",
-  "屯門": "Tuen Mun",
-  "灣仔": "Wan Chai",
-  "元朗": "Yuen Long",
-  "油尖旺": "Yau Tsim Mong",
-  "深水埗": "Sham Shui Po",
-  "九龍城": "Kowloon City",
-  "黃大仙": "Wong Tai Sin",
-  "觀塘": "Kwun Tong",
-};
+export const STATION_EN_TO_TC: Record<string, string> = Object.fromEntries(
+  Object.entries(HKO_STATIONS).map(([en, place]) => [en, place.tc])
+);
+
+export const DISTRICT_TC_TO_EN: Record<string, string> = Object.fromEntries(
+  Object.entries(HKO_DISTRICTS).map(([en, place]) => [place.tc, en])
+);
 
 export const DISTRICT_EN_TO_TC: Record<string, string> = Object.fromEntries(
-  Object.entries(DISTRICT_TC_TO_EN).map(([tc, en]) => [en, tc])
+  Object.entries(HKO_DISTRICTS).map(([en, place]) => [en, place.tc])
 );
 
 /** Translate station name between English and Traditional Chinese */

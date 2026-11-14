@@ -201,7 +201,7 @@ Weather Whisperer is a weather dashboard built with React and TypeScript. It use
   - `utils.ts`: Generic `cn()` and formatting helpers
   - `log.ts`: Conditional `console.*` logger (strips in production)
   - `devWarningSimulator.ts`: Dev-only simulated warnings store on `useSyncExternalStore` (`devAddWarning`, `devRemoveWarning`, `devClearWarnings`, `devResetBaseline`). Production returns empty arrays and zero nonce.
-  - `carto.ts`: Carto basemap URL helpers (`cartoStyleUrl`, `cartoRasterUrl`, `cartoMapLibreRasterUrl`), validates `VITE_CARTO_API_KEY`
+  - `carto.ts`: Carto basemap URL helpers (`cartoStyleUrl`, `cartoMapLibreRasterUrl`), validates `VITE_CARTO_API_KEY`
   - `nowcastCache.ts`: Rainfall nowcast localStorage cache (15-min TTL, LZ-string compressed)
   - `parsers.ts`: Generic data parsing utilities
   - `msc-wms.ts`: MSC GeoMet WMS tile fetching (geo.weather.gc.ca)
