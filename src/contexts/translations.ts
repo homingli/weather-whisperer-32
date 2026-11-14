@@ -191,7 +191,9 @@ export const translations: Record<Language, Record<string, string>> = {
     'data.offlineShort': 'Offline — cached data from {0}',
     'data.refetchLive': 'Refetch live data',
     'data.checkStatus': 'check status',
-    'data.checkStatusAria': 'Check Open-Meteo status page',
+    // WCAG 2.5.3 Label in Name — the visible label must be a contiguous
+    // substring of the accessible name.
+    'data.checkStatusAria': 'Check status — Open-Meteo status page',
 
     // Weather source
     'source.openMeteo': 'Open-Meteo',
@@ -563,7 +565,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'data.offlineShort': '離線中 — 正在顯示 {0} 的快取資料',
     'data.refetchLive': '重新擷取即時資料',
     'data.checkStatus': '查看狀態',
-    'data.checkStatusAria': '查看 Open-Meteo 狀態頁',
+    'data.checkStatusAria': '查看狀態 — Open-Meteo 狀態頁',
 
     // Weather source
     'source.openMeteo': 'Open-Meteo',
