@@ -8,6 +8,29 @@ the section into the GitHub release description. This file is separate from the
 web app's `CHANGELOG.md`, which lives on `main`; releases before v0.8.4 predate
 this file.
 
+## v0.8.7
+
+### New
+
+- Mode=full on /api/nowcast — sparse streamed CSV + HEAD probe
+- District-accurate nowcast auto-load + observed district rainfall
+
+### Fixed
+
+- OM-failure banner as thin strip with status link + hourly unavailable card
+- Precip bar band-grid width, localized precip aria-labels
+- 24px+ status-link target
+- Preserve viewport when theme change rebuilds the map
+- Security pass — audit 31 → 1 advisories
+
+### Polish
+
+- Dedupe nowcast-map chrome, chunk boundary, persisted prefs
+- Single palette source — RAINFALL_COLORS drives map paint, legend and hero bar
+- Raise nowcast map widest zoom two levels
+- Remove night shading from chart
+
+
 ## v0.8.6
 
 ### New
