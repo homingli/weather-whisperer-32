@@ -189,9 +189,10 @@ export const translations: Record<Language, Record<string, string>> = {
     'data.partialShort': 'Partial data: only {0} available',
     'data.partialDataNoSource': 'Showing partial data only',
     'data.offline': 'Currently offline',
-    'data.offlineShort': 'Offline · cached data from {0}',
+    'data.offlineShort': 'Offline — cached data from {0}',
     'data.refetchLive': 'Refetch live data',
     'data.checkStatus': 'check status',
+    'data.checkStatusAria': 'Check Open-Meteo status page',
 
     // Weather source
     'source.openMeteo': 'Open-Meteo',
@@ -323,7 +324,9 @@ export const translations: Record<Language, Record<string, string>> = {
     // Hourly / daily chart kickers
     'hourly.nextNHours': 'The next {0} hours',
     'hourly.unavailable': 'Hourly forecast unavailable',
-    'hourly.unavailableDesc': 'Open-Meteo is offline and HKO does not publish hourly data.',
+    // Source-neutral: the empty-forecast guard fires on any payload without
+    // hourly rows, not only on the OM-failure path.
+    'hourly.unavailableDesc': 'Hourly data is temporarily unavailable from your weather sources.',
     'daily.lookAhead': 'A look ahead',
 
     // 404 page
@@ -559,9 +562,10 @@ export const translations: Record<Language, Record<string, string>> = {
     'data.partialShort': '部分資料：目前僅有 {0}',
     'data.partialDataNoSource': '目前僅顯示部分資料',
     'data.offline': '目前離線',
-    'data.offlineShort': '離線中 · 正在顯示 {0} 的快取資料',
+    'data.offlineShort': '離線中 — 正在顯示 {0} 的快取資料',
     'data.refetchLive': '重新擷取即時資料',
     'data.checkStatus': '查看狀態',
+    'data.checkStatusAria': '查看 Open-Meteo 狀態頁',
 
     // Weather source
     'source.openMeteo': 'Open-Meteo',
@@ -688,7 +692,7 @@ export const translations: Record<Language, Record<string, string>> = {
     // Hourly / daily chart kickers
     'hourly.nextNHours': '未來 {0} 小時',
     'hourly.unavailable': '暫無每小時預報',
-    'hourly.unavailableDesc': 'Open-Meteo 離線中，而香港天文台並無提供每小時預報。',
+    'hourly.unavailableDesc': '目前無法從天氣資料來源取得每小時預報資料。',
     'daily.lookAhead': '七日概覽',
 
     // 404 page

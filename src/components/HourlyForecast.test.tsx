@@ -160,7 +160,7 @@ describe('HourlyForecast Component', () => {
   it('handles empty forecast gracefully — compact unavailable card instead of a blank panel', () => {
     renderWithLanguage(<HourlyForecast forecast={[]} />);
     expect(screen.getByText(/hourly forecast unavailable/i)).toBeInTheDocument();
-    expect(screen.getByText(/hko does not publish hourly data/i)).toBeInTheDocument();
+    expect(screen.getByText(/temporarily unavailable/i)).toBeInTheDocument();
     // No chart and no share button — the 420px blank panel is gone.
     expect(screen.queryByTestId('chart-container')).not.toBeInTheDocument();
     expect(screen.queryByTestId('composed-chart')).not.toBeInTheDocument();

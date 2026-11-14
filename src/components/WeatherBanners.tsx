@@ -55,6 +55,9 @@ function StatusLink() {
       target="_blank"
       rel="noopener noreferrer"
       className="underline underline-offset-2 hover:opacity-80 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+      // WCAG 2.4.4 — the visible "check status" is ambiguous out of context
+      // (screen-reader link lists strip the surrounding sentence).
+      aria-label={t('data.checkStatusAria')}
     >
       {t('data.checkStatus')}
     </a>
@@ -144,8 +147,15 @@ export function WeatherBanners({ weather, onRefetch, isRefetching }: WeatherBann
       >
         {workingSource
           ? formatString(t('data.partialShort'), workingSource)
-          : t('data.partialDataNoSource')}{' '}
-        <span aria-hidden="true">·</span> <StatusLink />
+          : t('data.partialDataNoSource')}
+        {/* Only link the status page when Open-Meteo is the failed source —
+            a live OM means the outage is on HKO's side, not OM's. */}
+        {!omOk && (
+          <>
+            {' '}
+            <span aria-hidden="true">·</span> <StatusLink />
+          </>
+        )}
       </SeverityStrip>
     );
   }
