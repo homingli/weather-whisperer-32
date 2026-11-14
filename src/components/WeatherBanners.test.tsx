@@ -71,17 +71,6 @@ describe('WeatherBanners', () => {
       // WCAG 2.4.4 — visible "check status" is ambiguous in SR link lists.
       expect(link).toHaveAccessibleName(/open-meteo/i);
     });
-
-    it('omits the status link from the partial strip when Open-Meteo is the live source', () => {
-      const weather = makeWeather({
-        isFallback: true,
-        fallbackSource: 'partial',
-        sources: { om: okOm, hko: failedHko },
-      });
-      renderBanner(weather);
-      // OM is healthy here — the outage is HKO's, so no OM status link.
-      expect(screen.queryByRole('link')).not.toBeInTheDocument();
-    });
   });
 
   describe('partial (one source unavailable)', () => {
@@ -107,6 +96,17 @@ describe('WeatherBanners', () => {
       renderBanner(weather);
       const banner = screen.getByTestId('banner-partial');
       expect(banner.textContent).toMatch(/HK Observatory/i);
+    });
+
+    it('omits the status link when Open-Meteo is the live source', () => {
+      const weather = makeWeather({
+        isFallback: true,
+        fallbackSource: 'partial',
+        sources: { om: okOm, hko: failedHko },
+      });
+      renderBanner(weather);
+      // OM is healthy here — the outage is HKO's, so no OM status link.
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
     });
   });
 

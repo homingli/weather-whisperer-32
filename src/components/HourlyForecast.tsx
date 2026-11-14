@@ -183,8 +183,8 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, share
   // Entrance animation handled by @keyframes in src/index.css
   // (.hf-rule, .hf-chart) under @media (prefers-reduced-motion: no-preference).
 
-  // Open-Meteo failure path: no hourly rows exist (HKO publishes no hourly
-  // data — see hko-fetch.ts). Without this guard the 420px chart renders
+  // Empty-forecast guard (typical cause: OM failure — HKO publishes no
+  // hourly data, see hko-fetch.ts). Without this the 420px chart renders
   // as a blank panel with "The next 0 hours"; short-circuit to a compact
   // card that says why the data is missing. The .swiper-mobile-deck
   // editorial-card rule stretches this to slide height on mobile, and the
