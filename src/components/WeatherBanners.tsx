@@ -54,7 +54,11 @@ function StatusLink() {
       href={STATUS_URL}
       target="_blank"
       rel="noopener noreferrer"
-      className="underline underline-offset-2 hover:opacity-80 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+      // Target size — WCAG 2.5.8 AA needs a 24px minimum. The strip is
+      // text-xs (~16px tall), so px/py padding with negative margins
+      // widens the hit area without growing the strip row (the AtAGlance
+      // chip uses the same pattern).
+      className="inline-flex items-center px-2 py-2 -mx-2 -my-1 rounded-sm underline underline-offset-2 hover:opacity-80 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       // WCAG 2.4.4 — the visible "check status" is ambiguous out of context
       // (screen-reader link lists strip the surrounding sentence).
       aria-label={t('data.checkStatusAria')}
