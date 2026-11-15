@@ -1,4 +1,5 @@
-import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from "@/lib/weather";
+import { HourlyForecast as HourlyForecastType } from "@/lib/weather";
+import type { SunTimes } from "@/lib/solar-times";
 import { CloudOff } from "lucide-react";
 import { ComposedChart, Bar, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from "recharts";
 import { useLanguage, formatString } from "@/contexts/LanguageContext";
@@ -18,7 +19,9 @@ import { ShareForecastButton } from "@/components/ShareForecastButton";
 
 interface HourlyForecastProps {
   forecast: HourlyForecastType[];
-  daily?: DailyForecastType[];
+  /** Today's + tomorrow's locally computed sun times (useSunTimes) — the
+   *  ☀︎/☾ chart markers. Null fields (polar day/night, no city) → no marker. */
+  sunTimes?: SunTimes[];
   timezone?: string;
   /** Display name of the selected city — used by the share button. */
   cityName?: string;
@@ -26,7 +29,7 @@ interface HourlyForecastProps {
   shareUrl?: string;
 }
 
-export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, shareUrl }: HourlyForecastProps) => {
+export const HourlyForecast = memo(({ forecast, sunTimes, timezone, cityName, shareUrl }: HourlyForecastProps) => {
   const { language, t } = useLanguage();
   const { units } = useUnits();
   const root = useRef<HTMLDivElement>(null);
@@ -127,17 +130,14 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, share
 
   // Find sunrise/sunset times within the forecast window
   const sunEvents = useMemo(() => {
-    if (!daily || daily.length === 0 || hoursData.length === 0) return [];
+    if (!sunTimes || sunTimes.length === 0 || hoursData.length === 0) return [];
 
     const events: { time: number; type: 'sunrise' | 'sunset'; label: string; timeLabel: string }[] = [];
     const startTime = (hoursData[0].time instanceof Date) ? hoursData[0].time.getTime() : new Date(hoursData[0].time).getTime();
     const endTime = (hoursData[hoursData.length - 1].time instanceof Date) ? hoursData[hoursData.length - 1].time.getTime() : new Date(hoursData[hoursData.length - 1].time).getTime();
 
-    daily.slice(0, 2).forEach(day => {
-      const sunrise = day.sunrise instanceof Date ? day.sunrise : new Date(day.sunrise);
-      const sunset = day.sunset instanceof Date ? day.sunset : new Date(day.sunset);
-
-      if (!isNaN(sunrise.getTime())) {
+    sunTimes.slice(0, 2).forEach(({ sunrise, sunset }) => {
+      if (sunrise) {
         const sunriseTime = sunrise.getTime();
         if (sunriseTime >= startTime && sunriseTime <= endTime) {
           events.push({
@@ -148,7 +148,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, share
           });
         }
       }
-      if (!isNaN(sunset.getTime())) {
+      if (sunset) {
         const sunsetTime = sunset.getTime();
         if (sunsetTime >= startTime && sunsetTime <= endTime) {
           events.push({
@@ -162,7 +162,7 @@ export const HourlyForecast = memo(({ forecast, daily, timezone, cityName, share
     });
 
     return events;
-  }, [daily, hoursData, formatSunTime]);
+  }, [sunTimes, hoursData, formatSunTime]);
 
   // Custom tick formatter for x-axis
   const formatXAxisTick = useCallback((timestamp: number, index: number) => {
