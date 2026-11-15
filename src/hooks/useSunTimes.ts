@@ -2,13 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { getSunTimes, getZoneOffsetMinutes, type SunTimes } from '@/lib/solar-times';
 
 export interface UseSunTimesResult {
-  /**
-   * Sun times for the location's local calendar day, `dayOffset` days from
-   * now (0 = today, 1 = tomorrow). Uses the payload timezone when available,
-   * device zone before the first fetch succeeds. Null fields = polar
-   * day/night or no location selected.
-   */
-  getSunTimesFor: (dayOffset: number) => SunTimes;
   /** Memoized today/tomorrow pair — pass these as props, not fresh calls:
    *  per-render Date objects would defeat memo() on the consumers. */
   todaySun: SunTimes;
@@ -36,7 +29,7 @@ const minuteBucket = (): number => Math.floor(Date.now() / 60_000);
  * Local sunrise/sunset for the selected city (see solar-times.ts for why
  * this is computed rather than read from the weather payload). The memoized
  * pair is keyed on a minute bucket (refreshed by a 15 s interval) so a page
- * left open recomputes across minute/day boundaries (dayOffset rolls over at
+ * left open recomputes across minute/day boundaries (the pair rolls over at
  * the location's local midnight) while staying referentially stable within
  * a minute — per-render fresh Date objects would defeat memo() on consumers.
  */
@@ -64,10 +57,5 @@ export function useSunTimes(
     [latitude, longitude, timezone, minuteTick],
   );
 
-  const getSunTimesFor = useMemo(
-    () => (dayOffset: number) => computeSunTimes(latitude, longitude, timezone, dayOffset, Date.now()),
-    [latitude, longitude, timezone],
-  );
-
-  return { getSunTimesFor, todaySun, tomorrowSun };
+  return { todaySun, tomorrowSun };
 }
