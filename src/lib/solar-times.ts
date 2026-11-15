@@ -85,11 +85,13 @@ export function getSunTimes(
       0.5 * y * y * Math.sin(4 * meanLonRad) -
       1.25 * eccentricity * eccentricity * Math.sin(2 * meanAnom));
 
-  // Hour angle at the horizon. |cos| > 1 ⇒ polar day or night.
+  // Hour angle at the horizon. |cos| > 1 ⇒ polar day or night; NaN/Infinity
+  // (degenerate inputs like |latitude| = 90°, where tan() explodes) also
+  // means "no well-defined sun event today".
   const cosHa =
     Math.cos(HORIZON_ZENITH * DEG) / (Math.cos(latitude * DEG) * Math.cos(declination)) -
     Math.tan(latitude * DEG) * Math.tan(declination);
-  if (cosHa > 1 || cosHa < -1) {
+  if (!Number.isFinite(cosHa) || cosHa > 1 || cosHa < -1) {
     return { sunrise: null, sunset: null };
   }
   const haDeg = Math.acos(cosHa) / DEG;

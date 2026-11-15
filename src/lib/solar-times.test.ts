@@ -68,6 +68,15 @@ describe('getSunTimes — polar and ordering edge cases', () => {
     expect(t.sunset).toBeNull();
   });
 
+  it('degenerate latitude (±90°) returns null fields instead of NaN dates', () => {
+    for (const lat of [90, -90]) {
+      const t = getSunTimes(lat, 0, localNoon(2026, 6, 21, 0), 0);
+      expect(t.sunrise).toBeNull();
+      expect(t.sunset).toBeNull();
+      expect(Number.isNaN(t.sunrise?.getTime() ?? 0)).toBe(false);
+    }
+  });
+
   it('HK sunrise precedes sunset; June day is longer than December day', () => {
     const june = getSunTimes(HK.lat, HK.lon, localNoon(2026, 6, 21, HK.tz), HK.tz);
     const dec = getSunTimes(HK.lat, HK.lon, localNoon(2026, 12, 21, HK.tz), HK.tz);

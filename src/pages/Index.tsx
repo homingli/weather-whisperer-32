@@ -113,9 +113,13 @@ const Index = () => {
   // Sun times are computed locally from the city coordinates (solar-times.ts),
   // so the theme, sun-cycle strip, and hourly chart markers all work even
   // when Open-Meteo is unavailable — the payload never carries them.
-  const sun = useSunTimes(selectedCity?.latitude, selectedCity?.longitude, weather?.timezone);
-  const todaySun = sun.getSunTimesFor(0);
-  const tomorrowSun = sun.getSunTimesFor(1);
+  // todaySun/tomorrowSun are memoized minute-bucketed pairs (the hook owns
+  // the tick), so the memo() on CurrentWeather/HourlyForecast keeps working.
+  const { todaySun, tomorrowSun } = useSunTimes(
+    selectedCity?.latitude,
+    selectedCity?.longitude,
+    weather?.timezone,
+  );
 
   // Feed the auto theme the location to evaluate day/night for.
   useEffect(() => {
