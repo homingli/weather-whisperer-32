@@ -298,7 +298,7 @@ export function parseOpenMeteoForecast(input: unknown): ParseResult<WeatherData>
   // (current.time sat 583 s behind Date.now()), aligned to :00/:15/:30/:45.
   const minutely = parseMinutelyPrecipitation(input.minutely_15, warnings);
 
-  // daily: { time, weather_code, temperature_2m_max, ..., sunrise, sunset }
+  // daily: { time, weather_code, temperature_2m_max, ... }
   const dailyTime = readArrayNumber(daily, 'time', warnings);
   const dailyMax = readArrayNumber(daily, 'temperature_2m_max', warnings);
   const dailyMin = readArrayNumber(daily, 'temperature_2m_min', warnings);
@@ -308,8 +308,6 @@ export function parseOpenMeteoForecast(input: unknown): ParseResult<WeatherData>
   const dailyWindDir = readArrayNumber(daily, 'wind_direction_10m_dominant', warnings);
   const dailyGustMax = readArrayNumber(daily, 'wind_gusts_10m_max', warnings);
   const dailyUvMax = readArrayNumber(daily, 'uv_index_max', warnings);
-  const dailySunrise = readArrayNumber(daily, 'sunrise', warnings);
-  const dailySunset = readArrayNumber(daily, 'sunset', warnings);
 
   // Find current hour index (unixtime).
   const nowUnix = Math.floor(Date.now() / 1000);
@@ -357,8 +355,6 @@ export function parseOpenMeteoForecast(input: unknown): ParseResult<WeatherData>
         windGustMax: dailyGustMax[i],
         uvIndexMax: dailyUvMax[i],
         precipitationProbabilityMax: dailyPop[i] ?? 0,
-        sunrise: new Date((dailySunrise[i] ?? time) * 1000),
-        sunset: new Date((dailySunset[i] ?? time) * 1000),
       })),
       timezone: tz,
     },

@@ -18,8 +18,6 @@ function day(overrides: Partial<DailyForecast> = {}): DailyForecast {
     windSpeedMax: 12,
     windDirectionDominant: 90,
     precipitationProbabilityMax: 0,
-    sunrise: date,
-    sunset: date,
     ...overrides,
   };
 }

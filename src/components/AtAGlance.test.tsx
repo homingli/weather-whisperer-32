@@ -15,8 +15,6 @@ const today: DailyForecastType = {
   windSpeedMax: 18.3,
   windDirectionDominant: 120,
   precipitationProbabilityMax: 15, // below the 20 % signal cutoff
-  sunrise: new Date('2024-01-08T00:00:00Z'),
-  sunset: new Date('2024-01-08T00:00:00Z'),
 };
 
 const tomorrow: DailyForecastType = {
@@ -27,8 +25,6 @@ const tomorrow: DailyForecastType = {
   windSpeedMax: 25.4,
   windDirectionDominant: 180,
   precipitationProbabilityMax: 80,
-  sunrise: new Date('2024-01-09T00:00:00Z'),
-  sunset: new Date('2024-01-09T00:00:00Z'),
 };
 
 const renderWithProviders = (ui: React.ReactElement) =>

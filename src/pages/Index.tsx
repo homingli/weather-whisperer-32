@@ -7,6 +7,7 @@ import { LocalClock } from '@/components/LocalClock';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useSelectedCity } from '@/hooks/useSelectedCity';
+import { useSunTimes } from '@/hooks/useSunTimes';
 import { useWeatherWithProgress } from '@/hooks/useWeatherWithProgress';
 import { useWarningChangeDetector } from '@/hooks/useWarningChangeDetector';
 import { useNextHoliday } from '@/hooks/useNextHoliday';
@@ -93,7 +94,7 @@ const Index = () => {
   const { language, t } = useLanguage();
   // API/content lang is 'tc' for Traditional Chinese, 'en' for everything else.
   const lang = language === 'tc' ? 'tc' : 'en';
-  const { setSunTimes } = useTheme();
+  const { setSunLocation } = useTheme();
   const { selectedCity, recentCities, isLocating, handleCitySelect } = useSelectedCity();
   const { data: weather, isLoading, error, refetch, isFetching, loadProgress } = useWeatherWithProgress(
     selectedCity?.latitude,
@@ -109,21 +110,28 @@ const Index = () => {
     setSelectedWarningCode(null);
   }, []);
 
-  // Open-Meteo daily data is always used for sunrise/sunset (HKO doesn't provide it)
-  const sunTimes = useMemo(() => weather?.daily, [weather?.daily]);
+  // Sun times are computed locally from the city coordinates (solar-times.ts),
+  // so the theme, sun-cycle strip, and hourly chart markers all work even
+  // when Open-Meteo is unavailable — the payload never carries them.
+  // todaySun/tomorrowSun are memoized minute-bucketed pairs (the hook owns
+  // the tick), so the memo() on CurrentWeather/HourlyForecast keeps working.
+  const { todaySun, tomorrowSun } = useSunTimes(
+    selectedCity?.latitude,
+    selectedCity?.longitude,
+    weather?.timezone,
+  );
+  // The array itself must be referentially stable too — a fresh literal per
+  // render would defeat memo() on HourlyForecast even with stable Dates.
+  const sunTimesPair = useMemo(() => [todaySun, tomorrowSun], [todaySun, tomorrowSun]);
 
-  // Update theme context with sunrise/sunset times for auto mode
+  // Feed the auto theme the location to evaluate day/night for.
   useEffect(() => {
-    if (sunTimes && sunTimes.length > 0) {
-      const todayForecast = sunTimes[0];
-      const sunrise = todayForecast.sunrise instanceof Date ? todayForecast.sunrise : new Date(todayForecast.sunrise);
-      const sunset = todayForecast.sunset instanceof Date ? todayForecast.sunset : new Date(todayForecast.sunset);
-
-      if (!isNaN(sunrise.getTime()) && !isNaN(sunset.getTime())) {
-        setSunTimes(sunrise, sunset);
-      }
-    }
-  }, [sunTimes, setSunTimes]);
+    setSunLocation(
+      selectedCity
+        ? { latitude: selectedCity.latitude, longitude: selectedCity.longitude, timezone: weather?.timezone }
+        : null,
+    );
+  }, [selectedCity, weather?.timezone, setSunLocation]);
 
   // PWA install
   const { deferredPrompt, isInstalled, install } = usePwaInstall();
@@ -475,14 +483,16 @@ const Index = () => {
                         weather={weather.current ?? PLACEHOLDER_CURRENT}
                         hourlyForecast={weather.hourly || []}
                         dailyForecast={weather?.daily?.[0]}
-                        tomorrowSunrise={weather?.daily?.[1]?.sunrise}
+                        sunrise={todaySun.sunrise}
+                        sunset={todaySun.sunset}
+                        tomorrowSunrise={tomorrowSun.sunrise}
                         timezone={weather.timezone}
                         headline={weather.headline}
                       />
 
                       {/* Slide 2: Hourly forecast, full height */}
                       <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 editorial-card" />}>
-                        <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
+                        <HourlyForecast forecast={weather.hourly || []} sunTimes={sunTimesPair} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
                       </Suspense>
 
                       {/* Slide 3: 7-day forecast, full height (own slide so the
@@ -543,7 +553,9 @@ const Index = () => {
                       weather={weather.current ?? PLACEHOLDER_CURRENT}
                       hourlyForecast={weather.hourly || []}
                       dailyForecast={weather?.daily?.[0]}
-                      tomorrowSunrise={weather?.daily?.[1]?.sunrise}
+                      sunrise={todaySun.sunrise}
+                      sunset={todaySun.sunset}
+                      tomorrowSunrise={tomorrowSun.sunrise}
                       timezone={weather.timezone}
                       headline={weather.headline}
                     />
@@ -567,7 +579,7 @@ const Index = () => {
                   {/* Secondary Row: Split Forecasts */}
                   <div ref={dailySectionRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
                     <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
-                      <HourlyForecast forecast={weather.hourly || []} daily={sunTimes || []} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
+                      <HourlyForecast forecast={weather.hourly || []} sunTimes={sunTimesPair} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
                     </Suspense>
 
                     <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>

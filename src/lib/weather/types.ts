@@ -124,11 +124,14 @@ export interface DailyForecast {
   precipitationProbabilityMax: number;
   /** Raw PSR value for HKO */
   precipitationProbabilityRaw?: string;
-  /** Sunrise time */
-  sunrise: Date;
-  /** Sunset time */
-  sunset: Date;
 }
+
+/**
+ * Sunrise/sunset are NOT part of the weather payload: they are computed
+ * locally from the selected city's coordinates (`src/lib/solar-times.ts`,
+ * NOAA equations) so they survive Open-Meteo outages and the HKO-only
+ * fallback path. Compute on demand via `useSunTimes`.
+ */
 
 export interface WeatherData {
   /**

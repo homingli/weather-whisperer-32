@@ -66,8 +66,6 @@ function makeOpenMeteoData(overrides: Partial<WeatherData> = {}): WeatherData {
     windSpeedMax: 10,
     windDirectionDominant: 180,
     precipitationProbabilityMax: 20,
-    sunrise: new Date(2024, 0, 8 + i, 6, 0),
-    sunset: new Date(2024, 0, 8 + i, 18, 0),
   }));
   return {
     headline: { source: 'om' as const },
@@ -86,14 +84,13 @@ function makeHkoDaily(): Awaited<ReturnType<typeof getHKODailyAndWarnings>> {
       temperatureMax: 26,
       temperatureMin: 21,
       weatherCode: 0,
-      // Real HKO shape: no wind, no sun times → parser seeds 0 / epoch-0
-      // placeholders, which the manager backfills from Open-Meteo.
+      // Real HKO shape: no wind → parser seeds 0 placeholders, which the
+      // manager backfills from Open-Meteo. (Sun times are computed locally
+      // now — solar-times.ts — and never ride the daily payload.)
       windSpeedMax: 0,
       windDirectionDominant: 0,
       precipitationProbabilityMax: 40,
       precipitationProbabilityRaw: 'Med',
-      sunrise: new Date(0),
-      sunset: new Date(0),
     }],
     warnings: [{ code: 'WFIREY', name: 'Yellow Fire', actionCode: 'ISSUE', issueTime: 't', updateTime: 't' }],
     nearestStation: "King's Park",
@@ -233,7 +230,6 @@ describe('fetchWeather orchestration', () => {
       expect(result.hourly).toEqual(omData.hourly);
       expect(result.daily).toHaveLength(1);
       expect(result.daily[0].temperatureMax).toBe(26); // HKO value
-      expect(result.daily[0].sunrise).toEqual(omData.daily[0].sunrise);
       expect(result.warnings).toEqual(hkoDaily.warnings);
       expect(result.nearestStation).toBe(hkoDaily.nearestStation);
       expect(result.nearestDistrict).toBe(hkoDaily.nearestDistrict);
@@ -244,7 +240,7 @@ describe('fetchWeather orchestration', () => {
       mockIsInHK.mockReturnValue(true);
       const omData = makeOpenMeteoData();
       mockGetOpenMeteo.mockResolvedValue(omData);
-      mockGetHKODaily.mockResolvedValue(makeHkoDaily()); // wind 0 / sun epoch-0
+      mockGetHKODaily.mockResolvedValue(makeHkoDaily()); // wind 0 placeholders
       mockGetHKOCurrent.mockResolvedValue(makeHkoCurrent());
 
       const result = await fetchWeather(HK_LAT, HK_LON);
