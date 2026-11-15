@@ -120,6 +120,9 @@ const Index = () => {
     selectedCity?.longitude,
     weather?.timezone,
   );
+  // The array itself must be referentially stable too — a fresh literal per
+  // render would defeat memo() on HourlyForecast even with stable Dates.
+  const sunTimesPair = useMemo(() => [todaySun, tomorrowSun], [todaySun, tomorrowSun]);
 
   // Feed the auto theme the location to evaluate day/night for.
   useEffect(() => {
@@ -489,7 +492,7 @@ const Index = () => {
 
                       {/* Slide 2: Hourly forecast, full height */}
                       <Suspense fallback={<Skeleton className="h-full rounded-xl bg-muted/20 editorial-card" />}>
-                        <HourlyForecast forecast={weather.hourly || []} sunTimes={[todaySun, tomorrowSun]} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
+                        <HourlyForecast forecast={weather.hourly || []} sunTimes={sunTimesPair} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
                       </Suspense>
 
                       {/* Slide 3: 7-day forecast, full height (own slide so the
@@ -576,7 +579,7 @@ const Index = () => {
                   {/* Secondary Row: Split Forecasts */}
                   <div ref={dailySectionRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
                     <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
-                      <HourlyForecast forecast={weather.hourly || []} sunTimes={[todaySun, tomorrowSun]} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
+                      <HourlyForecast forecast={weather.hourly || []} sunTimes={sunTimesPair} timezone={weather.timezone} cityName={shareCityLabel} shareUrl={shareUrl} />
                     </Suspense>
 
                     <Suspense fallback={<Skeleton className="h-[300px] rounded-xl bg-muted/20" />}>
