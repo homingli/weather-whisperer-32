@@ -256,12 +256,9 @@ export async function fetchWeather(
   const hasHkoRain = typeof hkoRainMm === 'number' && Number.isFinite(hkoRainMm);
   const hkoWindReading = hkoCurrentData?.wind?.data.find((w) => w.place === hkoData.nearestStation);
 
-  // HKO seeds sunrise/sunset with epoch-0 sentinels and wind with 0
-  // (HKO daily doesn't publish either); replace the placeholders with the OM
-  // values so the chart's sunrise/sunset markers don't render at 1970 and
-  // the at-a-glance strip / daily cards don't read "0 km/h".
-  const isValidDate = (d: Date | undefined | null): d is Date =>
-    d instanceof Date && !isNaN(d.getTime()) && d.getTime() > 0;
+  // HKO daily doesn't publish wind or gusts (placeholders from hko-fetch);
+  // replace them with OM's values so the daily cards don't read "0 km/h".
+  // Sunrise/sunset need no merge: they are computed locally (solar-times).
 
   // AQHI comes from the EPD feed via getHKODailyAndWarnings; `current` is
   // rebuilt from OM here, so the fields must be re-attached explicitly.
@@ -285,8 +282,6 @@ export async function fetchWeather(
     },
     daily: (hkoData.daily ?? []).filter(Boolean).map((day: DailyForecast, i: number) => {
       const omDay = omData!.daily[i];
-      const omSunrise = omDay?.sunrise;
-      const omSunset = omDay?.sunset;
       const hasHkoWind = day.windSpeedMax > 0;
       return {
         ...day,
@@ -296,8 +291,6 @@ export async function fetchWeather(
         // backfill the daily gust/UV surfaces go dark for every HK user.
         windGustMax: day.windGustMax ?? omDay?.windGustMax,
         uvIndexMax: day.uvIndexMax ?? omDay?.uvIndexMax,
-        sunrise: isValidDate(day.sunrise) ? day.sunrise : (isValidDate(omSunrise) ? omSunrise : day.sunrise),
-        sunset: isValidDate(day.sunset) ? day.sunset : (isValidDate(omSunset) ? omSunset : day.sunset),
       };
     }),
     warnings: hkoData.warnings,

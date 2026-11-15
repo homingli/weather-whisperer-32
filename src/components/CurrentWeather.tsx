@@ -35,6 +35,10 @@ interface CurrentWeatherProps {
   hourlyForecast: HourlyForecast[];
   dailyForecast?: DailyForecast;
   timezone?: string;
+  /** Today's sunrise (computed locally — see useSunTimes/solar-times). */
+  sunrise?: Date | string | number | null;
+  /** Today's sunset (computed locally — see useSunTimes/solar-times). */
+  sunset?: Date | string | number | null;
   /**
    * Headline source discriminator. The `weather-manager` decides whether
    * the headline icon + label come from HKO's icon taxonomy (HK + both
@@ -54,10 +58,10 @@ interface CurrentWeatherProps {
   /** Mobile-only swiper layout: tighter padding, centered hero with
    *  icon and apparent-temp side-by-side. */
   compact?: boolean;
-  /** Tomorrow's sunrise (daily[1]). Used as the night-span end on the
+  /** Tomorrow's sunrise (computed locally). Used as the night-span end on the
    *  sun-cycle strip once today's sunset has passed — without it the strip
    *  approximates with today's sunrise + 24h. */
-  tomorrowSunrise?: Date | string | number;
+  tomorrowSunrise?: Date | string | number | null;
 }
 
 /**
@@ -177,7 +181,7 @@ function rainfallBandIndexFor(mm: number, units: Units): number {
   return bands.length - 1;
 }
 
-export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone, compact = false, headline, tomorrowSunrise }: CurrentWeatherProps) => {
+export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, timezone, compact = false, headline, sunrise, sunset, tomorrowSunrise }: CurrentWeatherProps) => {
   const { t } = useLanguage();
   const { units } = useUnits();
 
@@ -246,8 +250,8 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
           until it ends. Sits above the hero so users see the daylight context
           before the temperature and conditions. */}
       <SunCycleProgress
-        sunrise={dailyForecast?.sunrise}
-        sunset={dailyForecast?.sunset}
+        sunrise={sunrise}
+        sunset={sunset}
         nextSunrise={tomorrowSunrise}
         timezone={timezone}
         needsUmbrella={needsUmbrella}
@@ -582,9 +586,9 @@ const NIGHT_GRADIENT = 'linear-gradient(90deg, #60a5fa 0%, #3b82f6 55%, #f59e0b 
 function SunCycleProgress({
   sunrise, sunset, nextSunrise, timezone, needsUmbrella,
 }: {
-  sunrise?: Date | string | number;
-  sunset?: Date | string | number;
-  nextSunrise?: Date | string | number;
+  sunrise?: Date | string | number | null;
+  sunset?: Date | string | number | null;
+  nextSunrise?: Date | string | number | null;
   timezone?: string;
   needsUmbrella?: boolean;
 }) {

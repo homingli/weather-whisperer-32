@@ -228,23 +228,15 @@ describe('CurrentWeather Component', () => {
 
   it('uses exact sun timestamps in the sun strip after sunrise and when switching timezone/location', () => {
     vi.setSystemTime(new Date('2024-01-08T06:10:00Z'));
-    const daily = (sunrise: Date | string, sunset: Date | string): DailyForecastType => ({
-      date: new Date('2024-01-08T00:00:00Z'),
-      temperatureMax: 20,
-      temperatureMin: 10,
-      weatherCode: 0,
-      windSpeedMax: 10,
-      windDirectionDominant: 180,
-      precipitationProbabilityMax: 0,
-      sunrise: sunrise as Date,
-      sunset: sunset as Date,
-    });
+    // Sun times now arrive as explicit props (computed locally — solar-times),
+    // no longer via the daily forecast object.
+    const sunProps = (sunrise: Date | string, sunset: Date | string) => ({ sunrise, sunset });
     const staleDay = { ...mockWeather, isDay: false };
     const { container, rerender } = renderWithLanguage(
       <CurrentWeather
         weather={staleDay}
         hourlyForecast={mockHourly}
-        dailyForecast={daily(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z'))}
+        {...sunProps(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z'))}
         timezone="UTC"
         headline={{ source: 'om' }}
       />
@@ -260,7 +252,7 @@ describe('CurrentWeather Component', () => {
           <CurrentWeather
             weather={staleDay}
             hourlyForecast={mockHourly}
-            dailyForecast={daily('2024-01-07T14:00:00Z', '2024-01-08T02:00:00Z')}
+            {...sunProps('2024-01-07T14:00:00Z', '2024-01-08T02:00:00Z')}
             tomorrowSunrise="2024-01-08T14:00:00Z"
             timezone="America/Los_Angeles"
             headline={{ source: 'om' }}
@@ -726,10 +718,6 @@ describe('CurrentWeather Component', () => {
       windSpeedMax: 10,
       windDirectionDominant: 180,
       precipitationProbabilityMax: 0,
-      // Epoch-0 sun times: toValidSunDate treats them as no-data, so the
-      // sun strip stays hidden and the caption assertions stay unambiguous.
-      sunrise: new Date(0),
-      sunset: new Date(0),
     });
     const summaryCard = (props: Partial<React.ComponentProps<typeof CurrentWeather>> = {}) =>
       renderWithLanguage(
@@ -905,17 +893,9 @@ describe('CurrentWeather Component', () => {
   // time left until it ends, and the boundary times. It replaced the old
   // standalone Sunrise/Sunset countdown stat.
   describe('sun cycle progress strip', () => {
-    const daily = (sunrise: Date | string, sunset: Date | string): DailyForecastType => ({
-      date: new Date('2024-01-08T00:00:00Z'),
-      temperatureMax: 20,
-      temperatureMin: 10,
-      weatherCode: 0,
-      windSpeedMax: 10,
-      windDirectionDominant: 180,
-      precipitationProbabilityMax: 0,
-      sunrise: sunrise as Date,
-      sunset: sunset as Date,
-    });
+    // Sun times arrive as explicit props (computed locally — solar-times),
+    // no longer via the daily forecast object.
+    const sunProps = (sunrise: Date | string, sunset: Date | string) => ({ sunrise, sunset });
     const sunCard = (props: Partial<React.ComponentProps<typeof CurrentWeather>> = {}) =>
       renderWithLanguage(
         <CurrentWeather
@@ -930,7 +910,7 @@ describe('CurrentWeather Component', () => {
     it('shows daylight bar from sunrise to sunset at noon with time left', () => {
       vi.setSystemTime(new Date('2024-01-08T12:00:00Z'));
       const { container } = sunCard({
-        dailyForecast: daily(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z')),
+        ...sunProps(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z')),
       });
       const strip = screen.getByTestId('sun-progress');
       expect(strip).toHaveAttribute('data-phase', 'day');
@@ -947,7 +927,7 @@ describe('CurrentWeather Component', () => {
     it('flips to a night bar (sunset → next sunrise) after dark', () => {
       vi.setSystemTime(new Date('2024-01-08T21:00:00Z'));
       sunCard({
-        dailyForecast: daily(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z')),
+        ...sunProps(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z')),
         tomorrowSunrise: '2024-01-09T06:00:00Z',
       });
       const strip = screen.getByTestId('sun-progress');
@@ -962,7 +942,7 @@ describe('CurrentWeather Component', () => {
     it('spans the pre-dawn night back to yesterday\'s sunset', () => {
       vi.setSystemTime(new Date('2024-01-08T03:00:00Z'));
       sunCard({
-        dailyForecast: daily(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z')),
+        ...sunProps(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z')),
       });
       const strip = screen.getByTestId('sun-progress');
       expect(strip).toHaveAttribute('data-phase', 'night');
@@ -976,7 +956,7 @@ describe('CurrentWeather Component', () => {
       vi.setSystemTime(new Date('2024-01-08T12:00:00Z'));
       // Polar edge case: sunset ≤ sunrise (midnight sun / polar night).
       sunCard({
-        dailyForecast: daily(new Date('2024-01-08T18:00:00Z'), new Date('2024-01-08T06:00:00Z')),
+        ...sunProps(new Date('2024-01-08T18:00:00Z'), new Date('2024-01-08T06:00:00Z')),
       });
       expect(screen.queryByTestId('sun-progress')).toBeNull();
 
@@ -998,7 +978,7 @@ describe('CurrentWeather Component', () => {
             <CurrentWeather
               weather={mockWeather}
               hourlyForecast={mockHourly}
-              dailyForecast={daily(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z'))}
+              {...sunProps(new Date('2024-01-08T06:00:00Z'), new Date('2024-01-08T18:00:00Z'))}
               timezone="UTC"
               headline={{ source: 'om' }}
             />
