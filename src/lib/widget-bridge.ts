@@ -19,6 +19,7 @@ import {
 import { getWarningIcon, hasWarningIcon } from '@/lib/hko-weather';
 import { toDisplayTemperature } from '@/lib/units';
 import { computeRainStart, seriesFromHourly, seriesFromMinutely } from '@/lib/rain-start';
+import { getSunTimes, getZoneOffsetMinutes, type SunTimes } from '@/lib/solar-times';
 import { logEvent, logWarn } from '@/lib/log';
 import type { Units } from '@/lib/units';
 import type { WeatherData } from '@/lib/weather';
@@ -90,8 +91,7 @@ export interface WidgetPayload {
  * "Time til" target: the next occurrence strictly in the future, or the
  * last valid one when today's has already passed (clock time still
  * renders; the lead time does not). Values are coerced, not instanceof-
- * checked: the cold-start localStorage seed carries sun times as ISO
- * strings (bare JSON.parse), the same shape share-forecast defends at.
+ * checked, so a stray string/number still renders instead of blanking.
  */
 function nextSunEvent(dates: unknown[], nowMs: number): Date | undefined {
   const valid = dates
@@ -167,12 +167,21 @@ function warningBadge(warning: HKOWarning, t: Translate): { text: string; urgent
   return { text: warning.name.split(/\s+/)[0].slice(0, 12), urgent: false };
 }
 
+/** Coordinates the widget's sun cell computes sun times for. The daily
+ *  payload no longer carries sunrise/sunset (computed locally everywhere —
+ *  solar-times.ts), so the widget needs the city like the in-app strip. */
+export interface WidgetLocation {
+  latitude: number;
+  longitude: number;
+}
+
 /** Build the display-string payload the native widget renders. */
 export function buildWidgetPayload(
   data: WeatherData,
   t: Translate,
   units: Units,
-  now: Date = new Date()
+  now: Date = new Date(),
+  location?: WidgetLocation
 ): WidgetPayload {
   const nowMs = now.getTime();
   const current = data.current;
@@ -215,8 +224,21 @@ export function buildWidgetPayload(
   }
   const rain = `${rainIcon} ${rainText}`;
 
-  // One sun cell: next sunset while day, next sunrise at night.
-  const sunDates = data.daily.map(d => (current.isDay ? d.sunset : d.sunrise));
+  // One sun cell: next sunset while day, next sunrise at night. Sun times
+  // are computed locally from the city coords (solar-times.ts), today +
+  // tomorrow, so the cell survives Open-Meteo outages exactly like the
+  // in-app sun strip. No location → empty cell (the widget renders blanks
+  // gracefully; there is no city-independent sun time to show).
+  const sunTimes: SunTimes[] = location
+    ? [0, 1].map((dayOffset) => {
+        const at = new Date(nowMs + dayOffset * 86_400_000);
+        const tzOffset = getZoneOffsetMinutes(timeZone, at);
+        return getSunTimes(location.latitude, location.longitude, at, tzOffset);
+      })
+    : [];
+  const sunDates = sunTimes.flatMap(s =>
+    current.isDay ? [s.sunset] : [s.sunrise]
+  );
   const sunEvent = nextSunEvent(sunDates, nowMs);
   const sunGlyph = current.isDay ? '🌇' : '🌅';
 
@@ -336,6 +358,7 @@ export function syncWeatherWidget(
   t: Translate,
   units: Units,
   now: Date = new Date(),
+  location?: WidgetLocation,
   loadIcon: typeof loadWarningIconImage = loadWarningIconImage
 ): void {
   // Android-only: the WeatherWidget plugin is registered in MainActivity
@@ -344,7 +367,7 @@ export function syncWeatherWidget(
   if (Capacitor.getPlatform() !== 'android') return;
   const token = ++latestSyncToken;
   void (async () => {
-    const payload = buildWidgetPayload(data, t, units, now);
+    const payload = buildWidgetPayload(data, t, units, now, location);
     if (payload.warnings.length > 0) {
       // Each warning renders its own official icon; a failure degrades that
       // one alert to the text badge inside an otherwise-complete payload.

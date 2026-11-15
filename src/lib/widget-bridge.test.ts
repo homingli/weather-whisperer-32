@@ -7,6 +7,7 @@ import {
   loadWarningIconImage,
   syncWeatherWidget,
 } from './widget-bridge';
+import { getSunTimes } from '@/lib/solar-times';
 import type { WeatherData } from '@/lib/weather';
 import type { HKOWarning } from '@/lib/hko-types';
 
@@ -23,8 +24,20 @@ vi.mock('@capacitor/core', () => ({
  *  assert on the exact translation keys the payload builder resolves. */
 const t = (key: string) => key;
 
+// HK coordinates — the widget's sun cell now computes locally (solar-times),
+// so tests pin the published reference day 2026-11-15 (sunrise 06:35 / sunset
+// 17:40 HKT, locked by solar-times.test.ts against timeanddate.com).
+const HK = { latitude: 22.319, longitude: 114.169 };
+const fmtHkt = (d: Date): string =>
+  new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Hong_Kong',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(d);
+
 function makeData(overrides: Partial<WeatherData> = {}): WeatherData {
-  const now = new Date('2026-10-21T09:00:00');
+  const now = new Date('2026-11-15T01:00:00Z'); // 09:00 HKT
   return {
     headline: { source: 'om' },
     current: {
@@ -49,21 +62,18 @@ function makeData(overrides: Partial<WeatherData> = {}): WeatherData {
         windSpeedMax: 20,
         windDirectionDominant: 90,
         precipitationProbabilityMax: 60,
-        sunrise: new Date('2026-10-21T06:32:00'),
-        sunset: new Date('2026-10-21T18:04:00'),
       },
       {
-        date: new Date('2026-10-22T00:00:00'),
+        date: new Date('2026-11-16T00:00:00Z'),
         temperatureMax: 28,
         temperatureMin: 24,
         weatherCode: 3,
         windSpeedMax: 18,
         windDirectionDominant: 90,
         precipitationProbabilityMax: 40,
-        sunrise: new Date('2026-10-22T06:33:00'),
-        sunset: new Date('2026-10-22T18:03:00'),
       },
     ],
+    timezone: 'Asia/Hong_Kong',
     ...overrides,
   } as WeatherData;
 }
@@ -79,7 +89,7 @@ function warning(code: string, name = 'Frost Warning'): HKOWarning {
 }
 
 describe('buildWidgetPayload', () => {
-  const now = new Date('2026-10-21T09:00:00');
+  const now = new Date('2026-11-15T01:00:00Z'); // 09:00 HKT
 
   it('leads with the feels-like temperature and formats rain probability', () => {
     const p = buildWidgetPayload(makeData(), t, 'metric', now);
@@ -98,7 +108,7 @@ describe('buildWidgetPayload', () => {
     const data = makeData();
     // minutely windows end at `time`: 0.5 mm in (09:15, 09:30] → rain from 09:15.
     // Absolute clock, not "in 15m" — the widget cannot tick between syncs.
-    data.minutely = [{ time: new Date('2026-10-21T09:30:00'), precipitation: 0.5 }];
+    data.minutely = [{ time: new Date('2026-11-15T01:30:00Z'), precipitation: 0.5 }];
     const p = buildWidgetPayload(data, t, 'metric', now);
     expect(p.rain).toBe('☂️ 09:15');
     expect(p.rainIcon).toBe('☂️');
@@ -106,13 +116,13 @@ describe('buildWidgetPayload', () => {
 
   it('raises the umbrella when the current window is already wet', () => {
     const data = makeData();
-    data.minutely = [{ time: new Date('2026-10-21T09:10:00'), precipitation: 0.5 }];
+    data.minutely = [{ time: new Date('2026-11-15T01:10:00Z'), precipitation: 0.5 }];
     expect(buildWidgetPayload(data, t, 'metric', now).rain).toBe('☂️ sun.now');
   });
 
   it('keeps the probability cell when the series is dry', () => {
     const data = makeData();
-    data.minutely = [{ time: new Date('2026-10-21T09:30:00'), precipitation: 0 }];
+    data.minutely = [{ time: new Date('2026-11-15T01:30:00Z'), precipitation: 0 }];
     expect(buildWidgetPayload(data, t, 'metric', now).rain).toBe('💧 45%');
   });
 
@@ -123,7 +133,7 @@ describe('buildWidgetPayload', () => {
     const dry = buildWidgetPayload(makeData(), t, 'metric', now);
     expect(dry.rainIcon).toBe('💧');
     const wet = makeData();
-    wet.minutely = [{ time: new Date('2026-10-21T09:10:00'), precipitation: 0.5 }];
+    wet.minutely = [{ time: new Date('2026-11-15T01:10:00Z'), precipitation: 0.5 }];
     expect(buildWidgetPayload(wet, t, 'metric', now).rainIcon).toBe('☂️');
   });
 
@@ -144,39 +154,39 @@ describe('buildWidgetPayload', () => {
     expect(p.condition).toContain('weather.');
   });
 
-  it('shows the coming sunset during the day', () => {
-    const p = buildWidgetPayload(makeData(), t, 'metric', now);
-    // 09:00 and isDay — today's 18:04 sunset is still ahead
-    expect(p.sunTime).toBe('🌇 18:04');
+  it('shows the coming sunset during the day (published reference time)', () => {
+    const p = buildWidgetPayload(makeData(), t, 'metric', now, HK);
+    // 09:00 HKT and isDay — today's 17:40 sunset (timeanddate 2026-11-15) is ahead
+    expect(p.sunTime).toBe('🌇 17:40');
     expect(p.sunIn).toBe('sun.inHoursMinutes');
   });
 
   it("shows the next sunrise at night, rolling to tomorrow once today's passed", () => {
     const data = makeData();
     data.current.isDay = false;
-    const p = buildWidgetPayload(data, t, 'metric', now);
-    // today's 06:32 already passed at 09:00 → tomorrow 06:33
-    expect(p.sunTime).toBe('🌅 06:33');
+    const p = buildWidgetPayload(data, t, 'metric', now, HK);
+    // today's 06:35 sunrise already passed at 09:00 → tomorrow's sunrise
+    const tomorrow = getSunTimes(HK.latitude, HK.longitude, new Date('2026-11-16T01:00:00Z'), 480);
+    expect(p.sunTime).toBe(`🌅 ${fmtHkt(tomorrow.sunrise!)}`);
     expect(p.sunIn).toBe('sun.inHoursMinutes');
   });
 
-  it('skips epoch-0 sentinel sun times from the HKO fallback', () => {
-    const data = makeData();
-    data.daily[0].sunset = new Date(0);
-    data.daily[1].sunset = new Date(0);
-    const p = buildWidgetPayload(data, t, 'metric', now);
+  it('leaves the sun cell empty without a location (no city selected)', () => {
+    const p = buildWidgetPayload(makeData(), t, 'metric', now);
     expect(p.sunTime).toBe('');
     expect(p.sunIn).toBe('');
   });
 
-  it('renders sun times when the cold-start seed carries ISO strings', () => {
-    // readLastKnownWeather hands back bare JSON.parse output — sun times
-    // arrive as ISO strings, not Dates (runtime shape; cast to simulate).
-    const data = makeData();
-    data.daily[0].sunset = '2026-10-21T18:04:00' as unknown as Date;
-    const p = buildWidgetPayload(data, t, 'metric', now);
-    expect(p.sunTime).toBe('🌇 18:04');
-    expect(p.sunIn).toBe('sun.inHoursMinutes');
+  it('leaves the sun cell empty in polar night (no sun events)', () => {
+    const p = buildWidgetPayload(
+      makeData(),
+      t,
+      'metric',
+      new Date('2026-12-21T11:00:00Z'), // 12:00 CET — Tromsø polar night
+      { latitude: 69.649, longitude: 18.955 },
+    );
+    expect(p.sunTime).toBe('');
+    expect(p.sunIn).toBe('');
   });
 
   it('drops cancelled warnings and carries every active one', () => {
@@ -227,12 +237,12 @@ describe('buildWidgetPayload', () => {
   });
 
   it('defaults sun clocks to Hong Kong time on the HKO fallback path', () => {
-    // HKO path carries no WeatherData.timezone; a sunset given in UTC must
-    // render in Asia/Hong_Kong (+8), independent of the runner's zone.
-    const data = makeData({ headline: { source: 'hko', hkoIconCode: 60 } });
-    data.daily[0].sunset = new Date('2026-10-22T10:04:00Z'); // 18:04 HKT Oct 22
-    const p = buildWidgetPayload(data, t, 'metric', now);
-    expect(p.sunTime).toBe('🌇 18:04');
+    // HKO path carries no WeatherData.timezone; the solar math must use
+    // Asia/Hong_Kong (+8) for the local calendar day, independent of the
+    // runner's zone. Same coords as the reference test → same published time.
+    const data = makeData({ headline: { source: 'hko', hkoIconCode: 60 }, timezone: undefined });
+    const p = buildWidgetPayload(data, t, 'metric', now, HK);
+    expect(p.sunTime).toBe('🌇 17:40');
   });
 
   it('falls back to the warning name for unmapped codes', () => {
@@ -327,11 +337,11 @@ describe('syncWeatherWidget', () => {
     });
     const staleData = makeData();
     staleData.warnings = [warning('WRAINA')];
-    syncWeatherWidget(staleData, t, 'metric', now, () => slowGate);
+    syncWeatherWidget(staleData, t, 'metric', now, undefined, () => slowGate);
 
     const newerData = makeData();
     newerData.current.apparentTemperature = 35;
-    syncWeatherWidget(newerData, t, 'metric', now, async () => undefined);
+    syncWeatherWidget(newerData, t, 'metric', now, undefined, async () => undefined);
 
     await vi.waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
     releaseSlow(undefined);
@@ -343,7 +353,7 @@ describe('syncWeatherWidget', () => {
   it('hands the rendered warning icon to the bridge when a warning is active', async () => {
     const data = makeData();
     data.warnings = [warning('WRAINA')];
-    syncWeatherWidget(data, t, 'metric', now, async () => 'data:image/png;base64,AAA');
+    syncWeatherWidget(data, t, 'metric', now, undefined, async () => 'data:image/png;base64,AAA');
     await vi.waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
     expect(savedPayload().warnings[0].icon).toBe('data:image/png;base64,AAA');
   });
@@ -351,7 +361,7 @@ describe('syncWeatherWidget', () => {
   it('renders an icon for each active warning onto its own cell', async () => {
     const data = makeData();
     data.warnings = [warning('WRAINA'), warning('TC8NE', 'No. 8 Northeast Gale or Storm Signal')];
-    syncWeatherWidget(data, t, 'metric', now, async code => `data:image/png;base64,${code}`);
+    syncWeatherWidget(data, t, 'metric', now, undefined, async code => `data:image/png;base64,${code}`);
     await vi.waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
     const warnings = savedPayload().warnings as Array<{ code: string; icon?: string }>;
     // Urgent first: TC8NE leads, WRAINA trails — icons land on their own cell.
@@ -365,7 +375,7 @@ describe('syncWeatherWidget', () => {
   it('falls back to the text badge when icon rendering fails', async () => {
     const data = makeData();
     data.warnings = [warning('WRAINA')];
-    syncWeatherWidget(data, t, 'metric', now, async () => undefined);
+    syncWeatherWidget(data, t, 'metric', now, undefined, async () => undefined);
     await vi.waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
     const payload = savedPayload();
     expect(payload.warnings[0].icon).toBeUndefined();
@@ -374,7 +384,7 @@ describe('syncWeatherWidget', () => {
 
   it('does not attempt icon rendering without an active warning', async () => {
     const loader = vi.fn(async () => 'data:image/png;base64,AAA');
-    syncWeatherWidget(makeData(), t, 'metric', now, loader);
+    syncWeatherWidget(makeData(), t, 'metric', now, undefined, loader);
     await vi.waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
     expect(loader).not.toHaveBeenCalled();
   });

@@ -203,10 +203,19 @@ const Index = () => {
   // Mirror the latest weather into the Android home-screen widget (no-op
   // on web). Uses effectiveWarnings, not weather.warnings, so the widget
   // shows exactly the alert list the UI shows — dev-simulated ones included.
+  // The city coords feed the widget's locally computed sun cell (solar-times).
   useEffect(() => {
     if (!weather) return;
-    syncWeatherWidget({ ...weather, warnings: effectiveWarnings }, t, units);
-  }, [weather, effectiveWarnings, t, units]);
+    syncWeatherWidget(
+      { ...weather, warnings: effectiveWarnings },
+      t,
+      units,
+      undefined,
+      selectedCity
+        ? { latitude: selectedCity.latitude, longitude: selectedCity.longitude }
+        : undefined,
+    );
+  }, [weather, effectiveWarnings, t, units, selectedCity]);
 
   const cityKey = selectedCity ? `${selectedCity.latitude},${selectedCity.longitude}` : null;
   const warningDiff = useWarningChangeDetector(effectiveWarnings, `${cityKey}:${baselineNonce}`);
