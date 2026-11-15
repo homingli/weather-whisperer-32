@@ -47,8 +47,6 @@ const mockDaily: DailyForecastType[] = [
     windSpeedMax: 10,
     windDirectionDominant: 180,
     precipitationProbabilityMax: 20,
-    sunrise: new Date('2024-01-08T06:00:00Z'),
-    sunset: new Date('2024-01-08T18:00:00Z'),
   },
   {
     date: new Date('2024-01-09'),
@@ -58,8 +56,6 @@ const mockDaily: DailyForecastType[] = [
     windSpeedMax: 12,
     windDirectionDominant: 200,
     precipitationProbabilityMax: 30,
-    sunrise: new Date('2024-01-09T06:00:00Z'),
-    sunset: new Date('2024-01-09T18:00:00Z'),
   },
 ];
 

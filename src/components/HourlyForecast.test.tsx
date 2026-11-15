@@ -6,7 +6,8 @@ import { render, screen, act } from '@testing-library/react';
 import { HourlyForecast } from './HourlyForecast';
 
 import { useUnits } from '@/contexts/UnitsContext';
-import { HourlyForecast as HourlyForecastType, DailyForecast as DailyForecastType } from '@/lib/weather';
+import { HourlyForecast as HourlyForecastType } from '@/lib/weather';
+import type { SunTimes } from '@/lib/solar-times';
 import { MockChartProps } from '@/test/mockChartProps';
 
 // Track chart renders so we can assert on the data passed to Recharts.
@@ -213,21 +214,11 @@ describe('HourlyForecast Component', () => {
       isDay: i < 6,
     }));
     // sunrise at 06:00 UTC (before the 12:00 window start) and sunset at 18:00 UTC (inside).
-    const mockDaily: DailyForecastType[] = [
-      {
-        date: new Date('2024-01-08'),
-        temperatureMax: 28,
-        temperatureMin: 22,
-        weatherCode: 0,
-        windSpeedMax: 10,
-        windDirectionDominant: 180,
-        precipitationProbabilityMax: 20,
-        sunrise: new Date('2024-01-08T06:00:00Z'),
-        sunset: new Date('2024-01-08T18:00:00Z'),
-      },
+    const sunTimes: SunTimes[] = [
+      { sunrise: new Date('2024-01-08T06:00:00Z'), sunset: new Date('2024-01-08T18:00:00Z') },
     ];
 
-    renderWithLanguage(<HourlyForecast forecast={extendedHourly} daily={mockDaily} />);
+    renderWithLanguage(<HourlyForecast forecast={extendedHourly} sunTimes={sunTimes} />);
 
     // The chart renders. No shading without gust data — daily data only
     // drives the sun markers now, not bands.

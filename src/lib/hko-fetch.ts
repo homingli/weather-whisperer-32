@@ -157,8 +157,6 @@ export async function getHKODailyAndWarnings(
       windDirectionDominant: 0,
       precipitationProbabilityMax: psrToPercentage(day.PSR),
       precipitationProbabilityRaw: normalizePsr(day.PSR),
-      sunrise: new Date(0),
-      sunset: new Date(0),
     };
   });
 
