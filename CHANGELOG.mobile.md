@@ -8,6 +8,16 @@ the section into the GitHub release description. This file is separate from the
 web app's `CHANGELOG.md`, which lives on `main`; releases before v0.8.4 predate
 this file.
 
+## v0.8.8 (draft)
+
+### New
+
+- Sunrise/sunset computed on-device (NOAA solar math) — sun strip, hourly markers and the widget sun cell no longer depend on Open-Meteo; matches published times within a couple of minutes
+
+### Fixed
+
+- Auto theme no longer flips dark during the day when Open-Meteo is down — sun-synced mode now uses on-device sunrise/sunset, system preference only as last resort
+
 ## v0.8.7
 
 ### New
