@@ -333,7 +333,7 @@ export const CurrentWeather = memo(({ weather, hourlyForecast, dailyForecast, ti
         <TempSummary
           low={dailyForecast?.temperatureMin}
           high={dailyForecast?.temperatureMax}
-          current={weather.temperature}
+          actual={weather.temperature}
           hourly={hourlyForecast}
           timezone={timezone}
           empty={isEmpty}
@@ -429,22 +429,26 @@ function hourlyTrendDelta(hourly: HourlyForecast[], units: Units, now = Date.now
     - toDisplayTemperature(hourly[0].temperature, units);
 }
 
-/** Muted one-liner under the hero: "L 24°C · H 32°C · 3° warmer by
- *  03:00 PM". The low/high keep the day's envelope glanceable; the trend
- *  clause answers "hotter or cooler from here?" without the misleading
- *  position marker the old range bar used. Hidden on empty data. */
+/** Muted one-liner under the hero: "Now 28° · L 24°C · H 32°C · 3° warmer by
+ *  03:00 PM". The actual temperature answers "what does the thermometer
+ *  read right now?" — the hero deliberately shows apparent temperature
+ *  (kicker above it), so the reading belongs on this caption line, first.
+ *  The low/high keep the day's envelope glanceable; the trend clause
+ *  answers "hotter or cooler from here?" without the misleading position
+ *  marker the old range bar used. Hidden on empty data. */
 function TempSummary({
-  low, high, current, hourly, timezone, empty,
+  low, high, actual, hourly, timezone, empty,
 }: {
-  low?: number; high?: number; current: number; hourly: HourlyForecast[];
+  low?: number; high?: number; actual: number; hourly: HourlyForecast[];
   timezone?: string; empty: boolean;
 }) {
   const { language, t } = useLanguage();
   const { units } = useUnits();
   if (empty) return null;
 
-  const lo = low ?? current;
-  const hi = high ?? current;
+  const lo = low ?? actual;
+  const hi = high ?? actual;
+  const nowStr = formatTemperature(actual, units);
   const loStr = formatTemperature(lo, units);
   const hiStr = formatTemperature(hi, units);
 
@@ -474,7 +478,7 @@ function TempSummary({
     }
   }
 
-  const ariaLabel = `${t('temp.lo')} ${loStr}, ${t('temp.hi')} ${hiStr}`
+  const ariaLabel = `${t('temp.now')} ${nowStr}, ${t('temp.lo')} ${loStr}, ${t('temp.hi')} ${hiStr}`
     + (trendAria ? `, ${trendAria}` : '');
   return (
     <div
@@ -483,6 +487,8 @@ function TempSummary({
       aria-label={ariaLabel}
       className="flex flex-wrap items-center justify-center gap-x-2 text-[0.625rem] uppercase tracking-[0.18em] text-muted-foreground/70 tabular-nums"
     >
+      <span data-testid="temp-now">{t('temp.now')} {nowStr}</span>
+      <span aria-hidden="true">·</span>
       <span>{t('temp.lo')} {loStr}</span>
       <span aria-hidden="true">·</span>
       <span>{t('temp.hi')} {hiStr}</span>
