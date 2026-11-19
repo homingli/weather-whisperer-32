@@ -8,10 +8,11 @@ the section into the GitHub release description. This file is separate from the
 web app's `CHANGELOG.md`, which lives on `main`; releases before v0.8.4 predate
 this file.
 
-## v0.8.8 (draft)
+## v0.8.8
 
 ### New
 
+- Hero caption shows the actual temperature ("Now 28°") — the real reading was nowhere on the pane, only apparent temp
 - Sunrise/sunset computed on-device (NOAA solar math) — sun strip, hourly markers and the widget sun cell no longer depend on Open-Meteo; matches published times within a couple of minutes
 
 ### Fixed
