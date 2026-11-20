@@ -10,6 +10,12 @@ overrides:
   # GHSA on glob (patched >=14.0.2): workbox-build 7.4.1 pins ^11.0.1, no
   # upstream fix path — override scoped to workbox-build only.
   workbox-build>glob: ^14.0.2
+  # GHSA-w5hq-g745-h8pq on uuid (patched >=11.1.1): xcode pins ^7.0.3, no
+  # upstream fix path — override scoped to xcode only.
+  xcode>uuid: ^11.1.1
+  # GHSA-rj75-hqrm-r3gf on postcss-selector-parser (patched >=6.1.5):
+  # @tailwindcss/typography pins 6.0.10 exactly — override scoped to it.
+  "@tailwindcss/typography>postcss-selector-parser": ^6.1.5
 minimumReleaseAgeExclude:
   - esbuild@0.24.3
   - vite@6.4.2 || 6.4.3 || 7.3.8
