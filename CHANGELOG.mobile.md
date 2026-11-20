@@ -8,6 +8,12 @@ the section into the GitHub release description. This file is separate from the
 web app's `CHANGELOG.md`, which lives on `main`; releases before v0.8.4 predate
 this file.
 
+## v0.8.9
+
+### Fixed
+
+- Security pass — audit 19 → 0 advisories
+
 ## v0.8.8
 
 ### New
